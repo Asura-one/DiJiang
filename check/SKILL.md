@@ -12,8 +12,14 @@ description: >
 
 1. **代码质量审查** — 逻辑、风格、安全性
 2. **功能完整性核对** — 对照 PRD/issue 逐项确认
-3. **过度工程检查** — ponytail 视角：有没有可以删的
+3. **过度工程检查** — ponytail 视角：有没有可以删的；karpathy 视角：代码是否最简
 4. **合并流程** — 遵守 git-safety 合并规范
+
+## 原则
+
+- **Simplicity First**（karpathy）：审查时问自己"这段代码能更简单吗？"如果 200 行能缩到 50 行，标记为过度工程
+- **Define Verifiable Success**（karpathy）：每个功能是否有可验证的测试或检查点？没有则标记为缺失
+- **阶梯决策**（ponytail）：审查时检查依赖引入是否遵循阶梯（stdlib → 已有依赖 → 最少代码）
 
 ## 工作流
 
