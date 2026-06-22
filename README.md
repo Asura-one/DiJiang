@@ -20,7 +20,7 @@
         │
         ├── M级（中等）
         │      ├── M-simple → implement（直接实现）
-        │      └── M-phased → grill → dj-tdd
+        │      └── M-phased → grill → dj-tdd → check
         │
         └── L级（完整）→ grill → output → dj-tdd → check → 完成
                                                           ↑_________┘

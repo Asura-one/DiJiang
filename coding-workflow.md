@@ -11,7 +11,7 @@
         │
         ├── M级（中等）
         │      ├── M-simple → implement（直接实现）
-        │      └── M-phased → grill → dj-tdd
+        │      └── M-phased → grill → dj-tdd → check
         │
         └── L级（完整）→ grill → output → dj-tdd → check → 完成
 ```
@@ -36,7 +36,7 @@ dispatch 判断任务级别后，按以下路径继续：
 |------|---------|------|
 | **S级** | 一句话能说清，<3 文件，无架构改动 | 直接干 |
 | **M-simple** | 一次性改完，只涉及1层 | implement（不走 grill） |
-| **M-phased** | 分步实现，涉及2+层 | grill → dj-tdd |
+| **M-phased** | 分步实现，涉及2+层 | grill → dj-tdd → check |
 | **L级** | 新功能/架构改动，>10 文件，需求不确定 | grill → output → dj-tdd → check |
 
 ---
@@ -74,7 +74,7 @@ dispatch 判断任务级别后，按以下路径继续：
 
 **流程**：
 ```
-grill（≤3问）→ 🔴确认 → dj-tdd → 完成
+grill（≤3问）→ 🔴确认 → dj-tdd → check → 完成
 ```
 
 #### 2.2.1 grill（快速确认）
@@ -285,6 +285,7 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 → grill（≤3问题）：数据模型？接口设计？兼容性？
 → 🔴 确认
 → dj-tdd：测试驱动实现
+→ check：审查代码+回归检查
 → 完成
 ```
 
