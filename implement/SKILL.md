@@ -36,7 +36,7 @@ description: >
 - **用 TDD**（如果项目有测试框架）：先写失败测试，再实现，再重构
 - **不用 TDD**（脚本、原型、无测试框架）：直接实现，但每个逻辑单元一个 commit
 - 遵循项目已有的代码规范（读 CLAUDE.md / AGENTS.md / .cursorrules）
-- **阶梯决策**（ponytail 原则）：引入新依赖前，按顺序判断：
+- **阶梯决策**（dj-ponytail 原则）：引入新依赖前，按顺序判断：
   1. stdlib 能做？ → 用 stdlib
   2. 已有依赖能做？ → 用它
   3. 一行能搞定？ → 一行
@@ -91,7 +91,7 @@ git commit -m "feat: <摘要>"
 | typecheck 报错 | 修类型错误 | 如果是第三方库类型问题，加 `@ts-ignore` + 注释 |
 || worktree 创建失败 | 分支名加后缀或换路径 | `git worktree list` 检查已有，询问是否复用 |
 | PRD 描述不清无法实现 | 回到 grill 补充对齐 | 用最保守的实现，标注假设 |
-| 依赖冲突 | 检查已有依赖是否能满足 | 用标准库替代，加 ponytail 标记 |
+| 依赖冲突 | 检查已有依赖是否能满足 | 用标准库替代，加 dj-ponytail 标记 |
 
 ## 反例
 

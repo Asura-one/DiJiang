@@ -1,5 +1,5 @@
 ---
-name: ponytail
+name: dj-ponytail
 description: >
   极简编码模式：只写任务需要的最少代码，绝不引入不必要的复杂度。
   可叠加到任何其他 skill 上使用。

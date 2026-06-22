@@ -20,7 +20,7 @@
         │
         ├── M级（中等）→ grill（快速确认）→ implement
         │
-        └── L级（完整）→ grill → output → implement/tdd → hunt ↔ check → 完成
+        └── L级（完整）→ grill → output → implement/dj-tdd → hunt ↔ check → 完成
                                                               ↑___________┘
                                                           （循环直到没问题）
 ```
@@ -46,7 +46,7 @@
 | `grill` | 想法细化、调研 | mattpocock + waza/think |
 | `output` | 项目文档 + 文档代码对齐 | mattpocock/to-prd + waza/write |
 | `implement` | 特性代码实现 | mattpocock/implement |
-| `tdd` | 红绿重构 | mattpocock/tdd |
+| `dj-tdd` | 红绿重构 | mattpocock/tdd |
 | `hunt` | 排查 bug | mattpocock/diagnosing-bugs + waza/hunt |
 | `check` | 代码审查 | waza/check + ponytail-review |
 
@@ -54,9 +54,9 @@
 
 | Skill | 触发 | 来源 |
 |---|---|---|
-| `ponytail` | 极简编码模式 | ponytail |
+| `dj-ponytail` | 极简编码模式 | ponytail |
 | `write` | 文字润色、去 AI 味 | waza/write |
-| `design` | UI 设计 | waza/design |
+| `dj-design` | UI 设计 | waza/design |
 | `prototype` | 废品验证 | mattpocock/prototype |
 | `script` | 脚本/工具编写 | 新建 |
 | `audit` | 过度工程 + 安全扫描 | ponytail-audit |

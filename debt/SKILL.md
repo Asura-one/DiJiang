@@ -3,7 +3,7 @@ name: debt
 description: >
   追踪被推迟的技术捷径：收集代码中所有 ponytail: 标记，生成债务台账。
   Use when the user wants to see what shortcuts were taken and what needs to be revisited.
-  触发词：debt、债务、捷径、ponytail debt、之前标记的、推迟的、shortcut。
+  触发词：debt、债务、捷径、dj-ponytail debt、之前标记的、推迟的、shortcut。
 ---
 
 # Debt: 捷径追踪

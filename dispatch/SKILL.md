@@ -64,7 +64,7 @@ grill（3个问题以内快速确认）→ 实现 → 完成
 
 路径：
 ```
-grill（深度调研+细化）→ output（PRD+设计文档）→ implement/tdd → hunt ↔ check（循环）→ 完成
+grill（深度调研+细化）→ output（PRD+设计文档）→ implement/dj-tdd → hunt ↔ check（循环）→ 完成
 ```
 
 ## 判断流程

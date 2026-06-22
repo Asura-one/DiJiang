@@ -1,5 +1,5 @@
 ---
-name: tdd
+name: dj-tdd
 description: >
   测试驱动开发：红绿重构循环，一次一个垂直切片。
   Use when the user wants to build features or fix bugs test-first, mentions

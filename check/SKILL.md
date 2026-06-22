@@ -12,14 +12,14 @@ description: >
 
 1. **代码质量审查** — 逻辑、风格、安全性
 2. **功能完整性核对** — 对照 PRD/issue 逐项确认
-3. **过度工程检查** — ponytail 视角：有没有可以删的；karpathy 视角：代码是否最简
+3. **过度工程检查** — dj-ponytail 视角：有没有可以删的；dj-karpathy 视角：代码是否最简
 4. **合并流程** — 遵守 git-safety 合并规范
 
 ## 原则
 
-- **Simplicity First**（karpathy）：审查时问自己"这段代码能更简单吗？"如果 200 行能缩到 50 行，标记为过度工程
-- **Define Verifiable Success**（karpathy）：每个功能是否有可验证的测试或检查点？没有则标记为缺失
-- **阶梯决策**（ponytail）：审查时检查依赖引入是否遵循阶梯（stdlib → 已有依赖 → 最少代码）
+- **Simplicity First**（dj-karpathy）：审查时问自己"这段代码能更简单吗？"如果 200 行能缩到 50 行，标记为过度工程
+- **Define Verifiable Success**（dj-karpathy）：每个功能是否有可验证的测试或检查点？没有则标记为缺失
+- **阶梯决策**（dj-ponytail）：审查时检查依赖引入是否遵循阶梯（stdlib → 已有依赖 → 最少代码）
 
 ## 工作流
 
@@ -52,7 +52,7 @@ git diff main...HEAD          # 详情
 - 命名是否清晰
 - 是否有安全隐患（注入、越权、信息泄露）
 
-### 4. 过度工程检查（ponytail 视角）
+### 4. 过度工程检查（dj-ponytail 视角）
 
 ```
 L<行号>: <tag> <问题>. <替代>.  net: -<N> lines
@@ -135,7 +135,7 @@ git push origin main --tags
 [发现列表，按严重程度排序]
 
 ### 过度工程
-[ponytail 视角的发现]
+[dj-ponytail 视角的发现]
 
 ### 结论
 [通过 / 需要修改 / 缺失功能]
@@ -159,5 +159,5 @@ git push origin main --tags
 | 只看代码风格不管功能完整性 | 功能完整性是第一优先级 |
 | 审查完自动合并 | 必须用户确认 |
 | 发现问题直接修 | 先报告，再决定谁修 |
-| 忽略过度工程 | 用 ponytail 视角扫一遍 |
+| 忽略过度工程 | 用 dj-ponytail 视角扫一遍 |
 | 不检查安全性 | 安全问题是硬伤 |
