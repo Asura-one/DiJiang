@@ -92,6 +92,8 @@ git commit -m "feat: <摘要>"
 || worktree 创建失败 | 分支名加后缀或换路径 | `git worktree list` 检查已有，询问是否复用 |
 | PRD 描述不清无法实现 | 回到 grill 补充对齐 | 用最保守的实现，标注假设 |
 | 依赖冲突 | 检查已有依赖是否能满足 | 用标准库替代，加 dj-ponytail 标记 |
+| 测试环境不可用（typecheck/test runner 挂了） | 检查依赖安装和配置 | 标注"验证未执行"，手动检查关键逻辑 |
+| worktree 中发现主分支有新 commit | 先 `git fetch` 检查是否有冲突 | `git rebase main` 后继续，有冲突则解决 |
 
 ## 反例
 
