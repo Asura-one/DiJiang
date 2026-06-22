@@ -18,11 +18,13 @@
         │
         ├── S级（零碎）→ 直接干
         │
-        ├── M级（中等）→ grill（快速确认）→ implement
+        ├── M级（中等）
+        │      ├── M-simple → implement（直接实现）
+        │      └── M-phased → grill → dj-tdd
         │
-        └── L级（完整）→ grill → output → implement/dj-tdd → hunt ↔ check → 完成
-                                                              ↑___________┘
-                                                          （循环直到没问题）
+        └── L级（完整）→ grill → output → dj-tdd → check → 完成
+                                                          ↑_________┘
+                                                      （循环直到没问题）
 ```
 
 ## 全局约束：Git 安全工作流（Worktree-First）
