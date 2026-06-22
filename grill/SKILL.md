@@ -2,6 +2,7 @@
 name: grill
 description: >
   深度对齐：细化想法、调研参考、读 URL/参考文章，直到需求清晰可执行。
+  严格规则：每次只问一个问题，等用户回复后再问下一个。
   Use when the user has an idea to refine, needs to research a topic, provides reference URLs,
   or when dispatch routes an M/L task.
   触发词：想法、方案、调研、参考、细化、grill、plan、research、这个URL、看看这个。
@@ -58,7 +59,7 @@ description: >
 
 ## 对齐规则
 
-- 一次只问一个问题，等用户回复再继续
+- **🔴 严格遵守：一次只问一个问题，等用户回复再继续**
 - 每个问题附推荐答案
 - 能从代码库找到答案的问题，去代码库里找，不问用户
 - 用户说"你决定"时，用推荐答案并告知
@@ -111,7 +112,7 @@ description: >
 
 | ❌ 不要做 | ✅ 正确做法 |
 |---|---|
-| 一次问多个问题 | 一次一个问题 |
+| **一次问多个问题（最常见的错误）** | **严格一次一个问题，等回复再继续** |
 | 没调研就问"你想用什么方案" | 先调研再推荐 |
 | 用户给了 URL 不读就开始问 | 先读完再提问 |
 | M 级任务问 10 个问题 | M 级限制 3 个问题 |

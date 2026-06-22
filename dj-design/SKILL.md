@@ -1,5 +1,5 @@
 ---
-name: design
+name: dj-design
 description: >
   前端 UI 设计：产出有观点的界面，不是千篇一律的默认样式。
   Use when the user asks for UI design, page layout, component styling, or visual polish.

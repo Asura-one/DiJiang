@@ -1,5 +1,5 @@
 ---
-name: tdd
+name: dj-tdd
 description: >
   测试驱动开发：红绿重构循环，一次一个垂直切片。
   Use when the user wants to build features or fix bugs test-first, mentions
@@ -18,6 +18,8 @@ description: >
 - **测试行为，不测实现**：通过公共接口验证"系统做什么"，不关心"怎么做"
 - **垂直切片**：一个测试 → 一个实现 → 重复。不横切（不先写所有测试再写所有代码）
 - **测试即规格**：好的测试读起来像规格说明——"用户可以用有效购物车结账"
+- **Simplicity First**（karpathy）：测试代码也要简洁。如果一个测试超过 20 行，拆分成多个测试
+- **Define Verifiable Success**（karpathy）：每个测试必须有明确的断言，不能只检查"不报错"
 
 ## 工作流
 
@@ -52,15 +54,37 @@ REFACTOR → 清理代码，测试仍然通过
 ## 好测试 vs 坏测试
 
 ### ✅ 好测试
-- 通过公共接口测试
-- 描述行为（"用户可以结账"）
-- 重构后仍然通过（因为不关心内部结构）
+
+```python
+# 测试行为：用户可以用有效购物车结账
+def test_checkout_with_valid_cart():
+    cart = Cart()
+    cart.add(Product("苹果", 3.0), quantity=2)
+    result = cart.checkout()
+    assert result.total == 6.0
+    assert result.status == "success"
+```
+
+特点：
+- 通过公共接口测试（cart.checkout()）
+- 描述行为（"用户可以用有效购物车结账"）
+- 重构后仍然通过（不关心内部实现）
 - 读起来像规格说明
 
 ### ❌ 坏测试
-- mock 内部协作者
-- 测私有方法
-- 通过外部手段验证（如直接查数据库）
+
+```python
+# 测试实现：内部计算器被调用了
+def test_checkout_calls_calculator():
+    cart = Cart()
+    cart._calculator = Mock()  # mock 内部实现
+    cart.checkout()
+    cart._calculator.calculate.assert_called_once()  # 关心内部细节
+```
+
+问题：
+- mock 内部协作者（_calculator）
+- 测私有方法（_calculator）
 - 重构就挂（说明测的是实现不是行为）
 
 ## 失败处理
