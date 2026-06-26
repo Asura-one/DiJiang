@@ -203,6 +203,12 @@ test -d /path/to/project || echo "项目目录不存在"
 | `muse_skill_upsert` | "技能卡片必须包含name与intent" | 补全 card 的 name 和 intent 字段 | 检查 JSON 嵌套结构是否正确 |
 | `muse_session_archive` | "会话已归档" | 用 `muse_session_list` 查看状态 | 从 archives 目录直接读取 |
 | `muse_reflect` | 返回空结果 | 确认 workspace 下有 learnings/ | 手动创建 `muse_learn_write` |
+| `muse_session_create` | 会话创建后工作记忆为空 | 检查 session 目录结构 | 手动创建 task_plan.md/findings.md/progress.md |
+| `muse_memory_append_today` | 情节记忆写入失败（daily 文件不存在） | 确认 workspace/memory/ 目录存在 | 手动创建 YYYY-MM-DD.md 文件 |
+| `muse_strategic_write` | 语义记忆写入失败（strategic 目录不存在） | 确认 ~/.config/muse/strategic/ 目录存在 | 手动创建 memories.md 文件 |
+| `muse_sop_add` | 程序记忆写入失败（SOP 索引损坏） | 检查 sop-index.md 格式 | 重建 sop-index.md |
+| `muse_memory_distill` | 元记忆蒸馏失败（daily 文件格式异常） | 检查 daily 文件是否为有效 markdown | 手动修复格式或跳过异常文件 |
+| `muse_learn_review` | 元记忆审查失败（learnings 目录为空） | 确认 learnings/ 目录存在 | 手动创建 learnings/ 目录 |
 
 ## Storage Structure
 
