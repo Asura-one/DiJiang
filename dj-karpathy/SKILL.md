@@ -1,40 +1,43 @@
 ---
 name: dj-karpathy
-description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, and define verifiable success criteria.
+description: >
+  LLM 编码行为准则：减少常见错误，避免过度工程，暴露假设，定义可验证的成功标准。
+  可叠加到任何其他 skill 上使用。
+  Use when writing, reviewing, or refactoring code to avoid overcomplication,
+  make surgical changes, surface assumptions, and define verifiable success criteria.
+  触发词：karpathy、编码准则、行为规范、LLM编码、避免过度工程、surgical。
 license: MIT
 ---
 
 # Karpathy Guidelines
 
-Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
+减少 LLM 编码常见错误的行为准则，源自 [Andrej Karpathy 的观察](https://x.com/karpathy/status/2015883857489522876)。
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+**权衡**：这些准则偏向谨慎而非速度。简单任务自行判断。
 
 ## 1. Think Before Coding
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+**不假设。不掩盖困惑。主动暴露权衡。**
 
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+开始实现前：
+- 明确说出你的假设。不确定时，先问。
+- 存在多种解读时，呈现这些解读——不要默默选一个。
+- 有更简单的方案时，说出来，必要时推回去。
+- 遇到不清楚的地方，停下来，说清楚哪里有歧义，然后问。
 
 ## 2. Simplicity First
 
-**Minimum code that solves the problem. Nothing speculative.**
+**最少代码解决问题。不做投机性设计。**
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+- 不做未请求的功能
+- 不为单次使用代码创建抽象
+- 不为"灵活性"或"可配置性"加设计
+- 不为不可能场景加错误处理
+- 200 行能缩到 50 行？重写。
 
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+问自己："资深工程师会觉得这过度复杂吗？"是 → 简化。
 
-### When NOT to simplify
-
-Simplicity has limits. Keep full error handling when:
+### 何时不该简化
 
 | 场景 | 为什么不能简化 | 示例 |
 |------|----------------|------|
@@ -47,34 +50,66 @@ Simplicity has limits. Keep full error handling when:
 
 ## 3. Surgical Changes
 
-**Touch only what you must. Clean up only your own mess.**
+**只改必须改的。只清理自己制造的垃圾。**
 
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
+编辑已有代码时：
+- 不"顺手改进"相邻代码、注释或格式
+- 不重构没坏的东西
+- 匹配已有风格，即使你会做得不同
+- 发现无关死代码，提一句——但不要删
 
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
+你的改动制造了孤儿（未使用的 import/变量/函数）→ 清理。
+改动前就存在的死代码 → 除非被要求，否则不动。
 
-The test: Every changed line should trace directly to the user's request.
+测试：每一行变更都应能直接追溯到用户的请求。
 
 ## 4. Goal-Driven Execution
 
-**Define success criteria. Loop until verified.**
+**定义成功标准。循环直到验证通过。**
 
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
+把任务转化为可验证的目标：
+- "加验证" → "写无效输入的测试，然后让它们通过"
+- "修 bug" → "写一个复现它的测试，然后让它通过"
+- "重构 X" → "确保重构前后测试都通过"
 
-For multi-step tasks, state a brief plan:
+多步任务，先陈述简短计划：
 ```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+1. [步骤] → 验证：[检查项]
+2. [步骤] → 验证：[检查项]
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+明确的验证标准让你能独立循环执行；模糊标准（"让它跑起来"）则需要反复确认。
+
+## 🔴 CHECKPOINT · 准则确认
+
+开始实现前：
+```
+遵循准则：
+- Think Before Coding：假设已明确？[是/否]
+- Simplicity First：方案是最简？[是/否]
+- Surgical Changes：只改必要代码？[是/否]
+- Goal-Driven：成功标准已定义？[是/否]
+
+确认开始实现？(Y/n)
+```
+
+## 失败处理
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---------|---------|-----------|
+| 不确定该简化还是保留完整 | 按场景表判断（外部API/用户输入/安全 → 不简化） | 选更保守的方案（保留完整） |
+| 发现代码过度复杂但不确定怎么改 | 问自己"200行能缩到50行吗" | 标记 `ponytail:` 后继续，不阻塞 |
+| 多种解读无法选择 | 列出所有解读，标注推荐 | 用推荐方案，标注假设 |
+| 验证标准定义不了 | 回到需求，提取用户故事 | 从 happy path 开始，逐步加边界 |
+| 匹配已有风格和自己偏好冲突 | 匹配已有风格 | 标注风格差异，不阻塞实现 |
+
+## 反例
+
+| ❌ 不要做 | ✅ 正确做法 |
+|---|---|
+| 假设用户意图就开始写 | 明确说出假设，不确定就问 |
+| 200行能50行搞定却不管 | 重写到最简 |
+| 顺手重构相邻代码 | 只改用户要求的部分 |
+| 为"可能的扩展"预留抽象层 | 等真正需要时再提取 |
+| 成功标准写"让它跑起来" | 定义具体可验证的断言 |
+| 发现死代码顺手删了 | 提一句，不动它 |

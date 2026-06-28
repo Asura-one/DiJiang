@@ -2,18 +2,18 @@
 
 ## 概述
 
-将项目技能串联为端到端的开发工作流。收到任务请求后，从 `dispatch` 开始自动分流。
+将项目技能串联为端到端的开发工作流。收到任务请求后，从 `dj-dispatch` 开始自动分流。
 
 ```
-想法 → dispatch（自动分流）
+想法 → dj-dispatch（自动分流）
         │
         ├── S级（零碎）→ 直接干
         │
         ├── M级（中等）
-        │      ├── M-simple → implement（直接实现）
-        │      └── M-phased → grill → dj-tdd → check
+        │      ├── M-simple → dj-dj-implement（直接实现）
+        │      └── M-phased → dj-grill → dj-tdd → dj-check
         │
-        └── L级（完整）→ grill → output → dj-tdd → check → 完成
+        └── L级（完整）→ dj-grill → dj-output → dj-tdd → dj-check → 完成
 ```
 
 ---
@@ -22,22 +22,22 @@
 
 ### 触发条件
 
-用户提出新任务、新需求、新想法时，自动进入 dispatch。
+用户提出新任务、新需求、新想法时，自动进入 dj-dispatch。
 
 ### 执行
 
 ```
-/d:dispatch
+/d:dj-dispatch
 ```
 
-dispatch 判断任务级别后，按以下路径继续：
+dj-dispatch 判断任务级别后，按以下路径继续：
 
 | 级别 | 判断标准 | 路径 |
 |------|---------|------|
 | **S级** | 一句话能说清，<3 文件，无架构改动 | 直接干 |
-| **M-simple** | 一次性改完，只涉及1层 | implement（不走 grill） |
-| **M-phased** | 分步实现，涉及2+层 | grill → dj-tdd → check |
-| **L级** | 新功能/架构改动，>10 文件，需求不确定 | grill → output → dj-tdd → check |
+| **M-simple** | 一次性改完，只涉及1层 | dj-implement（不走 dj-grill） |
+| **M-phased** | 分步实现，涉及2+层 | dj-grill → dj-tdd → dj-check |
+| **L级** | 新功能/架构改动，>10 文件，需求不确定 | dj-grill → dj-output → dj-tdd → dj-check |
 
 ---
 
@@ -65,7 +65,7 @@ dispatch 判断任务级别后，按以下路径继续：
 直接实现 → 完成
 ```
 
-- 不走 grill，不写 PRD，不走 TDD
+- 不走 dj-grill，不写 PRD，不走 dj-tdd
 - 告知用户"任务级别：M-simple，直接实现"，然后开干
 
 ### 2.2 M-phased（分阶段实现）
@@ -74,13 +74,13 @@ dispatch 判断任务级别后，按以下路径继续：
 
 **流程**：
 ```
-grill（≤3问）→ 🔴确认 → dj-tdd → check → 完成
+dj-grill（≤3问）→ 🔴确认 → dj-tdd → dj-check → 完成
 ```
 
-#### 2.2.1 grill（快速确认）
+#### 2.2.1 dj-grill（快速确认）
 
 ```
-/d:grill
+/d:dj-grill
 ```
 
 - 限制 3 个问题以内
@@ -112,13 +112,13 @@ grill（≤3问）→ 🔴确认 → dj-tdd → check → 完成
 **流程**：
 
 ```
-grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
+dj-grill → 🔴确认1 → dj-output → 🔴确认2 → dj-tdd → dj-check → 完成
 ```
 
-### 3.1 grill（深度对齐）
+### 3.1 dj-grill（深度对齐）
 
 ```
-/d:grill
+/d:dj-grill
 ```
 
 - 不限问题数，走完整决策树
@@ -140,10 +140,10 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 ### 3.2 output（创建文档）
 
 ```
-/d:output
+/d:dj-output
 ```
 
-基于 grill 的输出，创建：
+基于 dj-grill 的输出，创建：
 - `prd.md` — Problem Statement、Solution、User Stories、Implementation Decisions、Testing Decisions、Out of Scope
 - 设计文档（复杂任务）— 背景、方案对比、选定方案详述、影响范围、验证方式
 
@@ -163,22 +163,22 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 
 **完成后** → 进入 3.4
 
-### 3.4 hunt ↔ check（审查循环）
+### 3.4 dj-hunt ↔ dj-check（审查循环）
 
-代码实现后，进入 hunt 和 check 的循环直到质量达标。
+代码实现后，进入 dj-hunt 和 dj-check 的循环直到质量达标。
 
 **check（代码审查）**：
 ```
-/d:check
+/d:dj-check
 ```
 - 功能完整性核对（对照 PRD 逐项确认）
 - 代码质量审查（逻辑、错误处理、边界条件、命名）
 - 过度工程检查（dj-ponytail 视角：delete/stdlib/native/yagni/shrink）
 - 安全性检查
 
-**发现问题时 → hunt（排查）**：
+**发现问题时 → dj-hunt（排查）**：
 ```
-/d:hunt
+/d:dj-hunt
 ```
 - 构建反馈回路（失败测试 / curl / CLI）
 - 最小化复现
@@ -186,14 +186,14 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 - 修复 + 回归测试
 
 **循环规则**：
-- check 发现功能缺失 → 回到 3.3 dj-tdd
-- check 发现 bug → hunt 定位根因 → 修复 → 回到 check
-- check 通过 → 进入 3.5
+- dj-check 发现功能缺失 → 回到 3.3 dj-tdd
+- dj-check 发现 bug → dj-hunt 定位根因 → 修复 → 回到 check
+- dj-check 通过 → 进入 3.5
 
 ### 3.5 output（文档对齐）
 
 ```
-/d:output
+/d:dj-output
 ```
 
 - 检查代码实际行为与文档描述是否一致
@@ -210,7 +210,7 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 
 需要全仓扫描时：
 ```
-/d:audit
+/d:dj-audit
 ```
 
 输出两份报告：
@@ -223,7 +223,7 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 
 需要深度调研时：
 ```
-/d:grill
+/d:dj-grill
 ```
 
 - 模式 B：读 URL、参考文章、技术文档
@@ -235,11 +235,11 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 
 | 场景 | 处理 |
 |------|------|
-| dispatch 判断不了级别 | 偏保守选高一级（S→M, M→L） |
-| grill 问了太多轮 | 压缩剩余问题，用推荐答案填充未决项 |
+| dj-dispatch 判断不了级别 | 偏保守选高一级（S→M, M→L） |
+| dj-grill 问了太多轮 | 压缩剩余问题，用推荐答案填充未决项 |
 | 实现遇到 PRD 不清 | 回到 grill 补充对齐 |
-| check 发现功能缺失 | 回到 dj-tdd 补充 |
-| hunt 无法构建反馈回路 | 降级到手动复现步骤 |
+| dj-check 发现功能缺失 | 回到 dj-tdd 补充 |
+| dj-hunt 无法构建反馈回路 | 降级到手动复现步骤 |
 | 文档和代码对不上 | 以代码为准，文档标注"待确认" |
 
 ## 改动回归检查
@@ -262,7 +262,7 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 ```
 用户：把 UserService 里的 log 改成 debug 级别
 
-→ dispatch：S级，直接干
+→ dj-dispatch：S级，直接干
 → 直接修改，验证，完成
 ```
 
@@ -271,8 +271,8 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 ```
 用户：给表单加个邮箱格式校验
 
-→ dispatch：M-simple（只改接口层）
-→ implement：实现校验逻辑
+→ dj-dispatch：M-simple（只改接口层）
+→ dj-implement：实现校验逻辑
 → 完成
 ```
 
@@ -281,11 +281,11 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 ```
 用户：重构用户模块，数据层+接口层都需要改
 
-→ dispatch：M-phased（涉及2+层）
-→ grill（≤3问题）：数据模型？接口设计？兼容性？
+→ dj-dispatch：M-phased（涉及2+层）
+→ dj-dj-grill（≤3问题）：数据模型？接口设计？兼容性？
 → 🔴 确认
 → dj-tdd：测试驱动实现
-→ check：审查代码+回归检查
+→ dj-check：审查代码+回归检查
 → 完成
 ```
 
@@ -294,13 +294,13 @@ grill → 🔴确认1 → output → 🔴确认2 → dj-tdd → check → 完成
 ```
 用户：加个支付模块
 
-→ dispatch：L级
-→ grill：支付渠道？退款流程？对账需求？
+→ dj-dispatch：L级
+→ dj-grill：支付渠道？退款流程？对账需求？
 → 🔴 确认1
-→ output：PRD + 设计文档
+→ dj-output：PRD + 设计文档
 → 🔴 确认2
 → dj-tdd：测试驱动实现
-→ check：审查代码
-→ output：文档对齐
+→ dj-check：审查代码
+→ dj-output：文档对齐
 → 完成
 ```

@@ -1,12 +1,13 @@
 {
-  "enableSkillCommands": true,
+  "enable_skill_commands": true,
   "extensions": [
-    "./extensions/trellis/index.ts"
+    "./extensions/dijiang/index.ts"
   ],
   "skills": [
     "./skills"
   ],
   "prompts": [
     "./prompts"
-  ]
+  ],
+  "agents": []
 }
