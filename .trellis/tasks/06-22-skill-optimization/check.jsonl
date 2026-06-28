@@ -1,1 +1,3 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/tasks/06-22-skill-optimization/prd.md", "reason": "Requirements and acceptance criteria for skill optimization"}
+{"file": ".trellis/tasks/06-22-skill-optimization/design.md", "reason": "Technical design for skill optimization evaluation framework"}
+{"file": ".trellis/tasks/06-22-skill-optimization/implement.md", "reason": "Implementation plan for skill optimization workflow"}

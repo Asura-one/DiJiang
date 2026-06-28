@@ -13,6 +13,36 @@ description: >
 
 收到用户请求后，识别任务类型，路由到对应 skill。不纠结、不拖沓。
 
+## 自动激活（session:start）
+
+session 开始时，dj-dispatch 自动执行以下步骤：
+
+1. 读取当前活跃 Task（`task.py current`）
+2. 根据 Task.status 推断阶段 → 推荐技能：
+
+   | status | 推断阶段 | 推荐技能 |
+   |--------|---------|---------|
+   | planning | 需求对齐 | `dj-grill` |
+   | in_progress | 实现中 | `dj-implement` |
+   | review | 审查中 | `dj-check` |
+   | completed | 已完成 | 提示 archive |
+   | (no task) | 无任务 | 等待用户指令 |
+
+3. 将推荐技能和任务上下文注入 session（无需手动调用 /dj-dispatch）
+4. 用户手动调用 `/dj-dispatch` 时走原有分类流程
+
+---
+
+### 自动激活 vs 手动调用
+
+| 触发方式 | 场景 | 行为 |
+|---------|------|------|
+| session:start（自动） | 用户打开新 session | 读取活跃 task，推断阶段，注入推荐技能 |
+| `/dj-dispatch`（手动） | 用户主动给出新任务 | 走完整分类 + 分级流程 |
+| 自动 + 覆盖 | 自动激活后用户说具体指令 | 覆盖自动推荐，按用户指令走 |
+
+---
+
 ## 第一层：任务类型识别
 
 收到任务后，先判断任务类型：
