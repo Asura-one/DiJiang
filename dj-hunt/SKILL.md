@@ -19,6 +19,148 @@ description: >
 
 > "我认为根因是 [X]，因为 [证据]。"
 
+## 代码定位（找代码在哪里）
+
+开始调查前，先找到症状对应的代码位置。以下策略按优先级排列。
+
+### 1. 错误驱动的定位
+
+利用错误消息本身找到代码：
+
+```bash
+# 1. 用错误消息精确搜索
+grep -rn "错误消息内容" src/ --include="*.rs"
+
+# 2. 如果错误消息不完全匹配，搜索关键词
+grep -rn "partial\|keyword\|相关关键词" src/ --include="*.rs"
+
+# 3. 搜索错误代码/编号
+grep -rn "E1234\|ERR_BAD_RESPONSE" src/ --include="*.rs"
+
+# 4. 如果有 stack trace：
+#    - 第一行是异常抛出点 → 搜索类名/函数名
+#    - 项目内部调用 → 从下往上看，第一个项目内部调用通常是起点
+```
+
+### 2. 语义搜索（当精确匹配不够时）
+
+错误消息可能包含变量/动态内容，不完全匹配字符串：
+
+```bash
+# 1. 搜索包含该错误消息的函数/模块
+grep -rn "error\|Error\|invalid\|failed\|unexpected" <可疑模块>/ --include="*.rs" | head -20
+
+# 2. 搜索生成该错误消息的引用模式
+#    很多错误由 format!()/concat!() 拼接而成——搜索各段
+grep -rn "固定段" src/ --include="*.rs"
+
+# 3. 如果错误包含变量名或类型名，直接搜
+grep -rn "变量名\|类型名" src/ --include="*.rs"
+```
+
+### 3. 调用链追踪
+
+从已知点（入口、API、UI 组件）沿调用路径找到 bug 点：
+
+```bash
+# 1. 从入口函数开始，追踪调用链
+grep -rn "fn [a-z_]*入口名" src/ --include="*.rs"
+
+# 2. 找出所有调用该函数的地方（找到调用者链）
+grep -rn "可疑函数名(" src/ --include="*.rs"
+
+# 3. 沿数据流方向：检查输入从哪里来、输出到哪里去
+grep -rn "输入参数名\|输出变量名" src/ --include="*.rs"
+```
+
+调用链追查方向选择：
+| 症状（知道结果） | 方向 | 目标 |
+|-----------------|------|------|
+| UI 显示错误 | 从 UI 组件向服务层回溯 | 找到数据源头和转换链
+| API 返回错误 | 从路由/controller 向业务逻辑回溯 | 找到验证/处理链
+| 数据不一致 | 从存储层向上游追踪 | 找到写入/读取的路径
+| 测试失败 | 从测试用例向被测试代码追踪 | 找到断言对应实现
+
+### 4. Git 历史定位
+
+当代码库较大，不知道从哪里开始时：
+
+```bash
+# 1. 找最近修改过相关文件的 commit
+git log --oneline --all -- <相关文件或目录> | head -10
+
+# 2. 用 git log -S 找特定字符串的变更历史
+git log -p --all -S '关键字' -- '*.rs' | head -60
+
+# 3. 用 git log -G 找正则匹配的变更
+git log -p --all -G '正则表达式' -- '*.rs' | head -60
+
+# 4. 用 git blame 找某行是谁什么时候改的
+git blame <文件> -L <行号>,<行号>
+
+# 5. git bisect（已知好坏的二分查找）
+git bisect start
+git bisect bad   # 当前版本 bad
+git bisect good <已知好的版本>
+# 重复测试直到找到第一个坏的 commit
+git bisect reset
+```
+
+### 5. 分层交叉引用
+
+bug 的根因往往不在症状表现那一层：
+
+```
+症状层         搜索策略
+───────         ────────
+UI 层出错   →  先查 UI 层找到用户操作对应的调用
+API 层出错  →  查 API handler，然后沿数据流进业务逻辑
+服务层出错  →  查模型/状态管理代码
+数据层出错  →  查数据库迁移/映射/序列化
+```
+
+每层间的映射关系：
+
+```bash
+# UI → API：搜索 API 端点字符串
+grep -rn "/api/endpoint" src/ --include="*.rs"
+
+# API → Service：搜索 handler 调用的 service 方法
+grep -rn "可疑handler名" src/ --include="*.rs" | grep "service\|use_case\|domain"
+
+# Service → Data：搜索 Repository/DAO 调用
+grep -rn "repo\|db\|query" src/ --include="*.rs" | grep "可疑函数名"
+```
+
+### 6. 特征搜索
+
+当没有错误消息只有描述时，用功能特征缩小范围：
+
+```bash
+# 1. 搜索功能相关的术语
+grep -rn "功能名\|特性名\|模块名" src/ --include="*.rs" -i | head -20
+
+# 2. 搜索相关类型和结构体
+grep -rn "struct.*相关类型\|trait.*相关特性" src/ --include="*.rs"
+
+# 3. 搜索测试中描述的功能
+grep -rn "被测功能描述" tests/ --include="*.rs"
+
+# 4. 搜索配置/路由/注册表中的引用
+grep -rn "功能key\|feature_flag\|路由路径" src/ --include="*.rs"
+```
+
+### 7. 失败回退
+
+| 方法跑完仍找不到 | 降级策略 |
+|-----------------|---------|
+| 代码库太大无从下手 | 用 find + wc + sort 按行数排序定位核心文件
+| 跨语言/跨项目时 | 搜索日志/输出关键字定位入口
+| 关键词太常见误报多 | 缩小范围到具体模块或类型
+| 项目有多个入口 | 从 test 文件或 main.rs 开始追踪
+
+> "我认为根因是 [X]，因为 [证据]。"
+
 必须指出具体文件、函数、行号或条件。"状态管理有问题"不可测试。"`useUser` 在 `src/hooks/user.ts:42` 缺少 `userId` 依赖"可测试。
 
 ## 工作流
@@ -217,6 +359,46 @@ muse_learn_write '{"type":"ERR","summary":"[break-loop] <bug描述>","details":"
 # 晋升到 spec（防止复发）
 muse_learn_promote '{"id":"<id>","target":"spec","confirm":true}'
 ```
+
+### 3.5 将 Break-Loop 发现晋升为 spec 合约
+
+当 `muse_learn_promote` 的 target 为 `spec` 时，必须按以下合约格式输出：
+
+```markdown
+### 1. Scope / Trigger
+- 触发条件：<什么场景下会触发此类 bug>
+
+### 2. Signatures
+- 涉及的函数签名、API 合约（如有变更）
+
+### 3. Contracts
+- 输入/输出约束：<字段名: 类型, 约束>
+
+### 4. Validation & Error Matrix
+| 条件 | 期望结果 |
+|------|---------|
+| <触发条件1> | <期望行为1> |
+
+### 5. Good/Base/Bad Cases
+- Good: <无 bug 的正确行为>
+- Base: <典型正常输入>
+- Bad: <复现本 bug 的输入>
+
+### 6. Tests Required
+- [ ] <测试描述> — 断言：<具体断言>
+
+### 7. Wrong vs Correct
+#### Wrong
+<导致本 bug 的错误写法>
+#### Correct
+<修复后的正确写法>
+```
+
+### 写入路径
+
+- 技术规范 → `.trellis/spec/{layer}/`（backend / frontend / meta）
+- 通用经验 → `~/.config/muse/strategic/memories.md`（跨项目复用）
+- 思维检查表 → `.trellis/spec/guides/`（防止复发）
 
 ## 反例
 
