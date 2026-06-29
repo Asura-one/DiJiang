@@ -20,7 +20,7 @@ Note: active task path, current phase, git status, developer identity.
 ## Step 2: Read Workflow
 
 ```bash
-cat .trellis/workflow.md
+cat .dijiang/workflow.md
 ```
 
 DiJiang workflow: **dispatch → grill → output → implement/tdd → hunt ↔ check**
@@ -28,15 +28,28 @@ DiJiang workflow: **dispatch → grill → output → implement/tdd → hunt ↔
 ## Step 3: Discover Specs
 
 ```bash
-ls .trellis/spec/
-cat .trellis/spec/guides/index.md
+ls .dijiang/spec/
+cat .dijiang/spec/index.md
 ```
 
-## Step 4: Delegate to dj-dispatch
+## Step 4: Initialize MUSE Memory Session
+
+Create a MUSE memory session to track cross-session context:
+
+```bash
+muse_session_create
+```
+
+Record initial findings if the user has already given a task description:
+
+```bash
+muse_findings_append --finding "<initial task description>"
+```
+
+## Step 5: Delegate to dj-dispatch
 
 This skill only sets up session context. All task classification, routing,
 and execution is handled by the `dj-*` skill ecosystem.
-
 Load `dj-dispatch` to classify the user's request and route to the
 appropriate `dj-*` skill:
 
