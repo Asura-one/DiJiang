@@ -11,6 +11,8 @@
 - **编码风格**（dj-ponytail）：极简、YAGNI、不过度工程
 - **具体习惯**（Waza）：思考、审查、调试、写作的工程纪律
 
+同时提供 Rust 编写的 **`dijiang` CLI**，管理项目生命周期（初始化、状态检查、任务跟踪），兼容 Trellis task 格式。
+
 ## 工作流
 
 ```
@@ -75,12 +77,65 @@ cp -r dijiang/* ~/.hermes/skills/
 # Pi 同理（Pi 读取 ~/.hermes/skills/）
 ```
 
+## CLI 工具
+
+`dijiang` 是 Rust 编写的命令行工具，管理项目生命周期和 Trellis 兼容的任务。
+
+### init — 初始化项目
+
+```bash
+# 创建一个新项目（自动检测 Trellis/DiJiang 目录结构）
+dijiang init my-project --yes
+
+# 强制重新初始化（已存在 .dijiang/ 时）
+dijiang init my-project --force
+```
+
+### status — 查看项目状态
+
+```bash
+# 显示项目名、活跃任务、任务列表、Pi 平台状态
+dijiang status
+
+# 显示详细兼容诊断（status 映射表、Trellis 检测）
+dijiang status --compat
+```
+
+### task — 任务管理
+
+```bash
+dijiang task list              # 列出所有任务
+dijiang task create <name>      # 创建新任务
+dijiang start <name>            # 设为活跃任务
+```
+
+### mem — 记忆管理
+
+```bash
+dijiang mem list                # 列出记忆记录
+dijiang mem save                # 保存当前会话记忆
+```
+
 ## 兼容性
 
 - Hermes ✅
 - Pi ✅
 - Codex ✅
 
+## 测试验证
+
+```bash
+# 全量测试
+cargo test
+
+# 分 crate 测试
+cargo test -p dijiang-task            # task crate
+cargo test -p dijiang-configurator     # configurator crate
+cargo test -p dijiang --test e2e       # CLI 集成测试
+
+# 编译检查
+cargo build
+```
 ## 设计原则
 
 1. **Predictability** — 每次运行走相同流程，而非产出相同结果
