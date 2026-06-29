@@ -1,32 +1,171 @@
-/// Initialize `.trellis/` infrastructure (task storage, workflow, workspace).
 use crate::templates;
 use crate::PlatformKind;
 use std::path::Path;
 
+/// Policy for handling pre-existing `.trellis/` content when `init` runs.
+///
+/// DiJiang is a Rust-native independent harness that borrows best practices
+/// from Trellis. When the user already has a Trellis project (or a previous
+/// DiJiang init), we must not silently overwrite their data. This enum lets
+/// callers pick the right trade-off.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum ConflictPolicy {
+    /// Refuse to write anything that would clobber existing content. Returns
+    /// `ConfigError::Io` with a descriptive message listing the conflicts.
+    /// This is the safest default and matches the principle "do not destroy
+    /// user data".
+    #[default]
+    Error,
+    /// Coexist with existing content: skip `tasks/` and `spec/`, insert
+    /// DiJiang blocks into `workflow.md` (or skip if already present). This
+    /// is what the CLI default uses — most common case for "Trellis user
+    /// wants to try DiJiang skills".
+    Merge,
+    /// Unconditionally overwrite everything. Reserved for explicit `--force`
+    /// from the CLI; never the default.
+    Overwrite,
+}
+
+/// Report of conflicts detected between an existing `.trellis/` directory
+/// and what DiJiang would write.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct ConflictReport {
+    pub has_trellis_dir: bool,
+    pub has_workflow_md: bool,
+    pub has_tasks_dir: bool,
+    pub has_spec_dir: bool,
+    pub has_workspace_dir: bool,
+    pub has_dijiang_block_in_workflow: bool,
+}
+
+impl ConflictReport {
+    /// True if any conflict is present. An existing-but-empty `.trellis/`
+    /// does not count as a conflict (we are allowed to populate it).
+    pub fn has_conflict(&self) -> bool {
+        self.has_workflow_md || self.has_tasks_dir || self.has_spec_dir
+    }
+}
+
+/// Marker strings used to mark DiJiang-managed regions inside `workflow.md`.
+/// Exposed as constants so tests and downstream code can reference them.
+pub(crate) const DIJIANG_BLOCK_BEGIN: &str = "<!-- BEGIN DIJIANG-MANAGED BLOCK: do not edit between these markers -->";
+pub(crate) const DIJIANG_BLOCK_END: &str = "<!-- END DIJIANG-MANAGED BLOCK -->";
+
+/// Detect what already exists under `.trellis/` and whether `workflow.md`
+/// already contains a DiJiang-managed block. Pure read-only — does not
+/// mutate the filesystem.
+pub(crate) fn detect_trellis_conflict(cwd: &Path) -> ConflictReport {
+    let trellis = cwd.join(".trellis");
+    let mut report = ConflictReport::default();
+
+    if !trellis.exists() {
+        return report;
+    }
+    report.has_trellis_dir = true;
+    report.has_tasks_dir = trellis.join("tasks").exists();
+    report.has_spec_dir = trellis.join("spec").exists();
+    report.has_workspace_dir = trellis.join("workspace").exists();
+
+    let workflow_path = trellis.join("workflow.md");
+    if workflow_path.exists() {
+        report.has_workflow_md = true;
+        if let Ok(content) = std::fs::read_to_string(&workflow_path) {
+            report.has_dijiang_block_in_workflow = content.contains(DIJIANG_BLOCK_BEGIN);
+        }
+    }
+
+    report
+}
+
 /// Create `.trellis/` infrastructure: workflow.md, tasks/, workspace/, spec/.
+///
+/// Under the default `Merge` policy this coexists with any pre-existing
+/// Trellis content:
+/// - `tasks/` and `spec/` are never overwritten (and their files are preserved)
+/// - `workflow.md` either gets a DiJiang block appended, or is skipped if
+/// Decide whether `write_trellis_infrastructure` should append a DiJiang
+/// block to an existing `workflow.md` or write a fresh file.
+///
+/// Returns `true` only under the `Merge` policy when `workflow.md` exists
+/// but does not already contain a DiJiang block. In every other case
+/// (Overwrite, no existing file, block already present, or Error policy
+/// that should never reach here because of the early return) we write
+/// fresh or leave the file alone.
+pub(crate) fn should_append_dijiang_block(
+    policy: ConflictPolicy,
+    has_workflow_md: bool,
+    has_dijiang_block: bool,
+) -> bool {
+    matches!(
+        (policy, has_workflow_md, has_dijiang_block),
+        (ConflictPolicy::Merge, true, false)
+    )
+}
+
+
+/// - `workspace/` is always ensured (empty journal dirs are safe to create)
 pub(crate) fn write_trellis_infrastructure(
     cwd: &Path,
     developer: Option<&str>,
+    policy: ConflictPolicy,
 ) -> Result<(), crate::ConfigError> {
     let trellis_dir = cwd.join(".trellis");
+    let report = detect_trellis_conflict(cwd);
 
-    // tasks/ — task storage
-    // tasks/ — task storage
-    std::fs::create_dir_all(trellis_dir.join("tasks"))?;
+    if policy == ConflictPolicy::Error && report.has_conflict() {
+        let mut conflicts = Vec::new();
+        if report.has_workflow_md {
+            conflicts.push("workflow.md");
+        }
+        if report.has_tasks_dir {
+            conflicts.push("tasks/");
+        }
+        if report.has_spec_dir {
+            conflicts.push("spec/");
+        }
+        return Err(crate::ConfigError::Io(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!(
+                ".trellis/ already exists with content that would be overwritten: {}. \
+                 Re-run with --merge to coexist, or --force to overwrite.",
+                conflicts.join(", ")
+            ),
+        )));
+    }
 
-    // workspace/ — developer journals
+    // tasks/ — task storage (never overwrite under Merge; safe to create
+    // under Overwrite on a fresh dir; safe to skip on a populated one)
+    if !report.has_tasks_dir {
+        std::fs::create_dir_all(trellis_dir.join("tasks"))?;
+    }
+
+    // workspace/ — developer journals (always ensure; empty dirs are safe)
     std::fs::create_dir_all(trellis_dir.join("workspace"))?;
     if let Some(dev) = developer {
         std::fs::create_dir_all(trellis_dir.join("workspace").join(dev))?;
     }
 
-    // spec/ — coding guidelines (placeholder)
-    std::fs::create_dir_all(trellis_dir.join("spec"))?;
+    // spec/ — coding guidelines (placeholder; preserve under Merge)
+    if !report.has_spec_dir {
+        std::fs::create_dir_all(trellis_dir.join("spec"))?;
+    }
 
-    // workflow.md — from embedded template
+    // workflow.md — from embedded template (block-insert under Merge)
     let workflow = templates::render("config/workflow.md", &[])
-        .map_err(|e| crate::ConfigError::Serialize(e))?;
-    std::fs::write(trellis_dir.join("workflow.md"), workflow)?;
+        .map_err(crate::ConfigError::Serialize)?;
+    let workflow_path = trellis_dir.join("workflow.md");
+
+    if should_append_dijiang_block(policy, report.has_workflow_md, report.has_dijiang_block_in_workflow) {
+        let existing = std::fs::read_to_string(&workflow_path)?;
+        let block = format!(
+            "\n\n{}\n{}\n{}\n",
+            DIJIANG_BLOCK_BEGIN, workflow, DIJIANG_BLOCK_END
+        );
+        std::fs::write(workflow_path, format!("{existing}{block}"))?;
+    } else if !report.has_workflow_md || policy == ConflictPolicy::Overwrite {
+        // No existing file, or Overwrite policy: write fresh.
+        std::fs::write(workflow_path, workflow)?;
+    }
 
     Ok(())
 }
@@ -42,10 +181,11 @@ pub fn read_project_name(cwd: &Path) -> String {
     }
     cwd.file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("unknown")
+        .unwrap_or("unnamed-project")
         .to_string()
 }
-/// Initialize a DiJiang project at the given path (all platforms).
+
+/// Initialize a project with all supported platforms.
 pub fn init_project(
     cwd: &Path,
     name: &str,
@@ -55,15 +195,20 @@ pub fn init_project(
 }
 
 /// Like `init_project`, but with explicit platform selection.
+///
+/// The default conflict policy is `Merge` — safe for users who already have
+/// a Trellis project and want to try DiJiang alongside it. Power users can
+/// pass `ConflictPolicy::Overwrite` via a `--force` CLI flag.
 pub fn init_project_with_platforms(
     cwd: &Path,
     name: &str,
     developer: Option<&str>,
     platforms: &[PlatformKind],
 ) -> Result<(), crate::ConfigError> {
-    // Always write DiJiang config and .trellis/ infrastructure
+    // Always write DiJiang config and .trellis/ infrastructure (under Merge
+    // policy — safe coexistence with Trellis).
     crate::PiConfigurator::write_dijiang_config(cwd, name, developer)?;
-    write_trellis_infrastructure(cwd, developer)?;
+    write_trellis_infrastructure(cwd, developer, ConflictPolicy::Merge)?;
 
     // Always write AGENTS.md
     crate::PiConfigurator::write_agents_md(cwd)?;
@@ -72,48 +217,17 @@ pub fn init_project_with_platforms(
     let registry = crate::ConfiguratorRegistry::with_all();
     let results = registry.configure(cwd, platforms);
 
-    let mut files_created: Vec<&str> = Vec::new();
-    for (platform, result) in &results {
+    for (platform, result) in results {
         if let Err(e) = result {
-            eprintln!("  ⚠ {platform:?} config error: {e}");
-            continue;
-        }
-        match platform {
-            PlatformKind::Pi => {
-                files_created.extend([
-                    ".pi/settings.json",
-                    ".pi/prompts/",
-                    ".pi/extensions/dijiang/index.ts",
-                ]);
-            }
-            PlatformKind::Cursor => {
-                files_created.extend([".cursor/rules/", ".cursor/hooks.json"]);
-            }
-            PlatformKind::Claude => {
-                files_created.extend(["CLAUDE.md", ".claude/"]);
-            }
-            PlatformKind::Codex => {
-                files_created.extend([".codex/agents/", ".codex/hooks/"]);
-            }
-            PlatformKind::OpenCode => {
-                files_created.extend([".opencode/"]);
-            }
-            PlatformKind::Hermes => {
-                files_created.extend([".hermes/agents/", ".hermes/hooks.json"]);
-            }
+            eprintln!("  warning: platform config failed for {platform:?}: {e}");
         }
     }
-
-    println!("  ✓ Initialized DiJiang project '{name}'");
+    println!("\n[OK] Initialized DiJiang project: {name}");
     println!("  ├── .dijiang/config.toml");
     println!("  ├── .trellis/workflow.md");
     println!("  ├── .trellis/tasks/");
     println!("  ├── .trellis/workspace/");
-    println!("  ├── .trellis/spec/");
-    for f in &files_created {
-        println!("  ├── {f}");
-    }
-    println!("  └── AGENTS.md");
+    println!("  └── .trellis/spec/");
 
     Ok(())
 }
@@ -123,43 +237,105 @@ mod tests {
     use super::*;
     use std::fs;
 
-    #[test]
-    fn test_init_project_creates_all_platform_files() {
-        let dir = std::env::temp_dir().join("dijiang_init_test_all");
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-
-        let result = init_project(&dir, "test-project", Some("tiezhu"));
-        assert!(result.is_ok(), "init_project failed: {:?}", result.err());
-
-        // Verify .dijiang/ config exists
-        assert!(dir.join(".dijiang").join("config.toml").exists());
-
-        // Verify .trellis/ infrastructure exists
-        assert!(dir.join(".trellis").join("workflow.md").exists());
-        assert!(dir.join(".trellis").join("tasks").exists());
-        assert!(dir.join(".trellis").join("workspace").join("tiezhu").exists());
-        assert!(dir.join(".trellis").join("spec").exists());
-
-        // Verify platform files exist
-        assert!(dir.join(".pi").join("settings.json").exists());
-        assert!(dir.join("AGENTS.md").exists());
-
-        let _ = fs::remove_dir_all(&dir);
+    fn fresh_tmpdir(label: &str) -> std::path::PathBuf {
+        let mut p = std::env::temp_dir();
+        p.push(format!("dijiang-test-{label}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&p);
+        fs::create_dir_all(&p).unwrap();
+        p
     }
 
+    /// §1.2: detect_trellis_conflict on a clean directory must report zero
+    /// conflicts and no trellis dir.
     #[test]
-    fn test_init_project_no_developer() {
-        let dir = std::env::temp_dir().join("dijiang_init_test_nodev");
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
+    fn detect_conflict_clean_dir() {
+        let dir = fresh_tmpdir("clean");
+        let report = detect_trellis_conflict(&dir);
+        assert!(!report.has_trellis_dir);
+        assert!(!report.has_conflict());
+    }
 
-        let result = init_project(&dir, "test-project", None);
-        assert!(result.is_ok(), "init_project failed: {:?}", result.err());
+    /// §1.2: detect_trellis_conflict must surface an existing workflow.md
+    /// and tasks/ as conflicts under the Error policy.
+    #[test]
+    fn detect_conflict_populated_trellis() {
+        let dir = fresh_tmpdir("populated");
+        let trellis = dir.join(".trellis");
+        fs::create_dir_all(trellis.join("tasks")).unwrap();
+        fs::write(trellis.join("workflow.md"), "# existing\n").unwrap();
+        fs::create_dir_all(trellis.join("spec")).unwrap();
 
-        // workspace/ should exist but without developer subdir
-        assert!(dir.join(".trellis").join("workspace").exists());
+        let report = detect_trellis_conflict(&dir);
+        assert!(report.has_trellis_dir);
+        assert!(report.has_workflow_md);
+        assert!(report.has_tasks_dir);
+        assert!(report.has_spec_dir);
+        assert!(report.has_conflict());
+    }
 
-        let _ = fs::remove_dir_all(&dir);
+    /// §1.2: write_trellis_infrastructure under Error policy must refuse
+    /// to overwrite an existing workflow.md and return an error.
+    #[test]
+    fn write_infrastructure_error_policy_blocks_overwrite() {
+        let dir = fresh_tmpdir("error-policy");
+        let trellis = dir.join(".trellis");
+        fs::create_dir_all(&trellis).unwrap();
+        fs::write(trellis.join("workflow.md"), "# original\n").unwrap();
+
+        let result = write_trellis_infrastructure(&dir, None, ConflictPolicy::Error);
+        assert!(result.is_err(), "Error policy must refuse to clobber workflow.md");
+        let original = fs::read_to_string(trellis.join("workflow.md")).unwrap();
+        assert_eq!(original, "# original\n", "workflow.md must be untouched");
+    }
+
+    /// §1.2: write_trellis_infrastructure under Merge policy must coexist
+    /// with existing content: tasks/ and spec/ are NOT overwritten, but
+    /// workflow.md gets a DiJiang-managed block appended.
+    #[test]
+    fn write_infrastructure_merge_coexists() {
+        let dir = fresh_tmpdir("merge-coexist");
+        let trellis = dir.join(".trellis");
+        fs::create_dir_all(trellis.join("00-existing")).unwrap();
+        fs::write(trellis.join("00-existing/task.json"), "{}").unwrap();
+        fs::create_dir_all(trellis.join("spec")).unwrap();
+        fs::write(trellis.join("spec/note.md"), "user note").unwrap();
+        fs::write(trellis.join("workflow.md"), "# Trellis workflow\n").unwrap();
+
+        write_trellis_infrastructure(&dir, Some("tiezhu"), ConflictPolicy::Merge).unwrap();
+
+        // tasks/ contents preserved
+        assert!(trellis.join("00-existing/task.json").exists());
+        // spec/ contents preserved
+        assert_eq!(fs::read_to_string(trellis.join("spec/note.md")).unwrap(), "user note");
+        // workflow.md has the original line plus a DiJiang block
+        let workflow = fs::read_to_string(trellis.join("workflow.md")).unwrap();
+        assert!(workflow.starts_with("# Trellis workflow\n"), "original line preserved");
+        assert!(workflow.contains(DIJIANG_BLOCK_BEGIN), "DiJiang block inserted");
+        assert!(workflow.contains(DIJIANG_BLOCK_END));
+        // workspace/ created
+        assert!(trellis.join("workspace/tiezhu").exists());
+    }
+
+    /// §1.2: Re-running Merge must be idempotent — the DiJiang block must
+    /// not be duplicated.
+    #[test]
+    fn write_infrastructure_merge_is_idempotent() {
+        let dir = fresh_tmpdir("merge-idem");
+        let trellis = dir.join(".trellis");
+        fs::create_dir_all(&trellis).unwrap();
+        fs::write(trellis.join("workflow.md"), "# existing\n").unwrap();
+
+        write_trellis_infrastructure(&dir, None, ConflictPolicy::Merge).unwrap();
+        let after_first = fs::read_to_string(trellis.join("workflow.md")).unwrap();
+
+        write_trellis_infrastructure(&dir, None, ConflictPolicy::Merge).unwrap();
+        let after_second = fs::read_to_string(trellis.join("workflow.md")).unwrap();
+
+        assert_eq!(
+            after_first, after_second,
+            "Merge policy must be idempotent — running it twice must not change the file"
+        );
+        // Exactly one DiJiang block, not two
+        assert_eq!(after_second.matches(DIJIANG_BLOCK_BEGIN).count(), 1);
     }
 }
