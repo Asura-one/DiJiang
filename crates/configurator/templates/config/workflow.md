@@ -46,7 +46,7 @@ DiJiang uses the **dj-* skill ecosystem**, a full pipeline from dispatch to deli
 ## Project Structure
 
 ```
-.trellis/            # Task management + specs
+.dijiang/            # Task management + specs
 ├── tasks/           # Task directories (task.json, prd.md, design.md, …)
 ├── spec/            # Coding guidelines by package/layer
 ├── workspace/       # Developer journals

@@ -1,7 +1,7 @@
 platforms = ["pi"]
-tasks_dir = ".trellis/tasks"
-spec_dir = ".trellis/spec"
-workspace_dir = ".trellis/workspace"
+tasks_dir = ".dijiang/tasks"
+spec_dir = ".dijiang/spec"
+workspace_dir = ".dijiang/workspace"
 
 [project]
 name = "DiJiang"

@@ -25,9 +25,9 @@ This project uses DiJiang, an AI-native development workflow framework.
 ## Structure
 
 - `.dijiang/` — DiJiang project configuration
-- `.trellis/tasks/` — Task records (JSON, Trellis-compatible format)
-- `.trellis/spec/` — Project specifications and coding guidelines
-- `.trellis/workspace/` — Developer journals and session traces
+- `.dijiang/tasks/` — Task records (JSON, Trellis-compatible format)
+- `.dijiang/spec/` — Project specifications and coding guidelines
+- `.dijiang/workspace/` — Developer journals and session traces
 - `.pi/` — Pi agent platform configuration
 
 ## Core Workflow (dj-*)
@@ -35,7 +35,7 @@ This project uses DiJiang, an AI-native development workflow framework.
 Task lifecycle follows `plan → implement → check → archive`:
 
 1. **plan** — Read `prd.md` (requirements) + `design.md` (design) + `implement.md` (execution plan)
-2. **implement** — Write code, following specs in `.trellis/spec/`
+2. **implement** — Write code, following specs in `.dijiang/spec/`
 3. **check** — Run `cargo test`, verify types, lint, verify cross-layer consistency
 4. **archive** — Commit changes
 

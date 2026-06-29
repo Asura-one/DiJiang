@@ -53,7 +53,7 @@ pub(crate) fn detect_skills_conflict(cwd: &Path) -> SkillsConflictReport {
 /// - `.pi/extensions/dijiang/index.ts` — extension hook
 /// - `.dijiang/config.toml` — DiJiang project config
 /// - `AGENTS.md` — DiJiang instructions block (inject/update)
-/// - `AGENTS.md` — Trellis-style instructions block (inject/update)
+/// - `AGENTS.md` — DiJiang-style instructions block (inject/update)
 pub struct PiConfigurator;
 
 impl PiConfigurator {
@@ -146,7 +146,7 @@ impl PiConfigurator {
     /// §3.2 coexistence policy:
     /// - Existing `dijiang-*` skill directories are NOT overwritten
     ///   (idempotent re-runs preserve user edits).
-    /// - Non-`dijiang-*` skill directories (e.g. Trellis's `trellis-foo`) are
+    /// - Non-`dijiang-*` skill directories (e.g. other tools' `trellis-foo`) are
     ///   left alone; a warning is printed listing them.
     /// - A `.dijiang_owned` marker file is written so other tools know
     ///   DiJiang claims this skills tree.

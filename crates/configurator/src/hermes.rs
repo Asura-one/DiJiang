@@ -59,7 +59,7 @@ You are the Check Agent in the DiJiang workflow.
 2. Read `prd.md` for acceptance criteria
 3. Load check.jsonl for spec references
 4. Get changes: `git diff`
-5. Check against specs in `.trellis/spec/`
+5. Check against specs in `.dijiang/spec/`
 6. Self-fix any issues
 7. Verify: `cargo build && cargo test`
 "#

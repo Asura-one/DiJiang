@@ -103,11 +103,11 @@ fn test_e2e_init_creates_project_structure() {
         ".dijiang/config.toml should exist"
     );
 
-    // .dijiang/ + .trellis/ infrastructure
-    assert!(project_dir.join(".trellis").join("workflow.md").exists());
-    assert!(project_dir.join(".trellis").join("tasks").exists());
-    assert!(project_dir.join(".trellis").join("workspace").join("e2e").exists());
-    assert!(project_dir.join(".trellis").join("spec").exists());
+    // .dijiang/ infrastructure
+    assert!(project_dir.join(".dijiang").join("workflow.md").exists());
+    assert!(project_dir.join(".dijiang").join("tasks").exists());
+    assert!(project_dir.join(".dijiang").join("workspace").join("e2e").exists());
+    assert!(project_dir.join(".dijiang").join("spec").exists());
 
     // Pi platform files
     assert!(project_dir.join(".pi").join("settings.json").exists());

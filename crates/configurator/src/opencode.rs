@@ -39,15 +39,15 @@ You are already the `dijiang-implement` sub-agent. Do the implementation work di
 ## Context
 
 Before implementing, read:
-- `.trellis/workflow.md` — Project workflow
-- `.trellis/spec/` — Development guidelines
+- `.dijiang/workflow.md` — Project workflow
+- `.dijiang/spec/` — Development guidelines
 - Task `prd.md` — Requirements document
 - Task `design.md` — Technical design (if exists)
 - Task `implement.md` — Execution plan (if exists)
 
 ## Core Responsibilities
 
-1. **Understand specs** — Read relevant spec files in `.trellis/spec/`
+1. **Understand specs** — Read relevant spec files in `.dijiang/spec/`
 2. **Understand task artifacts** — Read prd.md, design.md, implement.md
 3. **Implement features** — Write code following specs and task artifacts
 4. **Self-check** — Run `cargo build` / `cargo test` to verify
@@ -113,7 +113,7 @@ git diff
 ```
 
 ### Step 2: Check Against Specs
-Read task prd.md, design.md, implement.md, and specs in `.trellis/spec/`.
+Read task prd.md, design.md, implement.md, and specs in `.dijiang/spec/`.
 
 ### Step 3: Self-Fix
 Fix issues directly, then re-run verification.

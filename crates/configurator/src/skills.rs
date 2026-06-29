@@ -37,7 +37,7 @@ Note: active task path, current phase, git status, developer identity.
 ## Step 2: Read Workflow
 
 ```bash
-cat .trellis/workflow.md
+cat .dijiang/workflow.md
 ```
 
 DiJiang workflow: **dispatch → grill → output → implement/tdd → hunt ↔ check**
@@ -45,8 +45,8 @@ DiJiang workflow: **dispatch → grill → output → implement/tdd → hunt ↔
 ## Step 3: Discover Specs
 
 ```bash
-ls .trellis/spec/
-cat .trellis/spec/guides/index.md
+ls .dijiang/spec/
+cat .dijiang/spec/guides/index.md
 ```
 
 ## Step 4: Delegate to dj-dispatch
@@ -89,7 +89,7 @@ Resume work on the current DiJiang task.
 
 3. **Read task artifacts**: `prd.md`, `design.md` (if present), `implement.md` (if present).
 
-4. **Read journal** at `.trellis/workspace/<developer>/` for context from prior sessions.
+4. **Read journal** at `.dijiang/workspace/<developer>/` for context from prior sessions.
 
 5. **Route to the phase-appropriate dj-* skill**:
 
@@ -124,7 +124,7 @@ Wrap up the current DiJiang session.
    dijiang task status <name> completed
    ```
 
-4. **Write journal entry** at `.trellis/workspace/<developer>/`:
+4. **Write journal entry** at `.dijiang/workspace/<developer>/`:
    - What was accomplished
    - Key decisions made
    - Remaining work / next steps

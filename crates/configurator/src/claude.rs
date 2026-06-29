@@ -22,15 +22,15 @@ This project uses DiJiang, an AI-native development workflow framework.
 ## Project Structure
 
 - `.dijiang/` — DiJiang project configuration
-- `.trellis/tasks/` — Task records (JSON, Trellis-compatible format)
-- `.trellis/spec/` — Project specifications and coding guidelines
-- `.trellis/workspace/` — Developer journals and session traces
+- `.dijiang/tasks/` — Task records (JSON, Trellis-compatible format)
+- `.dijiang/spec/` — Project specifications and coding guidelines
+- `.dijiang/workspace/` — Developer journals and session traces
 - `.pi/` — Pi agent platform configuration
 - `crates/` — Rust workspace crates (core, cli, task, mem, configurator)
 
 ## Task Workflow
 
-Tasks live in `.trellis/tasks/<name>/` with these artifacts:
+Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
 - `prd.md` — Requirements (mandatory)
 - `design.md` — Technical design (complex tasks)
 - `implement.md` — Execution plan (complex tasks)

@@ -19,13 +19,20 @@ pub enum TaskError {
     InvalidStatus(String),
 }
 
-/// Find the `.trellis/` directory by walking up from `cwd`.
-pub fn find_trellis_dir(cwd: &Path) -> Option<PathBuf> {
+/// Find the `.dijiang/` directory by walking up from `cwd`.
+/// Falls back to `.trellis/` for backward compatibility with existing projects.
+pub fn find_dijiang_dir(cwd: &Path) -> Option<PathBuf> {
     let mut dir = Some(cwd.to_path_buf());
     while let Some(d) = dir {
-        let candidate = d.join(".trellis");
+        // Prefer `.dijiang/`
+        let candidate = d.join(".dijiang");
         if candidate.is_dir() {
             return Some(candidate);
+        }
+        // Fallback: `.trellis/` (legacy)
+        let legacy = d.join(".trellis");
+        if legacy.is_dir() {
+            return Some(legacy);
         }
         dir = d.parent().map(|p| p.to_path_buf());
     }
@@ -33,10 +40,10 @@ pub fn find_trellis_dir(cwd: &Path) -> Option<PathBuf> {
 }
 
 /// Find the active task by reading runtime session files.
-/// Falls back to `.trellis/active_task.txt` for Rust-only usage.
-pub fn read_active_task(trellis_dir: &Path) -> Result<Option<String>, TaskError> {
+/// Falls back to `<dijiang_dir>/active_task.txt` for Rust-only usage.
+pub fn read_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskError> {
     // First try runtime sessions (Python task.py format)
-    let sessions_dir = trellis_dir.join(".runtime").join("sessions");
+    let sessions_dir = dijiang_dir.join(".runtime").join("sessions");
     if sessions_dir.is_dir() {
         let mut latest: Option<(String, String)> = None; // (task_name, last_seen)
         for entry in fs::read_dir(&sessions_dir)? {
@@ -69,7 +76,7 @@ pub fn read_active_task(trellis_dir: &Path) -> Result<Option<String>, TaskError>
     }
 
     // Fallback: Rust active_task.txt
-    let path = trellis_dir.join("active_task.txt");
+    let path = dijiang_dir.join("active_task.txt");
     if path.exists() {
         let content = fs::read_to_string(&path)?;
         return Ok(Some(content.trim().to_string()));
@@ -78,20 +85,20 @@ pub fn read_active_task(trellis_dir: &Path) -> Result<Option<String>, TaskError>
     Ok(None)
 }
 
-/// Write the active task name to `.trellis/active_task.txt`.
-/// Write the active task name to `.trellis/active_task.txt`,
+/// Write the active task name to `.dijiang/active_task.txt`.
+/// Write the active task name to `.dijiang/active_task.txt`,
 /// and dual-write to `.runtime/sessions/<task_name>.json` so that
 /// `read_active_task` finds the active task via either path.
 ///
-/// Also creates a `.runtime/.trellis_owned` marker to declare DiJiang's
+/// Also creates a `.runtime/.dijiang_owned` marker to declare DiJiang's
 /// ownership of the `.runtime/` subtree.
-pub fn write_active_task(trellis_dir: &Path, task_name: &str) -> Result<(), TaskError> {
-    // Primary: `.trellis/active_task.txt` (simple format, Trellis-compat)
-    let path = trellis_dir.join("active_task.txt");
+pub fn write_active_task(dijiang_dir: &Path, task_name: &str) -> Result<(), TaskError> {
+    // Primary: `.dijiang/active_task.txt` (simple format, Trellis-compat)
+    let path = dijiang_dir.join("active_task.txt");
     fs::write(&path, task_name)?;
 
     // Dual-write: `.runtime/sessions/<task_name>.json`
-    let runtime_dir = trellis_dir.join(".runtime");
+    let runtime_dir = dijiang_dir.join(".runtime");
     let sessions_dir = runtime_dir.join("sessions");
     fs::create_dir_all(&sessions_dir)?;
     let session = serde_json::json!({
@@ -101,8 +108,8 @@ pub fn write_active_task(trellis_dir: &Path, task_name: &str) -> Result<(), Task
     let session_path = sessions_dir.join(format!("{task_name}.json"));
     fs::write(&session_path, serde_json::to_string_pretty(&session)?)?;
 
-    // Ownership marker: `.runtime/.trellis_owned`
-    fs::write(runtime_dir.join(".trellis_owned"), "")?;
+    // Ownership marker: `.runtime/.dijiang_owned`
+    fs::write(runtime_dir.join(".dijiang_owned"), "")?;
 
     Ok(())
 }
@@ -326,33 +333,33 @@ mod tests {
     }
 
     #[test]
-    fn test_find_trellis_dir() {
+    fn test_find_dijiang_dir() {
         let dir = tempfile::tempdir().unwrap();
-        let trellis = dir.path().join(".trellis");
-        fs::create_dir(&trellis).unwrap();
-        let found = find_trellis_dir(dir.path());
+        let dijiang = dir.path().join(".dijiang");
+        fs::create_dir(&dijiang).unwrap();
+        let found = find_dijiang_dir(dir.path());
         assert!(found.is_some());
-        assert_eq!(found.unwrap(), trellis);
+        assert_eq!(found.unwrap(), dijiang);
     }
 
     #[test]
     fn test_active_task_dual_write() {
         let dir = tempfile::tempdir().unwrap();
-        let trellis_dir = dir.path().join(".trellis");
-        fs::create_dir(&trellis_dir).unwrap();
+        let dijiang_dir = dir.path().join(".trellis");
+        fs::create_dir(&dijiang_dir).unwrap();
 
         // Before any write — no active task.
-        assert!(read_active_task(&trellis_dir).unwrap().is_none());
+        assert!(read_active_task(&dijiang_dir).unwrap().is_none());
 
-        write_active_task(&trellis_dir, "my-task").unwrap();
+        write_active_task(&dijiang_dir, "my-task").unwrap();
 
-        // Primary path: `.trellis/active_task.txt`
-        let primary = trellis_dir.join("active_task.txt");
+        // Primary path: `.dijiang/active_task.txt`
+        let primary = dijiang_dir.join("active_task.txt");
         assert!(primary.exists());
         assert_eq!(fs::read_to_string(&primary).unwrap(), "my-task");
 
         // Dual-write path: `.runtime/sessions/my-task.json`
-        let session = trellis_dir.join(".runtime").join("sessions").join("my-task.json");
+        let session = dijiang_dir.join(".runtime").join("sessions").join("my-task.json");
         assert!(session.exists());
         let session_data: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&session).unwrap()).unwrap();
@@ -360,11 +367,11 @@ mod tests {
         assert!(session_data["last_seen_at"].is_string());
 
         // Owned marker
-        let marker = trellis_dir.join(".runtime").join(".trellis_owned");
+        let marker = dijiang_dir.join(".runtime").join(".dijiang_owned");
         assert!(marker.exists());
 
         // read_active_task returns the task (prefers sessions, falls back to active_task.txt)
-        let active = read_active_task(&trellis_dir).unwrap();
+        let active = read_active_task(&dijiang_dir).unwrap();
         assert_eq!(active, Some("my-task".to_string()));
     }
 
@@ -372,17 +379,17 @@ mod tests {
     fn test_active_task_fallback_from_primary() {
         // When sessions path is removed, read should fall back to active_task.txt.
         let dir = tempfile::tempdir().unwrap();
-        let trellis_dir = dir.path().join(".trellis");
-        fs::create_dir(&trellis_dir).unwrap();
+        let dijiang_dir = dir.path().join(".trellis");
+        fs::create_dir(&dijiang_dir).unwrap();
 
-        write_active_task(&trellis_dir, "fallback-task").unwrap();
+        write_active_task(&dijiang_dir, "fallback-task").unwrap();
 
         // Remove sessions dir to simulate Trellis-only write
-        let sessions_dir = trellis_dir.join(".runtime").join("sessions");
+        let sessions_dir = dijiang_dir.join(".runtime").join("sessions");
         fs::remove_dir_all(sessions_dir).unwrap();
 
         // Should still read from active_task.txt
-        let active = read_active_task(&trellis_dir).unwrap();
+        let active = read_active_task(&dijiang_dir).unwrap();
         assert_eq!(active, Some("fallback-task".to_string()));
     }
 }

@@ -63,6 +63,14 @@ enum Commands {
         #[command(subcommand)]
         command: TemplateCommands,
     },
+    /// Manage dj-* skills (list, sync to project)
+    Skills {
+        /// Sync skills to current project
+        #[arg(long)]
+        sync: bool,
+    },
+    /// Migrate a Trellis project to DiJiang
+    Migrate,
 }
 #[derive(Subcommand)]
 enum MemCommands {
@@ -142,6 +150,8 @@ fn main() -> anyhow::Result<()> {
             TemplateCommands::Pull { source } => cmd_template_pull(&source),
             TemplateCommands::Validate { path } => cmd_template_validate(&path),
         },
+        Commands::Skills { sync } => cmd_skills(sync),
+        Commands::Migrate => cmd_migrate(),
     }
 }
 fn status_line(label: &str, value: impl std::fmt::Display) {
@@ -152,10 +162,10 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
     println!("\n  ── DiJiang Status ──\n");
 
     let cwd = std::env::current_dir()?;
-    let trellis_dir = match store::find_trellis_dir(&cwd) {
+    let dijiang_dir = match store::find_dijiang_dir(&cwd) {
         Some(d) => d,
         None => {
-            println!("  No .trellis/ found. Run `dijiang init` first.");
+            println!("  No .dijiang/ found. Run `dijiang init` first.");
             return Ok(());
         }
     };
@@ -164,8 +174,8 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
     status_line("Project:", &name);
 
     // Active task
-    let active = store::read_active_task(&trellis_dir).unwrap_or(None);
-    let tasks_dir = trellis_dir.join("tasks");
+    let active = store::read_active_task(&dijiang_dir).unwrap_or(None);
+    let tasks_dir = dijiang_dir.join("tasks");
     let tasks = store::list_tasks(&tasks_dir).unwrap_or_default();
 
     match &active {
@@ -191,7 +201,7 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
         );
     }
 
-    let pi_dir = trellis_dir.parent().map(|p| p.join(".pi"));
+    let pi_dir = dijiang_dir.parent().map(|p| p.join(".pi"));
     if pi_dir.as_ref().is_some_and(|p| p.exists()) {
         println!("  Pi:              ✓ configured");
     }
@@ -210,10 +220,10 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
         for (dij, tre) in &statuses {
             println!("    {dij:<20} → {tre}");
         }
-        if trellis_dir.join("tasks").exists() {
-            println!("  Trellis project: ✓ detected");
+        if dijiang_dir.join("tasks").exists() {
+            println!("  DiJiang project: \u{2713} detected");
         } else {
-            println!("  Trellis project: ✗ not detected");
+            println!("  DiJiang project: \u{2717} not detected");
         }
     }
 
@@ -222,15 +232,15 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
 }
 
 fn cmd_task_list() -> anyhow::Result<()> {
-    let trellis_dir = match store::find_trellis_dir(&std::env::current_dir()?) {
+    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
         Some(d) => d,
         None => {
-            println!("No .trellis/ found.");
+            println!("No .dijiang/ found.");
             return Ok(());
         }
     };
 
-    let tasks_dir = trellis_dir.join("tasks");
+    let tasks_dir = dijiang_dir.join("tasks");
     let tasks = store::list_tasks(&tasks_dir).unwrap_or_default();
 
     if tasks.is_empty() {
@@ -249,15 +259,15 @@ fn cmd_task_list() -> anyhow::Result<()> {
 }
 
 fn cmd_task_current() -> anyhow::Result<()> {
-    let trellis_dir = match store::find_trellis_dir(&std::env::current_dir()?) {
+    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
         Some(d) => d,
         None => {
-            println!("No .trellis/ found.");
+            println!("No .dijiang/ found.");
             return Ok(());
         }
     };
 
-    match store::read_active_task(&trellis_dir)? {
+    match store::read_active_task(&dijiang_dir)? {
         Some(name) => println!("{name}"),
         None => println!("(none)"),
     }
@@ -265,15 +275,15 @@ fn cmd_task_current() -> anyhow::Result<()> {
 }
 
 fn cmd_task_start(name: &str) -> anyhow::Result<()> {
-    let trellis_dir = match store::find_trellis_dir(&std::env::current_dir()?) {
+    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
         Some(d) => d,
         None => {
-            eprintln!("No .trellis/ found.");
+            eprintln!("No .dijiang/ found.");
             std::process::exit(1);
         }
     };
 
-    let tasks_dir = trellis_dir.join("tasks");
+    let tasks_dir = dijiang_dir.join("tasks");
 
     // Ensure task exists — create if missing, activate if exists
     match store::load_task(&tasks_dir, name) {
@@ -293,17 +303,17 @@ fn cmd_task_start(name: &str) -> anyhow::Result<()> {
         }
     }
 
-    store::write_active_task(&trellis_dir, name)?;
-    println!("✓ Current task set to: .trellis/tasks/{name}");
+    store::write_active_task(&dijiang_dir, name)?;
+    println!("✓ Current task set to: .dijiang/tasks/{name}");
     println!("  Status: planning → in_progress");
     Ok(())
 }
 
 fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
-    let trellis_dir = match store::find_trellis_dir(&std::env::current_dir()?) {
+    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
         Some(d) => d,
         None => {
-            eprintln!("No .trellis/ found.");
+            eprintln!("No .dijiang/ found.");
             std::process::exit(1);
         }
     };
@@ -320,7 +330,7 @@ fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
         }
     };
 
-    let tasks_dir = trellis_dir.join("tasks");
+    let tasks_dir = dijiang_dir.join("tasks");
     match store::update_status(&tasks_dir, name, new_status) {
         Ok(task) => {
             println!("✓ Task '{name}' status updated to: {}", task.status.as_str());
@@ -338,15 +348,15 @@ fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
 }
 
 fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
-    let trellis_dir = match store::find_trellis_dir(&std::env::current_dir()?) {
+    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
         Some(d) => d,
         None => {
-            println!("No .trellis/ found.");
+            println!("No .dijiang/ found.");
             return Ok(());
         }
     };
 
-    let tasks_dir = trellis_dir.join("tasks");
+    let tasks_dir = dijiang_dir.join("tasks");
     match store::archive_task(&tasks_dir, name) {
         Ok(task) => {
             println!("✓ Task '{name}' archived (status: {})", task.status.as_str());
@@ -364,15 +374,15 @@ fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
 }
 
 fn cmd_task_prune(days: u64) -> anyhow::Result<()> {
-    let trellis_dir = match store::find_trellis_dir(&std::env::current_dir()?) {
+    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
         Some(d) => d,
         None => {
-            println!("No .trellis/ found.");
+            println!("No .dijiang/ found.");
             return Ok(());
         }
     };
 
-    let tasks_dir = trellis_dir.join("tasks");
+    let tasks_dir = dijiang_dir.join("tasks");
     match store::prune_tasks(&tasks_dir, days) {
         Ok(count) => {
             if count > 0 {
@@ -576,20 +586,26 @@ fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platfor
         &selected_platforms,
     )?;
 
+    // Write dj-* skills to project
+    let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
+    if skills_written > 0 {
+        println!("  Wrote {} dj-* skills to .pi/skills/", skills_written);
+    }
+
     Ok(())
 }
 
 fn cmd_start(name: &str, title: Option<&str>) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    let trellis_dir = match store::find_trellis_dir(&cwd) {
+    let dijiang_dir = match store::find_dijiang_dir(&cwd) {
         Some(d) => d,
         None => {
-            eprintln!("No .trellis/ found. Run `dijiang init` first.");
+            eprintln!("No .dijiang/ found. Run `dijiang init` first.");
             std::process::exit(1);
         }
     };
 
-    let tasks_dir = trellis_dir.join("tasks");
+    let tasks_dir = dijiang_dir.join("tasks");
     let now = chrono::Utc::now();
 
     // Load existing task or create new one
@@ -620,20 +636,20 @@ fn cmd_start(name: &str, title: Option<&str>) -> anyhow::Result<()> {
         }
     }
 
-    store::write_active_task(&trellis_dir, name)?;
+    store::write_active_task(&dijiang_dir, name)?;
 
     // Print startup summary
     println!("  ✓ Session started");
     println!();
 
     // Show project and active task summary
-    let project_name = trellis_dir
+    let project_name = dijiang_dir
         .parent()
         .and_then(|p| p.file_name())
         .and_then(|n| n.to_str())
         .unwrap_or("(unknown)");
     println!("  Project: {project_name}");
-    println!("  Active:  .trellis/tasks/{name}");
+    println!("  Active:  .dijiang/tasks/{name}");
     println!();
 
     // Show task title if available
@@ -750,6 +766,45 @@ fn cmd_mem_sync() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn cmd_skills(sync: bool) -> anyhow::Result<()> {
+    if sync {
+        let cwd = std::env::current_dir()?;
+        let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
+        println!("  Synced {} dj-* skills to .pi/skills/", skills_written);
+    } else {
+        let names = dijiang_configurator::list_skill_names();
+        println!("  {} dj-* skills available:", names.len());
+        for name in names {
+            println!("    {}", name);
+        }
+        println!();
+        println!("  Use `dijiang skills --sync` to write skills to current project.");
+    }
+    Ok(())
+}
+
+fn cmd_migrate() -> anyhow::Result<()> {
+    use std::fs;
+    let cwd = std::env::current_dir()?;
+    let trellis = cwd.join(".trellis");
+    let dijiang = cwd.join(".dijiang");
+
+    if !trellis.exists() {
+        println!("  No .trellis/ directory found. Nothing to migrate.");
+        return Ok(());
+    }
+
+    if dijiang.exists() {
+        println!("  .dijiang/ already exists. Skipping migration.");
+        return Ok(());
+    }
+
+    println!("  Migrating .trellis/ -> .dijiang/...");
+    fs::rename(&trellis, &dijiang)?;
+    println!("  Done.");
+    println!("  Run `dijiang init` to reconfigure platforms.");
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use dijiang_task::types::TaskStatus;

@@ -91,15 +91,15 @@ pub struct ProjectConfig {
 }
 
 fn default_tasks_dir() -> String {
-    ".trellis/tasks".to_string()
+    ".dijiang/tasks".to_string()
 }
 
 fn default_spec_dir() -> String {
-    ".trellis/spec".to_string()
+    ".dijiang/spec".to_string()
 }
 
 fn default_workspace_dir() -> String {
-    ".trellis/workspace".to_string()
+    ".dijiang/workspace".to_string()
 }
 
 fn default_version() -> String {
