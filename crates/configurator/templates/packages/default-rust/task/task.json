@@ -1,0 +1,11 @@
+{
+  "name": "{{task_name}}",
+  "project": "{{project_name}}",
+  "status": "planning",
+  "created_at": "{{created_at}}",
+  "archived_at": null,
+  "artifacts": {
+    "prd": "task/prd.md",
+    "design": "task/design.md"
+  }
+}

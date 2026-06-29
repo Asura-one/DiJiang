@@ -1,0 +1,24 @@
+[template]
+name = "default-rust-ci"
+version = "1.0.0"
+description = "CI/CD templates for Rust projects (GitHub Actions)"
+
+[metadata]
+author = "dijiang"
+created = "2026-06-29"
+license = "MIT"
+
+[[files]]
+path = "github-actions.yml"
+description = "GitHub Actions CI workflow"
+template = true
+
+[[variables]]
+name = "project_name"
+description = "Project name"
+required = true
+
+[[variables]]
+name = "rust_version"
+description = "MSRV"
+default = "1.85"

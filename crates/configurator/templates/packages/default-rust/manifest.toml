@@ -1,0 +1,44 @@
+[template]
+name = "default-rust"
+version = "1.0.0"
+description = "Default Rust project spec and task templates"
+
+[metadata]
+author = "dijiang"
+created = "2026-06-29"
+license = "MIT"
+
+[[files]]
+path = "spec/coding.md"
+description = "Coding guidelines skeleton"
+template = true
+
+[[files]]
+path = "task/task.json"
+description = "Task metadata template"
+template = true
+
+[[files]]
+path = "task/prd.md"
+description = "Product requirements document template"
+template = true
+
+[[files]]
+path = "task/design.md"
+description = "Design document template"
+template = true
+
+[[variables]]
+name = "project_name"
+description = "Project name"
+required = true
+
+[[variables]]
+name = "rust_version"
+description = "MSRV"
+default = "1.85"
+
+[[variables]]
+name = "developer"
+description = "Developer name"
+default = "user"
