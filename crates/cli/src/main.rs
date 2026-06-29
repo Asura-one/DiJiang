@@ -14,7 +14,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Show project status
-    Status,
+    /// Show project status
+    Status {
+        /// Show detailed compatibility diagnostics
+        #[arg(long)]
+        compat: bool,
+    },
     /// Start a new coding session with a task
     Start {
         /// Task name (slug, e.g. "fix-login-bug")
@@ -36,8 +41,12 @@ enum Commands {
         #[arg(long)]
         developer: Option<String>,
         /// Skip interactive prompts, use defaults
+        /// Skip interactive prompts, use defaults
         #[arg(long, short = 'y')]
         yes: bool,
+        /// Force re-initialization even if already initialized
+        #[arg(long)]
+        force: bool,
         /// Comma-separated platforms to configure (pi,cursor,claude,codex,opencode,hermes)
         #[arg(long)]
         platforms: Option<String>,
@@ -115,9 +124,9 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Start { name, title } => cmd_start(&name, title.as_deref()),
-        Commands::Status => cmd_status(),
-        Commands::Init { name, developer, yes, platforms, auto_detect } =>
-            cmd_init(&name, developer.as_deref(), yes, platforms.as_deref(), auto_detect),
+        Commands::Status { compat } => cmd_status(compat),
+        Commands::Init { name, developer, yes, force, platforms, auto_detect } =>
+            cmd_init(&name, developer.as_deref(), yes, force, platforms.as_deref(), auto_detect),
         Commands::Task { command } => match command {
             TaskCommands::List => cmd_task_list(),
             TaskCommands::Current => cmd_task_current(),
@@ -139,7 +148,7 @@ fn status_line(label: &str, value: impl std::fmt::Display) {
     println!("  {label:15} {value}");
 }
 
-fn cmd_status() -> anyhow::Result<()> {
+fn cmd_status(compat: bool) -> anyhow::Result<()> {
     println!("\n  ── DiJiang Status ──\n");
 
     let cwd = std::env::current_dir()?;
@@ -151,32 +160,61 @@ fn cmd_status() -> anyhow::Result<()> {
         }
     };
 
-    // Project name — read from .dijiang/config.toml, then fall back to directory
     let name = dijiang_configurator::read_project_name(&cwd);
     status_line("Project:", &name);
+
     // Active task
     let active = store::read_active_task(&trellis_dir).unwrap_or(None);
-    match active {
-        Some(ref t) => status_line("Active Task:", t),
+    let tasks_dir = trellis_dir.join("tasks");
+    let tasks = store::list_tasks(&tasks_dir).unwrap_or_default();
+
+    match &active {
+        Some(t) => {
+            status_line("Active Task:", t);
+            if let Some(task) = tasks.iter().find(|x| &x.name == t) {
+                status_line("Status:", task.status.as_str());
+                status_line("Phase:", task.status.to_trellis_status());
+                status_line("Compatible:", "yes");
+            }
+        }
         None => status_line("Active Task:", "(none)"),
     }
 
-    // Task list
-    let tasks_dir = trellis_dir.join("tasks");
-    let tasks = store::list_tasks(&tasks_dir).unwrap_or_default();
     println!("  Tasks ({count}):", count = tasks.len());
     for t in &tasks {
         let marker = active.as_ref().map_or(' ', |a| if a == &t.name { '*' } else { ' ' });
-        println!("    {marker} {name:<45} {status:12}",
+        let phase = t.status.to_trellis_status();
+        println!("    {marker} {name:<45} {status:12} {phase:12}",
             name = t.name,
             status = t.status.as_str(),
+            phase = phase,
         );
     }
 
-    // Platform check
     let pi_dir = trellis_dir.parent().map(|p| p.join(".pi"));
     if pi_dir.as_ref().is_some_and(|p| p.exists()) {
         println!("  Pi:              ✓ configured");
+    }
+
+    // --compat: detailed diagnostics
+    if compat {
+        println!("  ── Compatibility Diagnostics ──");
+        let statuses = [
+            ("planning", "plan"),
+            ("in_progress", "implement"),
+            ("completed", "complete"),
+            ("paused", "in_progress  (downgraded)"),
+            ("archived", "complete      (downgraded)"),
+        ];
+        println!("  Status mapping (DiJiang → Trellis):");
+        for (dij, tre) in &statuses {
+            println!("    {dij:<20} → {tre}");
+        }
+        if trellis_dir.join("tasks").exists() {
+            println!("  Trellis project: ✓ detected");
+        } else {
+            println!("  Trellis project: ✗ not detected");
+        }
     }
 
     println!();
@@ -428,21 +466,18 @@ fn cmd_template_validate(path: &str) -> anyhow::Result<()> {
     }
 }
 
-fn cmd_init(name: &str, developer: Option<&str>, yes: bool, platforms: Option<&str>, auto_detect: bool) -> anyhow::Result<()> {
+fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platforms: Option<&str>, auto_detect: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Check if already initialized
+    // Check if already initialized
+    // Check if already initialized
     if cwd.join(".dijiang").join("config.toml").exists() {
-        if yes || Confirm::new()
-            .with_prompt("Already initialized. Overwrite?")
-            .default(false)
-            .interact()?
-        {
-            println!("  Overwriting...");
-        } else {
-            println!("  Aborted.");
+        if !force {
+            println!("  Already initialized. Use --force to reinitialize.");
             return Ok(());
         }
+        println!("  Overwriting...");
     }
 
     // Project name
@@ -713,4 +748,48 @@ fn cmd_mem_sync() -> anyhow::Result<()> {
     }
     println!();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use dijiang_task::types::TaskStatus;
+
+    fn status_format(status: TaskStatus) -> (String, String) {
+        (status.as_str().to_string(), status.to_trellis_status().to_string())
+    }
+
+    #[test]
+    fn test_status_format_planning() {
+        let (s, p) = status_format(TaskStatus::Planning);
+        assert_eq!(p, "plan");
+        assert_eq!(s, "planning");
+    }
+
+    #[test]
+    fn test_status_format_in_progress() {
+        let (s, p) = status_format(TaskStatus::InProgress);
+        assert_eq!(p, "implement");
+        assert_eq!(s, "in_progress");
+    }
+
+    #[test]
+    fn test_status_format_completed() {
+        let (s, p) = status_format(TaskStatus::Completed);
+        assert_eq!(p, "complete");
+        assert_eq!(s, "completed");
+    }
+
+    #[test]
+    fn test_status_format_paused() {
+        let (s, p) = status_format(TaskStatus::Paused);
+        assert_eq!(p, "in_progress");
+        assert_eq!(s, "paused");
+    }
+
+    #[test]
+    fn test_status_format_archived() {
+        let (s, p) = status_format(TaskStatus::Archived);
+        assert_eq!(p, "complete");
+        assert_eq!(s, "archived");
+    }
 }

@@ -1,0 +1,9 @@
+platforms = ["pi"]
+tasks_dir = ".trellis/tasks"
+spec_dir = ".trellis/spec"
+workspace_dir = ".trellis/workspace"
+
+[project]
+name = "DiJiang"
+developer = "TiZhu"
+version = "0.1.0"

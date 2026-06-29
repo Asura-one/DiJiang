@@ -189,3 +189,18 @@ fn test_e2e_binary_exists() {
     let bin = dijiang_bin();
     assert!(bin.exists(), "dijiang binary should exist at {}", bin.display());
 }
+
+#[test]
+fn test_e2e_init_detects_reinit() {
+    let (_tmp, project_dir) = init_project();
+
+    // Trying to init again without --force should print Already initialized
+    let out = dijang(&["init", "--yes", "e2e-test"], &project_dir).unwrap();
+    assert!(out.contains("Already initialized"), "stdout: {out}");
+
+    // With --force it should succeed
+    dijang(&["init", "--yes", "--force", "e2e-test"], &project_dir).unwrap();
+
+    // Verify config exists after re-init
+    assert!(project_dir.join(".dijiang").join("config.toml").exists());
+}
