@@ -78,6 +78,20 @@ enum MemCommands {
     List,
     /// Sync all platform sessions into ~/.dijiang/mem/
     Sync,
+    /// Append a finding to the current session journal
+    Findings {
+        /// The finding to record
+        #[arg(long)]
+        finding: String,
+    },
+    /// Write a lesson learned to the current session journal
+    Learn {
+        /// The lesson to record
+        #[arg(long)]
+        lesson: String,
+    },
+    /// Archive the current session (write summary to journal)
+    Archive,
 }
 
 #[derive(Subcommand)]
@@ -145,6 +159,9 @@ fn main() -> anyhow::Result<()> {
         },
         Commands::Mem { command: MemCommands::List } => cmd_mem_list(),
         Commands::Mem { command: MemCommands::Sync } => cmd_mem_sync(),
+        Commands::Mem { command: MemCommands::Findings { finding } } => cmd_mem_findings(&finding),
+        Commands::Mem { command: MemCommands::Learn { lesson } } => cmd_mem_learn(&lesson),
+        Commands::Mem { command: MemCommands::Archive } => cmd_mem_archive(),
         Commands::Template { command } => match command {
             TemplateCommands::List => cmd_template_list(),
             TemplateCommands::Pull { source } => cmd_template_pull(&source),
@@ -805,6 +822,99 @@ fn cmd_migrate() -> anyhow::Result<()> {
     println!("  Run `dijiang init` to reconfigure platforms.");
     Ok(())
 }
+
+fn cmd_mem_findings(finding: &str) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    // Read developer name from config.toml (simple parser)
+    let config_path = dijiang_dir.join("config.toml");
+    let config_str = std::fs::read_to_string(&config_path)?;
+    let developer = config_str.lines()
+        .find(|l| l.starts_with("developer"))
+        .and_then(|l| l.split('=').nth(1))
+        .map(|s| s.trim().trim_matches('\"').to_string())
+        .unwrap_or_else(|| "developer".to_string());
+
+    let workspace = dijiang_dir.join("workspace").join(&developer);
+    std::fs::create_dir_all(&workspace)?;
+
+    let journal = workspace.join("findings.md");
+    let entry = format!(
+        "\n## {}\n{}\n",
+        chrono::Local::now().format("%Y-%m-%d %H:%M"),
+        finding
+    );
+    use std::io::Write;
+    std::fs::OpenOptions::new().create(true).append(true).open(&journal)?.write_all(entry.as_bytes())?;
+    println!("  Finding recorded to {}", journal.display());
+    Ok(())
+}
+
+fn cmd_mem_learn(lesson: &str) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    let config_path = dijiang_dir.join("config.toml");
+    let config_str = std::fs::read_to_string(&config_path)?;
+    let developer = config_str.lines()
+        .find(|l| l.starts_with("developer"))
+        .and_then(|l| l.split('=').nth(1))
+        .map(|s| s.trim().trim_matches('\"').to_string())
+        .unwrap_or_else(|| "developer".to_string());
+
+    let workspace = dijiang_dir.join("workspace").join(&developer);
+    std::fs::create_dir_all(&workspace)?;
+
+    let journal = workspace.join("lessons.md");
+    let entry = format!(
+        "\n## {}\n{}\n",
+        chrono::Local::now().format("%Y-%m-%d %H:%M"),
+        lesson
+    );
+    use std::io::Write;
+    std::fs::OpenOptions::new().create(true).append(true).open(&journal)?.write_all(entry.as_bytes())?;
+    println!("  Lesson recorded to {}", journal.display());
+    Ok(())
+}
+
+fn cmd_mem_archive() -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    let config_path = dijiang_dir.join("config.toml");
+    let config_str = std::fs::read_to_string(&config_path)?;
+    let developer = config_str.lines()
+        .find(|l| l.starts_with("developer"))
+        .and_then(|l| l.split('=').nth(1))
+        .map(|s| s.trim().trim_matches('\"').to_string())
+        .unwrap_or_else(|| "developer".to_string());
+
+    let workspace = dijiang_dir.join("workspace").join(&developer);
+    std::fs::create_dir_all(&workspace)?;
+
+    let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let archive_dir = workspace.join(format!("{}-archive", date));
+    std::fs::create_dir_all(&archive_dir)?;
+
+    // Move today's findings and lessons to archive
+    for name in &["findings.md", "lessons.md"] {
+        let src = workspace.join(name);
+        if src.exists() {
+            let dst = archive_dir.join(name);
+            std::fs::rename(&src, &dst)?;
+            println!("  Archived {}", name);
+        }
+    }
+
+    println!("  Session archived to {}", archive_dir.display());
+    Ok(())
+}
+
+
 #[cfg(test)]
 mod tests {
     use dijiang_task::types::TaskStatus;

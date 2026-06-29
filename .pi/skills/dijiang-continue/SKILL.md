@@ -17,10 +17,10 @@ Resume work on the current DiJiang task.
    ```
 
 
-2. **Load MUSE session**: Restore prior session context for cross-task memory:
+2. **Load session context**: Check prior session context for cross-task memory:
 
    ```bash
-   muse_session_load
+   dijiang mem list
    ```
 
 3. **Find active task and phase** from the output.

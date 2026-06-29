@@ -32,18 +32,12 @@ ls .dijiang/spec/
 cat .dijiang/spec/index.md
 ```
 
-## Step 4: Initialize MUSE Memory Session
-
-Create a MUSE memory session to track cross-session context:
-
-```bash
-muse_session_create
-```
+## Step 4: Initialize Memory Session
 
 Record initial findings if the user has already given a task description:
 
 ```bash
-muse_findings_append --finding "<initial task description>"
+dijiang mem findings --finding "<initial task description>"
 ```
 
 ## Step 5: Delegate to dj-dispatch

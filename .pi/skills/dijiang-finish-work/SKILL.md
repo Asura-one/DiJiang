@@ -28,11 +28,11 @@ Wrap up the current DiJiang session.
 
 5. **Update specs** if learned anything new — use `dj-output` for spec documents.
 
-6. **Write learnings back to MUSE**: Capture what was learned for cross-session recall:
+6. **Write learnings**: Capture what was learned for cross-session recall:
    ```bash
-   muse_findings_append --finding "<key decisions and learnings>"
-   muse_learn_write --lesson "<specific lesson learned>"
-   muse_session_archive
+   dijiang mem findings --finding "<key decisions and learnings>"
+   dijiang mem learn --lesson "<specific lesson learned>"
+   dijiang mem archive
    ```
 
 7. **Remind user** to commit with descriptive message.
