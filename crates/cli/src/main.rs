@@ -876,34 +876,78 @@ fn cmd_migrate() -> anyhow::Result<()> {
 }
 
 fn cmd_review(mode: &str) -> anyhow::Result<()> {
-    println!("  🔍 Running {} review...", mode);
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
 
+    // Read agent definitions
+    let agents_dir = dijiang_dir.parent().map(|p| p.join(".pi").join("agents")).unwrap_or_default();
+
     match mode {
         "adversarial" => {
-            println!("  Mode: Adversarial Review (对抗式审查)");
-            println!("  Angle 1: Security - How would a恶意 user attack this?");
-            println!("  Angle 2: Edge cases - What happens with extreme inputs?");
-            println!("  Angle 3: Performance - What if resources are exhausted?");
-            println!("  Angle 4: Data corruption - What if data is malformed?");
-            println!("  Angle 5: Race conditions - What if concurrent access occurs?");
-            println!("  Angle 6: Resource leaks - What if cleanup fails?");
-            println!("  Angle 7: Error handling - What if dependencies fail?");
+            println!("  🔍 Adversarial Review Mode (对抗式审查)");
             println!();
-            println!("  Run `dijiang review --mode first-principles` for architectural review.");
+            println!("  Use the dijiang-check agent with these review angles:");
+            println!("  1. Security - How would a malicious user attack this?");
+            println!("  2. Edge cases - What happens with extreme inputs?");
+            println!("  3. Performance - What if resources are exhausted?");
+            println!("  4. Data corruption - What if data is malformed?");
+            println!("  5. Race conditions - What if concurrent access occurs?");
+            println!("  6. Resource leaks - What if cleanup fails?");
+            println!("  7. Error handling - What if dependencies fail?");
+            println!();
+            println!("  Agent definition: .pi/agents/dijiang-check.md");
+            println!();
+            // Generate review prompt
+            let prompt = "Review the code changes from a security perspective.\n\n".to_string()
+                + "Focus on these attack vectors:\n"
+                + "1. Input validation - What if inputs are malicious?\n"
+                + "2. Injection attacks - SQL, command, XSS?\n"
+                + "3. Authentication bypass - Can unauthorized access occur?\n"
+                + "4. Data exposure - Are secrets or sensitive data leaked?\n"
+                + "5. Denial of service - Can the system be overwhelmed?\n"
+                + "6. Supply chain - Are dependencies trustworthy?\n"
+                + "\n"
+                + "For each issue found, provide:\n"
+                + "- file:line citation\n"
+                + "- attack scenario\n"
+                + "- severity (critical/high/medium/low)\n"
+                + "- recommended fix\n"
+                + "\n"
+                + "Run: git diff to see changes, then review each file.";
+            println!("  Generated prompt:");
+            println!("  {}", prompt);
         },
         "first-principles" => {
-            println!("  Mode: First Principles Review (第一性原理审查)");
-            println!("  Step 1: What is the fundamental problem being solved?");
-            println!("  Step 2: What are the basic facts and constraints?");
-            println!("  Step 3: What assumptions are we making?");
-            println!("  Step 4: Can we derive the solution from first principles?");
-            println!("  Step 5: Is there a simpler, more fundamental approach?");
-            println!("  Step 6: What are the trade-offs of each approach?");
+            println!("  🧠 First Principles Review Mode (第一性原理审查)");
             println!();
-            println!("  Run `dijiang review --mode adversarial` for security review.");
+            println!("  Use the dijiang-implement agent with these analysis steps:");
+            println!("  1. What is the fundamental problem being solved?");
+            println!("  2. What are the basic facts and constraints?");
+            println!("  3. What assumptions are we making?");
+            println!("  4. Can we derive the solution from first principles?");
+            println!("  5. Is there a simpler, more fundamental approach?");
+            println!("  6. What are the trade-offs of each approach?");
+            println!();
+            println!("  Agent definition: .pi/agents/dijiang-implement.md");
+            println!();
+            // Generate review prompt
+            let prompt = "Review this code from first principles.\n\n".to_string()
+                + "Step 1: Identify the fundamental problem this code solves.\n"
+                + "Step 2: List the basic facts and constraints.\n"
+                + "Step 3: Identify hidden assumptions.\n"
+                + "Step 4: Derive the solution from first principles.\n"
+                + "Step 5: Propose a simpler approach if possible.\n"
+                + "Step 6: Analyze trade-offs.\n"
+                + "\n"
+                + "For each finding, explain:\n"
+                + "- What assumption is being made\n"
+                + "- Why it might be wrong\n"
+                + "- What the first-principles alternative would be\n"
+                + "\n"
+                + "Run: git diff to see changes, then analyze each component.";
+            println!("  Generated prompt:");
+            println!("  {}", prompt);
         },
         _ => anyhow::bail!("mode must be 'adversarial' or 'first-principles'"),
     }
@@ -914,7 +958,9 @@ fn cmd_review(mode: &str) -> anyhow::Result<()> {
     global_mem.add_tactic(&tactic_name, &format!("{} review performed", mode), &dijiang_dir.to_string_lossy())?;
     global_mem.record_event(&tactic_name, dijiang_mem::Outcome::Success, "review completed", Some(&dijiang_dir.to_string_lossy()))?;
 
+    println!();
     println!("  Review recorded as tactic: {}", tactic_name);
+    println!("  Use this prompt with dj-check or dj-implement agent.");
     Ok(())
 }
 
