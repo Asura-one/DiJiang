@@ -8,6 +8,7 @@ pub mod claude;
 pub mod codex;
 pub mod hermes;
 pub mod opencode;
+pub mod memory;
 
 pub use types::*;
 pub use adapter::*;
@@ -18,3 +19,4 @@ pub use claude::*;
 pub use codex::*;
 pub use hermes::*;
 pub use opencode::*;
+pub use memory::*;

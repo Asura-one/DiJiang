@@ -78,20 +78,52 @@ enum MemCommands {
     List,
     /// Sync all platform sessions into ~/.dijiang/mem/
     Sync,
-    /// Append a finding to the current session journal
+    /// Append a finding to project journal
     Findings {
-        /// The finding to record
         #[arg(long)]
         finding: String,
     },
-    /// Write a lesson learned to the current session journal
+    /// Write a lesson learned to project journal
     Learn {
-        /// The lesson to record
         #[arg(long)]
         lesson: String,
     },
-    /// Archive the current session (write summary to journal)
+    /// Archive current session
     Archive,
+    /// Add a tactic to global memory
+    Tactic {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        description: String,
+    },
+    /// List tactics or select top-k by Thompson sampling
+    Tactics {
+        #[arg(long, default_value = "5")]
+        select: usize,
+    },
+    /// Record a tactic event (success/failure)
+    Record {
+        #[arg(long)]
+        tactic: String,
+        #[arg(long)]
+        outcome: String,  // success or failure
+        #[arg(long)]
+        context: String,
+    },
+    /// Add a pattern/SOP
+    Pattern {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        description: String,
+    },
+    /// List patterns
+    Patterns,
+    /// Show memory statistics
+    Stats,
+    /// Backup project memory to global
+    Backup,
 }
 
 #[derive(Subcommand)]
@@ -162,6 +194,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Mem { command: MemCommands::Findings { finding } } => cmd_mem_findings(&finding),
         Commands::Mem { command: MemCommands::Learn { lesson } } => cmd_mem_learn(&lesson),
         Commands::Mem { command: MemCommands::Archive } => cmd_mem_archive(),
+        Commands::Mem { command: MemCommands::Tactic { name, description } } => cmd_mem_tactic(&name, &description),
+        Commands::Mem { command: MemCommands::Tactics { select } } => cmd_mem_tactics(select),
+        Commands::Mem { command: MemCommands::Record { tactic, outcome, context } } => cmd_mem_record(&tactic, &outcome, &context),
+        Commands::Mem { command: MemCommands::Pattern { name, description } } => cmd_mem_pattern(&name, &description),
+        Commands::Mem { command: MemCommands::Patterns } => cmd_mem_patterns(),
+        Commands::Mem { command: MemCommands::Stats } => cmd_mem_stats(),
+        Commands::Mem { command: MemCommands::Backup } => cmd_mem_backup(),
         Commands::Template { command } => match command {
             TemplateCommands::List => cmd_template_list(),
             TemplateCommands::Pull { source } => cmd_template_pull(&source),
@@ -911,6 +950,96 @@ fn cmd_mem_archive() -> anyhow::Result<()> {
     }
 
     println!("  Session archived to {}", archive_dir.display());
+    Ok(())
+}
+
+fn cmd_mem_tactic(name: &str, description: &str) -> anyhow::Result<()> {
+    let mem = dijiang_mem::GlobalMemory::new()?;
+    let tactic = mem.add_tactic(name, description, "cli")?;
+    println!("  Added tactic: {} (alpha={}, beta={})", tactic.name, tactic.alpha, tactic.beta);
+    Ok(())
+}
+
+fn cmd_mem_tactics(select: usize) -> anyhow::Result<()> {
+    let mem = dijiang_mem::GlobalMemory::new()?;
+    let tactics = mem.select_tactics(select)?;
+    println!("  Top {} tactics (Thompson sampling):", select);
+    for t in &tactics {
+        println!("    {} (win_rate={:.2}, a={}, b={})", t.name, t.win_rate(), t.alpha, t.beta);
+    }
+    Ok(())
+}
+
+fn cmd_mem_record(tactic_name: &str, outcome: &str, context: &str) -> anyhow::Result<()> {
+    let mem = dijiang_mem::GlobalMemory::new()?;
+    let outcome_enum = match outcome {
+        "success" => dijiang_mem::Outcome::Success,
+        "failure" => dijiang_mem::Outcome::Failure,
+        _ => anyhow::bail!("outcome must be 'success' or 'failure'"),
+    };
+    mem.record_event(tactic_name, outcome_enum, context, None)?;
+    println!("  Recorded {} for tactic {}", outcome, tactic_name);
+    Ok(())
+}
+
+fn cmd_mem_pattern(name: &str, description: &str) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+    let mem = dijiang_mem::ProjectMemory::new(&dijiang_dir)?;
+    let pattern = dijiang_mem::Pattern {
+        name: name.to_string(),
+        description: description.to_string(),
+        steps: vec![],
+        tags: vec![],
+        created_at: chrono::Local::now().to_rfc3339(),
+        project: None,
+    };
+    mem.add_pattern(&pattern)?;
+    println!("  Added pattern: {}", name);
+    Ok(())
+}
+
+fn cmd_mem_patterns() -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+    let mem = dijiang_mem::ProjectMemory::new(&dijiang_dir)?;
+    let patterns = mem.load_patterns()?;
+    println!("  {} patterns:", patterns.len());
+    for p in &patterns {
+        println!("    {} - {}", p.name, p.description);
+    }
+    Ok(())
+}
+
+fn cmd_mem_stats() -> anyhow::Result<()> {
+    let mem = dijiang_mem::GlobalMemory::new()?;
+    let tactics = mem.load_tactics()?;
+    let avg_win_rate = if tactics.is_empty() { 0.0 } else {
+        tactics.iter().map(|t| t.win_rate()).sum::<f64>() / tactics.len() as f64
+    };
+    println!("  Memory Stats:");
+    println!("    Tactics: {}", tactics.len());
+    println!("    Avg win rate: {:.2}", avg_win_rate);
+    Ok(())
+}
+
+fn cmd_mem_backup() -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+    let config_path = dijiang_dir.join("config.toml");
+    let config_str = std::fs::read_to_string(&config_path)?;
+    let project = config_str.lines()
+        .find(|l| l.starts_with("name"))
+        .and_then(|l| l.split('=').nth(1))
+        .map(|s| s.trim().trim_matches('"').to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    let global_mem = dijiang_mem::GlobalMemory::new()?;
+    let project_mem = dijiang_mem::ProjectMemory::new(&dijiang_dir)?;
+    global_mem.backup_project(&project, &project_mem)?;
+    println!("  Backed up project '{}' to ~/.dijiang/backups/", project);
     Ok(())
 }
 
