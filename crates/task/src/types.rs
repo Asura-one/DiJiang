@@ -23,7 +23,38 @@ impl TaskStatus {
         }
     }
 
-    /// Infer the development phase from status.
+    /// Map DiJiang task status to a Trellis-readable status string.
+    ///
+    /// DiJiang has 5 status variants; Trellis's `inferTaskPhase` recognises
+    /// only 4 (`planning`/`in_progress`/`review`/`completed`). The two extra
+    /// states (`Archived`, `Paused`) are downgraded so JSON emitted by DiJiang
+    /// remains interpretable by Trellis tools. The original status is preserved
+    /// in `meta.original_status` by the caller.
+    pub fn to_trellis_status(&self) -> &'static str {
+        match self {
+            TaskStatus::Planning => "plan",
+            TaskStatus::InProgress => "implement",
+            TaskStatus::Completed => "complete",
+            TaskStatus::Archived => "complete",
+            TaskStatus::Paused => "in_progress",
+        }
+    }
+    /// Parse a status string. Unknown values fall back to [`TaskStatus::Paused`]
+    /// (the most conservative DiJiang state) and the raw input is returned via
+    /// the second tuple element. This keeps reads of Trellis task.json files
+    /// forward-compatible with Trellis status values DiJiang does not know about.
+    pub fn from_str_lossy(s: &str) -> (Self, Option<String>) {
+        match s {
+            "planning" => (Self::Planning, None),
+            "in_progress" => (Self::InProgress, None),
+            "completed" | "done" => (Self::Completed, None),
+            "review" => (Self::Completed, None),
+            "archived" => (Self::Archived, None),
+            "paused" => (Self::Paused, None),
+            other => (Self::Paused, Some(other.to_string())),
+        }
+    }
+
     pub fn infer_phase(&self) -> &'static str {
         match self {
             TaskStatus::Planning => "plan",
@@ -33,6 +64,37 @@ impl TaskStatus {
         }
     }
 }
+
+/// Canonical field order for the `task.json` file. Must match the 24-field
+/// `TASK_RECORD_FIELD_ORDER` defined in Trellis's `packages/core/src/task/schema.ts`
+/// and the `TaskData` TypedDict in Trellis's `scripts/common/types.py`. Field order is
+/// load-bearing for Trellis interop: any reordering or insertion will break consumers.
+pub const TASK_RECORD_FIELD_ORDER: &[&str] = &[
+    "id",
+    "name",
+    "title",
+    "description",
+    "status",
+    "devType",
+    "scope",
+    "package",
+    "priority",
+    "creator",
+    "assignee",
+    "createdAt",
+    "completedAt",
+    "branch",
+    "baseBranch",
+    "worktreePath",
+    "commit",
+    "prUrl",
+    "subtasks",
+    "children",
+    "parent",
+    "relatedFiles",
+    "notes",
+    "meta",
+];
 
 /// Full task record matching Trellis's `TrellisTaskRecord` exactly (24 fields
 /// in `TASK_RECORD_FIELD_ORDER`), plus DiJiang extensions.

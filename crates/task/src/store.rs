@@ -79,9 +79,31 @@ pub fn read_active_task(trellis_dir: &Path) -> Result<Option<String>, TaskError>
 }
 
 /// Write the active task name to `.trellis/active_task.txt`.
+/// Write the active task name to `.trellis/active_task.txt`,
+/// and dual-write to `.runtime/sessions/<task_name>.json` so that
+/// `read_active_task` finds the active task via either path.
+///
+/// Also creates a `.runtime/.trellis_owned` marker to declare DiJiang's
+/// ownership of the `.runtime/` subtree.
 pub fn write_active_task(trellis_dir: &Path, task_name: &str) -> Result<(), TaskError> {
+    // Primary: `.trellis/active_task.txt` (simple format, Trellis-compat)
     let path = trellis_dir.join("active_task.txt");
     fs::write(&path, task_name)?;
+
+    // Dual-write: `.runtime/sessions/<task_name>.json`
+    let runtime_dir = trellis_dir.join(".runtime");
+    let sessions_dir = runtime_dir.join("sessions");
+    fs::create_dir_all(&sessions_dir)?;
+    let session = serde_json::json!({
+        "current_task": task_name,
+        "last_seen_at": chrono::Utc::now().to_rfc3339(),
+    });
+    let session_path = sessions_dir.join(format!("{task_name}.json"));
+    fs::write(&session_path, serde_json::to_string_pretty(&session)?)?;
+
+    // Ownership marker: `.runtime/.trellis_owned`
+    fs::write(runtime_dir.join(".trellis_owned"), "")?;
+
     Ok(())
 }
 
@@ -314,15 +336,53 @@ mod tests {
     }
 
     #[test]
-    fn test_active_task() {
+    fn test_active_task_dual_write() {
         let dir = tempfile::tempdir().unwrap();
         let trellis_dir = dir.path().join(".trellis");
         fs::create_dir(&trellis_dir).unwrap();
 
+        // Before any write — no active task.
         assert!(read_active_task(&trellis_dir).unwrap().is_none());
 
         write_active_task(&trellis_dir, "my-task").unwrap();
+
+        // Primary path: `.trellis/active_task.txt`
+        let primary = trellis_dir.join("active_task.txt");
+        assert!(primary.exists());
+        assert_eq!(fs::read_to_string(&primary).unwrap(), "my-task");
+
+        // Dual-write path: `.runtime/sessions/my-task.json`
+        let session = trellis_dir.join(".runtime").join("sessions").join("my-task.json");
+        assert!(session.exists());
+        let session_data: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&session).unwrap()).unwrap();
+        assert_eq!(session_data["current_task"], "my-task");
+        assert!(session_data["last_seen_at"].is_string());
+
+        // Owned marker
+        let marker = trellis_dir.join(".runtime").join(".trellis_owned");
+        assert!(marker.exists());
+
+        // read_active_task returns the task (prefers sessions, falls back to active_task.txt)
         let active = read_active_task(&trellis_dir).unwrap();
         assert_eq!(active, Some("my-task".to_string()));
+    }
+
+    #[test]
+    fn test_active_task_fallback_from_primary() {
+        // When sessions path is removed, read should fall back to active_task.txt.
+        let dir = tempfile::tempdir().unwrap();
+        let trellis_dir = dir.path().join(".trellis");
+        fs::create_dir(&trellis_dir).unwrap();
+
+        write_active_task(&trellis_dir, "fallback-task").unwrap();
+
+        // Remove sessions dir to simulate Trellis-only write
+        let sessions_dir = trellis_dir.join(".runtime").join("sessions");
+        fs::remove_dir_all(sessions_dir).unwrap();
+
+        // Should still read from active_task.txt
+        let active = read_active_task(&trellis_dir).unwrap();
+        assert_eq!(active, Some("fallback-task".to_string()));
     }
 }
