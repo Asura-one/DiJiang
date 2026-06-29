@@ -14,3 +14,7 @@ tokio = { workspace = true, features = ["full"] }
 dijiang-task = { path = "../task" }
 dijiang-mem = { path = "../mem" }
 dijiang-configurator = { path = "../configurator" }
+dialoguer = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
