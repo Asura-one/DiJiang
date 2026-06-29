@@ -29,9 +29,9 @@ This project uses DiJiang for task management and workflow.
 ## Project Structure
 
 - `.dijiang/` — DiJiang project configuration
-- `.trellis/tasks/` — active and archived tasks
-- `.trellis/spec/` — coding guidelines
-- `.trellis/workspace/` — developer journals
+- `.dijiang/tasks/` — active and archived tasks
+- `.dijiang/spec/` — coding guidelines
+- `.dijiang/workspace/` — developer journals
 - `.pi/` — Pi platform configuration
 
 ## Available Commands
@@ -72,10 +72,10 @@ This project uses DiJiang for task management and workflow.
 
 ## Workflow
 
-1. Read this file and `.trellis/workflow.md` at session start
+1. Read this file and `.dijiang/workflow.md` at session start
 2. Check active task with `dijiang task current`
 3. Read task artifacts (task.json, prd.md, design.md, implement.md)
-4. Read relevant spec files from `.trellis/spec/`
+4. Read relevant spec files from `.dijiang/spec/`
 5. Follow the task status phase to determine workflow:
    - `planning` → dj-grill (requirements alignment)
    - `in_progress` → dj-implement (implementation)
@@ -85,3 +85,5 @@ This project uses DiJiang for task management and workflow.
 
 Managed by DiJiang. Edits outside this block are preserved.
 <!-- DIJIANG:END -->
+
+
