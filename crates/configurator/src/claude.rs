@@ -1,4 +1,4 @@
-use crate::{ConfigError, Configurator};
+use crate::{ConfigError, Configurator, PlatformKind};
 use std::fs;
 use std::path::Path;
 
@@ -67,19 +67,21 @@ Tasks live in `.trellis/tasks/<name>/` with these artifacts:
 }
 
 impl Configurator for ClaudeConfigurator {
-    fn platform(&self) -> &str {
-        "claude"
+    fn platform(&self) -> PlatformKind {
+        PlatformKind::Claude
+    }
+
+    fn is_installed(&self) -> bool {
+        std::process::Command::new("claude")
+            .arg("--version")
+            .output()
+            .ok()
+            .is_some_and(|o| o.status.success())
     }
 
     fn configure(&self, cwd: &Path) -> Result<(), ConfigError> {
         // Read project name from DiJiang config, fallback to directory name
-        let project_name = crate::init::read_project_name(cwd)
-            .unwrap_or_else(|| {
-                cwd.file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("project")
-                    .to_string()
-            });
+        let project_name = crate::init::read_project_name(cwd);
 
         // Write CLAUDE.md
         let claude_md = cwd.join("CLAUDE.md");

@@ -1,4 +1,4 @@
-use crate::{ConfigError, Configurator};
+use crate::{ConfigError, Configurator, PlatformKind};
 use std::fs;
 use std::path::Path;
 
@@ -80,8 +80,16 @@ You are the Check Agent in the DiJiang workflow.
 }
 
 impl Configurator for HermesConfigurator {
-    fn platform(&self) -> &str {
-        "hermes"
+    fn platform(&self) -> PlatformKind {
+        PlatformKind::Hermes
+    }
+
+    fn is_installed(&self) -> bool {
+        std::process::Command::new("hermes")
+            .arg("--version")
+            .output()
+            .ok()
+            .is_some_and(|o| o.status.success())
     }
 
     fn configure(&self, cwd: &Path) -> Result<(), ConfigError> {

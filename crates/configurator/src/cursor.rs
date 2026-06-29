@@ -1,4 +1,4 @@
-use crate::{ConfigError, Configurator};
+use crate::{ConfigError, Configurator, PlatformKind};
 use std::fs;
 use std::path::Path;
 
@@ -68,8 +68,14 @@ Hooks fire automatically on session start to load task context.
 }
 
 impl Configurator for CursorConfigurator {
-    fn platform(&self) -> &str {
-        "cursor"
+    fn platform(&self) -> PlatformKind {
+        PlatformKind::Cursor
+    }
+
+    fn is_installed(&self) -> bool {
+        std::env::var_os("HOME")
+            .map(|h| std::path::Path::new(&h).join(".cursor").exists())
+            .unwrap_or(false)
     }
 
     fn configure(&self, cwd: &Path) -> Result<(), ConfigError> {

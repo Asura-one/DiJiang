@@ -1,4 +1,4 @@
-use crate::{ConfigError, Configurator};
+use crate::{ConfigError, Configurator, PlatformKind};
 use std::fs;
 use std::path::Path;
 
@@ -80,8 +80,16 @@ hooks = true
 }
 
 impl Configurator for CodexConfigurator {
-    fn platform(&self) -> &str {
-        "codex"
+    fn platform(&self) -> PlatformKind {
+        PlatformKind::Codex
+    }
+
+    fn is_installed(&self) -> bool {
+        std::process::Command::new("codex")
+            .arg("--version")
+            .output()
+            .ok()
+            .is_some_and(|o| o.status.success())
     }
 
     fn configure(&self, cwd: &Path) -> Result<(), ConfigError> {

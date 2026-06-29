@@ -1,4 +1,4 @@
-use crate::{ConfigError, Configurator};
+use crate::{ConfigError, Configurator, PlatformKind};
 use std::fs;
 use std::path::Path;
 
@@ -208,8 +208,16 @@ export function buildSessionContext(ctx, input) {
 }
 
 impl Configurator for OpenCodeConfigurator {
-    fn platform(&self) -> &str {
-        "opencode"
+    fn platform(&self) -> PlatformKind {
+        PlatformKind::OpenCode
+    }
+
+    fn is_installed(&self) -> bool {
+        std::process::Command::new("opencode")
+            .arg("--version")
+            .output()
+            .ok()
+            .is_some_and(|o| o.status.success())
     }
 
     fn configure(&self, cwd: &Path) -> Result<(), ConfigError> {

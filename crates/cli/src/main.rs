@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
+use dijiang_configurator::PlatformKind;
 use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
-
+use dijiang_configurator::TemplateRegistry;
+use dialoguer::{Input, MultiSelect, Confirm};
 #[derive(Parser)]
 #[command(name = "dijiang", version = "0.1.0", about = "DiJiang - AI coding assistant workflow layer")]
 struct Cli {
@@ -30,38 +32,82 @@ enum Commands {
         /// Project name (defaults to directory name)
         #[arg(default_value = "")]
         name: String,
-        /// Developer name
+        /// Developer name (detected from git if not provided)
         #[arg(long)]
         developer: Option<String>,
+        /// Skip interactive prompts, use defaults
+        #[arg(long, short = 'y')]
+        yes: bool,
+        /// Comma-separated platforms to configure (pi,cursor,claude,codex,opencode,hermes)
+        #[arg(long)]
+        platforms: Option<String>,
+        /// Auto-detect installed platforms
+        #[arg(long)]
+        auto_detect: bool,
     },
-    /// Memory commands
     Mem {
         #[command(subcommand)]
         command: MemCommands,
+    },
+    /// Template management
+    Template {
+        #[command(subcommand)]
+        command: TemplateCommands,
+    },
+}
+#[derive(Subcommand)]
+enum MemCommands {
+    /// List sessions across platforms
+    List,
+    /// Sync all platform sessions into ~/.dijiang/mem/
+    Sync,
+}
+
+#[derive(Subcommand)]
+enum TemplateCommands {
+    /// List available templates (built-in and cached)
+    List,
+    /// Pull a template from a source (gh:owner/repo or URL)
+    Pull {
+        /// Template source (e.g. gh:tiezhu/dijiang-templates)
+        source: String,
+    },
+    /// Validate a template directory
+    Validate {
+        /// Path to template directory or manifest.toml
+        path: String,
     },
 }
 
 #[derive(Subcommand)]
 enum TaskCommands {
-    /// List tasks
+    /// List all tasks
     List,
-    /// Show current task
+    /// Show current active task
     Current,
-    /// Start a task
-    Start { name: String },
-    /// Update task status
+    /// Create and activate a new task
+    Start {
+        /// Task name (slug, e.g. "fix-login-bug")
+        name: String,
+    },
+    /// Set task status
     Status {
         /// Task name (slug)
         name: String,
         /// New status: planning|in_progress|completed|archived|paused
         status: String,
     },
-}
-
-#[derive(Subcommand)]
-enum MemCommands {
-    /// List sessions across platforms
-    List,
+    /// Archive a task (set status to Archived, record archived_at)
+    Archive {
+        /// Task name (slug)
+        name: String,
+    },
+    /// Prune old archived tasks
+    Prune {
+        /// Prune tasks archived more than N days ago (default: 30)
+        #[arg(long, default_value = "30")]
+        days: u64,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -70,17 +116,25 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Start { name, title } => cmd_start(&name, title.as_deref()),
         Commands::Status => cmd_status(),
-        Commands::Init { name, developer } => cmd_init(&name, developer.as_deref()),
+        Commands::Init { name, developer, yes, platforms, auto_detect } =>
+            cmd_init(&name, developer.as_deref(), yes, platforms.as_deref(), auto_detect),
         Commands::Task { command } => match command {
             TaskCommands::List => cmd_task_list(),
             TaskCommands::Current => cmd_task_current(),
             TaskCommands::Start { name } => cmd_task_start(&name),
             TaskCommands::Status { name, status } => cmd_task_status(&name, &status),
+            TaskCommands::Archive { name } => cmd_task_archive(&name),
+            TaskCommands::Prune { days } => cmd_task_prune(days),
         },
         Commands::Mem { command: MemCommands::List } => cmd_mem_list(),
+        Commands::Mem { command: MemCommands::Sync } => cmd_mem_sync(),
+        Commands::Template { command } => match command {
+            TemplateCommands::List => cmd_template_list(),
+            TemplateCommands::Pull { source } => cmd_template_pull(&source),
+            TemplateCommands::Validate { path } => cmd_template_validate(&path),
+        },
     }
 }
-
 fn status_line(label: &str, value: impl std::fmt::Display) {
     println!("  {label:15} {value}");
 }
@@ -98,14 +152,7 @@ fn cmd_status() -> anyhow::Result<()> {
     };
 
     // Project name — read from .dijiang/config.toml, then fall back to directory
-    let name = dijiang_configurator::read_project_name(&cwd)
-        .or_else(|| {
-            trellis_dir.parent()
-                .and_then(|p| p.file_name())
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_string())
-        })
-        .unwrap_or_else(|| "(unknown)".to_string());
+    let name = dijiang_configurator::read_project_name(&cwd);
     status_line("Project:", &name);
     // Active task
     let active = store::read_active_task(&trellis_dir).unwrap_or(None);
@@ -190,15 +237,17 @@ fn cmd_task_start(name: &str) -> anyhow::Result<()> {
 
     let tasks_dir = trellis_dir.join("tasks");
 
-    // Ensure task exists
+    // Ensure task exists — create if missing, activate if exists
     match store::load_task(&tasks_dir, name) {
         Ok(mut task) => {
             task.status = TaskStatus::InProgress;
             store::save_task(&tasks_dir, &task)?;
         }
         Err(store::TaskError::NotFound(_)) => {
-            eprintln!("Task '{name}' not found.");
-            std::process::exit(1);
+            // Create the task
+            let task = store::create_task(name, name);
+            store::save_task(&tasks_dir, &task)?;
+            println!("✓ Created task: {name}");
         }
         Err(e) => {
             eprintln!("Error loading task: {e}");
@@ -250,19 +299,248 @@ fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
+    let trellis_dir = match store::find_trellis_dir(&std::env::current_dir()?) {
+        Some(d) => d,
+        None => {
+            println!("No .trellis/ found.");
+            return Ok(());
+        }
+    };
 
-fn cmd_init(name: &str, developer: Option<&str>) -> anyhow::Result<()> {
+    let tasks_dir = trellis_dir.join("tasks");
+    match store::archive_task(&tasks_dir, name) {
+        Ok(task) => {
+            println!("✓ Task '{name}' archived (status: {})", task.status.as_str());
+        }
+        Err(store::TaskError::NotFound(_)) => {
+            eprintln!("Task '{name}' not found.");
+            std::process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("Error archiving task: {e}");
+            std::process::exit(1);
+        }
+    }
+    Ok(())
+}
+
+fn cmd_task_prune(days: u64) -> anyhow::Result<()> {
+    let trellis_dir = match store::find_trellis_dir(&std::env::current_dir()?) {
+        Some(d) => d,
+        None => {
+            println!("No .trellis/ found.");
+            return Ok(());
+        }
+    };
+
+    let tasks_dir = trellis_dir.join("tasks");
+    match store::prune_tasks(&tasks_dir, days) {
+        Ok(count) => {
+            if count > 0 {
+                println!("✓ Pruned {count} archived task(s) older than {days} days.");
+            } else {
+                println!("No tasks to prune.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error pruning tasks: {e}");
+            std::process::exit(1);
+        }
+    }
+    Ok(())
+}
+
+fn cmd_template_list() -> anyhow::Result<()> {
+    let registry = TemplateRegistry::new();
+    let builtins = registry.list_builtin();
+
+    println!("\n  ── Available Templates ──\n");
+    println!("  Built-in:");
+    if builtins.is_empty() {
+        println!("    (none)");
+    } else {
+        for name in &builtins {
+            println!("    • {name}");
+        }
+    }
+
+    let cached = registry.list_local().unwrap_or_default();
+    println!("\n  Cached ({}):", cached.len());
+    if cached.is_empty() {
+        println!("    (none — use `dijiang template pull <source>` to add templates)");
+    } else {
+        for pkg in &cached {
+            println!("    • {} v{} — {}",
+                pkg.manifest.template.name,
+                pkg.manifest.template.version,
+                pkg.manifest.template.description,
+            );
+        }
+    }
+    println!();
+    Ok(())
+}
+
+fn cmd_template_pull(source: &str) -> anyhow::Result<()> {
+    let registry = TemplateRegistry::new();
+    match registry.resolve(source) {
+        Ok(pkg) => {
+            println!("✓ Pulled template '{}' v{} to cache",
+                pkg.manifest.template.name,
+                pkg.manifest.template.version,
+            );
+            println!("  Location: {}", pkg.root.display());
+            let file_count = pkg.manifest.files.len();
+            println!("  Files: {file_count}");
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("Error pulling template: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_template_validate(path: &str) -> anyhow::Result<()> {
+    let template_path = std::path::Path::new(path);
+    match TemplateRegistry::validate(template_path) {
+        Ok(manifest) => {
+            println!("✓ Template '{}' v{} is valid",
+                manifest.template.name,
+                manifest.template.version,
+            );
+            println!("  Description: {}", manifest.template.description);
+            println!("  Files: {}", manifest.files.len());
+            if let Some(meta) = &manifest.metadata {
+                if let Some(author) = &meta.author {
+                    println!("  Author: {author}");
+                }
+            }
+            Ok(())
+        }
+        Err(errors) => {
+            for err in &errors {
+                eprintln!("  ✗ {err}");
+            }
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_init(name: &str, developer: Option<&str>, yes: bool, platforms: Option<&str>, auto_detect: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
+
+    // Check if already initialized
+    if cwd.join(".dijiang").join("config.toml").exists() {
+        if yes || Confirm::new()
+            .with_prompt("Already initialized. Overwrite?")
+            .default(false)
+            .interact()?
+        {
+            println!("  Overwriting...");
+        } else {
+            println!("  Aborted.");
+            return Ok(());
+        }
+    }
+
+    // Project name
     let project_name = if name.is_empty() {
-        cwd.file_name()
+        let default_name = cwd
+            .file_name()
             .and_then(|n| n.to_str())
-            .unwrap_or("my-project")
-            .to_string()
+            .unwrap_or("my-project");
+        if yes {
+            default_name.to_string()
+        } else {
+            Input::new()
+                .with_prompt("Project name")
+                .default(default_name.to_string())
+                .interact_text()?
+        }
     } else {
         name.to_string()
     };
 
-    dijiang_configurator::init_project(&cwd, &project_name, developer)?;
+    // Developer name: try git config, then prompt
+    let developer = developer.map(|s| s.to_string()).or_else(|| {
+        // Try to detect from git config
+        let git_name = std::process::Command::new("git")
+            .args(["config", "--global", "user.name"])
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                } else {
+                    None
+                }
+            });
+
+        if yes {
+            git_name
+        } else {
+            let default_dev = git_name.unwrap_or_default();
+            let input: String = Input::new()
+                .with_prompt("Developer name")
+                .default(default_dev)
+                .allow_empty(true)
+                .interact_text()
+                .ok()
+                .filter(|s| !s.is_empty())?;
+            Some(input)
+        }
+    });
+
+    // Platform selection
+    let selected_platforms: Vec<PlatformKind> = if auto_detect {
+        let registry = dijiang_configurator::ConfiguratorRegistry::with_all();
+        let detected = registry.auto_detect();
+        if detected.is_empty() {
+            eprintln!("No installed platforms detected. Run without --auto-detect to select.");
+            std::process::exit(1);
+        }
+        println!("  Detected platforms: {}", detected.iter().map(|p| p.display_name()).collect::<Vec<_>>().join(", "));
+        detected
+    } else if let Some(p) = platforms {
+        p.split(',')
+.filter_map(|s| match s.trim() {
+                "pi" => Some(PlatformKind::Pi),
+                "cursor" => Some(PlatformKind::Cursor),
+                "claude" => Some(PlatformKind::Claude),
+                "codex" => Some(PlatformKind::Codex),
+                "opencode" => Some(PlatformKind::OpenCode),
+                "hermes" => Some(PlatformKind::Hermes),
+                _ => None,
+            })
+            .collect()
+    } else if yes {
+        PlatformKind::all()
+    } else {
+        let all_platforms = PlatformKind::all();
+        let display_names: Vec<&str> = all_platforms.iter().map(|p| p.display_name()).collect();
+        let selections = MultiSelect::new()
+            .with_prompt("Select platforms to configure")
+            .items(&display_names)
+            .defaults(&[true, false, false, false, false, false])
+            .interact()?;
+        selections.iter().map(|&i| all_platforms[i]).collect()
+    };
+
+    if selected_platforms.is_empty() {
+        eprintln!("No platforms selected. Use --platforms or select at least one.");
+        std::process::exit(1);
+    }
+
+    // Execute init
+    dijiang_configurator::init_project_with_platforms(
+        &cwd,
+        &project_name,
+        developer.as_deref(),
+        &selected_platforms,
+    )?;
+
     Ok(())
 }
 
@@ -391,6 +669,48 @@ fn cmd_mem_list() -> anyhow::Result<()> {
     }
 
     println!("  Total: {total_sessions} session(s)");
+    println!();
+    Ok(())
+}
+
+fn cmd_mem_sync() -> anyhow::Result<()> {
+    println!("\n  ── DiJiang Memory Sync ──\n");
+
+    let mut registry = dijiang_mem::MemRegistry::new();
+    registry.register(Box::new(dijiang_mem::PiMemAdapter::new()));
+    registry.register(Box::new(dijiang_mem::ClaudeAdapter::new()));
+    registry.register(Box::new(dijiang_mem::CodexAdapter::new()));
+    registry.register(Box::new(dijiang_mem::HermesAdapter::new()));
+    registry.register(Box::new(dijiang_mem::OpenCodeAdapter::new()));
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let sessions = rt.block_on(registry.list_sessions())?;
+    let store = dijiang_mem::SessionStore::new();
+
+    if sessions.is_empty() {
+        println!("  No sessions found to sync.\n");
+        return Ok(());
+    }
+
+    let mut synced = 0u32;
+    let mut skipped = 0u32;
+
+    for s in &sessions {
+        // Check if already synced (by session_id)
+        match store.read_session(&s.session_id) {
+            Ok(_) => skipped += 1,
+            Err(_) => {
+                store.save_session(s)?;
+                synced += 1;
+            }
+        }
+    }
+
+    println!("  Synced: {} new sessions", synced);
+    println!("  Skipped: {} already in store", skipped);
+    if synced > 0 {
+        println!("  Location: ~/.dijiang/mem/sessions/");
+    }
     println!();
     Ok(())
 }

@@ -147,6 +147,65 @@ pub fn update_status(
     Ok(task)
 }
 
+/// Archive a task: set status to Archived and record archived_at timestamp.
+pub fn archive_task(
+    tasks_dir: &Path,
+    task_name: &str,
+) -> Result<TaskRecord, TaskError> {
+    let mut task = load_task(tasks_dir, task_name)?;
+    task.status = TaskStatus::Archived;
+    task.archived_at = Some(chrono::Utc::now().format("%Y-%m-%d").to_string());
+    save_task(tasks_dir, &task)?;
+    Ok(task)
+}
+
+/// Prune old archived tasks: remove task directories whose `archived_at`
+/// timestamp is older than `older_than_days` days. Returns count of pruned tasks.
+pub fn prune_tasks(tasks_dir: &Path, older_than_days: u64) -> Result<usize, TaskError> {
+    let now = chrono::Utc::now();
+    let cutoff = chrono::Duration::days(older_than_days as i64);
+    let mut pruned = 0;
+
+    if !tasks_dir.exists() {
+        return Ok(0);
+    }
+
+    for entry in fs::read_dir(tasks_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let task_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        // Load task to check archived_at
+        if let Ok(task) = load_task(tasks_dir, &task_name) {
+            if task.status != TaskStatus::Archived {
+                continue;
+            }
+            if let Some(archived_at) = &task.archived_at {
+                if let Ok(archived_date) = chrono::NaiveDate::parse_from_str(archived_at, "%Y-%m-%d")
+                    .map(|d| d.and_hms_opt(0, 0, 0).unwrap())
+                    .map(|dt| dt.and_utc())
+                {
+                    let age = now - archived_date;
+                    if age > cutoff {
+                        // Remove the entire task directory
+                        let _ = fs::remove_dir_all(&path);
+                        pruned += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(pruned)
+}
+
 /// Create a new task record with default values.
 pub fn create_task(name: &str, title: &str) -> TaskRecord {
     let now = chrono::Utc::now();

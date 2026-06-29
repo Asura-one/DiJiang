@@ -19,17 +19,32 @@ pub enum ConfigError {
 /// Each platform has its own configurator that generates
 /// the necessary configuration files for that platform.
 pub trait Configurator: Send + Sync {
-    /// Platform name (e.g. "pi", "cursor", "claude", "codex").
-    fn platform(&self) -> &str;
+    /// Platform kind.
+    fn platform(&self) -> PlatformKind;
 
     /// Configure a DiJiang project at `cwd`.
-    ///
     /// Creates/updates platform-specific config files.
     fn configure(&self, cwd: &Path) -> Result<(), ConfigError>;
 
     /// Returns true if the platform supports auto-injection (class-1).
     fn has_hooks(&self) -> bool {
         true
+    }
+
+    /// Priority for ordering (lower = runs first). Default 10.
+    fn priority(&self) -> u8 {
+        10
+    }
+
+    /// Detect if this platform is installed/available on the current system.
+    fn is_installed(&self) -> bool {
+        false
+    }
+
+    /// Optional template variables specific to this platform.
+    /// These are merged into the variable context when rendering templates.
+    fn template_vars(&self, _cwd: &Path) -> Vec<(String, String)> {
+        vec![]
     }
 }
 
@@ -135,4 +150,65 @@ pub struct PiSettings {
 
 fn default_true() -> bool {
     true
+}
+
+/// Supported platforms for `dijiang init`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlatformKind {
+    Pi,
+    Cursor,
+    Claude,
+    Codex,
+    OpenCode,
+    Hermes,
+}
+
+impl PlatformKind {
+    /// All available platforms.
+    pub fn all() -> Vec<PlatformKind> {
+        vec![
+            PlatformKind::Pi,
+            PlatformKind::Cursor,
+            PlatformKind::Claude,
+            PlatformKind::Codex,
+            PlatformKind::OpenCode,
+            PlatformKind::Hermes,
+        ]
+    }
+
+    /// Display name for prompts.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            PlatformKind::Pi => "Pi",
+            PlatformKind::Cursor => "Cursor",
+            PlatformKind::Claude => "Claude Code",
+            PlatformKind::Codex => "Codex CLI",
+            PlatformKind::OpenCode => "OpenCode",
+            PlatformKind::Hermes => "Hermes",
+        }
+    }
+
+    /// Priority for ordering (lower = runs first).
+    pub fn priority(&self) -> u8 {
+        match self {
+            PlatformKind::Pi => 1,
+            PlatformKind::Cursor => 2,
+            PlatformKind::Claude => 3,
+            PlatformKind::Codex => 4,
+            PlatformKind::OpenCode => 5,
+            PlatformKind::Hermes => 6,
+        }
+    }
+}
+
+/// Configuration for `dijiang init`.
+#[derive(Debug, Clone)]
+pub struct InitConfig {
+    /// Project name
+    pub name: String,
+    /// Developer name (optional)
+    pub developer: Option<String>,
+    /// Platforms to configure
+    pub platforms: Vec<PlatformKind>,
 }
