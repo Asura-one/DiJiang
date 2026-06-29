@@ -35,4 +35,20 @@ Wrap up the current DiJiang session.
    dijiang mem archive
    ```
 
+7. **Record outcomes**: Track what worked and what didn't:
+   ```bash
+   dijiang mem record --tactic "<tactic-name>" --outcome "success" --context "<what happened>"
+   dijiang mem record --tactic "<tactic-name>" --outcome "failure" --context "<what happened>"
+   ```
+
+8. **Evolve**: Analyze session and update tactics:
+   ```bash
+   dijiang mem evolve
+   ```
+
+9. **Backup**: Save project memory to global:
+   ```bash
+   dijiang mem backup
+   ```
+
 7. **Remind user** to commit with descriptive message.
