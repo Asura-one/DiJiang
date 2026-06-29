@@ -71,6 +71,12 @@ enum Commands {
     },
     /// Migrate a Trellis project to DiJiang
     Migrate,
+    /// Review code with adversarial or first-principles analysis
+    Review {
+        /// Review mode: adversarial or first-principles
+        #[arg(long, default_value = "adversarial")]
+        mode: String,
+    },
 }
 #[derive(Subcommand)]
 enum MemCommands {
@@ -214,6 +220,7 @@ fn main() -> anyhow::Result<()> {
         },
         Commands::Skills { sync } => cmd_skills(sync),
         Commands::Migrate => cmd_migrate(),
+        Commands::Review { mode } => cmd_review(&mode),
     }
 }
 fn status_line(label: &str, value: impl std::fmt::Display) {
@@ -865,6 +872,49 @@ fn cmd_migrate() -> anyhow::Result<()> {
     fs::rename(&trellis, &dijiang)?;
     println!("  Done.");
     println!("  Run `dijiang init` to reconfigure platforms.");
+    Ok(())
+}
+
+fn cmd_review(mode: &str) -> anyhow::Result<()> {
+    println!("  🔍 Running {} review...", mode);
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    match mode {
+        "adversarial" => {
+            println!("  Mode: Adversarial Review (对抗式审查)");
+            println!("  Angle 1: Security - How would a恶意 user attack this?");
+            println!("  Angle 2: Edge cases - What happens with extreme inputs?");
+            println!("  Angle 3: Performance - What if resources are exhausted?");
+            println!("  Angle 4: Data corruption - What if data is malformed?");
+            println!("  Angle 5: Race conditions - What if concurrent access occurs?");
+            println!("  Angle 6: Resource leaks - What if cleanup fails?");
+            println!("  Angle 7: Error handling - What if dependencies fail?");
+            println!();
+            println!("  Run `dijiang review --mode first-principles` for architectural review.");
+        },
+        "first-principles" => {
+            println!("  Mode: First Principles Review (第一性原理审查)");
+            println!("  Step 1: What is the fundamental problem being solved?");
+            println!("  Step 2: What are the basic facts and constraints?");
+            println!("  Step 3: What assumptions are we making?");
+            println!("  Step 4: Can we derive the solution from first principles?");
+            println!("  Step 5: Is there a simpler, more fundamental approach?");
+            println!("  Step 6: What are the trade-offs of each approach?");
+            println!();
+            println!("  Run `dijiang review --mode adversarial` for security review.");
+        },
+        _ => anyhow::bail!("mode must be 'adversarial' or 'first-principles'"),
+    }
+
+    // Record this as a tactic
+    let global_mem = dijiang_mem::GlobalMemory::new()?;
+    let tactic_name = format!("review-{}", mode);
+    global_mem.add_tactic(&tactic_name, &format!("{} review performed", mode), &dijiang_dir.to_string_lossy())?;
+    global_mem.record_event(&tactic_name, dijiang_mem::Outcome::Success, "review completed", Some(&dijiang_dir.to_string_lossy()))?;
+
+    println!("  Review recorded as tactic: {}", tactic_name);
     Ok(())
 }
 
