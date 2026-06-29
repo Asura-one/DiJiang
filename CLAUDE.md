@@ -1,4 +1,4 @@
-# dijiang-dev — DiJiang Project
+# test-init-fix — DiJiang Project
 
 This project uses DiJiang, an AI-native development workflow framework.
 
