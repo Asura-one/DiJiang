@@ -16,13 +16,16 @@ description: >
 2. **功能完整性核对** — 对照 PRD/issue 逐项确认
 3. **回归影响检查** — 搜索引用点，确认调用方同步更新
 4. **过度工程检查** — dj-ponytail 视角：有没有可以删的；dj-karpathy 视角：代码是否最简
-5. **合并流程** — 仅在用户明确要求发布/合并时执行 git-safety 流程
+5. **多视角审查** — 高风险改动按 correctness、security、performance、architecture、docs 拆分检查
+6. **合并流程** — 仅在用户明确要求发布/合并时执行 git-safety 流程
 
 ## 原则
 
 - **Simplicity First**（dj-karpathy）：审查时问自己"这段代码能更简单吗？"如果 200 行能缩到 50 行，标记为过度工程
 - **Define Verifiable Success**（dj-karpathy）：每个功能是否有可验证的测试或检查点？没有则标记为缺失
 - **阶梯决策**（dj-ponytail）：审查时检查依赖引入是否遵循阶梯（stdlib → 已有依赖 → 最少代码）
+- **Source Fidelity**：重构、迁移和修 bug 时优先保持原系统事实，不能因为命名“不准确”就擅自改字段、界面文案或业务术语。遇到乱码或非 UTF-8 文件，先确认编码再下结论。
+- **Memory Hygiene**：审查写入 memory 的内容时，检查 source、scope、confidence、freshness、conflict、actionability；没有行动价值的内容留在 task artifact。
 
 ## 工作流
 
@@ -65,6 +68,28 @@ grep -r "被改的函数名/类名/变量名" --include="*.ts" --include="*.py" 
 ```
 
 发现不一致 → 标记为 🔴 回归风险，必须修复后才能合并。
+
+### 2.6 源事实核对（防 AI 自作主张）
+
+AI 生成代码常见风险是把旧系统里的“不好命名”当成可修正对象，或在读取失败时用推测补全事实。涉及迁移、重构、文案、字段名、报表列、搜索项时必须核对源事实：
+
+- 原界面/原 API/原数据库字段是什么，当前 diff 是否保持一致？
+- 是否存在编码问题（GBK、Latin-1、损坏字符）导致源文案被误读？
+- 如果改了业务术语，是否有 PRD、ADR 或用户确认支撑？
+- 没有证据时，结论标记为「待澄清」，不能用“命名更合理”作为通过理由。
+
+### 2.7 记忆质量核对
+
+当 diff、task artifact 或 finish-work 准备写入 `dijiang mem findings` / `dijiang mem learn` 时，检查：
+
+- source：这条记忆来自用户、代码、测试、事故复盘还是外部资料？
+- scope：它适用于当前项目、某个 package、某类任务，还是所有 DiJiang 项目？
+- confidence：它是已验证事实、用户偏好、推断，还是待验证假设？
+- freshness：什么时候应该重看、过期或删除？
+- conflict：是否和现有 spec、ADR、代码、任务记录或 memory 冲突？
+- actionability：未来 agent 会因此改变哪个决策、检查或执行路径？
+
+不满足 actionability 的内容不得进入 durable memory。
 
 ### 3. 代码质量审查
 

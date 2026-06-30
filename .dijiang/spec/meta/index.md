@@ -11,7 +11,7 @@ Meta-level project guidelines covering project structure, architecture decisions
 | `architecture.md` | Overall project architecture and layering | To fill |
 | `changelog.md` | Changelog and versioning conventions | To fill |
 | `contributing.md` | Contribution workflow and standards | To fill |
-| `adr.md` | Architecture Decision Record conventions | To fill |
+| `adr.md` | Architecture Decision Record conventions | Filled |
 
 ## How to Use
 

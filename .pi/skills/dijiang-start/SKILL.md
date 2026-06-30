@@ -36,10 +36,10 @@ test -f .dijiang/spec/index.md && cat .dijiang/spec/index.md
 
 ## Step 4: Initialize Session Memory
 
-Record initial findings if the user has already given a task description:
+Record initial findings if the user has already given a task description, but keep durable memory gated. Findings should include source and scope when possible; raw guesses stay in the task context.
 
 ```bash
-dijiang mem findings --finding "<initial task description>"
+dijiang mem findings --finding "<initial task description; source=user; scope=current task>"
 ```
 
 ## Step 5: Delegate to dj-dispatch

@@ -23,6 +23,8 @@ These guides help you **ask the right questions before coding**.
 |-------|---------|-------------|
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+| [Verification Loop Guide](./verification-loop-guide.md) | Turn goals into pass/fail evidence | Before implementation, debugging, review, or AI bug prevention |
+| [Memory Lifecycle Guide](./memory-lifecycle-guide.md) | Control what becomes durable memory | When writing findings, lessons, handoffs, or long-term agent behavior |
 
 ---
 
@@ -64,6 +66,26 @@ These guides help you **ask the right questions before coding**.
 3. **Variable misreading**: Not tracing a variable to its actual definition (e.g., Map keyed by path vs name)
 
 **Verification rule**: Every CRITICAL/WARNING finding must be verified against the actual code before prioritizing. Budget ~35% false-positive rate for AI reviews.
+
+### When Building a Verification Loop
+
+- [ ] The task has a user-visible or behavior-changing goal
+- [ ] The task came from AI-generated code or AI-generated bug fixes
+- [ ] You are migrating old behavior, labels, fields, or reports
+- [ ] The target environment includes browser, hardware, external services, or generated files
+- [ ] The only current evidence is “the code looks plausible”
+
+→ Read [Verification Loop Guide](./verification-loop-guide.md)
+
+### When Writing Durable Memory
+
+- [ ] You are about to write `dijiang mem findings` or `dijiang mem learn`
+- [ ] A task produced a reusable tactic, repeated failure, or user preference
+- [ ] Two memories, specs, docs, or task artifacts conflict
+- [ ] You want future agents to behave differently because of this task
+- [ ] You are deciding whether something belongs in memory, spec, skill, ADR, or task notes
+
+→ Read [Memory Lifecycle Guide](./memory-lifecycle-guide.md)
 
 ---
 
