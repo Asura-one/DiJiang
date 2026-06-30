@@ -61,7 +61,10 @@ fn render_if_blocks(template: &str, vars: &[(&str, &str)]) -> String {
         let block_body = &block[cond_end + 2..block.len() - end_tag_len]; // after }} and before {{/if}}
         let else_block = "{{else}}";
         let (if_content, else_content) = if let Some(else_pos) = block_body.find(else_block) {
-            (&block_body[..else_pos], &block_body[else_pos + else_block.len()..])
+            (
+                &block_body[..else_pos],
+                &block_body[else_pos + else_block.len()..],
+            )
         } else {
             (block_body, "")
         };
@@ -77,14 +80,14 @@ fn render_if_blocks(template: &str, vars: &[(&str, &str)]) -> String {
         } else {
             // Truthy check
             let met = !actual_value.is_empty();
-            if negated {
-                !met
-            } else {
-                met
-            }
+            if negated { !met } else { met }
         };
 
-        let replacement = if condition_met { if_content } else { else_content };
+        let replacement = if condition_met {
+            if_content
+        } else {
+            else_content
+        };
         // Recursively process nested if-blocks
         let processed = render_if_blocks(replacement, vars);
         result.replace_range(start..end + end_tag_len, &processed);
@@ -99,12 +102,18 @@ fn parse_condition(s: &str) -> (&str, Option<&str>, bool) {
     if let Some(pos) = s.find(" != ") {
         let var = s[..pos].trim();
         let val = s[pos + 4..].trim();
-        let val = val.strip_prefix('\"').and_then(|v| v.strip_suffix('\"')).unwrap_or(val);
+        let val = val
+            .strip_prefix('\"')
+            .and_then(|v| v.strip_suffix('\"'))
+            .unwrap_or(val);
         (var, Some(val), true)
     } else if let Some(pos) = s.find(" == ") {
         let var = s[..pos].trim();
         let val = s[pos + 4..].trim();
-        let val = val.strip_prefix('\"').and_then(|v| v.strip_suffix('\"')).unwrap_or(val);
+        let val = val
+            .strip_prefix('\"')
+            .and_then(|v| v.strip_suffix('\"'))
+            .unwrap_or(val);
         (var, Some(val), false)
     } else {
         // Truthy check — if starts with !, negate
@@ -118,8 +127,7 @@ fn parse_condition(s: &str) -> (&str, Option<&str>, bool) {
 
 /// Load a template file and substitute variables.
 pub fn render(path: &str, vars: &[(&str, &str)]) -> Result<String, String> {
-    let asset = TemplateAssets::get(path)
-        .ok_or_else(|| format!("Template not found: {path}"))?;
+    let asset = TemplateAssets::get(path).ok_or_else(|| format!("Template not found: {path}"))?;
     let content = std::str::from_utf8(asset.data.as_ref())
         .map_err(|e| format!("Template {path} is not valid UTF-8: {e}"))?;
     let rendered = render_if_blocks(content, vars);
@@ -174,7 +182,11 @@ mod tests {
 
     #[test]
     fn test_substitution() {
-        let content = render("skills/dijiang-continue/SKILL.md", &[("developer", "tiezhu")]).unwrap();
+        let content = render(
+            "skills/dijiang-continue/SKILL.md",
+            &[("developer", "tiezhu")],
+        )
+        .unwrap();
         assert!(content.contains("tiezhu"));
     }
 

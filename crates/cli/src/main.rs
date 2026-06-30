@@ -1,13 +1,17 @@
 use clap::{Parser, Subcommand};
+use dialoguer::{Confirm, Input, MultiSelect};
 use dijiang_configurator::PlatformKind;
+use dijiang_configurator::TemplateRegistry;
 use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
-use dijiang_configurator::TemplateRegistry;
-use dialoguer::{Input, MultiSelect, Confirm};
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use sha2::{Sha256, Digest};
 #[derive(Parser)]
-#[command(name = "dijiang", version = "0.1.0", about = "DiJiang - AI coding assistant workflow layer")]
+#[command(
+    name = "dijiang",
+    version = "0.1.0",
+    about = "DiJiang - AI coding assistant workflow layer"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -69,6 +73,15 @@ enum Commands {
         #[arg(long)]
         sync: bool,
     },
+    /// 输出当前 session 的 workflow state（供 hook/agent 注入使用）
+    WorkflowState {
+        /// 输出 Codex/Agent hook 可消费的 JSON payload
+        #[arg(long)]
+        json: bool,
+        /// hook event name（JSON 输出时使用）
+        #[arg(long, default_value = "UserPromptSubmit")]
+        hook_event: String,
+    },
     /// 将 Trellis 项目迁移到 DiJiang
     Migrate,
     /// 代码审查（对抗式/第一性原理）
@@ -81,6 +94,12 @@ enum Commands {
     Channel {
         #[command(subcommand)]
         command: ChannelCommands,
+    },
+    /// 完成当前工作：归档任务、记录 journal、清理 session active task
+    FinishWork {
+        /// 本次工作的简短总结
+        #[arg(long)]
+        summary: Option<String>,
     },
     /// 更新当前项目的 dj-* 技能和代理
     Update {
@@ -190,7 +209,7 @@ enum MemCommands {
         tactic: String,
         #[arg(long)]
         #[arg(long)]
-        outcome: String,  // success or failure
+        outcome: String, // success or failure
         #[arg(long)]
         context: String,
     },
@@ -266,8 +285,21 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Start { name, title } => cmd_start(&name, title.as_deref()),
         Commands::Status { compat } => cmd_status(compat),
-        Commands::Init { name, developer, yes, force, platforms, auto_detect } =>
-            cmd_init(&name, developer.as_deref(), yes, force, platforms.as_deref(), auto_detect),
+        Commands::Init {
+            name,
+            developer,
+            yes,
+            force,
+            platforms,
+            auto_detect,
+        } => cmd_init(
+            &name,
+            developer.as_deref(),
+            yes,
+            force,
+            platforms.as_deref(),
+            auto_detect,
+        ),
         Commands::Task { command } => match command {
             TaskCommands::List => cmd_task_list(),
             TaskCommands::Current => cmd_task_current(),
@@ -276,20 +308,53 @@ fn main() -> anyhow::Result<()> {
             TaskCommands::Archive { name } => cmd_task_archive(&name),
             TaskCommands::Prune { days } => cmd_task_prune(days),
         },
-        Commands::Mem { command: MemCommands::List } => cmd_mem_list(),
-        Commands::Mem { command: MemCommands::Sync } => cmd_mem_sync(),
-        Commands::Mem { command: MemCommands::Findings { finding } } => cmd_mem_findings(&finding),
-        Commands::Mem { command: MemCommands::Learn { lesson } } => cmd_mem_learn(&lesson),
-        Commands::Mem { command: MemCommands::Archive } => cmd_mem_archive(),
-        Commands::Mem { command: MemCommands::Tactic { name, description } } => cmd_mem_tactic(&name, &description),
-        Commands::Mem { command: MemCommands::Tactics { select } } => cmd_mem_tactics(select),
-        Commands::Mem { command: MemCommands::Record { tactic, outcome, context } } => cmd_mem_record(&tactic, &outcome, &context),
-        Commands::Mem { command: MemCommands::Pattern { name, description } } => cmd_mem_pattern(&name, &description),
-        Commands::Mem { command: MemCommands::Patterns } => cmd_mem_patterns(),
-        Commands::Mem { command: MemCommands::Stats } => cmd_mem_stats(),
-        Commands::Mem { command: MemCommands::Backup } => cmd_mem_backup(),
-        Commands::Mem { command: MemCommands::Evolve } => cmd_mem_evolve(),
-        Commands::Mem { command: MemCommands::Finetune } => cmd_mem_finetune(),
+        Commands::Mem {
+            command: MemCommands::List,
+        } => cmd_mem_list(),
+        Commands::Mem {
+            command: MemCommands::Sync,
+        } => cmd_mem_sync(),
+        Commands::Mem {
+            command: MemCommands::Findings { finding },
+        } => cmd_mem_findings(&finding),
+        Commands::Mem {
+            command: MemCommands::Learn { lesson },
+        } => cmd_mem_learn(&lesson),
+        Commands::Mem {
+            command: MemCommands::Archive,
+        } => cmd_mem_archive(),
+        Commands::Mem {
+            command: MemCommands::Tactic { name, description },
+        } => cmd_mem_tactic(&name, &description),
+        Commands::Mem {
+            command: MemCommands::Tactics { select },
+        } => cmd_mem_tactics(select),
+        Commands::Mem {
+            command:
+                MemCommands::Record {
+                    tactic,
+                    outcome,
+                    context,
+                },
+        } => cmd_mem_record(&tactic, &outcome, &context),
+        Commands::Mem {
+            command: MemCommands::Pattern { name, description },
+        } => cmd_mem_pattern(&name, &description),
+        Commands::Mem {
+            command: MemCommands::Patterns,
+        } => cmd_mem_patterns(),
+        Commands::Mem {
+            command: MemCommands::Stats,
+        } => cmd_mem_stats(),
+        Commands::Mem {
+            command: MemCommands::Backup,
+        } => cmd_mem_backup(),
+        Commands::Mem {
+            command: MemCommands::Evolve,
+        } => cmd_mem_evolve(),
+        Commands::Mem {
+            command: MemCommands::Finetune,
+        } => cmd_mem_finetune(),
         Commands::Template { command } => match command {
             TemplateCommands::List => cmd_template_list(),
             TemplateCommands::Pull { source } => cmd_template_pull(&source),
@@ -297,16 +362,39 @@ fn main() -> anyhow::Result<()> {
         },
         Commands::Skills { sync } => cmd_skills(sync),
         Commands::Migrate => cmd_migrate(),
+        Commands::WorkflowState { json, hook_event } => cmd_workflow_state(json, &hook_event),
         Commands::Review { mode } => cmd_review(&mode),
         Commands::Channel { command } => match command {
-            ChannelCommands::Spawn { agent, task, dir } => cmd_channel_spawn(&agent, task.as_deref(), dir.as_deref()),
+            ChannelCommands::Spawn { agent, task, dir } => {
+                cmd_channel_spawn(&agent, task.as_deref(), dir.as_deref())
+            }
             ChannelCommands::List => cmd_channel_list(),
-            ChannelCommands::Send { channel_id, message } => cmd_channel_send(&channel_id, &message),
+            ChannelCommands::Send {
+                channel_id,
+                message,
+            } => cmd_channel_send(&channel_id, &message),
             ChannelCommands::Status { channel_id } => cmd_channel_status(&channel_id),
             ChannelCommands::Stop { channel_id } => cmd_channel_stop(&channel_id),
-            ChannelCommands::Execute { channel_id, model, provider, timeout, follow } => cmd_channel_execute(&channel_id, model.as_deref(), provider.as_deref(), timeout, follow),
-            ChannelCommands::ExecuteAll { model, provider, timeout } => cmd_channel_execute_all(model.as_deref(), provider.as_deref(), timeout),
+            ChannelCommands::Execute {
+                channel_id,
+                model,
+                provider,
+                timeout,
+                follow,
+            } => cmd_channel_execute(
+                &channel_id,
+                model.as_deref(),
+                provider.as_deref(),
+                timeout,
+                follow,
+            ),
+            ChannelCommands::ExecuteAll {
+                model,
+                provider,
+                timeout,
+            } => cmd_channel_execute_all(model.as_deref(), provider.as_deref(), timeout),
         },
+        Commands::FinishWork { summary } => cmd_finish_work(summary.as_deref()),
         Commands::Update { force, from_github } => cmd_update(force, from_github),
     }
 }
@@ -318,6 +406,83 @@ fn require_dijiang_dir() -> anyhow::Result<std::path::PathBuf> {
         .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))
 }
 
+fn read_developer(dijiang_dir: &std::path::Path) -> anyhow::Result<String> {
+    let config_path = dijiang_dir.join("config.toml");
+    let config_str = std::fs::read_to_string(&config_path).unwrap_or_default();
+    Ok(config_str
+        .lines()
+        .find(|line| line.trim_start().starts_with("developer"))
+        .and_then(|line| line.split('=').nth(1))
+        .map(|value| value.trim().trim_matches('"').to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "developer".to_string()))
+}
+
+fn append_finish_journal(
+    dijiang_dir: &std::path::Path,
+    developer: &str,
+    task_name: &str,
+    summary: Option<&str>,
+) -> anyhow::Result<std::path::PathBuf> {
+    use std::io::Write;
+
+    let workspace = dijiang_dir.join("workspace").join(developer);
+    std::fs::create_dir_all(&workspace)?;
+    let journal = workspace.join("journal.md");
+    let summary = summary.unwrap_or("Work finished and task archived.");
+    let entry = format!(
+        "\n## {} — finish-work\n- Task: `{}`\n- Summary: {}\n- Status: archived\n",
+        chrono::Local::now().format("%Y-%m-%d %H:%M"),
+        task_name,
+        summary
+    );
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&journal)?
+        .write_all(entry.as_bytes())?;
+    Ok(journal)
+}
+
+fn cmd_finish_work(summary: Option<&str>) -> anyhow::Result<()> {
+    let dijiang_dir = require_dijiang_dir()?;
+    let active_task = store::read_active_task(&dijiang_dir)?
+        .ok_or_else(|| anyhow::anyhow!("No active task. Run `dijiang start <name>` first."))?;
+    let tasks_dir = dijiang_dir.join("tasks");
+    let task = store::archive_task(&tasks_dir, &active_task)?;
+    let developer = read_developer(&dijiang_dir)?;
+    let journal = append_finish_journal(&dijiang_dir, &developer, &active_task, summary)?;
+    store::clear_active_task(&dijiang_dir)?;
+
+    println!(
+        "✓ Finished task '{}' (status: {})",
+        active_task,
+        task.status.as_str()
+    );
+    println!("  Journal: {}", journal.display());
+    println!("  Active task cleared for current session");
+    Ok(())
+}
+
+/// 从通道元数据中读取 agent 名称
+fn cmd_workflow_state(json: bool, hook_event: &str) -> anyhow::Result<()> {
+    let dijiang_dir = require_dijiang_dir()?;
+    let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
+
+    if json {
+        let payload = serde_json::json!({
+            "hookEventName": hook_event,
+            "additionalContext": state.additional_context(),
+        });
+        println!("{}", serde_json::to_string(&payload)?);
+    } else {
+        println!("{}", state.additional_context());
+    }
+
+    Ok(())
+}
+
+/// 从通道元数据中读取 agent 名称
 /// 从通道元数据中读取 agent 名称
 fn read_channel_agent_name(channel_dir: &std::path::Path) -> String {
     let channel_toml = channel_dir.join("channel.toml");
@@ -327,7 +492,8 @@ fn read_channel_agent_name(channel_dir: &std::path::Path) -> String {
     std::fs::read_to_string(&channel_toml)
         .ok()
         .and_then(|content| {
-            content.lines()
+            content
+                .lines()
                 .find(|l| l.contains("agent"))
                 .and_then(|l| l.split('=').nth(1))
                 .map(|s| s.trim().trim_matches('"').to_string())
@@ -340,7 +506,8 @@ fn update_channel_status(channel_dir: &std::path::Path, status: &str) -> anyhow:
     let channel_toml = channel_dir.join("channel.toml");
     if channel_toml.exists() {
         let content = std::fs::read_to_string(&channel_toml)?;
-        let new_content = content.replace("status = \"active\"", &format!("status = \"{}\"", status));
+        let new_content =
+            content.replace("status = \"active\"", &format!("status = \"{}\"", status));
         std::fs::write(&channel_toml, &new_content)?;
     }
     Ok(())
@@ -398,9 +565,12 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
 
     println!("  Tasks ({count}):", count = tasks.len());
     for t in &tasks {
-        let marker = active.as_ref().map_or(' ', |a| if a == &t.name { '*' } else { ' ' });
+        let marker = active
+            .as_ref()
+            .map_or(' ', |a| if a == &t.name { '*' } else { ' ' });
         let phase = t.status.to_trellis_status();
-        println!("    {marker} {name:<45} {status:12} {phase:12}",
+        println!(
+            "    {marker} {name:<45} {status:12} {phase:12}",
             name = t.name,
             status = t.status.as_str(),
             phase = phase,
@@ -449,7 +619,8 @@ fn cmd_task_list() -> anyhow::Result<()> {
     }
 
     for t in &tasks {
-        println!("{name:<50} {status:12}  {priority:2}",
+        println!(
+            "{name:<50} {status:12}  {priority:2}",
             name = t.name,
             status = t.status.as_str(),
             priority = t.priority,
@@ -470,7 +641,6 @@ fn cmd_task_current() -> anyhow::Result<()> {
 
 fn cmd_task_start(name: &str) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
-
 
     let tasks_dir = dijiang_dir.join("tasks");
 
@@ -508,7 +678,9 @@ fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
         "archived" => TaskStatus::Archived,
         "paused" => TaskStatus::Paused,
         _ => {
-            eprintln!("Invalid status: '{status_str}'. Valid: planning|in_progress|completed|archived|paused");
+            eprintln!(
+                "Invalid status: '{status_str}'. Valid: planning|in_progress|completed|archived|paused"
+            );
             std::process::exit(1);
         }
     };
@@ -516,7 +688,10 @@ fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
     let tasks_dir = dijiang_dir.join("tasks");
     match store::update_status(&tasks_dir, name, new_status) {
         Ok(task) => {
-            println!("✓ Task '{name}' status updated to: {}", task.status.as_str());
+            println!(
+                "✓ Task '{name}' status updated to: {}",
+                task.status.as_str()
+            );
         }
         Err(store::TaskError::NotFound(_)) => {
             eprintln!("Task '{name}' not found.");
@@ -536,7 +711,10 @@ fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
     let tasks_dir = dijiang_dir.join("tasks");
     match store::archive_task(&tasks_dir, name) {
         Ok(task) => {
-            println!("✓ Task '{name}' archived (status: {})", task.status.as_str());
+            println!(
+                "✓ Task '{name}' archived (status: {})",
+                task.status.as_str()
+            );
         }
         Err(store::TaskError::NotFound(_)) => {
             eprintln!("Task '{name}' not found.");
@@ -590,7 +768,8 @@ fn cmd_template_list() -> anyhow::Result<()> {
         println!("    (none — use `dijiang template pull <source>` to add templates)");
     } else {
         for pkg in &cached {
-            println!("    • {} v{} — {}",
+            println!(
+                "    • {} v{} — {}",
                 pkg.manifest.template.name,
                 pkg.manifest.template.version,
                 pkg.manifest.template.description,
@@ -605,9 +784,9 @@ fn cmd_template_pull(source: &str) -> anyhow::Result<()> {
     let registry = TemplateRegistry::new();
     match registry.resolve(source) {
         Ok(pkg) => {
-            println!("✓ Pulled template '{}' v{} to cache",
-                pkg.manifest.template.name,
-                pkg.manifest.template.version,
+            println!(
+                "✓ Pulled template '{}' v{} to cache",
+                pkg.manifest.template.name, pkg.manifest.template.version,
             );
             println!("  Location: {}", pkg.root.display());
             let file_count = pkg.manifest.files.len();
@@ -625,9 +804,9 @@ fn cmd_template_validate(path: &str) -> anyhow::Result<()> {
     let template_path = std::path::Path::new(path);
     match TemplateRegistry::validate(template_path) {
         Ok(manifest) => {
-            println!("✓ Template '{}' v{} is valid",
-                manifest.template.name,
-                manifest.template.version,
+            println!(
+                "✓ Template '{}' v{} is valid",
+                manifest.template.name, manifest.template.version,
             );
             println!("  Description: {}", manifest.template.description);
             println!("  Files: {}", manifest.files.len());
@@ -647,7 +826,14 @@ fn cmd_template_validate(path: &str) -> anyhow::Result<()> {
     }
 }
 
-fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platforms: Option<&str>, auto_detect: bool) -> anyhow::Result<()> {
+fn cmd_init(
+    name: &str,
+    developer: Option<&str>,
+    yes: bool,
+    force: bool,
+    platforms: Option<&str>,
+    auto_detect: bool,
+) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Check if already initialized
@@ -688,7 +874,9 @@ fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platfor
             .ok()
             .and_then(|o| {
                 if o.status.success() {
-                    String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                    String::from_utf8(o.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
                 } else {
                     None
                 }
@@ -717,11 +905,18 @@ fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platfor
             eprintln!("No installed platforms detected. Run without --auto-detect to select.");
             std::process::exit(1);
         }
-        println!("  Detected platforms: {}", detected.iter().map(|p| p.display_name()).collect::<Vec<_>>().join(", "));
+        println!(
+            "  Detected platforms: {}",
+            detected
+                .iter()
+                .map(|p| p.display_name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         detected
     } else if let Some(p) = platforms {
         p.split(',')
-.filter_map(|s| match s.trim() {
+            .filter_map(|s| match s.trim() {
                 "pi" => Some(PlatformKind::Pi),
                 "cursor" => Some(PlatformKind::Cursor),
                 "claude" => Some(PlatformKind::Claude),
@@ -770,7 +965,9 @@ fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platfor
             if let Err(e) = global_mem.ensure_default_tactics() {
                 eprintln!("  Warning: Failed to initialize default tactics: {}", e);
             } else {
-                println!("  Initialized default tactics (cargo-test, typecheck, review-*, lint-fix, doc-update)");
+                println!(
+                    "  Initialized default tactics (cargo-test, typecheck, review-*, lint-fix, doc-update)"
+                );
             }
         }
         Err(e) => {
@@ -784,7 +981,6 @@ fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platfor
 fn cmd_start(name: &str, title: Option<&str>) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = require_dijiang_dir()?;
-
 
     let tasks_dir = dijiang_dir.join("tasks");
     let now = chrono::Utc::now();
@@ -877,7 +1073,11 @@ fn cmd_mem_list() -> anyhow::Result<()> {
 
     for p in &projects {
         let total = p.sessions.len();
-        let active = p.sessions.iter().filter(|s| s.status == dijiang_mem::SessionStatus::Active).count();
+        let active = p
+            .sessions
+            .iter()
+            .filter(|s| s.status == dijiang_mem::SessionStatus::Active)
+            .count();
         let archived = total - active;
         let latest = p.last_active_at.as_deref().unwrap_or("-");
         println!("  {project}", project = p.project_id);
@@ -888,10 +1088,18 @@ fn cmd_mem_list() -> anyhow::Result<()> {
             let task = s.task.as_deref().unwrap_or("(no task)");
             let truncated = if task.len() > 60 {
                 let mut end = 57;
-                while !task.is_char_boundary(end) { end += 1; }
+                while !task.is_char_boundary(end) {
+                    end += 1;
+                }
                 &task[..end]
-            } else { task };
-            let marker = if s.status == dijiang_mem::SessionStatus::Active { "[A]" } else { "[ ]" };
+            } else {
+                task
+            };
+            let marker = if s.status == dijiang_mem::SessionStatus::Active {
+                "[A]"
+            } else {
+                "[ ]"
+            };
             println!("    {marker:7} {truncated}");
         }
         if p.sessions.len() > 3 {
@@ -993,7 +1201,10 @@ fn cmd_review(mode: &str) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
 
     // Read agent definitions
-    let agents_dir = dijiang_dir.parent().map(|p| p.join(".pi").join("agents")).unwrap_or_default();
+    let agents_dir = dijiang_dir
+        .parent()
+        .map(|p| p.join(".pi").join("agents"))
+        .unwrap_or_default();
 
     match mode {
         "adversarial" => {
@@ -1029,7 +1240,7 @@ fn cmd_review(mode: &str) -> anyhow::Result<()> {
                 + "Run: git diff to see changes, then review each file.";
             println!("  Generated prompt:");
             println!("  {}", prompt);
-        },
+        }
         "first-principles" => {
             println!("  🧠 First Principles Review Mode (第一性原理审查)");
             println!();
@@ -1060,15 +1271,24 @@ fn cmd_review(mode: &str) -> anyhow::Result<()> {
                 + "Run: git diff to see changes, then analyze each component.";
             println!("  Generated prompt:");
             println!("  {}", prompt);
-        },
+        }
         _ => anyhow::bail!("mode must be 'adversarial' or 'first-principles'"),
     }
 
     // Record this as a tactic
     let global_mem = dijiang_mem::GlobalMemory::new()?;
     let tactic_name = format!("review-{}", mode);
-    global_mem.add_tactic(&tactic_name, &format!("{} review performed", mode), &dijiang_dir.to_string_lossy())?;
-    global_mem.record_event(&tactic_name, dijiang_mem::Outcome::Success, "review completed", Some(&dijiang_dir.to_string_lossy()))?;
+    global_mem.add_tactic(
+        &tactic_name,
+        &format!("{} review performed", mode),
+        &dijiang_dir.to_string_lossy(),
+    )?;
+    global_mem.record_event(
+        &tactic_name,
+        dijiang_mem::Outcome::Success,
+        "review completed",
+        Some(&dijiang_dir.to_string_lossy()),
+    )?;
 
     println!();
     println!("  Review recorded as tactic: {}", tactic_name);
@@ -1083,7 +1303,10 @@ fn cmd_channel_spawn(agent: &str, task: Option<&str>, dir: Option<&str>) -> anyh
         .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
 
     // Read agent definition
-    let agents_dir = dijiang_dir.parent().map(|p| p.join(".pi").join("agents")).unwrap_or_default();
+    let agents_dir = dijiang_dir
+        .parent()
+        .map(|p| p.join(".pi").join("agents"))
+        .unwrap_or_default();
     let agent_file = agents_dir.join(format!("dijiang-{}.md", agent));
     if !agent_file.exists() {
         anyhow::bail!("Agent '{}' not found at {}", agent, agent_file.display());
@@ -1091,9 +1314,14 @@ fn cmd_channel_spawn(agent: &str, task: Option<&str>, dir: Option<&str>) -> anyh
     let agent_def = std::fs::read_to_string(&agent_file)?;
 
     // Generate channel ID
-    let channel_id = format!("{}-{}-{}", agent,
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),
-        &cwd.to_string_lossy()[cwd.to_string_lossy().len()-8..].replace('/', "-"));
+    let channel_id = format!(
+        "{}-{}-{}",
+        agent,
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs(),
+        &cwd.to_string_lossy()[cwd.to_string_lossy().len() - 8..].replace('/', "-")
+    );
 
     // Create channel directory
     let channel_dir = dijiang_dir.join("channels").join(&channel_id);
@@ -1116,7 +1344,12 @@ fn cmd_channel_spawn(agent: &str, task: Option<&str>, dir: Option<&str>) -> anyh
         .unwrap_or(0);
     let metadata = format!(
         "id = {:?}\nagent = {:?}\nstatus = \"active\"\ncreated = {:?}\n\"task\" = {:?}\n\"dir\" = {:?}\n",
-        channel_id, agent, timestamp, task.unwrap_or(""), cwd.display());
+        channel_id,
+        agent,
+        timestamp,
+        task.unwrap_or(""),
+        cwd.display()
+    );
     std::fs::write(channel_dir.join("channel.toml"), &metadata)?;
 
     println!("  Agent '{}' spawned", agent);
@@ -1147,12 +1380,14 @@ fn cmd_channel_list() -> anyhow::Result<()> {
             let channel_toml = entry.path().join("channel.toml");
             if channel_toml.exists() {
                 let content = std::fs::read_to_string(&channel_toml)?;
-                let agent = content.lines()
+                let agent = content
+                    .lines()
                     .find(|l| l.contains("agent"))
                     .and_then(|l| l.split('=').nth(1))
                     .map(|s| s.trim().trim_matches('"').to_string())
                     .unwrap_or_else(|| "unknown".to_string());
-                let status = content.lines()
+                let status = content
+                    .lines()
                     .find(|l| l.contains("status"))
                     .and_then(|l| l.split('=').nth(1))
                     .map(|s| s.trim().trim_matches('"').to_string())
@@ -1263,7 +1498,13 @@ fn cmd_channel_stop(channel_id: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&str>, timeout: u64, follow: bool) -> anyhow::Result<()> {
+fn cmd_channel_execute(
+    channel_id: &str,
+    model: Option<&str>,
+    provider: Option<&str>,
+    timeout: u64,
+    follow: bool,
+) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
@@ -1297,7 +1538,10 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
         }
     }
 
-    println!("  Executing agent '{}' in channel {}", agent_name, channel_id);
+    println!(
+        "  Executing agent '{}' in channel {}",
+        agent_name, channel_id
+    );
     println!("  Timeout: {}s", timeout);
     if follow {
         println!("  Follow mode: enabled");
@@ -1321,10 +1565,7 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
     let agent_def = std::fs::read_to_string(&agent_file)?;
     let inbox_content = std::fs::read_to_string(&inbox_file)?;
 
-    let prompt = format!(
-        "{}\n\n---\n\nInbox:\n{}",
-        agent_def, inbox_content
-    );
+    let prompt = format!("{}\n\n---\n\nInbox:\n{}", agent_def, inbox_content);
 
     // Execute pi with the prompt
     println!("  Running: pi {}", pi_args.join(" "));
@@ -1379,10 +1620,15 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
     std::fs::write(&output_file, stdout.as_ref())?;
 
     // Write status
-    let status = if output.status.success() { "completed" } else { "failed" };
+    let status = if output.status.success() {
+        "completed"
+    } else {
+        "failed"
+    };
     if channel_toml.exists() {
         let content = std::fs::read_to_string(&channel_toml)?;
-        let new_content = content.replace("status = \"active\"", &format!("status = \"{}\"", status));
+        let new_content =
+            content.replace("status = \"active\"", &format!("status = \"{}\"", status));
         std::fs::write(&channel_toml, &new_content)?;
     }
 
@@ -1405,7 +1651,11 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
     Ok(())
 }
 
-fn cmd_channel_execute_all(model: Option<&str>, provider: Option<&str>, timeout: u64) -> anyhow::Result<()> {
+fn cmd_channel_execute_all(
+    model: Option<&str>,
+    provider: Option<&str>,
+    timeout: u64,
+) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
@@ -1437,7 +1687,10 @@ fn cmd_channel_execute_all(model: Option<&str>, provider: Option<&str>, timeout:
         return Ok(());
     }
 
-    println!("  Executing {} active channel(s) in parallel", active_channels.len());
+    println!(
+        "  Executing {} active channel(s) in parallel",
+        active_channels.len()
+    );
     println!("  Timeout: {}s per channel", timeout);
     println!();
 
@@ -1451,7 +1704,14 @@ fn cmd_channel_execute_all(model: Option<&str>, provider: Option<&str>, timeout:
         let dijiang_dir = dijiang_dir.clone();
 
         let handle = std::thread::spawn(move || {
-            match cmd_channel_execute_single(&channel_id, model.as_deref(), provider.as_deref(), timeout, &cwd, &dijiang_dir) {
+            match cmd_channel_execute_single(
+                &channel_id,
+                model.as_deref(),
+                provider.as_deref(),
+                timeout,
+                &cwd,
+                &dijiang_dir,
+            ) {
                 Ok(_) => (channel_id, true, String::new()),
                 Err(e) => (channel_id, false, e.to_string()),
             }
@@ -1518,10 +1778,7 @@ fn cmd_channel_execute_single(
     // Build the prompt
     let agent_def = std::fs::read_to_string(&agent_file)?;
     let inbox_content = std::fs::read_to_string(&inbox_file)?;
-    let prompt = format!(
-        "{}\n\n---\n\nInbox:\n{}",
-        agent_def, inbox_content
-    );
+    let prompt = format!("{}\n\n---\n\nInbox:\n{}", agent_def, inbox_content);
 
     // Execute pi
     let mut child = std::process::Command::new("pi")
@@ -1568,10 +1825,15 @@ fn cmd_channel_execute_single(
 
     // Write status
     let channel_toml = channel_dir.join("channel.toml");
-    let status = if output.status.success() { "completed" } else { "failed" };
+    let status = if output.status.success() {
+        "completed"
+    } else {
+        "failed"
+    };
     if channel_toml.exists() {
         let content = std::fs::read_to_string(&channel_toml)?;
-        let new_content = content.replace("status = \"active\"", &format!("status = \"{}\"", status));
+        let new_content =
+            content.replace("status = \"active\"", &format!("status = \"{}\"", status));
         std::fs::write(&channel_toml, &new_content)?;
     }
 
@@ -1586,7 +1848,8 @@ fn cmd_mem_findings(finding: &str) -> anyhow::Result<()> {
     // Read developer name from config.toml (simple parser)
     let config_path = dijiang_dir.join("config.toml");
     let config_str = std::fs::read_to_string(&config_path)?;
-    let developer = config_str.lines()
+    let developer = config_str
+        .lines()
         .find(|l| l.starts_with("developer"))
         .and_then(|l| l.split('=').nth(1))
         .map(|s| s.trim().trim_matches('\"').to_string())
@@ -1602,7 +1865,11 @@ fn cmd_mem_findings(finding: &str) -> anyhow::Result<()> {
         finding
     );
     use std::io::Write;
-    std::fs::OpenOptions::new().create(true).append(true).open(&journal)?.write_all(entry.as_bytes())?;
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&journal)?
+        .write_all(entry.as_bytes())?;
     println!("  Finding recorded to {}", journal.display());
     Ok(())
 }
@@ -1614,7 +1881,8 @@ fn cmd_mem_learn(lesson: &str) -> anyhow::Result<()> {
 
     let config_path = dijiang_dir.join("config.toml");
     let config_str = std::fs::read_to_string(&config_path)?;
-    let developer = config_str.lines()
+    let developer = config_str
+        .lines()
         .find(|l| l.starts_with("developer"))
         .and_then(|l| l.split('=').nth(1))
         .map(|s| s.trim().trim_matches('\"').to_string())
@@ -1630,7 +1898,11 @@ fn cmd_mem_learn(lesson: &str) -> anyhow::Result<()> {
         lesson
     );
     use std::io::Write;
-    std::fs::OpenOptions::new().create(true).append(true).open(&journal)?.write_all(entry.as_bytes())?;
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&journal)?
+        .write_all(entry.as_bytes())?;
     println!("  Lesson recorded to {}", journal.display());
     Ok(())
 }
@@ -1642,7 +1914,8 @@ fn cmd_mem_archive() -> anyhow::Result<()> {
 
     let config_path = dijiang_dir.join("config.toml");
     let config_str = std::fs::read_to_string(&config_path)?;
-    let developer = config_str.lines()
+    let developer = config_str
+        .lines()
         .find(|l| l.starts_with("developer"))
         .and_then(|l| l.split('=').nth(1))
         .map(|s| s.trim().trim_matches('\"').to_string())
@@ -1672,7 +1945,10 @@ fn cmd_mem_archive() -> anyhow::Result<()> {
 fn cmd_mem_tactic(name: &str, description: &str) -> anyhow::Result<()> {
     let mem = dijiang_mem::GlobalMemory::new()?;
     let tactic = mem.add_tactic(name, description, "cli")?;
-    println!("  Added tactic: {} (alpha={}, beta={})", tactic.name, tactic.alpha, tactic.beta);
+    println!(
+        "  Added tactic: {} (alpha={}, beta={})",
+        tactic.name, tactic.alpha, tactic.beta
+    );
     Ok(())
 }
 
@@ -1681,7 +1957,13 @@ fn cmd_mem_tactics(select: usize) -> anyhow::Result<()> {
     let tactics = mem.select_tactics(select)?;
     println!("  Top {} tactics (Thompson sampling):", select);
     for t in &tactics {
-        println!("    {} (win_rate={:.2}, a={}, b={})", t.name, t.win_rate(), t.alpha, t.beta);
+        println!(
+            "    {} (win_rate={:.2}, a={}, b={})",
+            t.name,
+            t.win_rate(),
+            t.alpha,
+            t.beta
+        );
     }
     Ok(())
 }
@@ -1732,7 +2014,9 @@ fn cmd_mem_patterns() -> anyhow::Result<()> {
 fn cmd_mem_stats() -> anyhow::Result<()> {
     let mem = dijiang_mem::GlobalMemory::new()?;
     let tactics = mem.load_tactics()?;
-    let avg_win_rate = if tactics.is_empty() { 0.0 } else {
+    let avg_win_rate = if tactics.is_empty() {
+        0.0
+    } else {
         tactics.iter().map(|t| t.win_rate()).sum::<f64>() / tactics.len() as f64
     };
     println!("  Memory Stats:");
@@ -1747,7 +2031,8 @@ fn cmd_mem_backup() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
     let config_path = dijiang_dir.join("config.toml");
     let config_str = std::fs::read_to_string(&config_path)?;
-    let project = config_str.lines()
+    let project = config_str
+        .lines()
         .find(|l| l.starts_with("name"))
         .and_then(|l| l.split('=').nth(1))
         .map(|s| s.trim().trim_matches('"').to_string())
@@ -1775,7 +2060,8 @@ fn cmd_mem_evolve() -> anyhow::Result<()> {
     let mut tactics_created = 0;
 
     // Simple pattern detection: if similar findings appear 3+ times, create a tactic
-    let mut finding_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let mut finding_counts: std::collections::HashMap<String, u32> =
+        std::collections::HashMap::new();
     for finding in &findings {
         let key = finding.content.chars().take(50).collect::<String>();
         *finding_counts.entry(key).or_insert(0) += 1;
@@ -1786,7 +2072,11 @@ fn cmd_mem_evolve() -> anyhow::Result<()> {
             // Check if tactic already exists
             let existing = global_mem.load_tactics()?;
             if !existing.iter().any(|t| t.description.contains(pattern)) {
-                global_mem.add_tactic(pattern, &format!("Auto-detected from {} findings", count), &dijiang_dir.to_string_lossy())?;
+                global_mem.add_tactic(
+                    pattern,
+                    &format!("Auto-detected from {} findings", count),
+                    &dijiang_dir.to_string_lossy(),
+                )?;
                 tactics_created += 1;
             }
         }
@@ -1795,7 +2085,8 @@ fn cmd_mem_evolve() -> anyhow::Result<()> {
     // Backup project memory
     let config_path = dijiang_dir.join("config.toml");
     let config_str = std::fs::read_to_string(&config_path)?;
-    let project = config_str.lines()
+    let project = config_str
+        .lines()
         .find(|l| l.starts_with("name"))
         .and_then(|l| l.split('=').nth(1))
         .map(|s| s.trim().trim_matches('"').to_string())
@@ -1805,7 +2096,10 @@ fn cmd_mem_evolve() -> anyhow::Result<()> {
     println!("  Findings analyzed: {}", findings.len());
     println!("  Learnings analyzed: {}", learnings.len());
     println!("  Tactics created: {}", tactics_created);
-    println!("  Project memory backed up to ~/.dijiang/backups/{}", project);
+    println!(
+        "  Project memory backed up to ~/.dijiang/backups/{}",
+        project
+    );
     Ok(())
 }
 
@@ -1869,11 +2163,20 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
         }
 
         let output = std::process::Command::new("git")
-            .args(&["clone", "--depth", "1", "https://github.com/Asura-one/DiJiang.git", temp_dir.to_str().unwrap()])
+            .args(&[
+                "clone",
+                "--depth",
+                "1",
+                "https://github.com/Asura-one/DiJiang.git",
+                temp_dir.to_str().unwrap(),
+            ])
             .output()?;
 
         if !output.status.success() {
-            anyhow::bail!("从 GitHub 下载失败: {}", String::from_utf8_lossy(&output.stderr));
+            anyhow::bail!(
+                "从 GitHub 下载失败: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         println!("  下载完成，正在更新技能...");
@@ -1881,10 +2184,15 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
         // 更新全局技能目录
         let global_dir = dirs::home_dir()
             .ok_or_else(|| anyhow::anyhow!("无法获取用户主目录"))?
-            .join(".dijiang").join("skills");
+            .join(".dijiang")
+            .join("skills");
         std::fs::create_dir_all(&global_dir)?;
 
-        let src_skills = temp_dir.join("crates").join("configurator").join("templates").join("skills");
+        let src_skills = temp_dir
+            .join("crates")
+            .join("configurator")
+            .join("templates")
+            .join("skills");
         if src_skills.exists() {
             for entry in std::fs::read_dir(&src_skills)? {
                 let entry = entry?;
@@ -1910,13 +2218,12 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
 
     // 加载模板哈希
     let hashes_file = dijiang_dir.join(".template-hashes.json");
-    let mut template_hashes: std::collections::HashMap<String, String> =
-        if hashes_file.exists() {
-            let content = std::fs::read_to_string(&hashes_file)?;
-            serde_json::from_str(&content).unwrap_or_default()
-        } else {
-            std::collections::HashMap::new()
-        };
+    let mut template_hashes: std::collections::HashMap<String, String> = if hashes_file.exists() {
+        let content = std::fs::read_to_string(&hashes_file)?;
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
 
     let mut updated = 0;
     let mut skipped = 0;
@@ -1932,8 +2239,12 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
         let skill_file = skill_dir.join("SKILL.md");
 
         // 获取技能内容：优先从当前项目的模板目录读取，否则用嵌入内容
-        let templates_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates").join("skills");
-        let content = if let Ok(content) = std::fs::read_to_string(templates_dir.join(name).join("SKILL.md")) {
+        let templates_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("templates")
+            .join("skills");
+        let content = if let Ok(content) =
+            std::fs::read_to_string(templates_dir.join(name).join("SKILL.md"))
+        {
             content
         } else {
             dijiang_configurator::dj_skills::get_skill_content(name)
@@ -1965,7 +2276,10 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
     std::fs::write(&hashes_file, hashes_json)?;
 
     println!();
-    println!("  更新完成: {} 个文件已更新, {} 个已是最新", updated, skipped);
+    println!(
+        "  更新完成: {} 个文件已更新, {} 个已是最新",
+        updated, skipped
+    );
 
     Ok(())
 }
@@ -1975,7 +2289,10 @@ mod tests {
     use dijiang_task::types::TaskStatus;
 
     fn status_format(status: TaskStatus) -> (String, String) {
-        (status.as_str().to_string(), status.to_trellis_status().to_string())
+        (
+            status.as_str().to_string(),
+            status.to_trellis_status().to_string(),
+        )
     }
 
     #[test]

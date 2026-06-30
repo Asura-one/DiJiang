@@ -106,7 +106,13 @@ fn test_e2e_init_creates_project_structure() {
     // .dijiang/ infrastructure
     assert!(project_dir.join(".dijiang").join("workflow.md").exists());
     assert!(project_dir.join(".dijiang").join("tasks").exists());
-    assert!(project_dir.join(".dijiang").join("workspace").join("e2e").exists());
+    assert!(
+        project_dir
+            .join(".dijiang")
+            .join("workspace")
+            .join("e2e")
+            .exists()
+    );
     assert!(project_dir.join(".dijiang").join("spec").exists());
 
     // Pi platform files
@@ -136,11 +142,7 @@ fn test_e2e_task_lifecycle() {
     );
 
     // 4. Update status
-    dijang(
-        &["task", "status", "e2e-task", "in_progress"],
-        &project_dir,
-    )
-    .unwrap();
+    dijang(&["task", "status", "e2e-task", "in_progress"], &project_dir).unwrap();
 
     // 5. Archive the task
     dijang(&["task", "archive", "e2e-task"], &project_dir).unwrap();
@@ -149,9 +151,50 @@ fn test_e2e_task_lifecycle() {
     let _prune_out = dijang(&["task", "prune", "--days", "0"], &project_dir).unwrap();
     // After pruning, the task directory should be gone
     assert!(
-        !project_dir.join(".dijiang").join("tasks").join("e2e-task").exists(),
+        !project_dir
+            .join(".dijiang")
+            .join("tasks")
+            .join("e2e-task")
+            .exists(),
         "pruned task directory should be removed"
     );
+}
+#[test]
+fn test_e2e_finish_work_archives_and_clears_active_task() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(&["start", "finish-e2e", "Finish E2E"], &project_dir).unwrap();
+    let finish_out = dijang(
+        &["finish-work", "--summary", "implemented finish-work flow"],
+        &project_dir,
+    )
+    .unwrap();
+    assert!(finish_out.contains("Finished task 'finish-e2e'"));
+    assert!(finish_out.contains("Active task cleared"));
+
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(current.contains("(none)"), "current output: {current}");
+
+    let task_json = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("tasks")
+            .join("finish-e2e")
+            .join("task.json"),
+    )
+    .unwrap();
+    assert!(task_json.contains("\"status\": \"archived\""));
+
+    let journal = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("workspace")
+            .join("e2e")
+            .join("journal.md"),
+    )
+    .unwrap();
+    assert!(journal.contains("finish-e2e"));
+    assert!(journal.contains("implemented finish-work flow"));
 }
 
 #[test]
@@ -187,7 +230,11 @@ fn test_e2e_template_validate() {
 #[test]
 fn test_e2e_binary_exists() {
     let bin = dijiang_bin();
-    assert!(bin.exists(), "dijiang binary should exist at {}", bin.display());
+    assert!(
+        bin.exists(),
+        "dijiang binary should exist at {}",
+        bin.display()
+    );
 }
 
 #[test]
@@ -211,18 +258,32 @@ fn test_e2e_init_detects_reinit() {
 fn test_e2e_review_adversarial() {
     let (_tmp, project_dir) = init_project();
     let out = dijang(&["review", "--mode", "adversarial"], &project_dir);
-    assert!(out.is_ok(), "review adversarial should succeed: {:?}", out.err());
+    assert!(
+        out.is_ok(),
+        "review adversarial should succeed: {:?}",
+        out.err()
+    );
     let stdout = out.unwrap();
-    assert!(stdout.contains("Adversarial"), "should show adversarial mode");
+    assert!(
+        stdout.contains("Adversarial"),
+        "should show adversarial mode"
+    );
 }
 
 #[test]
 fn test_e2e_review_first_principles() {
     let (_tmp, project_dir) = init_project();
     let out = dijang(&["review", "--mode", "first-principles"], &project_dir);
-    assert!(out.is_ok(), "review first-principles should succeed: {:?}", out.err());
+    assert!(
+        out.is_ok(),
+        "review first-principles should succeed: {:?}",
+        out.err()
+    );
     let stdout = out.unwrap();
-    assert!(stdout.contains("First Principles"), "should show first-principles mode");
+    assert!(
+        stdout.contains("First Principles"),
+        "should show first-principles mode"
+    );
 }
 
 #[test]
@@ -246,7 +307,10 @@ fn test_e2e_channel_lifecycle() {
     let out = dijang(&["channel", "spawn", "check", "--task", "."], &project_dir);
     assert!(out.is_ok(), "channel spawn should succeed: {:?}", out.err());
     let stdout = out.unwrap();
-    assert!(stdout.contains("Agent 'check' spawned"), "should confirm spawn");
+    assert!(
+        stdout.contains("Agent 'check' spawned"),
+        "should confirm spawn"
+    );
     assert!(stdout.contains("Channel ID:"), "should output channel ID");
 
     // List (one active)
@@ -257,19 +321,27 @@ fn test_e2e_channel_lifecycle() {
     assert!(stdout.contains("active"), "should show active status");
 
     // Extract channel ID
-    let channel_id = stdout.lines()
+    let channel_id = stdout
+        .lines()
         .find(|l| l.contains("check") && l.contains("active"))
         .and_then(|l| l.split_whitespace().next())
         .expect("should find channel ID");
 
     // Status
     let out = dijang(&["channel", "status", channel_id], &project_dir);
-    assert!(out.is_ok(), "channel status should succeed: {:?}", out.err());
+    assert!(
+        out.is_ok(),
+        "channel status should succeed: {:?}",
+        out.err()
+    );
     let stdout = out.unwrap();
     assert!(stdout.contains("id"), "should show channel id");
 
     // Send
-    let out = dijang(&["channel", "send", channel_id, "test message"], &project_dir);
+    let out = dijang(
+        &["channel", "send", channel_id, "test message"],
+        &project_dir,
+    );
     assert!(out.is_ok(), "channel send should succeed: {:?}", out.err());
 
     // Stop
@@ -314,8 +386,11 @@ fn test_e2e_execute_all_no_active() {
     let stdout = out.unwrap();
     // Either no channels or no active channels
     assert!(
-        stdout.contains("No active channels") || stdout.contains("No channels") || stdout.contains("0 active"),
-        "should report no active channels, got: {}", stdout
+        stdout.contains("No active channels")
+            || stdout.contains("No channels")
+            || stdout.contains("0 active"),
+        "should report no active channels, got: {}",
+        stdout
     );
 }
 
@@ -330,7 +405,10 @@ fn test_e2e_mem_record_and_findings() {
     assert!(out.is_ok(), "mem learn should succeed: {:?}", out.err());
 
     // Record finding
-    let out = dijang(&["mem", "findings", "--finding", "Found something important"], &project_dir);
+    let out = dijang(
+        &["mem", "findings", "--finding", "Found something important"],
+        &project_dir,
+    );
     assert!(out.is_ok(), "mem findings should succeed: {:?}", out.err());
 
     // List sessions
@@ -348,6 +426,8 @@ fn test_e2e_mem_tactics() {
     assert!(out.is_ok(), "mem tactics should succeed: {:?}", out.err());
     let stdout = out.unwrap();
     // Should show at least cargo-test or review tactics
-    assert!(stdout.contains("cargo-test") || stdout.contains("review") || stdout.contains("No tactics"),
-        "should show tactics or empty message");
+    assert!(
+        stdout.contains("cargo-test") || stdout.contains("review") || stdout.contains("No tactics"),
+        "should show tactics or empty message"
+    );
 }

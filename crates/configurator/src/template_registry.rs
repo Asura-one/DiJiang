@@ -195,9 +195,8 @@ impl TemplateRegistry {
             match self.load_manifest(&manifest_path) {
                 Ok(manifest) => {
                     let source_label = Self::source_label_from_path(&path);
-                    let source = TemplateSource::parse(&source_label).unwrap_or(
-                        TemplateSource::Url("local".to_string()),
-                    );
+                    let source = TemplateSource::parse(&source_label)
+                        .unwrap_or(TemplateSource::Url("local".to_string()));
                     packages.push(TemplatePackage {
                         manifest,
                         source,
@@ -247,8 +246,7 @@ impl TemplateRegistry {
         // Create local cache directory
         let cache_name = format!("gh_{}_{}", owner, repo);
         let cache_dir = self.cache_root.join(&cache_name);
-        fs::create_dir_all(&cache_dir)
-            .map_err(|e| format!("Failed to create cache dir: {}", e))?;
+        fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create cache dir: {}", e))?;
 
         // Save manifest
         fs::write(cache_dir.join("manifest.toml"), &manifest_content)
@@ -296,8 +294,7 @@ impl TemplateRegistry {
 
         let cache_name = sanitize_name(&manifest.template.name);
         let cache_dir = self.cache_root.join(&cache_name);
-        fs::create_dir_all(&cache_dir)
-            .map_err(|e| format!("Failed to create cache dir: {}", e))?;
+        fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create cache dir: {}", e))?;
 
         fs::write(cache_dir.join("manifest.toml"), &content)
             .map_err(|e| format!("Failed to write manifest: {}", e))?;
@@ -350,7 +347,8 @@ impl TemplateRegistry {
             if let Ok(pkg) = self.load(source_str) {
                 return Ok(pkg);
             }
-            return Err(format!("Template '{}' not found. Available built-in: {}",
+            return Err(format!(
+                "Template '{}' not found. Available built-in: {}",
                 source_str,
                 self.list_builtin().join(", "),
             ));
@@ -370,7 +368,11 @@ impl TemplateRegistry {
         // Check that the package exists
         let builtins = self.list_builtin();
         if !builtins.contains(&name.to_string()) {
-            return Err(format!("Built-in template '{}' not found. Available: {}", name, builtins.join(", ")));
+            return Err(format!(
+                "Built-in template '{}' not found. Available: {}",
+                name,
+                builtins.join(", ")
+            ));
         }
 
         // Load manifest from built-in
@@ -381,8 +383,7 @@ impl TemplateRegistry {
 
         // Create cache directory
         let cache_dir = self.cache_root.join(name);
-        fs::create_dir_all(&cache_dir)
-            .map_err(|e| format!("Failed to create cache dir: {}", e))?;
+        fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create cache dir: {}", e))?;
 
         // Save manifest
         fs::write(cache_dir.join("manifest.toml"), &manifest_content)
@@ -390,7 +391,9 @@ impl TemplateRegistry {
 
         // Copy files from built-in to cache
         for file_entry in &manifest.files {
-            if let Some(content) = crate::templates::get_builtin_package_file(name, &file_entry.path) {
+            if let Some(content) =
+                crate::templates::get_builtin_package_file(name, &file_entry.path)
+            {
                 let file_path = cache_dir.join(&file_entry.path);
                 if let Some(parent) = file_path.parent() {
                     fs::create_dir_all(parent).ok();
@@ -485,11 +488,7 @@ fn fetch_url(url: &str) -> Result<String, String> {
         .map_err(|e| format!("HTTP request failed: {}", e))?;
 
     if response.status() != 200 {
-        return Err(format!(
-            "HTTP {} fetching {}",
-            response.status(),
-            url
-        ));
+        return Err(format!("HTTP {} fetching {}", response.status(), url));
     }
 
     response
@@ -500,7 +499,13 @@ fn fetch_url(url: &str) -> Result<String, String> {
 /// Sanitize a name for use as a directory name.
 fn sanitize_name(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -530,8 +535,7 @@ mod tests {
 
     #[test]
     fn test_parse_github_with_subpath() {
-        let src =
-            TemplateSource::parse("gh:tiezhu/dijiang-templates/rust-api").unwrap();
+        let src = TemplateSource::parse("gh:tiezhu/dijiang-templates/rust-api").unwrap();
         match src {
             TemplateSource::GitHub {
                 owner,

@@ -78,10 +78,7 @@ impl ConfiguratorRegistry {
 
     /// Configure all registered platforms at `cwd`.
     /// Returns a Vec of (platform, result) for each configurator run.
-    pub fn configure_all(
-        &self,
-        cwd: &Path,
-    ) -> Vec<(PlatformKind, Result<(), ConfigError>)> {
+    pub fn configure_all(&self, cwd: &Path) -> Vec<(PlatformKind, Result<(), ConfigError>)> {
         self.configurators
             .iter()
             .map(|c| (c.platform(), c.configure(cwd)))
@@ -97,13 +94,9 @@ impl ConfiguratorRegistry {
         platforms
             .iter()
             .map(|p| {
-                let result = self
-                    .get(*p)
-                    .map(|c| c.configure(cwd))
-                    .unwrap_or(Err(ConfigError::InvalidPath(format!(
-                        "No configurator for platform '{:?}'",
-                        p
-                    ))));
+                let result = self.get(*p).map(|c| c.configure(cwd)).unwrap_or(Err(
+                    ConfigError::InvalidPath(format!("No configurator for platform '{:?}'", p)),
+                ));
                 (*p, result)
             })
             .collect()

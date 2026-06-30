@@ -50,19 +50,25 @@ Task lifecycle follows `plan → implement → check → archive`:
 
 ## Hooks
 
-Hooks fire automatically on session start to load task context.
+Hooks call `dijiang workflow-state` to load session-scoped task context.
 "#
     }
 
     fn hooks_json_content() -> &'static str {
         r#"{
-  "hooks": [
-    {
-      "type": "session:start",
-      "command": "dijiang status",
-      "description": "Load DiJiang project context on session start"
-    }
-  ]
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dijiang workflow-state --json --hook-event UserPromptSubmit",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
 }"#
     }
 }

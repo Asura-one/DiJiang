@@ -64,6 +64,57 @@ Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
             project_name = project_name
         )
     }
+    fn hook_script_content() -> &'static str {
+        r#"#!/usr/bin/env python3
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+
+def find_dijiang_root(start: Path) -> Path | None:
+    current = start.resolve()
+    while True:
+        if (current / ".dijiang").is_dir():
+            return current
+        if current == current.parent:
+            return None
+        current = current.parent
+
+
+def main() -> int:
+    root = find_dijiang_root(Path.cwd())
+    if root is None:
+        return 0
+
+    try:
+        stdin_data = sys.stdin.read()
+    except OSError:
+        stdin_data = ""
+
+    try:
+        result = subprocess.run(
+            ["dijiang", "workflow-state", "--json", "--hook-event", "UserPromptSubmit"],
+            input=stdin_data,
+            text=True,
+            cwd=root,
+            check=False,
+            capture_output=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return 0
+
+    if result.returncode == 0 and result.stdout.strip():
+        print(result.stdout.strip())
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+"#
+    }
 }
 
 impl Configurator for ClaudeConfigurator {
@@ -96,6 +147,19 @@ impl Configurator for ClaudeConfigurator {
   "skills": {
     "enabled": true
   },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -X utf8 .claude/hooks/inject-workflow-state.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
   "slash_commands": [
     {
       "name": "dijiang-status",
@@ -118,6 +182,19 @@ impl Configurator for ClaudeConfigurator {
         let settings_path = claude_dir.join("settings.json");
         fs::write(&settings_path, settings)?;
         eprintln!("  ├── .claude/settings.json");
+
+        let hooks_dir = claude_dir.join("hooks");
+        fs::create_dir_all(&hooks_dir)?;
+        let hook_path = hooks_dir.join("inject-workflow-state.py");
+        fs::write(&hook_path, Self::hook_script_content())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut permissions = fs::metadata(&hook_path)?.permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&hook_path, permissions)?;
+        }
+        eprintln!("  ├── .claude/hooks/inject-workflow-state.py");
 
         Ok(())
     }

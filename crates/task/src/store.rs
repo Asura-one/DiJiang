@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -39,77 +40,193 @@ pub fn find_dijiang_dir(cwd: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Find the active task by reading runtime session files.
-/// Falls back to `<dijiang_dir>/active_task.txt` for Rust-only usage.
-pub fn read_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskError> {
-    // First try runtime sessions (Python task.py format)
-    let sessions_dir = dijiang_dir.join(".runtime").join("sessions");
-    if sessions_dir.is_dir() {
-        let mut latest: Option<(String, String)> = None; // (task_name, last_seen)
-        for entry in fs::read_dir(&sessions_dir)? {
-            let entry = entry?;
-            if !entry.path().extension().is_some_and(|e| e == "json") {
-                continue;
-            }
-            let content = fs::read_to_string(entry.path())?;
-            if let Ok(data) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(task) = data.get("current_task").and_then(|v| v.as_str()) {
-                    let seen = data
-                        .get("last_seen_at")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-                    match &latest {
-                        Some((_, last_seen)) if seen > last_seen.as_str() => {
-                            latest = Some((task.to_string(), seen.to_string()));
-                        }
-                        None => {
-                            latest = Some((task.to_string(), seen.to_string()));
-                        }
-                        _ => {}
-                    }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionIdentity {
+    key: String,
+    source: String,
+}
+
+impl SessionIdentity {
+    pub fn new(source: impl Into<String>, value: impl AsRef<str>) -> Option<Self> {
+        let source = source.into();
+        let source_key = sanitize_session_key(&source);
+        let value_key = sanitize_session_key(value.as_ref());
+        if source_key.is_empty() || value_key.is_empty() {
+            return None;
+        }
+        Some(Self {
+            key: format!("{source_key}_{value_key}"),
+            source,
+        })
+    }
+
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    pub fn source(&self) -> &str {
+        &self.source
+    }
+}
+
+fn sanitize_session_key(raw: &str) -> String {
+    let mut safe = String::with_capacity(raw.len().min(160));
+    for ch in raw.trim().chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-') {
+            safe.push(ch);
+        } else if !safe.ends_with('_') {
+            safe.push('_');
+        }
+        if safe.len() >= 160 {
+            break;
+        }
+    }
+    safe.trim_matches(&['.', '_', '-'][..]).to_string()
+}
+
+pub fn current_session_identity() -> Option<SessionIdentity> {
+    const ENV_KEYS: &[(&str, &[&str])] = &[
+        ("dijiang", &["DIJIANG_CONTEXT_ID", "DIJIANG_SESSION_ID"]),
+        ("codex", &["CODEX_SESSION_ID", "CODEX_THREAD_ID"]),
+        ("claude", &["CLAUDE_SESSION_ID", "CLAUDE_CODE_SESSION_ID"]),
+        ("pi", &["PI_SESSION_ID", "PI_SESSIONID"]),
+        ("cursor", &["CURSOR_SESSION_ID", "CURSOR_CONVERSATION_ID"]),
+        ("opencode", &["OPENCODE_SESSION_ID", "OPENCODE_RUN_ID"]),
+        ("hermes", &["HERMES_SESSION_ID"]),
+    ];
+
+    for (source, keys) in ENV_KEYS {
+        for key in *keys {
+            if let Ok(value) = env::var(key) {
+                if let Some(identity) = SessionIdentity::new(*source, value) {
+                    return Some(identity);
                 }
             }
         }
-        if let Some((task, _)) = latest {
+    }
+    None
+}
+
+fn session_path(dijiang_dir: &Path, identity: &SessionIdentity) -> PathBuf {
+    dijiang_dir
+        .join(".runtime")
+        .join("sessions")
+        .join(format!("{}.json", identity.key()))
+}
+
+fn read_session_task(
+    dijiang_dir: &Path,
+    identity: &SessionIdentity,
+) -> Result<Option<String>, TaskError> {
+    let path = session_path(dijiang_dir, identity);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(path)?;
+    let data: serde_json::Value = serde_json::from_str(&content)?;
+    Ok(data
+        .get("current_task")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string))
+}
+
+/// Find the active task for the current session, falling back to global state.
+pub fn read_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskError> {
+    read_active_task_for_session(dijiang_dir, current_session_identity().as_ref())
+}
+
+pub fn read_active_task_for_session(
+    dijiang_dir: &Path,
+    identity: Option<&SessionIdentity>,
+) -> Result<Option<String>, TaskError> {
+    if let Some(identity) = identity {
+        if let Some(task) = read_session_task(dijiang_dir, identity)? {
             return Ok(Some(task));
         }
     }
 
-    // Fallback: Rust active_task.txt
     let path = dijiang_dir.join("active_task.txt");
     if path.exists() {
         let content = fs::read_to_string(&path)?;
-        return Ok(Some(content.trim().to_string()));
+        let active = content.trim();
+        if !active.is_empty() {
+            return Ok(Some(active.to_string()));
+        }
     }
 
     Ok(None)
 }
 
-/// Write the active task name to `.dijiang/active_task.txt`.
-/// Write the active task name to `.dijiang/active_task.txt`,
-/// and dual-write to `.runtime/sessions/<task_name>.json` so that
-/// `read_active_task` finds the active task via either path.
-///
-/// Also creates a `.runtime/.dijiang_owned` marker to declare DiJiang's
-/// ownership of the `.runtime/` subtree.
+/// Write the active task for the current session, with a global fallback pointer.
 pub fn write_active_task(dijiang_dir: &Path, task_name: &str) -> Result<(), TaskError> {
-    // Primary: `.dijiang/active_task.txt` (simple format, Trellis-compat)
-    let path = dijiang_dir.join("active_task.txt");
-    fs::write(&path, task_name)?;
+    write_active_task_for_session(dijiang_dir, task_name, current_session_identity().as_ref())
+}
 
-    // Dual-write: `.runtime/sessions/<task_name>.json`
+pub fn write_active_task_for_session(
+    dijiang_dir: &Path,
+    task_name: &str,
+    identity: Option<&SessionIdentity>,
+) -> Result<(), TaskError> {
+    fs::write(dijiang_dir.join("active_task.txt"), task_name)?;
+
     let runtime_dir = dijiang_dir.join(".runtime");
     let sessions_dir = runtime_dir.join("sessions");
     fs::create_dir_all(&sessions_dir)?;
+
+    let fallback_identity;
+    let identity = match identity {
+        Some(identity) => identity,
+        None => {
+            fallback_identity = SessionIdentity::new("global", "global")
+                .expect("literal global session key is valid");
+            &fallback_identity
+        }
+    };
+
     let session = serde_json::json!({
         "current_task": task_name,
         "last_seen_at": chrono::Utc::now().to_rfc3339(),
+        "session_key": identity.key(),
+        "source": identity.source(),
     });
-    let session_path = sessions_dir.join(format!("{task_name}.json"));
-    fs::write(&session_path, serde_json::to_string_pretty(&session)?)?;
-
-    // Ownership marker: `.runtime/.dijiang_owned`
+    fs::write(
+        session_path(dijiang_dir, identity),
+        serde_json::to_string_pretty(&session)?,
+    )?;
     fs::write(runtime_dir.join(".dijiang_owned"), "")?;
+
+    Ok(())
+}
+
+pub fn clear_active_task(dijiang_dir: &Path) -> Result<(), TaskError> {
+    clear_active_task_for_session(dijiang_dir, current_session_identity().as_ref())
+}
+
+pub fn clear_active_task_for_session(
+    dijiang_dir: &Path,
+    identity: Option<&SessionIdentity>,
+) -> Result<(), TaskError> {
+    if let Some(identity) = identity {
+        let path = session_path(dijiang_dir, identity);
+        if path.exists() {
+            fs::remove_file(path)?;
+        }
+    } else {
+        let path = session_path(
+            dijiang_dir,
+            &SessionIdentity::new("global", "global").expect("literal global session key is valid"),
+        );
+        if path.exists() {
+            fs::remove_file(path)?;
+        }
+    }
+
+    let active_path = dijiang_dir.join("active_task.txt");
+    if active_path.exists() {
+        fs::remove_file(active_path)?;
+    }
 
     Ok(())
 }
@@ -177,10 +294,7 @@ pub fn update_status(
 }
 
 /// Archive a task: set status to Archived and record archived_at timestamp.
-pub fn archive_task(
-    tasks_dir: &Path,
-    task_name: &str,
-) -> Result<TaskRecord, TaskError> {
+pub fn archive_task(tasks_dir: &Path, task_name: &str) -> Result<TaskRecord, TaskError> {
     let mut task = load_task(tasks_dir, task_name)?;
     task.status = TaskStatus::Archived;
     task.archived_at = Some(chrono::Utc::now().format("%Y-%m-%d").to_string());
@@ -217,9 +331,10 @@ pub fn prune_tasks(tasks_dir: &Path, older_than_days: u64) -> Result<usize, Task
                 continue;
             }
             if let Some(archived_at) = &task.archived_at {
-                if let Ok(archived_date) = chrono::NaiveDate::parse_from_str(archived_at, "%Y-%m-%d")
-                    .map(|d| d.and_hms_opt(0, 0, 0).unwrap())
-                    .map(|dt| dt.and_utc())
+                if let Ok(archived_date) =
+                    chrono::NaiveDate::parse_from_str(archived_at, "%Y-%m-%d")
+                        .map(|d| d.and_hms_opt(0, 0, 0).unwrap())
+                        .map(|dt| dt.and_utc())
                 {
                     let age = now - archived_date;
                     if age > cutoff {
@@ -345,34 +460,64 @@ mod tests {
     #[test]
     fn test_active_task_dual_write() {
         let dir = tempfile::tempdir().unwrap();
-        let dijiang_dir = dir.path().join(".trellis");
+        let dijiang_dir = dir.path().join(".dijiang");
         fs::create_dir(&dijiang_dir).unwrap();
 
-        // Before any write — no active task.
-        assert!(read_active_task(&dijiang_dir).unwrap().is_none());
+        assert!(
+            read_active_task_for_session(&dijiang_dir, None)
+                .unwrap()
+                .is_none()
+        );
 
-        write_active_task(&dijiang_dir, "my-task").unwrap();
+        let identity = SessionIdentity::new("codex", "window-a").unwrap();
+        write_active_task_for_session(&dijiang_dir, "my-task", Some(&identity)).unwrap();
 
-        // Primary path: `.dijiang/active_task.txt`
         let primary = dijiang_dir.join("active_task.txt");
         assert!(primary.exists());
         assert_eq!(fs::read_to_string(&primary).unwrap(), "my-task");
 
-        // Dual-write path: `.runtime/sessions/my-task.json`
-        let session = dijiang_dir.join(".runtime").join("sessions").join("my-task.json");
+        let session = dijiang_dir
+            .join(".runtime")
+            .join("sessions")
+            .join("codex_window-a.json");
         assert!(session.exists());
         let session_data: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&session).unwrap()).unwrap();
         assert_eq!(session_data["current_task"], "my-task");
+        assert_eq!(session_data["session_key"], "codex_window-a");
+        assert_eq!(session_data["source"], "codex");
         assert!(session_data["last_seen_at"].is_string());
 
-        // Owned marker
         let marker = dijiang_dir.join(".runtime").join(".dijiang_owned");
         assert!(marker.exists());
 
-        // read_active_task returns the task (prefers sessions, falls back to active_task.txt)
-        let active = read_active_task(&dijiang_dir).unwrap();
+        let active = read_active_task_for_session(&dijiang_dir, Some(&identity)).unwrap();
         assert_eq!(active, Some("my-task".to_string()));
+    }
+
+    #[test]
+    fn test_active_task_is_session_scoped() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        fs::create_dir(&dijiang_dir).unwrap();
+
+        let window_a = SessionIdentity::new("codex", "window-a").unwrap();
+        let window_b = SessionIdentity::new("codex", "window-b").unwrap();
+        write_active_task_for_session(&dijiang_dir, "task-a", Some(&window_a)).unwrap();
+        write_active_task_for_session(&dijiang_dir, "task-b", Some(&window_b)).unwrap();
+
+        assert_eq!(
+            read_active_task_for_session(&dijiang_dir, Some(&window_a)).unwrap(),
+            Some("task-a".to_string())
+        );
+        assert_eq!(
+            read_active_task_for_session(&dijiang_dir, Some(&window_b)).unwrap(),
+            Some("task-b".to_string())
+        );
+        assert_eq!(
+            read_active_task_for_session(&dijiang_dir, None).unwrap(),
+            Some("task-b".to_string())
+        );
     }
 
     #[test]

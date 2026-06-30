@@ -141,25 +141,35 @@ cargo test
 
     fn session_start_plugin_content() -> &'static str {
         r#"/* global process */
-/**
- * DiJiang Session Start Plugin
- * Injects DiJiang context when user sends first message in a session.
- */
+import { execFileSync } from "node:child_process";
 
-export default async ({ directory, client }) => {
+export default async ({ directory }) => {
   return {
-    "chat.message": async (input, output) => {
-      const sessionID = input.sessionID;
+    "chat.message": async (_input, output) => {
       const parts = output?.parts || [];
-      const context = [
-        "---",
-        "DiJiang context loaded from " + directory,
-        "Run `dijiang status` for project overview.",
-        "---",
-      ].join("\n");
+      let context = "";
+
+      try {
+        context = execFileSync("dijiang", ["workflow-state"], {
+          cwd: directory,
+          encoding: "utf8",
+          timeout: 10000,
+        }).trim();
+      } catch {
+        context = [
+          "<dijiang-workflow-state>",
+          "Active task: unknown",
+          "Next: run `dijiang workflow-state` from the project root.",
+          "</dijiang-workflow-state>",
+        ].join("\n");
+      }
+
+      if (!context) {
+        return;
+      }
 
       const textPartIndex = parts.findIndex(
-        (p) => p.type === "text" && p.text !== undefined
+        (part) => part.type === "text" && part.text !== undefined
       );
 
       if (textPartIndex !== -1) {
@@ -169,7 +179,7 @@ export default async ({ directory, client }) => {
       }
     },
   };
-}
+};
 "#
     }
 
@@ -261,7 +271,10 @@ impl Configurator for OpenCodeConfigurator {
         eprintln!("  ├── .opencode/lib/session-utils.js");
 
         // ── package.json ──
-        fs::write(opencode_dir.join("package.json"), Self::package_json_content())?;
+        fs::write(
+            opencode_dir.join("package.json"),
+            Self::package_json_content(),
+        )?;
         eprintln!("  ├── .opencode/package.json");
 
         Ok(())

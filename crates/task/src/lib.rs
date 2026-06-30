@@ -1,7 +1,8 @@
 pub mod store;
 pub mod types;
+pub mod workflow_state;
 
-pub use types::{TaskRecord, TaskStatus, TASK_RECORD_FIELD_ORDER};
+pub use types::{TASK_RECORD_FIELD_ORDER, TaskRecord, TaskStatus};
 
 #[cfg(test)]
 mod tests {

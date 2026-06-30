@@ -88,7 +88,11 @@ impl PiConfigurator {
     fn write_extension(cwd: &Path) -> Result<(), ConfigError> {
         let content = templates::render("extensions/dijiang/index.ts", &[])
             .map_err(|e| ConfigError::Serialize(e))?;
-        let path = cwd.join(".pi").join("extensions").join("dijiang").join("index.ts");
+        let path = cwd
+            .join(".pi")
+            .join("extensions")
+            .join("dijiang")
+            .join("index.ts");
         std::fs::write(path, content)?;
         Ok(())
     }
@@ -110,8 +114,8 @@ impl PiConfigurator {
 
     /// Write AGENTS.md with DiJiang instructions block (safe replace).
     pub(crate) fn write_agents_md(cwd: &Path) -> Result<(), ConfigError> {
-        let content = templates::render("config/agents.md", &[])
-            .map_err(|e| ConfigError::Serialize(e))?;
+        let content =
+            templates::render("config/agents.md", &[]).map_err(|e| ConfigError::Serialize(e))?;
 
         let agents_path = cwd.join("AGENTS.md");
         let existing = std::fs::read_to_string(&agents_path).unwrap_or_default();
@@ -201,14 +205,18 @@ impl PiConfigurator {
             ("dijiang-research", "agents/dijiang-research.md"),
         ];
         for (name, template_path) in &agent_templates {
-            let content = templates::render(template_path, &[])
-                .map_err(|e| ConfigError::Serialize(e))?;
+            let content =
+                templates::render(template_path, &[]).map_err(|e| ConfigError::Serialize(e))?;
             std::fs::write(agents_dir.join(format!("{name}.md")), content)?;
         }
         Ok(())
     }
     /// Write `.dijiang/config.toml`.
-    pub(crate) fn write_dijiang_config(cwd: &Path, name: &str, dev: Option<&str>) -> Result<(), ConfigError> {
+    pub(crate) fn write_dijiang_config(
+        cwd: &Path,
+        name: &str,
+        dev: Option<&str>,
+    ) -> Result<(), ConfigError> {
         let config = DijiangConfig {
             project: ProjectConfig {
                 name: name.to_string(),
@@ -219,8 +227,8 @@ impl PiConfigurator {
             platforms: Some(vec!["pi".to_string()]),
             ..Default::default()
         };
-        let toml = toml::to_string_pretty(&config)
-            .map_err(|e| ConfigError::Serialize(e.to_string()))?;
+        let toml =
+            toml::to_string_pretty(&config).map_err(|e| ConfigError::Serialize(e.to_string()))?;
         let config_dir = cwd.join(".dijiang");
         std::fs::create_dir_all(&config_dir)?;
         std::fs::write(config_dir.join("config.toml"), toml)?;
@@ -265,9 +273,28 @@ mod tests {
         pi.configure(tmp.path()).unwrap();
 
         assert!(tmp.path().join(".pi").join("settings.json").exists());
-        assert!(tmp.path().join(".pi").join("prompts").join("dijiang-start.md").exists());
-        assert!(tmp.path().join(".pi").join("prompts").join("dijiang-finish-work.md").exists());
-        assert!(tmp.path().join(".pi").join("extensions").join("dijiang").join("index.ts").exists());
+        assert!(
+            tmp.path()
+                .join(".pi")
+                .join("prompts")
+                .join("dijiang-start.md")
+                .exists()
+        );
+        assert!(
+            tmp.path()
+                .join(".pi")
+                .join("prompts")
+                .join("dijiang-finish-work.md")
+                .exists()
+        );
+        assert!(
+            tmp.path()
+                .join(".pi")
+                .join("extensions")
+                .join("dijiang")
+                .join("index.ts")
+                .exists()
+        );
     }
     #[test]
     fn test_write_agents_md_new() {
@@ -286,13 +313,21 @@ mod tests {
         std::fs::write(tmp.path().join("AGENTS.md"), existing).unwrap();
         PiConfigurator::write_agents_md(tmp.path()).unwrap();
         let content = std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap();
-        assert!(content.starts_with("existing content"), "bad start: {content:?}");
-        assert!(content.contains("<!-- DIJIANG:START -->"), "no start marker");
+        assert!(
+            content.starts_with("existing content"),
+            "bad start: {content:?}"
+        );
+        assert!(
+            content.contains("<!-- DIJIANG:START -->"),
+            "no start marker"
+        );
         assert!(content.contains("<!-- DIJIANG:END -->"), "no end marker");
         assert!(!content.contains("replace-me"), "old content still present");
         // content after block should be preserved
         assert!(
-            content.ends_with("more content") || content.ends_with("more content\n") || content.ends_with("more content\n\n"),
+            content.ends_with("more content")
+                || content.ends_with("more content\n")
+                || content.ends_with("more content\n\n"),
             "did not preserve content after block: ...{content:?}"
         );
     }
@@ -301,7 +336,8 @@ mod tests {
     fn test_write_dijiang_config() {
         let tmp = tempfile::TempDir::new().unwrap();
         PiConfigurator::write_dijiang_config(tmp.path(), "test-project", Some("tiezhu")).unwrap();
-        let toml = std::fs::read_to_string(tmp.path().join(".dijiang").join("config.toml")).unwrap();
+        let toml =
+            std::fs::read_to_string(tmp.path().join(".dijiang").join("config.toml")).unwrap();
         assert!(toml.contains("test-project"));
         assert!(toml.contains("tiezhu"));
         assert!(toml.contains("pi"));

@@ -30,25 +30,82 @@ const DJ_SKILL_NAMES: &[&str] = &[
 /// These are populated at compile time via include_str!.
 fn embedded_skills() -> Vec<(&'static str, &'static str)> {
     vec![
-        ("dj-audit", include_str!("../templates/skills/dj-audit/SKILL.md")),
-        ("dj-check", include_str!("../templates/skills/dj-check/SKILL.md")),
-        ("dj-debt", include_str!("../templates/skills/dj-debt/SKILL.md")),
-        ("dj-design", include_str!("../templates/skills/dj-design/SKILL.md")),
-        ("dj-dispatch", include_str!("../templates/skills/dj-dispatch/SKILL.md")),
-        ("dj-grill", include_str!("../templates/skills/dj-grill/SKILL.md")),
-        ("dj-handoff", include_str!("../templates/skills/dj-handoff/SKILL.md")),
-        ("dj-health", include_str!("../templates/skills/dj-health/SKILL.md")),
-        ("dj-hunt", include_str!("../templates/skills/dj-hunt/SKILL.md")),
-        ("dj-implement", include_str!("../templates/skills/dj-implement/SKILL.md")),
-        ("dj-karpathy", include_str!("../templates/skills/dj-karpathy/SKILL.md")),
-        ("dj-output", include_str!("../templates/skills/dj-output/SKILL.md")),
-        ("dj-pattern", include_str!("../templates/skills/dj-pattern/SKILL.md")),
-        ("dj-ponytail", include_str!("../templates/skills/dj-ponytail/SKILL.md")),
-        ("dj-prototype", include_str!("../templates/skills/dj-prototype/SKILL.md")),
-        ("dj-review", include_str!("../templates/skills/dj-review/SKILL.md")),
-        ("dj-script", include_str!("../templates/skills/dj-script/SKILL.md")),
-        ("dj-tdd", include_str!("../templates/skills/dj-tdd/SKILL.md")),
-        ("dj-write", include_str!("../templates/skills/dj-write/SKILL.md")),
+        (
+            "dj-audit",
+            include_str!("../templates/skills/dj-audit/SKILL.md"),
+        ),
+        (
+            "dj-check",
+            include_str!("../templates/skills/dj-check/SKILL.md"),
+        ),
+        (
+            "dj-debt",
+            include_str!("../templates/skills/dj-debt/SKILL.md"),
+        ),
+        (
+            "dj-design",
+            include_str!("../templates/skills/dj-design/SKILL.md"),
+        ),
+        (
+            "dj-dispatch",
+            include_str!("../templates/skills/dj-dispatch/SKILL.md"),
+        ),
+        (
+            "dj-grill",
+            include_str!("../templates/skills/dj-grill/SKILL.md"),
+        ),
+        (
+            "dj-handoff",
+            include_str!("../templates/skills/dj-handoff/SKILL.md"),
+        ),
+        (
+            "dj-health",
+            include_str!("../templates/skills/dj-health/SKILL.md"),
+        ),
+        (
+            "dj-hunt",
+            include_str!("../templates/skills/dj-hunt/SKILL.md"),
+        ),
+        (
+            "dj-implement",
+            include_str!("../templates/skills/dj-implement/SKILL.md"),
+        ),
+        (
+            "dj-karpathy",
+            include_str!("../templates/skills/dj-karpathy/SKILL.md"),
+        ),
+        (
+            "dj-output",
+            include_str!("../templates/skills/dj-output/SKILL.md"),
+        ),
+        (
+            "dj-pattern",
+            include_str!("../templates/skills/dj-pattern/SKILL.md"),
+        ),
+        (
+            "dj-ponytail",
+            include_str!("../templates/skills/dj-ponytail/SKILL.md"),
+        ),
+        (
+            "dj-prototype",
+            include_str!("../templates/skills/dj-prototype/SKILL.md"),
+        ),
+        (
+            "dj-review",
+            include_str!("../templates/skills/dj-review/SKILL.md"),
+        ),
+        (
+            "dj-script",
+            include_str!("../templates/skills/dj-script/SKILL.md"),
+        ),
+        (
+            "dj-tdd",
+            include_str!("../templates/skills/dj-tdd/SKILL.md"),
+        ),
+        (
+            "dj-write",
+            include_str!("../templates/skills/dj-write/SKILL.md"),
+        ),
     ]
 }
 
@@ -76,8 +133,7 @@ pub fn ensure_global_skills() -> Result<PathBuf> {
         return Ok(dir);
     }
 
-    fs::create_dir_all(&dir)
-        .with_context(|| format!("failed to create {}", dir.display()))?;
+    fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
 
     for (name, content) in embedded_skills() {
         let skill_dir = dir.join(name);

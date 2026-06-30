@@ -1,0 +1,35 @@
+{
+  "skills": {
+    "enabled": true
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -X utf8 .claude/hooks/inject-workflow-state.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
+  "slash_commands": [
+    {
+      "name": "dijiang-status",
+      "description": "Show DiJiang project status",
+      "command": "dijiang status"
+    },
+    {
+      "name": "dijiang-task-list",
+      "description": "List all tasks",
+      "command": "dijiang task list"
+    },
+    {
+      "name": "dijiang-start",
+      "description": "Start a task",
+      "command": "dijiang start"
+    }
+  ]
+}

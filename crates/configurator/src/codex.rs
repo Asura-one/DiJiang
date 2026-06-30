@@ -4,8 +4,7 @@ use std::path::Path;
 
 /// Codex configurator — writes `.codex/agents/`, `.codex/hooks/`, `.codex/config.toml`.
 ///
-/// Codex is a class-2 (hasHooks=false) platform. Context is pull-based —
-/// sub-agents load task context via prelude instructions rather than hook injection.
+/// Codex uses a UserPromptSubmit hook to inject DiJiang workflow state every turn.
 pub struct CodexConfigurator;
 
 impl CodexConfigurator {
@@ -59,14 +58,72 @@ enabled = ["Read", "Bash", "Glob", "Grep"]
 
     fn hooks_json_content() -> &'static str {
         r#"{
-  "hooks": [
-    {
-      "type": "UserPromptSubmit",
-      "command": ".codex/hooks/inject-workflow-state.sh",
-      "description": "Auto-inject DiJiang workflow state"
-    }
-  ]
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -X utf8 .codex/hooks/inject-workflow-state.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
 }"#
+    }
+
+    fn hook_script_content() -> &'static str {
+        r#"#!/usr/bin/env python3
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+
+def find_dijiang_root(start: Path) -> Path | None:
+    current = start.resolve()
+    while True:
+        if (current / ".dijiang").is_dir():
+            return current
+        if current == current.parent:
+            return None
+        current = current.parent
+
+
+def main() -> int:
+    root = find_dijiang_root(Path.cwd())
+    if root is None:
+        return 0
+
+    try:
+        stdin_data = sys.stdin.read()
+    except OSError:
+        stdin_data = ""
+
+    try:
+        result = subprocess.run(
+            ["dijiang", "workflow-state", "--json", "--hook-event", "UserPromptSubmit"],
+            input=stdin_data,
+            text=True,
+            cwd=root,
+            check=False,
+            capture_output=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return 0
+
+    if result.returncode == 0 and result.stdout.strip():
+        print(result.stdout.strip())
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+"#
     }
 
     fn config_toml_content() -> &'static str {
@@ -113,11 +170,16 @@ impl Configurator for CodexConfigurator {
         // ── hooks/ ──
         let hooks_dir = codex_dir.join("hooks");
         fs::create_dir_all(&hooks_dir)?;
-        // Write shared hook script (shell calling dijiang CLI)
-        let hook_script = "#!/bin/sh
-dijiang status 2>/dev/null || true";
-        fs::write(hooks_dir.join("inject-workflow-state.sh"), hook_script)?;
-        eprintln!("  ├── .codex/hooks/inject-workflow-state.sh");
+        let hook_path = hooks_dir.join("inject-workflow-state.py");
+        fs::write(&hook_path, Self::hook_script_content())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut permissions = fs::metadata(&hook_path)?.permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&hook_path, permissions)?;
+        }
+        eprintln!("  ├── .codex/hooks/inject-workflow-state.py");
 
         // ── hooks.json ──
         fs::write(codex_dir.join("hooks.json"), Self::hooks_json_content())?;
@@ -131,6 +193,6 @@ dijiang status 2>/dev/null || true";
     }
 
     fn has_hooks(&self) -> bool {
-        false
+        true
     }
 }

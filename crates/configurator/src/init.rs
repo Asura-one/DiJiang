@@ -1,5 +1,5 @@
-use crate::templates;
 use crate::PlatformKind;
+use crate::templates;
 use std::path::Path;
 
 /// Policy for handling pre-existing `.dijiang/` content when `init` runs.
@@ -48,7 +48,8 @@ impl ConflictReport {
 
 /// Marker strings used to mark DiJiang-managed regions inside `workflow.md`.
 /// Exposed as constants so tests and downstream code can reference them.
-pub(crate) const DIJIANG_BLOCK_BEGIN: &str = "<!-- BEGIN DIJIANG-MANAGED BLOCK: do not edit between these markers -->";
+pub(crate) const DIJIANG_BLOCK_BEGIN: &str =
+    "<!-- BEGIN DIJIANG-MANAGED BLOCK: do not edit between these markers -->";
 pub(crate) const DIJIANG_BLOCK_END: &str = "<!-- END DIJIANG-MANAGED BLOCK -->";
 
 /// Detect what already exists under `.dijiang/` and whether `workflow.md`
@@ -102,7 +103,6 @@ pub(crate) fn should_append_dijiang_block(
     )
 }
 
-
 /// - `workspace/` is always ensured (empty journal dirs are safe to create)
 pub(crate) fn write_dijiang_infrastructure(
     cwd: &Path,
@@ -151,11 +151,15 @@ pub(crate) fn write_dijiang_infrastructure(
     }
 
     // workflow.md — from embedded template (block-insert under Merge)
-    let workflow = templates::render("config/workflow.md", &[])
-        .map_err(crate::ConfigError::Serialize)?;
+    let workflow =
+        templates::render("config/workflow.md", &[]).map_err(crate::ConfigError::Serialize)?;
     let workflow_path = dijiang_dir.join("workflow.md");
 
-    if should_append_dijiang_block(policy, report.has_workflow_md, report.has_dijiang_block_in_workflow) {
+    if should_append_dijiang_block(
+        policy,
+        report.has_workflow_md,
+        report.has_dijiang_block_in_workflow,
+    ) {
         let existing = std::fs::read_to_string(&workflow_path)?;
         let block = format!(
             "\n\n{}\n{}\n{}\n",
@@ -283,7 +287,10 @@ mod tests {
         fs::write(dijiang_dir.join("workflow.md"), "# original\n").unwrap();
 
         let result = write_dijiang_infrastructure(&dir, None, ConflictPolicy::Error);
-        assert!(result.is_err(), "Error policy must refuse to clobber workflow.md");
+        assert!(
+            result.is_err(),
+            "Error policy must refuse to clobber workflow.md"
+        );
         let original = fs::read_to_string(dijiang_dir.join("workflow.md")).unwrap();
         assert_eq!(original, "# original\n", "workflow.md must be untouched");
     }
@@ -306,11 +313,20 @@ mod tests {
         // tasks/ contents preserved
         assert!(dijiang_dir.join("00-existing/task.json").exists());
         // spec/ contents preserved
-        assert_eq!(fs::read_to_string(dijiang_dir.join("spec/note.md")).unwrap(), "user note");
+        assert_eq!(
+            fs::read_to_string(dijiang_dir.join("spec/note.md")).unwrap(),
+            "user note"
+        );
         // workflow.md has the original line plus a DiJiang block
         let workflow = fs::read_to_string(dijiang_dir.join("workflow.md")).unwrap();
-        assert!(workflow.starts_with("# Trellis workflow\n"), "original line preserved");
-        assert!(workflow.contains(DIJIANG_BLOCK_BEGIN), "DiJiang block inserted");
+        assert!(
+            workflow.starts_with("# Trellis workflow\n"),
+            "original line preserved"
+        );
+        assert!(
+            workflow.contains(DIJIANG_BLOCK_BEGIN),
+            "DiJiang block inserted"
+        );
         assert!(workflow.contains(DIJIANG_BLOCK_END));
         // workspace/ created
         assert!(dijiang_dir.join("workspace/tiezhu").exists());
