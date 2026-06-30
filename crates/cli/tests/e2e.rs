@@ -150,6 +150,66 @@ fn test_e2e_init_creates_project_structure() {
 }
 
 #[test]
+fn test_e2e_update_refreshes_existing_platform_hooks() {
+    let (_tmp, project_dir) = init_project();
+    std::fs::create_dir_all(project_dir.join(".codex/hooks")).unwrap();
+    std::fs::write(
+        project_dir.join(".codex/hooks/inject-workflow-state.py"),
+        "old hook",
+    )
+    .unwrap();
+
+    let out = dijang(&["update"], &project_dir).unwrap();
+    assert!(
+        out.contains(".codex/hooks/inject-workflow-state.py"),
+        "update should report refreshed codex hook: {out}"
+    );
+    let hook =
+        std::fs::read_to_string(project_dir.join(".codex/hooks/inject-workflow-state.py")).unwrap();
+    assert!(hook.contains("workflow-state"));
+    let config = std::fs::read_to_string(project_dir.join(".dijiang/config.toml")).unwrap();
+    assert!(config.contains("codex"));
+}
+
+#[test]
+fn test_e2e_update_blocks_and_force_overwrites_skill_conflicts() {
+    let (_tmp, project_dir) = init_project();
+    let skill = project_dir.join(".pi/skills/dj-implement/SKILL.md");
+    std::fs::create_dir_all(skill.parent().unwrap()).unwrap();
+    std::fs::write(&skill, "# local skill edit").unwrap();
+
+    let bin = dijiang_bin();
+    let output = Command::new(&bin)
+        .args(["update"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("run update");
+    assert!(!output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stdout.contains("conflict  .pi/skills/dj-implement/SKILL.md")
+            || stderr.contains("update blocked"),
+        "update should expose conflict; stdout={stdout:?} stderr={stderr:?}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&skill).unwrap(),
+        "# local skill edit"
+    );
+
+    let force_out = dijang(&["update", "--force"], &project_dir).unwrap();
+    assert!(
+        force_out.contains(".pi/skills/dj-implement/SKILL.md"),
+        "force update should report skill update: {force_out}"
+    );
+    assert_ne!(
+        std::fs::read_to_string(&skill).unwrap(),
+        "# local skill edit"
+    );
+    assert!(project_dir.join(".dijiang/.template-hashes.json").exists());
+}
+
+#[test]
 fn test_e2e_task_lifecycle() {
     let (_tmp, project_dir) = init_project();
 

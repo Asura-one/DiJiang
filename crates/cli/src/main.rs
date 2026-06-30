@@ -5,7 +5,6 @@ use dijiang_configurator::TemplateRegistry;
 use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 #[derive(Parser)]
@@ -2324,12 +2323,11 @@ fn cmd_mem_finetune() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
+fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+    let _dijiang_dir = crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?;
 
-    // 从 GitHub 下载最新版本
     if from_github {
         println!("  正在从 GitHub 下载最新版本...");
         let temp_dir = std::env::temp_dir().join("dijiang-update");
@@ -2338,7 +2336,7 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
         }
 
         let output = std::process::Command::new("git")
-            .args(&[
+            .args([
                 "clone",
                 "--depth",
                 "1",
@@ -2354,9 +2352,7 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
             );
         }
 
-        println!("  下载完成，正在更新技能...");
-
-        // 更新全局技能目录
+        println!("  下载完成，正在更新全局技能...");
         let global_dir = dirs::home_dir()
             .ok_or_else(|| anyhow::anyhow!("无法获取用户主目录"))?
             .join(".dijiang")
@@ -2384,77 +2380,37 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
             }
         }
 
-        // 清理临时目录
         let _ = std::fs::remove_dir_all(&temp_dir);
-        println!();
-        println!("  GitHub 更新完成。");
-        println!();
+        println!("  GitHub 更新完成。\n");
     }
 
-    // 加载模板哈希
-    let hashes_file = dijiang_dir.join(".template-hashes.json");
-    let mut template_hashes: std::collections::HashMap<String, String> = if hashes_file.exists() {
-        let content = std::fs::read_to_string(&hashes_file)?;
-        serde_json::from_str(&content).unwrap_or_default()
-    } else {
-        std::collections::HashMap::new()
-    };
+    let report =
+        dijiang_configurator::update_project(&cwd, dijiang_configurator::UpdateOptions { force })?;
 
-    let mut updated = 0;
-    let mut skipped = 0;
-
-    // 更新 dj-* 技能
-    let skills_dir = cwd.join(".pi").join("skills");
-    std::fs::create_dir_all(&skills_dir)?;
-
-    let skill_names = dijiang_configurator::dj_skills::list_skill_names();
-    for name in skill_names {
-        let skill_dir = skills_dir.join(name);
-        std::fs::create_dir_all(&skill_dir)?;
-        let skill_file = skill_dir.join("SKILL.md");
-
-        // 获取技能内容：优先从当前项目的模板目录读取，否则用嵌入内容
-        let templates_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("templates")
-            .join("skills");
-        let content = if let Ok(content) =
-            std::fs::read_to_string(templates_dir.join(name).join("SKILL.md"))
-        {
-            content
-        } else {
-            dijiang_configurator::dj_skills::get_skill_content(name)
-                .unwrap_or_default()
-                .to_string()
-        };
-
-        if content.is_empty() {
-            continue;
-        }
-
-        // 计算新内容的哈希
-        let new_hash = format!("{:x}", Sha256::digest(content.as_bytes()));
-        let key = format!(".pi/skills/{}/SKILL.md", name);
-        let old_hash = template_hashes.get(&key);
-
-        if old_hash != Some(&new_hash) {
-            std::fs::write(&skill_file, content)?;
-            template_hashes.insert(key, new_hash);
-            println!("  已更新: {}/SKILL.md", name);
-            updated += 1;
-        } else {
-            skipped += 1;
-        }
+    for path in &report.updated {
+        println!("  updated   {path}");
     }
-
-    // 保存模板哈希
-    let hashes_json = serde_json::to_string_pretty(&template_hashes)?;
-    std::fs::write(&hashes_file, hashes_json)?;
+    for path in &report.unchanged {
+        println!("  unchanged {path}");
+    }
+    for path in &report.conflicts {
+        println!("  conflict  {path}");
+    }
 
     println!();
     println!(
-        "  更新完成: {} 个文件已更新, {} 个已是最新",
-        updated, skipped
+        "  更新完成: {} 个文件已更新, {} 个已是最新, {} 个冲突",
+        report.updated.len(),
+        report.unchanged.len(),
+        report.conflicts.len()
     );
+
+    if !report.is_clean() {
+        anyhow::bail!(
+            "update blocked: {} 个受管文件可能包含用户修改，未覆盖。确认后可使用 `dijiang update --force` 覆盖并建立后续升级 hash。",
+            report.conflicts.len()
+        );
+    }
 
     Ok(())
 }
