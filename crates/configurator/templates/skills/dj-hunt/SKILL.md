@@ -396,9 +396,9 @@ muse_learn_promote '{"id":"<id>","target":"spec","confirm":true}'
 
 ### 写入路径
 
-- 技术规范 → `.trellis/spec/{layer}/`（backend / frontend / meta）
+- 技术规范 → `.dijiang/spec/{layer}/`（backend / frontend / meta）
 - 通用经验 → `~/.config/muse/strategic/memories.md`（跨项目复用）
-- 思维检查表 → `.trellis/spec/guides/`（防止复发）
+- 思维检查表 → `.dijiang/spec/guides/`（防止复发）
 
 ## 反例
 

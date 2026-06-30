@@ -148,7 +148,7 @@ find src/ -name "*.rs" | head -20
 GAP DETECTION:
 
 1. 检查是否有隐式假设未声明（如性能要求、兼容性）
-2. 检查 `.trellis/spec/` 中是否有相关规范未被引用
+2. 检查 `.dijiang/spec/` 中是否有相关规范未被引用
 3. 检查是否有上游/下游依赖未纳入范围
 4. 检查是否有替代方案被忽略但值得对比
 
@@ -177,7 +177,7 @@ dj-grill 在需求对齐完成后，将当前 task 标记为对应 phase。
 # 对齐完成后标记 phase（用 dijiang task status 设置对应状态）
 dijiang task status <task-name> planning
 
-# planning → phase=align（TrellisTaskRecord 推断规则）
+# planning → phase=align（DiJiangTaskRecord 推断规则）
 # in_progress → phase=implement
 # completed → phase=complete
 ```

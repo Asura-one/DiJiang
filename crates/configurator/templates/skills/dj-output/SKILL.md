@@ -112,7 +112,7 @@ description: >
 
 优先使用项目已有的文档结构：
 - 有 `docs/` 目录 → 放 docs/
-- 有 trellis task 目录 → 放对应 task 下
+- 有 dijiang task 目录 → 放对应 task 下
 - 都没有 → 放项目根目录
 
 ## 失败处理
@@ -215,8 +215,8 @@ dj-output 按以下结构化合约格式输出：
 
 | 类型 | 路径 |
 |------|------|
-| 技术规范 | `.trellis/spec/{layer}/`（backend / frontend / meta） |
-| 通用经验 | `.trellis/spec/guides/`（Thinking Checklist） |
+| 技术规范 | `.dijiang/spec/{layer}/`（backend / frontend / meta） |
+| 通用经验 | `.dijiang/spec/guides/`（Thinking Checklist） |
 
 ---
 

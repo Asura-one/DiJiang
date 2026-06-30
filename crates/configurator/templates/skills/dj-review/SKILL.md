@@ -79,7 +79,7 @@ git diff --cached      # staged changes
 #### D. 一致性（MEDIUM / LOW）
 
 - [ ] 与项目现有风格一致
-- [ ] 与 `.trellis/spec/` 规范一致
+- [ ] 与 `.dijiang/spec/` 规范一致
 - [ ] 与同类功能使用相同模式
 - [ ] 遵循了项目使用的框架惯例
 
