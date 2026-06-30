@@ -276,7 +276,7 @@ fn test_e2e_channel_lifecycle() {
     let out = dijang(&["channel", "stop", channel_id], &project_dir);
     assert!(out.is_ok(), "channel stop should succeed: {:?}", out.err());
     let stdout = out.unwrap();
-    assert!(stdout.contains("stopped"), "should confirm stop");
+    assert!(stdout.contains("已停止"), "should confirm stop");
 
     // Verify stopped
     let out = dijang(&["channel", "list"], &project_dir);

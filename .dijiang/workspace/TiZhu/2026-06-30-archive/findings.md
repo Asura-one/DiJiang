@@ -1,3 +1,3 @@
 
-## 2026-06-30 09:42
-Channel 实现：通过 stdin 管道传递 prompt 给 pi --print，避免命令行长度限制
+## 2026-06-30 11:04
+update 命令实现：从 GitHub 或本地模板目录读取文件，用 SHA-256 hash 对比检测变化
