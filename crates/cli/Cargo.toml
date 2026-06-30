@@ -16,5 +16,6 @@ dijiang-mem = { path = "../mem" }
 dijiang-configurator = { path = "../configurator" }
 dialoguer = { workspace = true }
 sha2 = "0.10"
+dirs = "5"
 [dev-dependencies]
 tempfile = "3"

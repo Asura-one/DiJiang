@@ -87,6 +87,9 @@ enum Commands {
         /// 强制更新所有文件
         #[arg(long)]
         force: bool,
+        /// 从 GitHub 下载最新版本
+        #[arg(long)]
+        from_github: bool,
     },
 }
 #[derive(Subcommand)]
@@ -304,7 +307,7 @@ fn main() -> anyhow::Result<()> {
             ChannelCommands::Execute { channel_id, model, provider, timeout, follow } => cmd_channel_execute(&channel_id, model.as_deref(), provider.as_deref(), timeout, follow),
             ChannelCommands::ExecuteAll { model, provider, timeout } => cmd_channel_execute_all(model.as_deref(), provider.as_deref(), timeout),
         },
-        Commands::Update { force } => cmd_update(force),
+        Commands::Update { force, from_github } => cmd_update(force, from_github),
     }
 }
 fn status_line(label: &str, value: impl std::fmt::Display) {
@@ -1842,13 +1845,58 @@ fn cmd_mem_finetune() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_update(_force: bool) -> anyhow::Result<()> {
+fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?;
 
-    println!("  正在检查更新...");
-    println!();
+    // 从 GitHub 下载最新版本
+    if from_github {
+        println!("  正在从 GitHub 下载最新版本...");
+        let temp_dir = std::env::temp_dir().join("dijiang-update");
+        if temp_dir.exists() {
+            std::fs::remove_dir_all(&temp_dir)?;
+        }
+
+        let output = std::process::Command::new("git")
+            .args(&["clone", "--depth", "1", "https://github.com/Asura-one/DiJiang.git", temp_dir.to_str().unwrap()])
+            .output()?;
+
+        if !output.status.success() {
+            anyhow::bail!("从 GitHub 下载失败: {}", String::from_utf8_lossy(&output.stderr));
+        }
+
+        println!("  下载完成，正在更新技能...");
+
+        // 更新全局技能目录
+        let global_dir = dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("无法获取用户主目录"))?
+            .join(".dijiang").join("skills");
+        std::fs::create_dir_all(&global_dir)?;
+
+        let src_skills = temp_dir.join("crates").join("configurator").join("templates").join("skills");
+        if src_skills.exists() {
+            for entry in std::fs::read_dir(&src_skills)? {
+                let entry = entry?;
+                if entry.file_type()?.is_dir() {
+                    let name = entry.file_name();
+                    let src = entry.path().join("SKILL.md");
+                    let dst = global_dir.join(&name).join("SKILL.md");
+                    if src.exists() {
+                        std::fs::create_dir_all(dst.parent().unwrap())?;
+                        std::fs::copy(&src, &dst)?;
+                        println!("  已更新全局技能: {}", name.to_string_lossy());
+                    }
+                }
+            }
+        }
+
+        // 清理临时目录
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        println!();
+        println!("  GitHub 更新完成。");
+        println!();
+    }
 
     // 加载模板哈希
     let hashes_file = dijiang_dir.join(".template-hashes.json");
