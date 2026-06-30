@@ -20,8 +20,6 @@ description: >
 - **Simplicity First**（dj-karpathy）：审查时问自己"这段代码能更简单吗？"如果 200 行能缩到 50 行，标记为过度工程
 - **Define Verifiable Success**（dj-karpathy）：每个功能是否有可验证的测试或检查点？没有则标记为缺失
 - **阶梯决策**（dj-ponytail）：审查时检查依赖引入是否遵循阶梯（stdlib → 已有依赖 → 最少代码）
-- **对抗式审查**：使用 `dijiang review --mode adversarial` 进行多角度安全审查
-- **第一性原理**：使用 `dijiang review --mode first-principles` 从本质出发审视架构
 
 ## 工作流
 

@@ -1841,15 +1841,24 @@ fn cmd_mem_finetune() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_update(_force: bool) -> anyhow::Result<()> {
+fn cmd_update(force: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?;
 
-    println!("  正在更新 dj-* 技能和代理...");
+    println!("  正在更新...");
     println!();
 
-    // 更新技能
+    // 强制更新技能
+    if force {
+        let skills_dir = cwd.join(".pi").join("skills");
+        if skills_dir.exists() {
+            std::fs::remove_dir_all(&skills_dir)?;
+            println!("  已清除旧技能文件");
+        }
+    }
+
+    // 更新 dj-* 技能
     let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
     if skills_written > 0 {
         println!("  已更新 {} 个 dj-* 技能到 .pi/skills/", skills_written);
@@ -1857,7 +1866,7 @@ fn cmd_update(_force: bool) -> anyhow::Result<()> {
         println!("  技能已是最新。");
     }
 
-    // 代理目录检查
+    // 检查代理目录
     let agents_dir = cwd.join(".pi").join("agents");
     if !agents_dir.exists() {
         println!("  注意：未找到 .pi/agents/ 目录。请先运行 `dijiang init`。");
@@ -1876,7 +1885,6 @@ fn cmd_update(_force: bool) -> anyhow::Result<()> {
 
     println!();
     println!("  更新完成。");
-    println!("  提示：运行 `dijiang init --force` 可重新生成所有配置文件。");
 
     Ok(())
 }
