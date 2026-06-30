@@ -4,8 +4,10 @@ use dijiang_configurator::PlatformKind;
 use dijiang_configurator::TemplateRegistry;
 use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
+use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 #[derive(Parser)]
 #[command(
     name = "dijiang",
@@ -100,6 +102,12 @@ enum Commands {
         /// 本次工作的简短总结
         #[arg(long)]
         summary: Option<String>,
+        /// 已执行的验证命令或人工检查结论
+        #[arg(long)]
+        verification: Option<String>,
+        /// 允许在 git 工作区存在未提交/未跟踪改动时完成任务
+        #[arg(long)]
+        allow_dirty: bool,
     },
     /// 更新当前项目的 dj-* 技能和代理
     Update {
@@ -394,7 +402,11 @@ fn main() -> anyhow::Result<()> {
                 timeout,
             } => cmd_channel_execute_all(model.as_deref(), provider.as_deref(), timeout),
         },
-        Commands::FinishWork { summary } => cmd_finish_work(summary.as_deref()),
+        Commands::FinishWork {
+            summary,
+            verification,
+            allow_dirty,
+        } => cmd_finish_work(summary.as_deref(), verification.as_deref(), allow_dirty),
         Commands::Update { force, from_github } => cmd_update(force, from_github),
     }
 }
@@ -419,22 +431,24 @@ fn read_developer(dijiang_dir: &std::path::Path) -> anyhow::Result<String> {
 }
 
 fn append_finish_journal(
-    dijiang_dir: &std::path::Path,
+    dijiang_dir: &Path,
     developer: &str,
     task_name: &str,
     summary: Option<&str>,
-) -> anyhow::Result<std::path::PathBuf> {
-    use std::io::Write;
-
+    verification: &str,
+    dirty_allowed: bool,
+) -> anyhow::Result<PathBuf> {
     let workspace = dijiang_dir.join("workspace").join(developer);
     std::fs::create_dir_all(&workspace)?;
     let journal = workspace.join("journal.md");
     let summary = summary.unwrap_or("Work finished and task archived.");
     let entry = format!(
-        "\n## {} — finish-work\n- Task: `{}`\n- Summary: {}\n- Status: archived\n",
+        "\n## {} — finish-work\n- Task: `{}`\n- Summary: {}\n- Verification: {}\n- Dirty allowed: {}\n- Status: archived\n",
         chrono::Local::now().format("%Y-%m-%d %H:%M"),
         task_name,
-        summary
+        summary,
+        verification,
+        dirty_allowed
     );
     std::fs::OpenOptions::new()
         .create(true)
@@ -444,22 +458,183 @@ fn append_finish_journal(
     Ok(journal)
 }
 
-fn cmd_finish_work(summary: Option<&str>) -> anyhow::Result<()> {
+fn git_dirty_entries(project_root: &Path) -> anyhow::Result<Vec<String>> {
+    if !project_root.join(".git").exists() {
+        return Ok(Vec::new());
+    }
+    let output = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(project_root)
+        .output()?;
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "git status failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim_end)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect())
+}
+
+fn ensure_finish_preconditions(
+    project_root: &Path,
+    task: &dijiang_task::types::TaskRecord,
+    verification: Option<&str>,
+    allow_dirty: bool,
+) -> anyhow::Result<String> {
+    if matches!(task.status, TaskStatus::Archived) {
+        return Err(anyhow::anyhow!("Task '{}' is already archived.", task.name));
+    }
+
+    let verification = verification
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| anyhow::anyhow!(
+            "finish-work requires --verification, e.g. `--verification \"cargo test -p dijiang-task\"`."
+        ))?
+        .to_string();
+
+    let dirty = git_dirty_entries(project_root)?;
+    if !dirty.is_empty() && !allow_dirty {
+        let preview = dirty
+            .iter()
+            .take(12)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n  ");
+        let more = if dirty.len() > 12 {
+            format!("\n  ... and {} more", dirty.len() - 12)
+        } else {
+            String::new()
+        };
+        return Err(anyhow::anyhow!(
+            "finish-work blocked: git worktree has uncommitted changes. Commit/stash them or rerun with --allow-dirty after reviewing.\n  {preview}{more}"
+        ));
+    }
+
+    Ok(verification)
+}
+
+fn current_session_key() -> (String, String) {
+    store::current_session_identity()
+        .map(|identity| (identity.key().to_string(), identity.source().to_string()))
+        .unwrap_or_else(|| ("global_global".to_string(), "global".to_string()))
+}
+
+fn append_session_closure(
+    dijiang_dir: &Path,
+    developer: &str,
+    session_key: &str,
+    source: &str,
+    task_name: &str,
+    summary: Option<&str>,
+    verification: &str,
+    dirty_allowed: bool,
+) -> anyhow::Result<PathBuf> {
+    let closed_at = chrono::Utc::now().to_rfc3339();
+    let sessions_dir = dijiang_dir
+        .join("workspace")
+        .join(developer)
+        .join("sessions");
+    std::fs::create_dir_all(&sessions_dir)?;
+    let journal = sessions_dir.join(format!("{session_key}.jsonl"));
+    let event = serde_json::json!({
+        "event": "session_closed",
+        "session_key": session_key,
+        "source": source,
+        "task": task_name,
+        "summary": summary.unwrap_or("Work finished and task archived."),
+        "verification": verification,
+        "dirty_allowed": dirty_allowed,
+        "closed_at": closed_at,
+    });
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&journal)?
+        .write_all(format!("{}\n", serde_json::to_string(&event)?).as_bytes())?;
+
+    let runtime_path = dijiang_dir
+        .join(".runtime")
+        .join("sessions")
+        .join(format!("{session_key}.json"));
+    if let Some(parent) = runtime_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut value: Value = if runtime_path.exists() {
+        let content = std::fs::read_to_string(&runtime_path)?;
+        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({
+            "session_key": session_key,
+            "source": source,
+        })
+    };
+    value["closed_at"] = serde_json::json!(closed_at);
+    value["closed_task"] = serde_json::json!(task_name);
+    value["closed_verification"] = serde_json::json!(verification);
+    value["closed_dirty_allowed"] = serde_json::json!(dirty_allowed);
+    value["current_task"] = serde_json::Value::Null;
+    std::fs::write(runtime_path, serde_json::to_string_pretty(&value)?)?;
+
+    Ok(journal)
+}
+
+fn cmd_finish_work(
+    summary: Option<&str>,
+    verification: Option<&str>,
+    allow_dirty: bool,
+) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
+    let project_root = dijiang_dir
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Invalid .dijiang directory"))?;
     let active_task = store::read_active_task(&dijiang_dir)?
         .ok_or_else(|| anyhow::anyhow!("No active task. Run `dijiang start <name>` first."))?;
     let tasks_dir = dijiang_dir.join("tasks");
-    let task = store::archive_task(&tasks_dir, &active_task)?;
+    let task_before_archive = store::load_task(&tasks_dir, &active_task)?;
+    let verification = ensure_finish_preconditions(
+        project_root,
+        &task_before_archive,
+        verification,
+        allow_dirty,
+    )?;
     let developer = read_developer(&dijiang_dir)?;
-    let journal = append_finish_journal(&dijiang_dir, &developer, &active_task, summary)?;
+    let (session_key, source) = current_session_key();
+
+    let task = store::archive_task(&tasks_dir, &active_task)?;
+    let journal = append_finish_journal(
+        &dijiang_dir,
+        &developer,
+        &active_task,
+        summary,
+        &verification,
+        allow_dirty,
+    )?;
     store::clear_active_task(&dijiang_dir)?;
+    let session_journal = append_session_closure(
+        &dijiang_dir,
+        &developer,
+        &session_key,
+        &source,
+        &active_task,
+        summary,
+        &verification,
+        allow_dirty,
+    )?;
 
     println!(
         "✓ Finished task '{}' (status: {})",
         active_task,
         task.status.as_str()
     );
+    println!("  Verification: {verification}");
     println!("  Journal: {}", journal.display());
+    println!("  Session closed: {}", session_journal.display());
     println!("  Active task cleared for current session");
     Ok(())
 }

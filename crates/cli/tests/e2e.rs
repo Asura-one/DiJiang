@@ -194,12 +194,21 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
 
     dijang(&["start", "finish-e2e", "Finish E2E"], &project_dir).unwrap();
     let finish_out = dijang(
-        &["finish-work", "--summary", "implemented finish-work flow"],
+        &[
+            "finish-work",
+            "--summary",
+            "implemented finish-work flow",
+            "--verification",
+            "cargo test -p dijiang-task",
+            "--allow-dirty",
+        ],
         &project_dir,
     )
     .unwrap();
     assert!(finish_out.contains("Finished task 'finish-e2e'"));
     assert!(finish_out.contains("Active task cleared"));
+    assert!(finish_out.contains("Verification: cargo test -p dijiang-task"));
+    assert!(finish_out.contains("Session closed:"));
 
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("(none)"), "current output: {current}");
@@ -224,6 +233,122 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
     .unwrap();
     assert!(journal.contains("finish-e2e"));
     assert!(journal.contains("implemented finish-work flow"));
+    assert!(journal.contains("cargo test -p dijiang-task"));
+}
+
+#[test]
+fn test_e2e_finish_work_requires_verification() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(
+        &["start", "needs-verification", "Needs Verification"],
+        &project_dir,
+    )
+    .unwrap();
+    let err = dijang(&["finish-work", "--allow-dirty"], &project_dir).unwrap_err();
+    assert!(err.contains("requires --verification"), "error: {err}");
+}
+
+#[test]
+fn test_e2e_finish_work_blocks_dirty_git_worktree() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(&["start", "dirty-task", "Dirty Task"], &project_dir).unwrap();
+    std::fs::write(project_dir.join("dirty.txt"), "dirty").unwrap();
+
+    let err = dijang(
+        &[
+            "finish-work",
+            "--verification",
+            "cargo test -p dijiang-task",
+        ],
+        &project_dir,
+    )
+    .unwrap_err();
+    assert!(
+        err.contains("git worktree has uncommitted changes"),
+        "error: {err}"
+    );
+    assert!(err.contains("dirty.txt"), "error: {err}");
+
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(current.contains("dirty-task"), "current output: {current}");
+}
+
+#[test]
+fn test_e2e_finish_work_closes_session_on_clean_git_worktree() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang_with_env(
+        &["start", "clean-task", "Clean Task"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "finish-window")],
+    )
+    .unwrap();
+    dijang_with_env(
+        &["workflow-state"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "finish-window")],
+    )
+    .unwrap();
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git add");
+    Command::new("git")
+        .args(["commit", "-m", "baseline"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git commit");
+
+    let finish_out = dijang_with_env(
+        &[
+            "finish-work",
+            "--summary",
+            "clean close",
+            "--verification",
+            "cargo test -p dijiang-task",
+        ],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "finish-window")],
+    )
+    .unwrap();
+    assert!(finish_out.contains("Finished task 'clean-task'"));
+    assert!(finish_out.contains("Session closed:"));
+
+    let session_journal = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("workspace")
+            .join("e2e")
+            .join("sessions")
+            .join("dijiang_finish-window.jsonl"),
+    )
+    .unwrap();
+    assert!(session_journal.contains("workflow_state_injected"));
+    assert!(session_journal.contains("session_closed"));
+    assert!(session_journal.contains("clean close"));
+    assert!(session_journal.contains("cargo test -p dijiang-task"));
+
+    let session_runtime = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join(".runtime")
+            .join("sessions")
+            .join("dijiang_finish-window.json"),
+    )
+    .unwrap();
+    assert!(session_runtime.contains("closed_at"));
+    assert!(session_runtime.contains("clean-task"));
+
+    let current = dijang_with_env(
+        &["task", "current"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "finish-window")],
+    )
+    .unwrap();
+    assert!(current.contains("(none)"), "current output: {current}");
 }
 
 #[test]
