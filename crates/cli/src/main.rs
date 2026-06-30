@@ -4,6 +4,7 @@ use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
 use dijiang_configurator::TemplateRegistry;
 use dialoguer::{Input, MultiSelect, Confirm};
+use std::path::PathBuf;
 #[derive(Parser)]
 #[command(name = "dijiang", version = "0.1.0", about = "DiJiang - AI coding assistant workflow layer")]
 struct Cli {
@@ -71,11 +72,48 @@ enum Commands {
     },
     /// Migrate a Trellis project to DiJiang
     Migrate,
-    /// Review code with adversarial or first-principles analysis
     Review {
         /// Review mode: adversarial or first-principles
         #[arg(long, default_value = "adversarial")]
         mode: String,
+    },
+    /// Agent channel management
+    Channel {
+        #[command(subcommand)]
+        command: ChannelCommands,
+    },
+}
+#[derive(Subcommand)]
+enum ChannelCommands {
+    /// Spawn an agent to perform a task
+    Spawn {
+        /// Agent name (check, implement, etc.)
+        agent: String,
+        /// Task path (optional, defaults to current task)
+        #[arg(long)]
+        task: Option<String>,
+        /// Working directory (optional)
+        #[arg(long)]
+        dir: Option<String>,
+    },
+    /// List active channels
+    List,
+    /// Send a message to a channel
+    Send {
+        /// Channel ID
+        channel_id: String,
+        /// Message to send
+        message: String,
+    },
+    /// Check channel status
+    Status {
+        /// Channel ID (or 'all' for all channels)
+        channel_id: String,
+    },
+    /// Stop a channel
+    Stop {
+        /// Channel ID
+        channel_id: String,
     },
 }
 #[derive(Subcommand)]
@@ -221,6 +259,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Skills { sync } => cmd_skills(sync),
         Commands::Migrate => cmd_migrate(),
         Commands::Review { mode } => cmd_review(&mode),
+        Commands::Channel { command } => match command {
+            ChannelCommands::Spawn { agent, task, dir } => cmd_channel_spawn(&agent, task.as_deref(), dir.as_deref()),
+            ChannelCommands::List => cmd_channel_list(),
+            ChannelCommands::Send { channel_id, message } => cmd_channel_send(&channel_id, &message),
+            ChannelCommands::Status { channel_id } => cmd_channel_status(&channel_id),
+            ChannelCommands::Stop { channel_id } => cmd_channel_stop(&channel_id),
+        },
     }
 }
 fn status_line(label: &str, value: impl std::fmt::Display) {
@@ -964,6 +1009,192 @@ fn cmd_review(mode: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn cmd_channel_spawn(agent: &str, task: Option<&str>, dir: Option<&str>) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let base_dir = dir.map(PathBuf::from).unwrap_or_else(|| cwd.clone());
+    let dijiang_dir = crate::store::find_dijiang_dir(&base_dir)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    // Read agent definition
+    let agents_dir = dijiang_dir.parent().map(|p| p.join(".pi").join("agents")).unwrap_or_default();
+    let agent_file = agents_dir.join(format!("dijiang-{}.md", agent));
+    if !agent_file.exists() {
+        anyhow::bail!("Agent '{}' not found at {}", agent, agent_file.display());
+    }
+    let agent_def = std::fs::read_to_string(&agent_file)?;
+
+    // Generate channel ID
+    let channel_id = format!("{}-{}-{}", agent,
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),
+        &cwd.to_string_lossy()[cwd.to_string_lossy().len()-8..].replace('/', "-"));
+
+    // Create channel directory
+    let channel_dir = dijiang_dir.join("channels").join(&channel_id);
+    std::fs::create_dir_all(&channel_dir)?;
+
+    // Write agent definition to channel
+    std::fs::write(channel_dir.join("agent.md"), &agent_def)?;
+
+    // Write inbox with task
+    let inbox_content = match task {
+        Some(t) => format!("Active task: {}\n", t),
+        None => format!("Active task: {}\n", cwd.display()),
+    };
+    std::fs::write(channel_dir.join("inbox"), &inbox_content)?;
+
+    // Write channel metadata
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let metadata = format!(
+        "id = {:?}\nagent = {:?}\nstatus = \"active\"\ncreated = {:?}\n\"task\" = {:?}\n\"dir\" = {:?}\n",
+        channel_id, agent, timestamp, task.unwrap_or(""), cwd.display());
+    std::fs::write(channel_dir.join("channel.toml"), &metadata)?;
+
+    println!("  Agent '{}' spawned", agent);
+    println!("  Channel ID: {}", channel_id);
+    println!("  Channel dir: {}", channel_dir.display());
+    println!();
+    println!("  The agent is ready to receive tasks.");
+    println!("  To execute, run: dijiang channel execute {}", channel_id);
+    Ok(())
+}
+
+fn cmd_channel_list() -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    let channels_dir = dijiang_dir.join("channels");
+    if !channels_dir.exists() {
+        println!("  No channels found.");
+        return Ok(());
+    }
+
+    let mut channels = Vec::new();
+    for entry in std::fs::read_dir(&channels_dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            let channel_id = entry.file_name().to_string_lossy().to_string();
+            let channel_toml = entry.path().join("channel.toml");
+            if channel_toml.exists() {
+                let content = std::fs::read_to_string(&channel_toml)?;
+                let agent = content.lines()
+                    .find(|l| l.contains("agent"))
+                    .and_then(|l| l.split('=').nth(1))
+                    .map(|s| s.trim().trim_matches('"').to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                let status = content.lines()
+                    .find(|l| l.contains("status"))
+                    .and_then(|l| l.split('=').nth(1))
+                    .map(|s| s.trim().trim_matches('"').to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                channels.push((channel_id, agent, status));
+            }
+        }
+    }
+
+    if channels.is_empty() {
+        println!("  No channels found.");
+    } else {
+        println!("  {} active channel(s):", channels.len());
+        for (id, agent, status) in &channels {
+            println!("  {} - {} ({})", id, agent, status);
+        }
+    }
+    Ok(())
+}
+
+fn cmd_channel_send(channel_id: &str, message: &str) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    let channel_dir = dijiang_dir.join("channels").join(channel_id);
+    if !channel_dir.exists() {
+        anyhow::bail!("Channel '{}' not found", channel_id);
+    }
+
+    // Append to inbox
+    let inbox_path = channel_dir.join("inbox");
+    let mut inbox = std::fs::read_to_string(&inbox_path).unwrap_or_default();
+    inbox.push_str(message);
+    inbox.push('\n');
+    std::fs::write(&inbox_path, &inbox)?;
+
+    println!("  Message sent to channel {}", channel_id);
+    Ok(())
+}
+
+fn cmd_channel_status(channel_id: &str) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    if channel_id == "all" {
+        // List all channels
+        return cmd_channel_list();
+    }
+
+    let channel_dir = dijiang_dir.join("channels").join(channel_id);
+    if !channel_dir.exists() {
+        anyhow::bail!("Channel '{}' not found", channel_id);
+    }
+
+    // Read channel metadata
+    let channel_toml = channel_dir.join("channel.toml");
+    if channel_toml.exists() {
+        let content = std::fs::read_to_string(&channel_toml)?;
+        println!("  Channel {}:", channel_id);
+        for line in content.lines() {
+            if !line.trim().is_empty() {
+                println!("    {}", line);
+            }
+        }
+    } else {
+        println!("  Channel {}:", channel_id);
+        println!("    No metadata found.");
+    }
+
+    // Show inbox size
+    let inbox_path = channel_dir.join("inbox");
+    if inbox_path.exists() {
+        let inbox = std::fs::read_to_string(&inbox_path)?;
+        println!("    inbox: {} bytes", inbox.len());
+    }
+
+    // Show output if exists
+    let output_path = channel_dir.join("output");
+    if output_path.exists() {
+        let output = std::fs::read_to_string(&output_path)?;
+        println!("    output: {} bytes", output.len());
+    }
+
+    Ok(())
+}
+
+fn cmd_channel_stop(channel_id: &str) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    let channel_dir = dijiang_dir.join("channels").join(channel_id);
+    if !channel_dir.exists() {
+        anyhow::bail!("Channel '{}' not found", channel_id);
+    }
+
+    // Update status in channel.toml
+    let channel_toml = channel_dir.join("channel.toml");
+    if channel_toml.exists() {
+        let content = std::fs::read_to_string(&channel_toml)?;
+        let new_content = content.replace("status = \"active\"", "status = \"stopped\"");
+        std::fs::write(&channel_toml, &new_content)?;
+    }
+
+    println!("  Channel {} stopped.", channel_id);
+    Ok(())
+}
 fn cmd_mem_findings(finding: &str) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
