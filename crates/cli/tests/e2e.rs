@@ -204,3 +204,150 @@ fn test_e2e_init_detects_reinit() {
     // Verify config exists after re-init
     assert!(project_dir.join(".dijiang").join("config.toml").exists());
 }
+
+// ─── Review ───────────────────────────────────────────────────
+
+#[test]
+fn test_e2e_review_adversarial() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["review", "--mode", "adversarial"], &project_dir);
+    assert!(out.is_ok(), "review adversarial should succeed: {:?}", out.err());
+    let stdout = out.unwrap();
+    assert!(stdout.contains("Adversarial"), "should show adversarial mode");
+}
+
+#[test]
+fn test_e2e_review_first_principles() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["review", "--mode", "first-principles"], &project_dir);
+    assert!(out.is_ok(), "review first-principles should succeed: {:?}", out.err());
+    let stdout = out.unwrap();
+    assert!(stdout.contains("First Principles"), "should show first-principles mode");
+}
+
+#[test]
+fn test_e2e_review_invalid_mode() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["review", "--mode", "invalid"], &project_dir);
+    assert!(out.is_err(), "review with invalid mode should fail");
+}
+
+// ─── Channel ──────────────────────────────────────────────────
+
+#[test]
+fn test_e2e_channel_lifecycle() {
+    let (_tmp, project_dir) = init_project();
+
+    // List (empty)
+    let out = dijang(&["channel", "list"], &project_dir);
+    assert!(out.is_ok(), "channel list should succeed");
+
+    // Spawn
+    let out = dijang(&["channel", "spawn", "check", "--task", "."], &project_dir);
+    assert!(out.is_ok(), "channel spawn should succeed: {:?}", out.err());
+    let stdout = out.unwrap();
+    assert!(stdout.contains("Agent 'check' spawned"), "should confirm spawn");
+    assert!(stdout.contains("Channel ID:"), "should output channel ID");
+
+    // List (one active)
+    let out = dijang(&["channel", "list"], &project_dir);
+    assert!(out.is_ok());
+    let stdout = out.unwrap();
+    assert!(stdout.contains("check"), "should list check agent");
+    assert!(stdout.contains("active"), "should show active status");
+
+    // Extract channel ID
+    let channel_id = stdout.lines()
+        .find(|l| l.contains("check") && l.contains("active"))
+        .and_then(|l| l.split_whitespace().next())
+        .expect("should find channel ID");
+
+    // Status
+    let out = dijang(&["channel", "status", channel_id], &project_dir);
+    assert!(out.is_ok(), "channel status should succeed: {:?}", out.err());
+    let stdout = out.unwrap();
+    assert!(stdout.contains("id"), "should show channel id");
+
+    // Send
+    let out = dijang(&["channel", "send", channel_id, "test message"], &project_dir);
+    assert!(out.is_ok(), "channel send should succeed: {:?}", out.err());
+
+    // Stop
+    let out = dijang(&["channel", "stop", channel_id], &project_dir);
+    assert!(out.is_ok(), "channel stop should succeed: {:?}", out.err());
+    let stdout = out.unwrap();
+    assert!(stdout.contains("stopped"), "should confirm stop");
+
+    // Verify stopped
+    let out = dijang(&["channel", "list"], &project_dir);
+    let stdout = out.unwrap();
+    assert!(stdout.contains("stopped"), "should show stopped status");
+}
+
+#[test]
+fn test_e2e_channel_spawn_nonexistent_agent() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["channel", "spawn", "nonexistent-agent"], &project_dir);
+    assert!(out.is_err(), "spawning nonexistent agent should fail");
+}
+
+#[test]
+fn test_e2e_channel_status_nonexistent() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["channel", "status", "nonexistent-id"], &project_dir);
+    assert!(out.is_err(), "status of nonexistent channel should fail");
+}
+
+#[test]
+fn test_e2e_channel_stop_nonexistent() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["channel", "stop", "nonexistent-id"], &project_dir);
+    assert!(out.is_err(), "stopping nonexistent channel should fail");
+}
+
+#[test]
+fn test_e2e_execute_all_no_active() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["channel", "execute-all"], &project_dir);
+    // Should succeed even with no active channels
+    assert!(out.is_ok(), "execute-all should not error: {:?}", out.err());
+    let stdout = out.unwrap();
+    // Either no channels or no active channels
+    assert!(
+        stdout.contains("No active channels") || stdout.contains("No channels") || stdout.contains("0 active"),
+        "should report no active channels, got: {}", stdout
+    );
+}
+
+// ─── Mem ──────────────────────────────────────────────────────
+
+#[test]
+fn test_e2e_mem_record_and_findings() {
+    let (_tmp, project_dir) = init_project();
+
+    // Record learning
+    let out = dijang(&["mem", "learn", "--lesson", "test-learning"], &project_dir);
+    assert!(out.is_ok(), "mem learn should succeed: {:?}", out.err());
+
+    // Record finding
+    let out = dijang(&["mem", "findings", "--finding", "Found something important"], &project_dir);
+    assert!(out.is_ok(), "mem findings should succeed: {:?}", out.err());
+
+    // List sessions
+    let out = dijang(&["mem", "list"], &project_dir);
+    assert!(out.is_ok(), "mem list should succeed: {:?}", out.err());
+    let stdout = out.unwrap();
+    // Should show something (sessions or empty message)
+    assert!(!stdout.is_empty(), "should have some output");
+}
+
+#[test]
+fn test_e2e_mem_tactics() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["mem", "tactics"], &project_dir);
+    assert!(out.is_ok(), "mem tactics should succeed: {:?}", out.err());
+    let stdout = out.unwrap();
+    // Should show at least cargo-test or review tactics
+    assert!(stdout.contains("cargo-test") || stdout.contains("review") || stdout.contains("No tactics"),
+        "should show tactics or empty message");
+}
