@@ -86,6 +86,7 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
 
     let mut hashes = load_hashes(&dijiang_dir)?;
     let mut report = UpdateReport::default();
+    record_duplicate_skill_dirs(cwd, &mut report);
     let mut seen = BTreeSet::new();
 
     for managed in managed_files {
@@ -257,6 +258,12 @@ fn protected(path: &str) -> ManagedFile {
     ManagedFile {
         path: path.to_string(),
         policy: UpdatePolicy::HashProtected,
+    }
+}
+
+fn record_duplicate_skill_dirs(cwd: &Path, report: &mut UpdateReport) {
+    for name in crate::detect_skills_conflict(cwd).duplicate_dj_skill_dirs {
+        report.conflicts.push(format!(".pi/skills/{name}"));
     }
 }
 
@@ -461,6 +468,7 @@ mod tests {
         let edited_skill = tmp.path().join(".pi/skills/dj-implement/SKILL.md");
         fs::create_dir_all(edited_skill.parent().unwrap()).unwrap();
         fs::write(&edited_skill, "# user edited skill").unwrap();
+        fs::create_dir_all(tmp.path().join(".pi/skills/dj-dj-implement")).unwrap();
 
         let report = update_project(tmp.path(), UpdateOptions { force: false }).unwrap();
         assert!(
@@ -474,6 +482,12 @@ mod tests {
                 .conflicts
                 .contains(&".pi/skills/dj-implement/SKILL.md".to_string()),
             "edited skill without previous hash should conflict: {report:?}"
+        );
+        assert!(
+            report
+                .conflicts
+                .contains(&".pi/skills/dj-dj-implement".to_string()),
+            "duplicate generated skill dir should be reported without deletion: {report:?}"
         );
         assert_eq!(
             fs::read_to_string(tmp.path().join(".pi/skills/dj-implement/SKILL.md")).unwrap(),

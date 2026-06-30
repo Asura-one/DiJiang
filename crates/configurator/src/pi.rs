@@ -13,6 +13,7 @@ pub(crate) struct SkillsConflictReport {
     pub has_dijiang_marker: bool,
     pub existing_dijiang_skills: Vec<String>,
     pub existing_non_dijiang_skills: Vec<String>,
+    pub duplicate_dj_skill_dirs: Vec<String>,
 }
 
 /// Read-only scan of what exists under `.pi/skills/`.
@@ -36,7 +37,9 @@ pub(crate) fn detect_skills_conflict(cwd: &Path) -> SkillsConflictReport {
             continue;
         }
         if entry.path().is_dir() {
-            if name_str.starts_with("dijiang-") {
+            if name_str.starts_with("dj-dj-") {
+                report.duplicate_dj_skill_dirs.push(name_str);
+            } else if name_str.starts_with("dijiang-") {
                 report.existing_dijiang_skills.push(name_str);
             } else {
                 report.existing_non_dijiang_skills.push(name_str);
@@ -144,20 +147,28 @@ impl PiConfigurator {
         Ok(())
     }
 
-    /// Write DiJiang skill files to `.pi/skills/dijiang-*/SKILL.md`.
-    /// Write DiJiang skill files to `.pi/skills/dijiang-*/SKILL.md`.
+    /// Write DiJiang session wrapper skills to `.pi/skills/dijiang-*/SKILL.md`.
     ///
     /// §3.2 coexistence policy:
-    /// - Existing `dijiang-*` skill directories are NOT overwritten
+    /// - Existing `dijiang-*` wrapper skill directories are NOT overwritten
     ///   (idempotent re-runs preserve user edits).
-    /// - Non-`dijiang-*` skill directories (e.g. other tools' `trellis-foo`) are
-    ///   left alone; a warning is printed listing them.
+    /// - Managed `dj-*` core skills are synced separately by `write_project_skills`.
+    /// - Non-DiJiang skill directories are left alone; duplicate `dj-dj-*`
+    ///   directories are reported as generated-artifact conflicts, not deleted.
     /// - A `.dijiang_owned` marker file is written so other tools know
     ///   DiJiang claims this skills tree.
     fn write_skills(cwd: &Path) -> Result<(), ConfigError> {
         let skills_dir = cwd.join(".pi").join("skills");
         std::fs::create_dir_all(&skills_dir)?;
         let report = detect_skills_conflict(cwd);
+
+        if !report.duplicate_dj_skill_dirs.is_empty() {
+            eprintln!(
+                "  warning: detected duplicate dj-dj-* skill directories in .pi/skills/ ({}); leaving untouched: {}",
+                report.duplicate_dj_skill_dirs.len(),
+                report.duplicate_dj_skill_dirs.join(", "),
+            );
+        }
 
         if !report.existing_non_dijiang_skills.is_empty() {
             eprintln!(
@@ -362,6 +373,7 @@ mod tests {
         std::fs::create_dir_all(&skills).unwrap();
         std::fs::create_dir_all(skills.join("dijiang-start")).unwrap();
         std::fs::create_dir_all(skills.join("dijiang-continue")).unwrap();
+        std::fs::create_dir_all(skills.join("dj-dj-implement")).unwrap();
         std::fs::create_dir_all(skills.join("trellis-foo")).unwrap();
         std::fs::write(skills.join(".dijiang_owned"), "").unwrap();
 
@@ -371,6 +383,7 @@ mod tests {
         let mut dij = report.existing_dijiang_skills.clone();
         dij.sort();
         assert_eq!(dij, vec!["dijiang-continue", "dijiang-start"]);
+        assert_eq!(report.duplicate_dj_skill_dirs, vec!["dj-dj-implement"]);
         assert_eq!(report.existing_non_dijiang_skills, vec!["trellis-foo"]);
     }
 
