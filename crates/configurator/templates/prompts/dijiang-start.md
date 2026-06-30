@@ -9,4 +9,4 @@ Active Task: {{activeTask}}
 ---
 
 Read `dijiang task current` to load current task.
-Read `.trellis/workflow.md` for development workflow.
+Read `.dijiang/workflow.md` for the canonical development workflow.

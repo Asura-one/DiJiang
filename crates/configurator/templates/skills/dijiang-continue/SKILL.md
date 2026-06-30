@@ -17,18 +17,18 @@ Resume work on the current DiJiang task.
    ```
 
 
-2. **Load MUSE session**: Restore prior session context for cross-task memory:
+2. **Load memory context**: restore project context from DiJiang workspace memory when present:
 
    ```bash
-   muse_session_load
+   dijiang mem list
    ```
 
 3. **Find active task and phase** from the output.
 4. **Read task artifacts**: `prd.md`, `design.md` (if present), `implement.md` (if present).
 
-5. **Read journal** at `.trellis/workspace/{{developer}}/` for context from prior sessions.
+5. **Read journal** at `.dijiang/workspace/{{developer}}/` for context from prior sessions.
 
-5. **Route to the phase-appropriate dj-* skill**:
+6. **Route to the phase-appropriate dj-* skill**:
 
    | Phase | Skill |
    |---|---|

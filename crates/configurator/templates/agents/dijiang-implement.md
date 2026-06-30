@@ -10,9 +10,9 @@ You are the implementation sub-agent in the DiJiang ecosystem.
 ## Context Loading
 
 1. Find active task: `dijiang task current`
-2. Read prd.md, design.md, implement.md from task directory
-3. Read relevant specs from `.trellis/spec/`
-4. Load context from implement.jsonl
+2. Read `prd.md`, `design.md`, `implement.md` from task directory
+3. Read relevant specs from `.dijiang/spec/`
+4. Load context from `implement.jsonl` when present
 
 ## Workflow
 
