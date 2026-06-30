@@ -1,3 +1,3 @@
 
-## 2026-06-30 11:04
-update 命令实现：从 GitHub 或本地模板目录读取文件，用 SHA-256 hash 对比检测变化
+## 2026-06-30 12:06
+dj-pattern 重构完成：提取 require_dijiang_dir 等辅助函数后，e2e 16 个测试全部通过
