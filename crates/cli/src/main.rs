@@ -1866,28 +1866,44 @@ fn cmd_update(force: bool) -> anyhow::Result<()> {
         println!("  技能已是最新。");
     }
 
-    // 检查代理目录
-    let agents_dir = cwd.join(".pi").join("agents");
-    if !agents_dir.exists() {
-        println!("  注意：未找到 .pi/agents/ 目录。请先运行 `dijiang init`。");
-    } else {
-        println!("  代理目录已存在于 .pi/agents/");
-    }
+    // 更新模板文件
+    let template_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates");
+    if template_dir.exists() {
+        for entry in std::fs::read_dir(&template_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file() {
+                let filename = entry.file_name().to_string_lossy().to_string();
+                let src = entry.path();
+                let dst = dijiang_dir.join(&filename);
 
-    // 检查 workflow.md
-    let workflow_file = dijiang_dir.join("workflow.md");
-    if workflow_file.exists() {
-        let content = std::fs::read_to_string(&workflow_file)?;
-        if !content.contains("Phase 6: Review") {
-            println!("  建议：更新 workflow.md 以包含 Phase 6: Review");
+                let content = std::fs::read_to_string(&src)?;
+                let needs_update = if dst.exists() {
+                    let existing = std::fs::read_to_string(&dst)?;
+                    existing != content
+                } else {
+                    true
+                };
+
+                if needs_update {
+                    std::fs::write(&dst, &content)?;
+                    println!("  已更新: {}", filename);
+                }
+            }
         }
     }
+
+    // 更新 agents
+    let agents_dir = cwd.join(".pi").join("agents");
+    std::fs::create_dir_all(&agents_dir)?;
+
+    println!("  代理目录已存在于 .pi/agents/");
 
     println!();
     println!("  更新完成。");
 
     Ok(())
 }
+
 
 #[cfg(test)]
 mod tests {
