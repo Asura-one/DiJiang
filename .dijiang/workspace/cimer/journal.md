@@ -35,3 +35,10 @@ Notes for review:
 - Verification: cargo test -p dijiang --test e2e; cargo check --workspace
 - Dirty allowed: true
 - Status: archived
+
+## 2026-07-01 00:39 — finish-work
+- Task: `https-aihot-virxact-com-items-cmr03h5tq03jjslki3`
+- Summary: Work finished and task archived.
+- Verification: git diff --check; dijiang status --compat; rg checks for verification/memory/ADR coverage; task worktree merged and removed
+- Dirty allowed: false
+- Status: archived
