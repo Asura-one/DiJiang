@@ -60,6 +60,15 @@ impl SessionIdentity {
         })
     }
 
+    pub fn explicit(source: impl Into<String>, key: impl AsRef<str>) -> Option<Self> {
+        let source = source.into();
+        let key = sanitize_session_key(key.as_ref());
+        if source.trim().is_empty() || key.is_empty() {
+            return None;
+        }
+        Some(Self { key, source })
+    }
+
     pub fn key(&self) -> &str {
         &self.key
     }
@@ -85,8 +94,14 @@ fn sanitize_session_key(raw: &str) -> String {
 }
 
 pub fn current_session_identity() -> Option<SessionIdentity> {
+    if let Ok(value) = env::var("DIJIANG_CONTEXT_ID") {
+        if let Some(identity) = SessionIdentity::explicit("dijiang", value) {
+            return Some(identity);
+        }
+    }
+
     const ENV_KEYS: &[(&str, &[&str])] = &[
-        ("dijiang", &["DIJIANG_CONTEXT_ID", "DIJIANG_SESSION_ID"]),
+        ("dijiang", &["DIJIANG_SESSION_ID"]),
         ("codex", &["CODEX_SESSION_ID", "CODEX_THREAD_ID"]),
         ("claude", &["CLAUDE_SESSION_ID", "CLAUDE_CODE_SESSION_ID"]),
         ("pi", &["PI_SESSION_ID", "PI_SESSIONID"]),
@@ -132,7 +147,7 @@ fn read_session_task(
         .map(str::to_string))
 }
 
-/// Find the active task for the current session, falling back to global state.
+/// Find the active task for the current session, using global state only when no session identity exists.
 pub fn read_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskError> {
     read_active_task_for_session(dijiang_dir, current_session_identity().as_ref())
 }
@@ -142,9 +157,7 @@ pub fn read_active_task_for_session(
     identity: Option<&SessionIdentity>,
 ) -> Result<Option<String>, TaskError> {
     if let Some(identity) = identity {
-        if let Some(task) = read_session_task(dijiang_dir, identity)? {
-            return Ok(Some(task));
-        }
+        return read_session_task(dijiang_dir, identity);
     }
 
     let path = dijiang_dir.join("active_task.txt");
@@ -159,7 +172,7 @@ pub fn read_active_task_for_session(
     Ok(None)
 }
 
-/// Write the active task for the current session, with a global fallback pointer.
+/// Write the active task for the current session, using a global pointer only without session identity.
 pub fn write_active_task(dijiang_dir: &Path, task_name: &str) -> Result<(), TaskError> {
     write_active_task_for_session(dijiang_dir, task_name, current_session_identity().as_ref())
 }
@@ -169,8 +182,9 @@ pub fn write_active_task_for_session(
     task_name: &str,
     identity: Option<&SessionIdentity>,
 ) -> Result<(), TaskError> {
-    fs::write(dijiang_dir.join("active_task.txt"), task_name)?;
-
+    if identity.is_none() {
+        fs::write(dijiang_dir.join("active_task.txt"), task_name)?;
+    }
     let runtime_dir = dijiang_dir.join(".runtime");
     let sessions_dir = runtime_dir.join("sessions");
     fs::create_dir_all(&sessions_dir)?;
@@ -226,9 +240,11 @@ pub fn clear_active_task_for_session(
         }
     }
 
-    let active_path = dijiang_dir.join("active_task.txt");
-    if active_path.exists() {
-        fs::remove_file(active_path)?;
+    if identity.is_none() {
+        let active_path = dijiang_dir.join("active_task.txt");
+        if active_path.exists() {
+            fs::remove_file(active_path)?;
+        }
     }
 
     Ok(())
@@ -461,7 +477,7 @@ mod tests {
     }
 
     #[test]
-    fn test_active_task_dual_write() {
+    fn test_active_task_write_with_session_does_not_touch_global_pointer() {
         let dir = tempfile::tempdir().unwrap();
         let dijiang_dir = dir.path().join(".dijiang");
         fs::create_dir(&dijiang_dir).unwrap();
@@ -476,8 +492,7 @@ mod tests {
         write_active_task_for_session(&dijiang_dir, "my-task", Some(&identity)).unwrap();
 
         let primary = dijiang_dir.join("active_task.txt");
-        assert!(primary.exists());
-        assert_eq!(fs::read_to_string(&primary).unwrap(), "my-task");
+        assert!(!primary.exists());
 
         let session = dijiang_dir
             .join(".runtime")
@@ -496,6 +511,10 @@ mod tests {
 
         let active = read_active_task_for_session(&dijiang_dir, Some(&identity)).unwrap();
         assert_eq!(active, Some("my-task".to_string()));
+        assert_eq!(
+            read_active_task_for_session(&dijiang_dir, None).unwrap(),
+            None
+        );
     }
 
     #[test]
@@ -519,7 +538,7 @@ mod tests {
         );
         assert_eq!(
             read_active_task_for_session(&dijiang_dir, None).unwrap(),
-            Some("task-b".to_string())
+            None
         );
     }
 

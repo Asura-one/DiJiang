@@ -33,6 +33,20 @@ enum Commands {
         /// 任务显示标题（可选）
         title: Option<String>,
     },
+    /// 接收自然语言请求，自动创建/激活任务并输出路由上下文
+    Dispatch {
+        /// 用户原始请求
+        prompt: Vec<String>,
+        /// 已有 active task 时仍创建新任务
+        #[arg(long)]
+        force_new: bool,
+        /// 输出 Codex/Agent hook 可消费的 JSON payload
+        #[arg(long)]
+        json: bool,
+        /// hook event name（JSON 输出时使用）
+        #[arg(long, default_value = "UserPromptSubmit")]
+        hook_event: String,
+    },
     /// 底层任务管理（原子状态操作）
     Task {
         #[command(subcommand)]
@@ -292,6 +306,12 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Start { name, title } => cmd_start(&name, title.as_deref()),
+        Commands::Dispatch {
+            prompt,
+            force_new,
+            json,
+            hook_event,
+        } => cmd_dispatch(&prompt.join(" "), force_new, json, &hook_event),
         Commands::Status { compat } => cmd_status(compat),
         Commands::Init {
             name,
@@ -657,6 +677,247 @@ fn cmd_workflow_state(json: bool, hook_event: &str) -> anyhow::Result<()> {
         println!("{}", state.additional_context());
     }
 
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct DispatchRoute {
+    task_type: &'static str,
+    primary_intent: &'static str,
+    skill: &'static str,
+    recommended_path: &'static str,
+    status: TaskStatus,
+}
+
+fn dispatch_route(prompt: &str) -> DispatchRoute {
+    let lower = prompt.to_lowercase();
+    let has_any = |words: &[&str]| words.iter().any(|word| lower.contains(word));
+
+    if has_any(&[
+        "报错", "崩溃", "异常", "排查", "debug", "bug", "crash", "error", "fail",
+    ]) {
+        return DispatchRoute {
+            task_type: "排查调试",
+            primary_intent: "排查根因",
+            skill: "dj-hunt",
+            recommended_path: "dj-hunt → dj-implement → dj-check",
+            status: TaskStatus::InProgress,
+        };
+    }
+
+    if has_any(&["审计", "安全", "扫描", "体检", "audit", "security"]) {
+        return DispatchRoute {
+            task_type: "审计代码",
+            primary_intent: "代码审计",
+            skill: "dj-audit",
+            recommended_path: "dj-audit → dj-implement → dj-check",
+            status: TaskStatus::InProgress,
+        };
+    }
+
+    if has_any(&["调研", "方案", "对比", "url", "网页", "research", "compare"]) {
+        return DispatchRoute {
+            task_type: "调研对齐",
+            primary_intent: "调研并对齐",
+            skill: "dj-grill",
+            recommended_path: "dj-grill → dj-output/dj-tdd",
+            status: TaskStatus::Planning,
+        };
+    }
+
+    if has_any(&["文档", "prd", "设计文档", "润色", "document", "write"]) {
+        return DispatchRoute {
+            task_type: "写文档",
+            primary_intent: "文档产出",
+            skill: "dj-output",
+            recommended_path: "dj-output",
+            status: TaskStatus::Planning,
+        };
+    }
+
+    if has_any(&["脚本", "工具", "自动化", "script", "cli", "tool"]) {
+        return DispatchRoute {
+            task_type: "脚本工具",
+            primary_intent: "脚本或工具实现",
+            skill: "dj-script",
+            recommended_path: "dj-script → dj-check",
+            status: TaskStatus::InProgress,
+        };
+    }
+
+    if has_any(&["ui", "页面", "样式", "布局", "组件", "design", "style"]) {
+        return DispatchRoute {
+            task_type: "设计 UI",
+            primary_intent: "UI 设计实现",
+            skill: "dj-design",
+            recommended_path: "dj-design → dj-implement → dj-check",
+            status: TaskStatus::InProgress,
+        };
+    }
+
+    if has_any(&["测试", "tdd", "test"]) {
+        return DispatchRoute {
+            task_type: "测试开发",
+            primary_intent: "测试驱动开发",
+            skill: "dj-tdd",
+            recommended_path: "dj-tdd → dj-check",
+            status: TaskStatus::InProgress,
+        };
+    }
+
+    if has_any(&[
+        "实现",
+        "修复",
+        "重构",
+        "新增",
+        "修改",
+        "改",
+        "implement",
+        "fix",
+        "refactor",
+        "add",
+    ]) {
+        return DispatchRoute {
+            task_type: "代码开发",
+            primary_intent: "实现变更",
+            skill: "dj-implement",
+            recommended_path: "dj-implement → dj-check",
+            status: TaskStatus::InProgress,
+        };
+    }
+
+    DispatchRoute {
+        task_type: "调研对齐",
+        primary_intent: "需求澄清",
+        skill: "dj-grill",
+        recommended_path: "dj-grill → dj-output/dj-implement",
+        status: TaskStatus::Planning,
+    }
+}
+
+fn title_from_prompt(prompt: &str) -> String {
+    let compact = prompt.split_whitespace().collect::<Vec<_>>().join(" ");
+    let title = compact.chars().take(80).collect::<String>();
+    if title.trim().is_empty() {
+        "Untitled DiJiang Task".to_string()
+    } else {
+        title
+    }
+}
+
+fn slug_from_prompt(prompt: &str) -> String {
+    let mut slug = String::new();
+    let mut last_dash = false;
+    for ch in prompt.to_lowercase().chars() {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch);
+            last_dash = false;
+        } else if !last_dash && !slug.is_empty() {
+            slug.push('-');
+            last_dash = true;
+        }
+        if slug.len() >= 48 {
+            break;
+        }
+    }
+    let slug = slug.trim_matches('-');
+    if slug.is_empty() {
+        format!("task-{}", chrono::Utc::now().format("%Y%m%d%H%M%S"))
+    } else {
+        slug.to_string()
+    }
+}
+
+fn unique_task_name(tasks_dir: &Path, base: &str) -> String {
+    if !tasks_dir.join(base).exists() {
+        return base.to_string();
+    }
+    for index in 2..1000 {
+        let candidate = format!("{base}-{index}");
+        if !tasks_dir.join(&candidate).exists() {
+            return candidate;
+        }
+    }
+    format!("{base}-{}", chrono::Utc::now().timestamp())
+}
+
+fn dispatch_context(
+    task_name: &str,
+    title: &str,
+    route: &DispatchRoute,
+    state_context: &str,
+) -> String {
+    format!(
+        "<dijiang-dispatch>\nTask created: {task_name}\nTitle: {title}\nTask type: {task_type}\nPrimary intent: {primary_intent}\nRoute: {skill}\nRecommended path: {recommended_path}\nNext: follow {skill}; load .dijiang/tasks/{task_name}/task.json before acting.\n</dijiang-dispatch>\n{state_context}",
+        task_type = route.task_type,
+        primary_intent = route.primary_intent,
+        skill = route.skill,
+        recommended_path = route.recommended_path,
+    )
+}
+
+fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> anyhow::Result<()> {
+    let dijiang_dir = require_dijiang_dir()?;
+    let tasks_dir = dijiang_dir.join("tasks");
+    std::fs::create_dir_all(&tasks_dir)?;
+    let prompt = prompt.trim();
+
+    if prompt.is_empty() {
+        anyhow::bail!("dispatch requires a prompt, e.g. `dijiang dispatch \"fix login bug\"`");
+    }
+
+    if !force_new {
+        if let Some(active) = store::read_active_task(&dijiang_dir)? {
+            let task = store::load_task(&tasks_dir, &active)?;
+            let route = dispatch_route(prompt);
+            let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
+            let context =
+                dispatch_context(&active, &task.title, &route, &state.additional_context());
+            if json {
+                let payload = serde_json::json!({
+                    "hookEventName": hook_event,
+                    "additionalContext": context,
+                });
+                println!("{}", serde_json::to_string(&payload)?);
+            } else {
+                println!("{context}");
+            }
+            return Ok(());
+        }
+    }
+
+    let route = dispatch_route(prompt);
+    let base = slug_from_prompt(prompt);
+    let task_name = unique_task_name(&tasks_dir, &base);
+    let title = title_from_prompt(prompt);
+    let mut task = store::create_task(&task_name, &title);
+    task.description = prompt.to_string();
+    task.status = route.status.clone();
+    task.started_at = Some(chrono::Utc::now().to_rfc3339());
+    task.source = Some("dijiang dispatch".to_string());
+    task.session_id = Some(current_session_key().0);
+    task.meta = serde_json::json!({
+        "dispatch": {
+            "task_type": route.task_type,
+            "primary_intent": route.primary_intent,
+            "skill": route.skill,
+            "recommended_path": route.recommended_path
+        }
+    });
+    store::save_task(&tasks_dir, &task)?;
+    store::write_active_task(&dijiang_dir, &task_name)?;
+
+    let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
+    let context = dispatch_context(&task_name, &title, &route, &state.additional_context());
+    if json {
+        let payload = serde_json::json!({
+            "hookEventName": hook_event,
+            "additionalContext": context,
+        });
+        println!("{}", serde_json::to_string(&payload)?);
+    } else {
+        println!("{context}");
+    }
     Ok(())
 }
 
