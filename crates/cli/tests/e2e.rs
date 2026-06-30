@@ -391,6 +391,7 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
         second_a
             .contains("injection #2: active=window-a-task, previous=window-a-task, changed=false")
     );
+    assert!(second_a.contains("Other active windows: none"));
 
     dijang_with_env(
         &["start", "window-b-task", "Window B Task"],
@@ -408,7 +409,11 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(first_b.contains("Injection: #1"));
     assert!(first_b.contains("Active task: window-b-task"));
     assert!(first_b.contains("Recent memory: 1 recent session event(s) loaded for this window."));
-    assert!(!first_b.contains("window-a-task"));
+    assert!(first_b.contains("Other active windows: 1"));
+    assert!(
+        first_b.contains("dijiang_window-a (dijiang) task=window-a-task state=active injections=2")
+    );
+    assert!(!first_b.contains("injection #1: active=window-a-task"));
 
     dijang_with_env(
         &["start", "window-a-next", "Window A Next"],
@@ -430,6 +435,11 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(
         changed_a
             .contains("injection #3: active=window-a-next, previous=window-a-task, changed=true")
+    );
+    assert!(changed_a.contains("Other active windows: 1"));
+    assert!(
+        changed_a
+            .contains("dijiang_window-b (dijiang) task=window-b-task state=active injections=1")
     );
 
     let session_a = std::fs::read_to_string(

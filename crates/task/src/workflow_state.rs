@@ -15,6 +15,7 @@ pub struct WorkflowState {
     pub guidance: String,
     pub runtime: WorkflowRuntime,
     pub memory: WorkflowMemory,
+    pub peers: Vec<WorkflowPeerSession>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -60,6 +61,17 @@ pub struct WorkflowMemoryEvent {
     pub at: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowPeerSession {
+    pub key: String,
+    pub source: String,
+    pub current_task: Option<String>,
+    pub injection_count: u64,
+    pub last_seen_at: String,
+    pub closed_task: Option<String>,
+}
+
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 struct RuntimeSessionRecord {
@@ -69,6 +81,7 @@ struct RuntimeSessionRecord {
     last_active_task: Option<String>,
     injection_count: u64,
     last_seen_at: String,
+    closed_task: Option<String>,
 }
 
 impl WorkflowState {
@@ -93,16 +106,17 @@ impl WorkflowState {
             self.runtime.journal_path
         );
         let memory_line = format_memory(&self.memory);
+        let peers_line = format_peer_sessions(&self.peers);
 
         let Some(task) = &self.active_task else {
             return format!(
-                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\nActive task: none\nNext: {}\n</dijiang-workflow-state>",
+                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\nActive task: none\nNext: {}\n</dijiang-workflow-state>",
                 self.guidance
             );
         };
 
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\nActive task: {}\nTitle: {}\nStatus: {}\nTask path: {}\nGuidance: {}\nLoad context: read task.json plus prd.md/design.md/implement.md/check artifacts when present.\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\nActive task: {}\nTitle: {}\nStatus: {}\nTask path: {}\nGuidance: {}\nLoad context: read task.json plus prd.md/design.md/implement.md/check artifacts when present.\n</dijiang-workflow-state>",
             task.id, task.title, task.status, task.task_path, self.guidance
         )
     }
@@ -130,6 +144,7 @@ pub fn build_for_session(
     };
     let runtime = record_runtime_injection(dijiang_dir, identity, task.as_ref())?;
     let memory = load_recent_memory(dijiang_dir, &runtime.journal_path, 5);
+    let peers = load_peer_sessions(dijiang_dir, identity, 8)?;
 
     let Some(task) = task else {
         return Ok(WorkflowState {
@@ -139,6 +154,7 @@ pub fn build_for_session(
                 .to_string(),
             runtime,
             memory,
+            peers,
         });
     };
 
@@ -150,6 +166,7 @@ pub fn build_for_session(
         guidance,
         runtime,
         memory,
+        peers,
     })
 }
 
@@ -191,6 +208,7 @@ fn record_runtime_injection(
     record.last_active_task = current_active_task.clone();
     record.injection_count = record.injection_count.saturating_add(1);
     record.last_seen_at = last_seen_at.clone();
+    record.closed_task = None;
 
     fs::write(&session_path, serde_json::to_string_pretty(&record)?)?;
 
@@ -344,6 +362,81 @@ fn format_memory(memory: &WorkflowMemory) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!("Recent memory: {}\n{}", memory.summary, events)
+}
+
+fn load_peer_sessions(
+    dijiang_dir: &Path,
+    identity: Option<&SessionIdentity>,
+    limit: usize,
+) -> Result<Vec<WorkflowPeerSession>, TaskError> {
+    let sessions_dir = dijiang_dir.join(".runtime").join("sessions");
+    if !sessions_dir.exists() {
+        return Ok(Vec::new());
+    }
+    let current_key = identity
+        .map(|identity| identity.key().to_string())
+        .unwrap_or_else(|| {
+            SessionIdentity::new("global", "global")
+                .expect("literal global session key is valid")
+                .key()
+                .to_string()
+        });
+
+    let mut peers = Vec::new();
+    for entry in fs::read_dir(sessions_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let content = fs::read_to_string(path)?;
+        let record = serde_json::from_str::<RuntimeSessionRecord>(&content).unwrap_or_default();
+        if record.session_key.is_empty() || record.session_key == current_key {
+            continue;
+        }
+        peers.push(WorkflowPeerSession {
+            key: record.session_key,
+            source: record.source,
+            current_task: record.current_task,
+            injection_count: record.injection_count,
+            last_seen_at: record.last_seen_at,
+            closed_task: record.closed_task,
+        });
+    }
+
+    peers.sort_by(|left, right| right.last_seen_at.cmp(&left.last_seen_at));
+    peers.truncate(limit);
+    Ok(peers)
+}
+
+fn format_peer_sessions(peers: &[WorkflowPeerSession]) -> String {
+    if peers.is_empty() {
+        return "Other active windows: none".to_string();
+    }
+
+    let sessions = peers
+        .iter()
+        .map(|peer| {
+            let task = peer
+                .current_task
+                .as_deref()
+                .or(peer.closed_task.as_deref())
+                .unwrap_or("none");
+            let state = if peer.current_task.is_some() {
+                "active"
+            } else if peer.closed_task.is_some() {
+                "closed"
+            } else {
+                "idle"
+            };
+            format!(
+                "- {} ({}) task={} state={} injections={} last_seen={}",
+                peer.key, peer.source, task, state, peer.injection_count, peer.last_seen_at,
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("Other active windows: {}\n{}", peers.len(), sessions)
 }
 fn read_developer(dijiang_dir: &Path) -> String {
     let config_path = dijiang_dir.join("config.toml");
