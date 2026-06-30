@@ -90,62 +90,30 @@ L<行号>: <tag> <问题>. <替代>.  net: -<N> lines
 
 结尾统计：`net: -<N> lines, -<M> deps possible.`
 
-### 5. 发布跟进（release/publish/push）
+### 5. 收尾门禁（version/commit/push/merge）
 
-审查通过后，如果用户要求发布：
+审查通过后，必须给 `dijiang-finish-work` 明确结论：
+
 ```bash
-# 确认当前状态
 git status --short --branch
-git rev-parse HEAD
-
-# 发布流程
-git checkout main && git merge --no-ff <分支名>
-git tag v<版本号>
-git push origin main --tags
+git diff --stat HEAD
+git diff --name-only HEAD
 ```
 
-发布后检查项：
-- CI 是否通过
-- 包管理器版本是否同步
-- issue 是否需要关闭
-- changelog 是否更新
+检查项：
+- 当前目录必须是任务 worktree，不能是主 checkout。
+- diff 只能包含当前任务相关修改，不能混入无关文件。
+- 文档/spec/task artifact 已按实际行为同步，或明确说明无需更新。
+- 版本决策已给出：`major` / `minor` / `patch` / `none`。
+- commit type/scope 已给出，message 写行为变化，不堆文件名。
 
 **版本号规范（语义化版本）：**
-- 格式：`Major.Minor.Revision`
-- 递增规则：
-  - Major：不兼容的 API 修改
-  - Minor：向下兼容的功能性新增
-  - Revision：向下兼容的问题修正
-### 6. 合并
+- Major：不兼容的 API 修改。
+- Minor：向下兼容的功能性新增。
+- Patch：向下兼容的问题修正。
+- None：仅内部流程、测试、文档或未发布包的变化，不更新版本。
 
-```
-🔴 CHECKPOINT · 合并确认
-```
-
-审查通过后：
-1. **创建备份 tag**（合并前必须执行）
-   ```bash
-   git tag backup/$(date +%Y%m%d-%H%M%S) HEAD
-   ```
-2. 展示变更摘要（文件数、commit 数、关键改动）
-3. 询问用户：
-   ```
-   审查通过。变更摘要：
-   - 分支：<分支名>
-   - 提交数：N
-   - 变更文件：M
-   - 备份 tag：backup/xxx
-   
-   请确认：
-   [1] 合并到主分支
-   [2] 暂不合并，我先测试
-   [3] 需要修改
-   ```
-4. 用户选 [1] 后：
-   ```bash
-   git checkout main && git merge --no-ff <分支名>
-   ```
-5. 用户说"合并吧"等明确指令 → 直接合并，跳过确认对话框
+push/merge 规则：如果 remote、权限、CI 状态允许，任务完成后应 push 任务分支，合并到主分支，push 主分支和 tag，然后删除任务 worktree。任何一步不可执行时，报告具体阻塞并保留 worktree。
 ## 输出格式
 
 ```

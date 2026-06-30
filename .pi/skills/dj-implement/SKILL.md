@@ -21,12 +21,14 @@ description: >
 ```
 
 - 读取 PRD / 设计文档 / issue，理解要做什么
-- 确认在 worktree 中（git-safety）：
+- 确认在专用 worktree 中（git-safety）：
   ```bash
-  pwd  # 应在 ../<项目名>-<分支名> 中，而非主目录
-  git branch --show-current  # 应在 feat/* 分支上
-  # 如果在主目录 → git worktree add ../<项目名>-<分支名> -b feat/<任务简述>
+  git status --short --branch
+  git worktree list
+  # 如果当前目录是主 checkout，先创建隔离 worktree，再修改文件：
+  git worktree add ../<项目名>-<任务名> -b <type>/<任务名> <base-branch>
   ```
+- 主 checkout 必须保持纯净；所有代码修改只发生在任务 worktree。
 - 确认测试环境可用（typecheck、test runner）
 
 ### 2. 实现
@@ -34,7 +36,7 @@ description: >
 **Surgical Changes**：只改必要的代码，不顺手重构。改完后问自己："这一行改动是用户要求的吗？"
 
 - **用 TDD**（如果项目有测试框架）：先写失败测试，再实现，再重构
-- **不用 TDD**（脚本、原型、无测试框架）：直接实现，但每个逻辑单元一个 commit
+- **不用 TDD**（脚本、原型、无测试框架）：直接实现并自验证；不要在实现阶段提交中间 commit。
 - 遵循项目已有的代码规范（读 CLAUDE.md / AGENTS.md / .cursorrules）
 - **阶梯决策**（dj-ponytail 原则）：引入新依赖前，按顺序判断：
   1. stdlib 能做？ → 用 stdlib
@@ -49,19 +51,17 @@ description: >
 - 跑全量测试（最后）
 - 有任何失败 → 修好再提交
 
-### 4. 提交
+### 4. 收尾交接
 
-```bash
-# 确认不在主分支
-git branch --show-current
+实现阶段只交付已验证 diff，不提交。提交、版本号、push、merge、worktree 清理由 `dijiang-finish-work` 统一处理，避免中途 commit 和任务边界不一致。
 
-# 提交
-git add <具体文件>
-git commit -m "feat: <摘要>"
-```
+交接前必须准备：
+- `git status --short --branch`
+- `git diff --stat HEAD`
+- 已执行的验证命令
+- 版本决策建议：`major` / `minor` / `patch` / `none`
 
-- 每个逻辑单元一次 commit
-- **Conventional Commits 规范**（必须遵守）：
+**Conventional Commits 规范**（finish-work 提交时必须遵守）：
   ```
   <type>(<scope>): <subject>
   
@@ -74,7 +74,7 @@ git commit -m "feat: <摘要>"
   - subject: 简短描述，不超过 50 字符
   - body: 可选，详细描述
   - BREAKING CHANGE: 可选，不兼容变更说明
-- 不在主分支上直接 commit
+- 不在主分支上直接 commit；不把文件名堆进 commit message，正文只写实际行为变化。
 ## 深度模块原则
 
 实现时遵循以下设计原则：
@@ -100,7 +100,7 @@ git commit -m "feat: <摘要>"
 | ❌ 不要做 | ✅ 正确做法 |
 |---|---|
 || 在 main/master 上直接写代码 | 在 worktree 中开发 |
-| 一个 commit 搞定所有改动 | 每个逻辑单元一个 commit |
+| 实现中途频繁 commit | 完成验证和版本决策后，由 finish-work 做一次范围一致的提交 |
 | 引入新依赖不检查替代方案 | 先问 stdlib/已有依赖能不能做 |
 | 跑完测试有失败不管 | 修好再提交 |
 | commit 消息写"fix bug" | 用结构化格式 feat/fix/refactor |
