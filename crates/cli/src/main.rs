@@ -1149,9 +1149,9 @@ fn cmd_channel_list() -> anyhow::Result<()> {
     }
 
     if channels.is_empty() {
-        println!("  No channels found.");
+        println!("  未找到通道。");
     } else {
-        println!("  {} active channel(s):", channels.len());
+        println!("  {} 个活跃通道:", channels.len());
         for (id, agent, status) in &channels {
             println!("  {} - {} ({})", id, agent, status);
         }
@@ -1245,7 +1245,7 @@ fn cmd_channel_stop(channel_id: &str) -> anyhow::Result<()> {
         std::fs::write(&channel_toml, &new_content)?;
     }
 
-    println!("  Channel {} stopped.", channel_id);
+    println!("  通道 {} 已停止。", channel_id);
     Ok(())
 }
 
@@ -1344,10 +1344,10 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
             Ok(None) => {
                 // Check timeout
                 if start.elapsed().as_secs() >= timeout {
-                    println!("  Timeout after {}s, killing process...", timeout);
+                    println!("  超时 {}s，正在终止进程...", timeout);
                     child.kill()?;
                     child.wait()?;
-                    anyhow::bail!("Execution timed out after {}s", timeout);
+                    anyhow::bail!("执行超时（{}s）", timeout);
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
@@ -1377,13 +1377,13 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
     }
 
     if output.status.success() {
-        println!("  Agent execution completed.");
-        println!("  Output: {} bytes", stdout.len());
+        println!("  Agent 执行完成。");
+        println!("  输出: {} 字节", stdout.len());
         if !stderr.is_empty() {
-            println!("  Warnings: {} bytes", stderr.len());
+            println!("  警告: {} 字节", stderr.len());
         }
     } else {
-        println!("  Agent execution failed.");
+        println!("  Agent 执行失败。");
         println!("  stderr: {}", stderr);
         std::process::exit(1);
     }
@@ -1451,16 +1451,16 @@ fn cmd_channel_execute_all(model: Option<&str>, provider: Option<&str>, timeout:
     for handle in handles {
         let (channel_id, success, error) = handle.join().unwrap();
         if success {
-            println!("  {} completed", channel_id);
+            println!("  {} 已完成", channel_id);
             success_count += 1;
         } else {
-            println!("  {} failed: {}", channel_id, error);
+            println!("  {} 失败: {}", channel_id, error);
             fail_count += 1;
         }
     }
 
     println!();
-    println!("  Results: {} succeeded, {} failed", success_count, fail_count);
+    println!("  结果: {} 成功, {} 失败", success_count, fail_count);
 
     Ok(())
 }
@@ -1844,39 +1844,39 @@ fn cmd_mem_finetune() -> anyhow::Result<()> {
 fn cmd_update(_force: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
-        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+        .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?;
 
-    println!("  Updating dj-* skills and agents...");
+    println!("  正在更新 dj-* 技能和代理...");
     println!();
 
-    // Update skills
+    // 更新技能
     let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
     if skills_written > 0 {
-        println!("  Updated {} dj-* skills to .pi/skills/", skills_written);
+        println!("  已更新 {} 个 dj-* 技能到 .pi/skills/", skills_written);
     } else {
-        println!("  Skills already up to date.");
+        println!("  技能已是最新。");
     }
 
-    // Note about agents
+    // 代理目录检查
     let agents_dir = cwd.join(".pi").join("agents");
     if !agents_dir.exists() {
-        println!("  Note: No .pi/agents/ directory found. Run `dijiang init` first.");
+        println!("  注意：未找到 .pi/agents/ 目录。请先运行 `dijiang init`。");
     } else {
-        println!("  Agents directory exists at .pi/agents/");
+        println!("  代理目录已存在于 .pi/agents/");
     }
 
-    // Update workflow.md if template exists
+    // 检查 workflow.md
     let workflow_file = dijiang_dir.join("workflow.md");
     if workflow_file.exists() {
         let content = std::fs::read_to_string(&workflow_file)?;
         if !content.contains("Phase 6: Review") {
-            println!("  Note: Consider updating workflow.md to include Phase 6: Review");
+            println!("  建议：更新 workflow.md 以包含 Phase 6: Review");
         }
     }
 
     println!();
-    println!("  Update complete.");
-    println!("  Tip: Run `dijiang init --force` to regenerate all config files.");
+    println!("  更新完成。");
+    println!("  提示：运行 `dijiang init --force` 可重新生成所有配置文件。");
 
     Ok(())
 }
