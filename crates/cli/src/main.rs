@@ -310,6 +310,62 @@ fn main() -> anyhow::Result<()> {
         Commands::Update { force, from_github } => cmd_update(force, from_github),
     }
 }
+
+/// 获取项目 .dijiang/ 目录（失败时返回错误）
+fn require_dijiang_dir() -> anyhow::Result<std::path::PathBuf> {
+    let cwd = std::env::current_dir()?;
+    crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))
+}
+
+/// 从通道元数据中读取 agent 名称
+fn read_channel_agent_name(channel_dir: &std::path::Path) -> String {
+    let channel_toml = channel_dir.join("channel.toml");
+    if !channel_toml.exists() {
+        return "unknown".to_string();
+    }
+    std::fs::read_to_string(&channel_toml)
+        .ok()
+        .and_then(|content| {
+            content.lines()
+                .find(|l| l.contains("agent"))
+                .and_then(|l| l.split('=').nth(1))
+                .map(|s| s.trim().trim_matches('"').to_string())
+        })
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// 更新通道状态
+fn update_channel_status(channel_dir: &std::path::Path, status: &str) -> anyhow::Result<()> {
+    let channel_toml = channel_dir.join("channel.toml");
+    if channel_toml.exists() {
+        let content = std::fs::read_to_string(&channel_toml)?;
+        let new_content = content.replace("status = \"active\"", &format!("status = \"{}\"", status));
+        std::fs::write(&channel_toml, &new_content)?;
+    }
+    Ok(())
+}
+
+/// 写入通道元数据
+fn write_channel_metadata(
+    channel_dir: &std::path::Path,
+    channel_id: &str,
+    agent: &str,
+    task: &str,
+    dir: &std::path::Path,
+) -> anyhow::Result<()> {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let metadata = format!(
+        "id = {:?}\nagent = {:?}\nstatus = \"active\"\ncreated = {:?}\n\"task\" = {:?}\n\"dir\" = {:?}\n",
+        channel_id, agent, timestamp, task, dir
+    );
+    std::fs::write(channel_dir.join("channel.toml"), &metadata)?;
+    Ok(())
+}
+
 fn status_line(label: &str, value: impl std::fmt::Display) {
     println!("  {label:15} {value}");
 }
@@ -318,13 +374,7 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
     println!("\n  ── DiJiang Status ──\n");
 
     let cwd = std::env::current_dir()?;
-    let dijiang_dir = match store::find_dijiang_dir(&cwd) {
-        Some(d) => d,
-        None => {
-            println!("  No .dijiang/ found. Run `dijiang init` first.");
-            return Ok(());
-        }
-    };
+    let dijiang_dir = require_dijiang_dir()?;
 
     let name = dijiang_configurator::read_project_name(&cwd);
     status_line("Project:", &name);
@@ -388,13 +438,7 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
 }
 
 fn cmd_task_list() -> anyhow::Result<()> {
-    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
-        Some(d) => d,
-        None => {
-            println!("No .dijiang/ found.");
-            return Ok(());
-        }
-    };
+    let dijiang_dir = require_dijiang_dir()?;
 
     let tasks_dir = dijiang_dir.join("tasks");
     let tasks = store::list_tasks(&tasks_dir).unwrap_or_default();
@@ -415,13 +459,7 @@ fn cmd_task_list() -> anyhow::Result<()> {
 }
 
 fn cmd_task_current() -> anyhow::Result<()> {
-    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
-        Some(d) => d,
-        None => {
-            println!("No .dijiang/ found.");
-            return Ok(());
-        }
-    };
+    let dijiang_dir = require_dijiang_dir()?;
 
     match store::read_active_task(&dijiang_dir)? {
         Some(name) => println!("{name}"),
@@ -431,13 +469,8 @@ fn cmd_task_current() -> anyhow::Result<()> {
 }
 
 fn cmd_task_start(name: &str) -> anyhow::Result<()> {
-    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
-        Some(d) => d,
-        None => {
-            eprintln!("No .dijiang/ found.");
-            std::process::exit(1);
-        }
-    };
+    let dijiang_dir = require_dijiang_dir()?;
+
 
     let tasks_dir = dijiang_dir.join("tasks");
 
@@ -466,13 +499,7 @@ fn cmd_task_start(name: &str) -> anyhow::Result<()> {
 }
 
 fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
-    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
-        Some(d) => d,
-        None => {
-            eprintln!("No .dijiang/ found.");
-            std::process::exit(1);
-        }
-    };
+    let dijiang_dir = require_dijiang_dir()?;
 
     let new_status = match status_str {
         "planning" => TaskStatus::Planning,
@@ -504,13 +531,7 @@ fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
 }
 
 fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
-    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
-        Some(d) => d,
-        None => {
-            println!("No .dijiang/ found.");
-            return Ok(());
-        }
-    };
+    let dijiang_dir = require_dijiang_dir()?;
 
     let tasks_dir = dijiang_dir.join("tasks");
     match store::archive_task(&tasks_dir, name) {
@@ -530,13 +551,7 @@ fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
 }
 
 fn cmd_task_prune(days: u64) -> anyhow::Result<()> {
-    let dijiang_dir = match store::find_dijiang_dir(&std::env::current_dir()?) {
-        Some(d) => d,
-        None => {
-            println!("No .dijiang/ found.");
-            return Ok(());
-        }
-    };
+    let dijiang_dir = require_dijiang_dir()?;
 
     let tasks_dir = dijiang_dir.join("tasks");
     match store::prune_tasks(&tasks_dir, days) {
@@ -768,13 +783,8 @@ fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platfor
 
 fn cmd_start(name: &str, title: Option<&str>) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    let dijiang_dir = match store::find_dijiang_dir(&cwd) {
-        Some(d) => d,
-        None => {
-            eprintln!("No .dijiang/ found. Run `dijiang init` first.");
-            std::process::exit(1);
-        }
-    };
+    let dijiang_dir = require_dijiang_dir()?;
+
 
     let tasks_dir = dijiang_dir.join("tasks");
     let now = chrono::Utc::now();
