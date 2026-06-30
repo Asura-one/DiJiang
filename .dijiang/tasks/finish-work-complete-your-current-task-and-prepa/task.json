@@ -1,0 +1,36 @@
+{
+  "id": "finish-work-complete-your-current-task-and-prepa",
+  "name": "finish-work-complete-your-current-task-and-prepa",
+  "title": "## Finish Work Complete your current task and prepare for `dijiang finish-work`.",
+  "description": "## Finish Work\n\nComplete your current task and prepare for `dijiang finish-work`.\n\nSteps:\n1. Run relevant checks or tests\n2. Verify type checks pass when applicable\n3. Run `dj-check` if code changed\n4. Record findings or lessons with `dijiang mem findings` / `dijiang mem learn`\n5. Finish with `dijiang finish-work --verification \"...\"`",
+  "status": "completed",
+  "devType": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "",
+  "assignee": "",
+  "createdAt": "2026-06-30",
+  "completedAt": null,
+  "branch": null,
+  "baseBranch": null,
+  "worktreePath": null,
+  "commit": null,
+  "prUrl": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "dispatch": {
+      "task_type": "测试开发",
+      "primary_intent": "测试驱动开发",
+      "skill": "dj-tdd",
+      "recommended_path": "dj-tdd → dj-check"
+    }
+  },
+  "startedAt": "2026-06-30T16:41:36.446781+00:00",
+  "source": "dijiang dispatch",
+  "sessionId": "global_global"
+}
