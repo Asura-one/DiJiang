@@ -41,6 +41,12 @@ DiJiang uses the **dj-* skill ecosystem**, a full pipeline from dispatch to deli
 - Use `dj-audit` for whole-codebase over-engineering scans
 - Output: verified changes
 
+### Phase 6: Review (optional but recommended)
+- Use `dijiang review --mode adversarial` for multi-angle security review
+  - 7 attack vectors: security, edge cases, performance, data corruption, race conditions, resource leaks, error handling
+- Use `dijiang review --mode first-principles` for architectural review
+  - 6 steps: fundamental problem, basic facts, hidden assumptions, derive solution, simpler approach, trade-offs
+- Output: review findings + fixes
 ---
 
 ## Project Structure
@@ -78,6 +84,13 @@ DiJiang uses the **dj-* skill ecosystem**, a full pipeline from dispatch to deli
 | `dijiang template list` | List built-in + cached templates |
 | `dijiang template pull <source>` | Pull template from gh:owner/repo or URL |
 | `dijiang template validate <path>` | Validate a template manifest |
+| `dijiang review --mode <mode>` | Run adversarial or first-principles review |
+| `dijiang channel spawn <agent>` | Spawn an agent channel |
+| `dijiang channel list` | List active channels |
+| `dijiang channel execute <id>` | Execute an agent in a channel |
+| `dijiang channel execute-all` | Execute all active channels in parallel |
+| `dijiang channel status <id>` | Check channel status |
+| `dijiang channel stop <id>` | Stop a channel |
 ## Skill Routing
 
 | Request type | Use |
@@ -87,12 +100,14 @@ DiJiang uses the **dj-* skill ecosystem**, a full pipeline from dispatch to deli
 | Feature implementation | `dj-implement` or `dj-tdd` |
 | Bug / regression | `dj-hunt` |
 | Code review / quality | `dj-check` |
+| Multi-angle security review | `dijiang review --mode adversarial` |
+| First-principles architectural review | `dijiang review --mode first-principles` |
 | Whole-codebase audit | `dj-audit` |
 | Technical debt assessment | `dj-debt` |
 | Codebase health report | `dj-health` |
 | Security review | `dj-review` |
 | Documentation / specs | `dj-output` |
-| Session management | `dj-muse` |
+| Session management | `dijiang mem record`, `dijiang mem learn`, `dijiang mem findings` |
 | Handoff between sessions | `dj-handoff` |
 | Refactoring | `dj-ponytail` |
 | Prototype | `dj-prototype` |
