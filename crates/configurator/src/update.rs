@@ -17,6 +17,7 @@ pub struct UpdateReport {
     pub updated: Vec<String>,
     pub unchanged: Vec<String>,
     pub conflicts: Vec<String>,
+    pub warnings: Vec<String>,
 }
 
 impl UpdateReport {
@@ -263,7 +264,7 @@ fn protected(path: &str) -> ManagedFile {
 
 fn record_duplicate_skill_dirs(cwd: &Path, report: &mut UpdateReport) {
     for name in crate::detect_skills_conflict(cwd).duplicate_dj_skill_dirs {
-        report.conflicts.push(format!(".pi/skills/{name}"));
+        report.warnings.push(format!("stale duplicate generated skill directory: .pi/skills/{name}"));
     }
 }
 
@@ -484,10 +485,15 @@ mod tests {
             "edited skill without previous hash should conflict: {report:?}"
         );
         assert!(
-            report
+            report.warnings.iter().any(|warning| warning
+                .contains("stale duplicate generated skill directory: .pi/skills/dj-dj-implement")),
+            "duplicate generated skill dir should be reported without blocking update: {report:?}"
+        );
+        assert!(
+            !report
                 .conflicts
                 .contains(&".pi/skills/dj-dj-implement".to_string()),
-            "duplicate generated skill dir should be reported without deletion: {report:?}"
+            "duplicate generated skill dir must not block update: {report:?}"
         );
         assert_eq!(
             fs::read_to_string(tmp.path().join(".pi/skills/dj-implement/SKILL.md")).unwrap(),

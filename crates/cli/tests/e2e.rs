@@ -223,6 +223,25 @@ fn test_e2e_update_blocks_and_force_overwrites_skill_conflicts() {
 }
 
 #[test]
+fn test_e2e_update_force_reports_duplicate_skill_dirs_without_blocking() {
+    let (_tmp, project_dir) = init_project();
+    let duplicate_dir = project_dir.join(".pi/skills/dj-dj-hunt");
+    std::fs::create_dir_all(&duplicate_dir).unwrap();
+    std::fs::write(duplicate_dir.join("SKILL.md"), "# stale duplicate").unwrap();
+
+    let out = dijang(&["update", "--force"], &project_dir).unwrap();
+    assert!(
+        out.contains("warning   stale duplicate generated skill directory: .pi/skills/dj-dj-hunt"),
+        "force update should report duplicate skill dir as warning: {out}"
+    );
+    assert!(
+        out.contains("0 个冲突") || !out.contains("update blocked"),
+        "duplicate skill dir should not block force update: {out}"
+    );
+    assert!(duplicate_dir.join("SKILL.md").exists());
+}
+
+#[test]
 fn test_e2e_task_lifecycle() {
     let (_tmp, project_dir) = init_project();
 
