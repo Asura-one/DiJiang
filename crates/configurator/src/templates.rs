@@ -199,8 +199,9 @@ mod tests {
     #[test]
     fn test_workflow_template() {
         let content = render("config/workflow.md", &[]).unwrap();
-        assert!(content.contains("DiJiang Workflow"));
+        assert!(content.contains("DiJiang Canonical Workflow"));
         assert!(content.contains("dj-dispatch"));
+        assert!(!content.contains("dj-muse"));
     }
 
     #[test]

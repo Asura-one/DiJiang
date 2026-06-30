@@ -4,115 +4,111 @@
 
 ## Core Principles
 
-1. **Plan before code** — figure out what to do before you start
-2. **Specs injected, not remembered** — guidelines are injected via hook/skill, not recalled from memory
-3. **Persist everything** — research, decisions, and lessons all go to files
-5. **Capture learnings** — after each task, review and write new knowledge back to spec
-6. **MUSE memory** — every task session is tracked for cross-session recall
+1. **Plan before code** — align scope before implementation when requirements are unclear.
+2. **Specs injected, not remembered** — guidelines are injected via hook/skill, not recalled from memory.
+3. **Persist decisions** — task artifacts, findings, lessons, and handoffs are written to `.dijiang/`.
+4. **One canonical workflow** — CLI, skills, AGENTS, prompts, and agents are projections of this model.
 
-## DiJiang Workflow
-DiJiang uses the **dj-* skill ecosystem**, a full pipeline from dispatch to delivery:
+## DiJiang Canonical Workflow
 
-### Phase 0: Dispatch & Memory (entry)
-- Use `dj-dispatch` to classify any new task
-- Automatically routes to the correct dj-* skill
-- `dj-muse` creates a session for cross-task memory tracking
-- Use `dj-grill` to align on requirements
-- One question at a time, with recommended answers
-- Output: `prd.md`
+DiJiang uses `dijiang` CLI for project state and `dj-*` skills for execution capability. `review` is not a canonical task status; quality verification is handled by `dj-check`.
 
-### Phase 2: Document (output)
-- Use `dj-output` to create design docs, implementation plans
-- Output: `design.md`, `implement.md`
+| Task status | Workflow phase | Recommended entry | Output |
+|-------------|----------------|-------------------|--------|
+| none | dispatch | `dijiang start <name>` or `dj-dispatch` | Active task and routing decision |
+| `planning` | align | `dj-grill`, optionally `dj-output` | `prd.md`, optionally `design.md` / `implement.md` |
+| `in_progress` | implement | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-script` / `dj-design` | Working code, tests, verification notes |
+| `in_progress` | check | `dj-check` | Verified diff and follow-up fixes |
+| `completed` | finish | `dijiang finish-work --verification "..."` | Journal entry, archived task, cleared active session |
+| `archived` | closed | Read-only, or restart with `dijiang start <task>` | No active work on archived task |
+| `paused` | resume | `dijiang-continue` | Context restored, then return to `planning` or `in_progress` |
 
-### Phase 3: Implement
-- Use `dj-implement` for feature coding
-- Use `dj-tdd` for test-driven development
-- Use `dj-ponytail` for minimal, focused changes
-- Output: working code + tests
+## Skill Taxonomy
 
-### Phase 4: Investigate (hunt)
-- Use `dj-hunt` for bug investigation
-- Systematic root cause analysis
-- Output: fix + spec update
-
-### Phase 5: Check
-- Use `dj-check` for quality review
-- Use `dj-audit` for whole-codebase over-engineering scans
-- Output: verified changes
-
-### Phase 6: Review (optional but recommended)
-- Use `dijiang review --mode adversarial` for multi-angle security review
-  - 7 attack vectors: security, edge cases, performance, data corruption, race conditions, resource leaks, error handling
-- Use `dijiang review --mode first-principles` for architectural review
-  - 6 steps: fundamental problem, basic facts, hidden assumptions, derive solution, simpler approach, trade-offs
-- Output: review findings + fixes
----
+| Category | Skills | Boundary |
+|----------|--------|----------|
+| Routing | `dj-dispatch` | Classify and route; do not implement directly |
+| Alignment | `dj-grill` | Requirements alignment; do not write code |
+| Planning docs | `dj-output` | PRD/design/implementation docs and code-doc alignment |
+| Implementation | `dj-implement`, `dj-tdd`, `dj-hunt`, `dj-prototype`, `dj-script`, `dj-design` | Write code or investigate root causes |
+| Quality gate | `dj-check` | Verify diff quality, completeness, safety, and regressions |
+| Analysis reports | `dj-audit`, `dj-debt`, `dj-health`, `dj-pattern` | Produce reports; not a default delivery gate |
+| Style overlays | `dj-ponytail`, `dj-karpathy` | Add constraints to another workflow path |
+| Writing polish | `dj-write` | Polish prose; does not own engineering docs lifecycle |
+| Session transfer | `dj-handoff` | Prepare handoff; does not replace finish-work journal |
+| Session wrappers | `dijiang-start`, `dijiang-continue`, `dijiang-finish-work` | Load context, route, and close sessions |
 
 ## Project Structure
 
 ```
-.dijiang/            # Task management + specs
+.dijiang/            # DiJiang project state
 ├── tasks/           # Task directories (task.json, prd.md, design.md, …)
 ├── spec/            # Coding guidelines by package/layer
 ├── workspace/       # Developer journals
-└── workflow.md      # This file
-
-.dijiang/            # DiJiang configuration
-└── config.toml
+├── workflow.md      # This file
+└── config.toml      # DiJiang configuration
 
 .pi/                 # Pi platform configuration
-├── settings.json    # Platform settings (skills, prompts, extensions)
-├── skills/          # Project-level skills (delegates to global dj-*)
+├── settings.json    # Platform settings
+├── skills/          # Project-level skills
 ├── agents/          # Sub-agent definitions
 └── prompts/         # Prompt templates
 ```
+
+.trellis/ may be read only as a legacy compatibility fallback. New DiJiang templates should use `.dijiang/` as the primary path.
 
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
 | `dijiang status` | Show project and active task status |
-| `dijiang start <name>` | Create and activate a new task |
+| `dijiang status --compat` | Show compatibility diagnostics |
+| `dijiang start <name>` | Create and activate a work session |
+| `dijiang finish-work --verification "..."` | Finish current work, write journal, archive task |
 | `dijiang task list` | List all tasks |
 | `dijiang task current` | Show active task |
 | `dijiang task status <name> <status>` | Update task status |
-| `dijiang task archive <name>` | Archive a task (set status + timestamp) |
+| `dijiang task archive <name>` | Archive a task |
 | `dijiang task prune --days N` | Delete archived tasks older than N days |
-| `dijiang mem list` | List memory sessions |
-| `dijiang mem sync` | Sync all platform sessions to ~/.dijiang/mem/ |
-| `dijiang template list` | List built-in + cached templates |
-| `dijiang template pull <source>` | Pull template from gh:owner/repo or URL |
+| `dijiang mem list` | List platform sessions |
+| `dijiang mem sync` | Sync platform sessions to `~/.dijiang/mem/` |
+| `dijiang mem findings --finding "..."` | Append project finding |
+| `dijiang mem learn --lesson "..."` | Record project lesson |
+| `dijiang mem archive` | Archive current memory session |
+| `dijiang mem tactic --name N --description D` | Add global tactic |
+| `dijiang mem record --tactic T --outcome success --context C` | Record tactic outcome |
+| `dijiang template list` | List built-in and cached templates |
+| `dijiang template pull <source>` | Pull template from `gh:owner/repo` or URL |
 | `dijiang template validate <path>` | Validate a template manifest |
-| `dijiang review --mode <mode>` | Run adversarial or first-principles review |
+| `dijiang skills --sync` | Sync project `dj-*` skills |
+| `dijiang workflow-state --json` | Output workflow state for hooks/agents |
 | `dijiang channel spawn <agent>` | Spawn an agent channel |
 | `dijiang channel list` | List active channels |
+| `dijiang channel send <id> <message>` | Send message to a channel |
 | `dijiang channel execute <id>` | Execute an agent in a channel |
 | `dijiang channel execute-all` | Execute all active channels in parallel |
 | `dijiang channel status <id>` | Check channel status |
 | `dijiang channel stop <id>` | Stop a channel |
-## Skill Routing
+
+## Routing Rules
 
 | Request type | Use |
-| Request type | Use |
-|---|---|
-| New feature / unclear requirements | `dj-dispatch` → `dj-grill` |
+|--------------|-----|
+| New task or unclear request | `dj-dispatch` |
+| Requirements alignment | `dj-grill` |
 | Feature implementation | `dj-implement` or `dj-tdd` |
-| Bug / regression | `dj-hunt` |
-| Code review / quality | `dj-check` |
-| Multi-angle security review | `dijiang review --mode adversarial` |
-| First-principles architectural review | `dijiang review --mode first-principles` |
+| Bug or regression | `dj-hunt` |
+| Code review / quality gate | `dj-check` |
 | Whole-codebase audit | `dj-audit` |
 | Technical debt assessment | `dj-debt` |
 | Codebase health report | `dj-health` |
-| Security review | `dj-review` |
 | Documentation / specs | `dj-output` |
-| Session management | `dijiang mem record`, `dijiang mem learn`, `dijiang mem findings` |
 | Handoff between sessions | `dj-handoff` |
-| Refactoring | `dj-ponytail` |
+| Minimal focused changes | `dj-ponytail` |
 | Prototype | `dj-prototype` |
 | UI design | `dj-design` |
 | Script / tool | `dj-script` |
 | Pattern research | `dj-pattern` |
-| Write documentation | `dj-write` |
+| Writing polish | `dj-write` |
 | Long code discussion | `dj-karpathy` |
+| Session findings or lessons | `dijiang mem findings` / `dijiang mem learn` |
