@@ -1,5 +1,0 @@
-[agent]
-default_agent = "dijiang-implement"
-
-[features]
-hooks = true

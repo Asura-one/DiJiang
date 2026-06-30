@@ -73,7 +73,8 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     for (_, result) in registry.configure(temp.path(), &platforms) {
         result?;
     }
-    crate::write_project_skills(temp.path(), options.force).map_err(|e| ConfigError::Serialize(e.to_string()))?;
+    crate::write_project_skills(temp.path(), options.force)
+        .map_err(|e| ConfigError::Serialize(e.to_string()))?;
     let mut managed_files = managed_files_for_platforms(&platforms);
     managed_files.extend(skill_files());
     managed_files.extend(project_skill_files());
@@ -537,7 +538,9 @@ mod tests {
             "force should update edited skill: {report:?}"
         );
         assert!(
-            report.removed.contains(&".pi/skills/dj-dj-check".to_string()),
+            report
+                .removed
+                .contains(&".pi/skills/dj-dj-check".to_string()),
             "force should remove duplicate generated skill dir: {report:?}"
         );
         assert!(!tmp.path().join(".pi/skills/dj-dj-check").exists());

@@ -308,6 +308,99 @@ fn test_e2e_task_lifecycle() {
         "pruned task directory should be removed"
     );
 }
+
+#[test]
+fn test_e2e_dispatch_creates_task_from_natural_language() {
+    let (_tmp, project_dir) = init_project();
+
+    let out = dijang(
+        &[
+            "dispatch",
+            "排查登录接口报错并修复",
+            "--json",
+            "--hook-event",
+            "input",
+        ],
+        &project_dir,
+    )
+    .unwrap();
+    assert!(out.contains("dijiang-dispatch"), "dispatch output: {out}");
+    assert!(out.contains("dj-hunt"), "dispatch output: {out}");
+
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(!current.contains("(none)"), "current output: {current}");
+    let task_name = current.trim();
+    let task_json = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("tasks")
+            .join(task_name)
+            .join("task.json"),
+    )
+    .unwrap();
+    assert!(task_json.contains("排查登录接口报错并修复"));
+    assert!(task_json.contains("dj-hunt"));
+    assert!(task_json.contains("in_progress"));
+}
+
+#[test]
+fn test_e2e_dispatch_reuses_active_task_by_default() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(&["dispatch", "实现一个导出按钮"], &project_dir).unwrap();
+    let first = dijang(&["task", "current"], &project_dir).unwrap();
+    let second_out = dijang(&["dispatch", "再补充一个细节"], &project_dir).unwrap();
+    let second = dijang(&["task", "current"], &project_dir).unwrap();
+
+    assert_eq!(first.trim(), second.trim());
+    assert!(second_out.contains("Task created:"));
+}
+
+#[test]
+fn test_e2e_dispatch_active_task_is_session_scoped() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang_with_env(
+        &["dispatch", "实现窗口 A 功能"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-a")],
+    )
+    .unwrap();
+    let current_a = dijang_with_env(
+        &["task", "current"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-a")],
+    )
+    .unwrap();
+
+    dijang_with_env(
+        &["dispatch", "实现窗口 B 功能"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-b")],
+    )
+    .unwrap();
+    let current_b = dijang_with_env(
+        &["task", "current"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-b")],
+    )
+    .unwrap();
+    let current_a_after_b = dijang_with_env(
+        &["task", "current"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-a")],
+    )
+    .unwrap();
+
+    assert_ne!(current_a.trim(), current_b.trim());
+    assert_eq!(current_a.trim(), current_a_after_b.trim());
+
+    let no_session_current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(
+        no_session_current.contains("(none)"),
+        "current output: {no_session_current}"
+    );
+}
 #[test]
 fn test_e2e_finish_work_archives_and_clears_active_task() {
     let (_tmp, project_dir) = init_project();
@@ -440,7 +533,7 @@ fn test_e2e_finish_work_closes_session_on_clean_git_worktree() {
             .join("workspace")
             .join("e2e")
             .join("sessions")
-            .join("dijiang_finish-window.jsonl"),
+            .join("finish-window.jsonl"),
     )
     .unwrap();
     assert!(session_journal.contains("workflow_state_injected"));
@@ -453,7 +546,7 @@ fn test_e2e_finish_work_closes_session_on_clean_git_worktree() {
             .join(".dijiang")
             .join(".runtime")
             .join("sessions")
-            .join("dijiang_finish-window.json"),
+            .join("finish-window.json"),
     )
     .unwrap();
     assert!(session_runtime.contains("closed_at"));
@@ -484,13 +577,11 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
         &[("DIJIANG_CONTEXT_ID", "window-a")],
     )
     .unwrap();
-    assert!(first_a.contains("Session: dijiang_window-a (dijiang)"));
+    assert!(first_a.contains("Session: window-a (dijiang)"));
     assert!(first_a.contains("Injection: #1"));
     assert!(first_a.contains("Active task changed: true"));
     assert!(first_a.contains("Active task: window-a-task"));
-    assert!(
-        first_a.contains("Session journal: .dijiang/workspace/e2e/sessions/dijiang_window-a.jsonl")
-    );
+    assert!(first_a.contains("Session journal: .dijiang/workspace/e2e/sessions/window-a.jsonl"));
     assert!(first_a.contains("Recent memory: 1 recent session event(s) loaded for this window."));
     assert!(first_a.contains("injection #1: active=window-a-task, previous=none, changed=true"));
 
@@ -522,14 +613,12 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
         &[("DIJIANG_CONTEXT_ID", "window-b")],
     )
     .unwrap();
-    assert!(first_b.contains("Session: dijiang_window-b (dijiang)"));
+    assert!(first_b.contains("Session: window-b (dijiang)"));
     assert!(first_b.contains("Injection: #1"));
     assert!(first_b.contains("Active task: window-b-task"));
     assert!(first_b.contains("Recent memory: 1 recent session event(s) loaded for this window."));
     assert!(first_b.contains("Other active windows: 1"));
-    assert!(
-        first_b.contains("dijiang_window-a (dijiang) task=window-a-task state=active injections=2")
-    );
+    assert!(first_b.contains("window-a (dijiang) task=window-a-task state=active injections=2"));
     assert!(!first_b.contains("injection #1: active=window-a-task"));
 
     dijang_with_env(
@@ -554,17 +643,14 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
             .contains("injection #3: active=window-a-next, previous=window-a-task, changed=true")
     );
     assert!(changed_a.contains("Other active windows: 1"));
-    assert!(
-        changed_a
-            .contains("dijiang_window-b (dijiang) task=window-b-task state=active injections=1")
-    );
+    assert!(changed_a.contains("window-b (dijiang) task=window-b-task state=active injections=1"));
 
     let session_a = std::fs::read_to_string(
         project_dir
             .join(".dijiang")
             .join(".runtime")
             .join("sessions")
-            .join("dijiang_window-a.json"),
+            .join("window-a.json"),
     )
     .unwrap();
     assert!(session_a.contains("\"injection_count\": 3"));
@@ -578,8 +664,8 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     )
     .unwrap();
     assert!(log.contains("workflow_state_injected"));
-    assert!(log.contains("dijiang_window-a"));
-    assert!(log.contains("dijiang_window-b"));
+    assert!(log.contains("window-a"));
+    assert!(log.contains("window-b"));
 
     let journal_a = std::fs::read_to_string(
         project_dir
@@ -587,7 +673,7 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
             .join("workspace")
             .join("e2e")
             .join("sessions")
-            .join("dijiang_window-a.jsonl"),
+            .join("window-a.jsonl"),
     )
     .unwrap();
     assert_eq!(journal_a.lines().count(), 3);
@@ -601,7 +687,7 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
             .join("workspace")
             .join("e2e")
             .join("sessions")
-            .join("dijiang_window-b.jsonl"),
+            .join("window-b.jsonl"),
     )
     .unwrap();
     assert_eq!(journal_b.lines().count(), 1);
