@@ -1128,8 +1128,7 @@ fn cmd_init(
     )?;
 
     // Write dj-* skills to project
-    // Write dj-* skills to project
-    let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
+    let skills_written = dijiang_configurator::write_project_skills(&cwd, false)?;
     if skills_written > 0 {
         println!("  Wrote {} dj-* skills to .pi/skills/", skills_written);
     }
@@ -1333,7 +1332,7 @@ fn cmd_mem_sync() -> anyhow::Result<()> {
 fn cmd_skills(sync: bool) -> anyhow::Result<()> {
     if sync {
         let cwd = std::env::current_dir()?;
-        let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
+        let skills_written = dijiang_configurator::write_project_skills(&cwd, false)?;
         println!("  Synced {} dj-* skills to .pi/skills/", skills_written);
     } else {
         let names = dijiang_configurator::list_skill_names();

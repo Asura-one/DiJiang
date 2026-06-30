@@ -242,6 +242,34 @@ fn test_e2e_update_force_reports_duplicate_skill_dirs_without_blocking() {
 }
 
 #[test]
+fn test_e2e_update_force_refreshes_global_skill_cache() {
+    let (tmp, project_dir) = init_project();
+    let home = tmp.path().join("home");
+    let global_skill = home.join(".dijiang/skills/dj-audit/SKILL.md");
+    std::fs::create_dir_all(global_skill.parent().unwrap()).unwrap();
+    std::fs::write(&global_skill, "# Audit\n# 测试\n").unwrap();
+
+    let project_skill = project_dir.join(".pi/skills/dj-audit/SKILL.md");
+    std::fs::write(&project_skill, "# Audit\n# 测试\n").unwrap();
+
+    let out = dijang_with_env(
+        &["update", "--force"],
+        &project_dir,
+        &[("HOME", home.to_str().unwrap())],
+    )
+    .unwrap();
+    assert!(
+        out.contains("updated   .pi/skills/dj-audit/SKILL.md"),
+        "force update should refresh project skill from embedded template: {out}"
+    );
+
+    let refreshed_global = std::fs::read_to_string(&global_skill).unwrap();
+    assert!(!refreshed_global.contains("# 测试"));
+    let refreshed_project = std::fs::read_to_string(&project_skill).unwrap();
+    assert!(!refreshed_project.contains("# 测试"));
+}
+
+#[test]
 fn test_e2e_task_lifecycle() {
     let (_tmp, project_dir) = init_project();
 

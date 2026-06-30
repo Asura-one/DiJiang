@@ -124,12 +124,11 @@ pub fn get_skill_content(name: &str) -> Option<&'static str> {
 }
 
 /// Ensure the global skill template directory exists and is populated
-/// from embedded resources. Only writes if the directory is missing or empty.
-pub fn ensure_global_skills() -> Result<PathBuf> {
+/// from embedded resources. Force refresh rewrites managed global dj-* skills.
+pub fn ensure_global_skills(force: bool) -> Result<PathBuf> {
     let dir = global_skills_dir()?;
 
-    // Already populated — skip.
-    if dir.exists() && dir.read_dir()?.next().is_some() {
+    if !force && dir.exists() && dir.read_dir()?.next().is_some() {
         return Ok(dir);
     }
 
@@ -145,9 +144,10 @@ pub fn ensure_global_skills() -> Result<PathBuf> {
 }
 
 /// Write dj-* skills from the global template directory into a project's
-/// `.pi/skills/` directory. Skips skills that already exist in the project.
-pub fn write_project_skills(project_dir: &Path) -> Result<usize> {
-    let global_dir = ensure_global_skills()?;
+/// `.pi/skills/` directory. Force refresh rewrites managed global templates
+/// and overwrites project copies of managed `dj-*` skills.
+pub fn write_project_skills(project_dir: &Path, force: bool) -> Result<usize> {
+    let global_dir = ensure_global_skills(force)?;
     let pi_skills = project_dir.join(".pi").join("skills");
 
     let mut written = 0usize;
@@ -160,8 +160,7 @@ pub fn write_project_skills(project_dir: &Path) -> Result<usize> {
         let dst_dir = pi_skills.join(name);
         let dst = dst_dir.join("SKILL.md");
 
-        // Don't overwrite existing project skills.
-        if dst.exists() {
+        if dst.exists() && !force {
             continue;
         }
 
