@@ -1,3 +1,4 @@
+use crate::MemAdapter;
 /// Claude Code platform memory adapter.
 ///
 /// Session storage layout:
@@ -9,7 +10,6 @@
 ///   sessionId, fullPath, created, modified, projectPath, messageCount
 use crate::jsonl;
 use crate::types::*;
-use crate::MemAdapter;
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -178,16 +178,13 @@ impl MemAdapter for ClaudeAdapter {
                     .unwrap_or("")
                     .to_string();
 
-                let (cwd, created) =
-                    Self::read_first_event_cwd(&path).unwrap_or_default();
+                let (cwd, created) = Self::read_first_event_cwd(&path).unwrap_or_default();
 
                 let metadata = std::fs::metadata(&path).ok();
                 let updated = metadata
                     .and_then(|m| m.modified().ok())
                     .map(|t| {
-                        let duration = t
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default();
+                        let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
                         chrono::DateTime::from_timestamp(
                             duration.as_secs() as i64,
                             duration.subsec_nanos(),
@@ -229,15 +226,12 @@ impl MemAdapter for ClaudeAdapter {
 
             let file_path = project_dir.join(format!("{session_id}.jsonl"));
             if file_path.exists() {
-                let (cwd, created) =
-                    Self::read_first_event_cwd(&file_path).unwrap_or_default();
+                let (cwd, created) = Self::read_first_event_cwd(&file_path).unwrap_or_default();
                 let metadata = std::fs::metadata(&file_path).ok();
                 let updated = metadata
                     .and_then(|m| m.modified().ok())
                     .map(|t| {
-                        let duration = t
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default();
+                        let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
                         chrono::DateTime::from_timestamp(
                             duration.as_secs() as i64,
                             duration.subsec_nanos(),

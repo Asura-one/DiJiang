@@ -1,3 +1,4 @@
+use crate::MemAdapter;
 /// Hermes Agent platform memory adapter.
 ///
 /// Session storage layout:
@@ -10,7 +11,6 @@
 ///   session_id, model, platform, session_start, last_updated, message_count, messages[]
 use crate::jsonl;
 use crate::types::*;
-use crate::MemAdapter;
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -242,7 +242,6 @@ impl MemAdapter for HermesAdapter {
                 }
             }
         }
-
 
         // --- Method 2: scan for orphan JSON files not covered by index ---
         for meta_path in self.scan_session_json_files() {

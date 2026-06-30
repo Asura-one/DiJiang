@@ -44,10 +44,7 @@ impl MemRegistry {
         let sessions = self.list_sessions().await?;
         let mut projects: BTreeMap<String, Vec<SessionRecord>> = BTreeMap::new();
         for s in sessions {
-            projects
-                .entry(s.project_id.clone())
-                .or_default()
-                .push(s);
+            projects.entry(s.project_id.clone()).or_default().push(s);
         }
 
         let result: Vec<ProjectSessions> = projects
@@ -71,7 +68,10 @@ impl MemRegistry {
 
     /// Get active providers.
     pub fn providers(&self) -> Vec<String> {
-        self.adapters.iter().map(|a| a.provider().to_string()).collect()
+        self.adapters
+            .iter()
+            .map(|a| a.provider().to_string())
+            .collect()
     }
 
     /// Total number of adapters.

@@ -1,3 +1,4 @@
+use crate::MemAdapter;
 /// Codex platform memory adapter.
 ///
 /// Session storage layout:
@@ -7,7 +8,6 @@
 ///   payload.id, payload.timestamp, payload.cwd, payload.originator
 use crate::jsonl;
 use crate::types::*;
-use crate::MemAdapter;
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -69,7 +69,9 @@ impl CodexAdapter {
         let session_id = file_name
             .strip_prefix("rollout-")
             .and_then(|s| {
-                if s.len() <= 20 { return None; }
+                if s.len() <= 20 {
+                    return None;
+                }
                 // Skip 19-char timestamp + 1-char separator
                 Some(s[20..].trim_end_matches(".jsonl").to_string())
             })
@@ -154,8 +156,7 @@ impl MemAdapter for CodexAdapter {
     async fn get_session(&self, session_id: &str) -> Result<SessionRecord, MemError> {
         // Search for a file with the given session_id in its path
         let files = jsonl::walk_dir(&self.sessions_dir, |p| {
-            p.extension().is_some_and(|e| e == "jsonl")
-                && p.to_string_lossy().contains(session_id)
+            p.extension().is_some_and(|e| e == "jsonl") && p.to_string_lossy().contains(session_id)
         });
 
         for file_path in &files {

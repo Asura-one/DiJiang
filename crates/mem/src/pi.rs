@@ -1,6 +1,6 @@
+use crate::MemAdapter;
 use crate::store::SessionStore;
 use crate::types::*;
-use crate::MemAdapter;
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
@@ -17,17 +17,17 @@ pub struct PiMemAdapter {
 }
 
 impl PiMemAdapter {
-/// Create a new PiMemAdapter.
-///
-/// Default paths: `~/.config/muse/`, `~/.dijiang/mem/`, `~/.pi/agent/sessions/`.
-pub fn new() -> Self {
+    /// Create a new PiMemAdapter.
+    ///
+    /// Default paths: `~/.config/muse/`, `~/.dijiang/mem/`, `~/.pi/agent/sessions/`.
+    pub fn new() -> Self {
         let home = dirs::home_dir().expect("HOME must be set");
         Self {
             muse_dir: home.join(".config").join("muse"),
             dijiang_dir: home.join(".dijiang").join("mem"),
             pi_agent_dir: home.join(".pi").join("agent").join("sessions"),
         }
-        }
+    }
 
     /// Parse a session from a dj-muse directory (context.md + optional session_summary.md).
     fn parse_muse_session(
@@ -78,10 +78,7 @@ pub fn new() -> Self {
     }
 
     /// Scan a directory of session dirs (active or archived).
-    fn scan_muse_dir(
-        dir: &Path,
-        status: SessionStatus,
-    ) -> Result<Vec<SessionRecord>, MemError> {
+    fn scan_muse_dir(dir: &Path, status: SessionStatus) -> Result<Vec<SessionRecord>, MemError> {
         let mut sessions = Vec::new();
         if !dir.exists() {
             return Ok(sessions);
@@ -92,10 +89,7 @@ pub fn new() -> Self {
             if !path.is_dir() {
                 continue;
             }
-            let session_id = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("");
+            let session_id = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if let Some(record) = Self::parse_muse_session(session_id, &path, status.clone()) {
                 sessions.push(record);
             }
@@ -171,14 +165,11 @@ pub fn new() -> Self {
             .and_then(|m| m.modified().ok())
             .map(|t| {
                 let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
-                chrono::DateTime::from_timestamp(
-                    duration.as_secs() as i64,
-                    duration.subsec_nanos(),
-                )
-.map(|dt| dt.to_rfc3339())
-.unwrap_or_default()
+                chrono::DateTime::from_timestamp(duration.as_secs() as i64, duration.subsec_nanos())
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_default()
             })
-.unwrap_or_default();
+            .unwrap_or_default();
 
         Some(SessionRecord {
             session_id,
@@ -244,7 +235,9 @@ impl MemAdapter for PiMemAdapter {
             self.muse_dir.join("archives").join(session_id),
         ] {
             if dir.is_dir() {
-                let status = if dir.parent().and_then(|p| p.file_name().and_then(|n| n.to_str()))
+                let status = if dir
+                    .parent()
+                    .and_then(|p| p.file_name().and_then(|n| n.to_str()))
                     == Some("sessions")
                 {
                     SessionStatus::Active

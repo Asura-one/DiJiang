@@ -1,3 +1,4 @@
+use crate::MemAdapter;
 /// OpenCode platform memory adapter — currently a no-op.
 ///
 /// OpenCode 1.2+ stores sessions in a SQLite database at
@@ -7,7 +8,6 @@
 /// The adapter exists so callers can iterate all known platforms without
 /// special-casing. `list_sessions` and `get_session` return empty/NotFound.
 use crate::types::*;
-use crate::MemAdapter;
 use async_trait::async_trait;
 use std::path::PathBuf;
 
@@ -27,7 +27,9 @@ impl OpenCodeAdapter {
 
     #[allow(dead_code)]
     fn new_at(data_dir: PathBuf) -> Self {
-        Self { _data_dir: data_dir }
+        Self {
+            _data_dir: data_dir,
+        }
     }
 }
 

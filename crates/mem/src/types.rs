@@ -64,7 +64,7 @@ pub struct AggregatedMem {
 
 /// Memory errors.
 /// Memory errors.
-/// 
+///
 /// See module-level documentation for guidance on when to use each variant.
 #[derive(Debug, thiserror::Error)]
 pub enum MemError {
@@ -107,16 +107,16 @@ pub struct Learning {
 // ─── L3: Semantic Memory (Tactics) ─────────────────────────────────
 
 /// A tactic with Bayesian tracking (Beta distribution).
-/// 
+///
 /// Each tactic tracks success/failure counts and computes win rate.
 /// Used by Thompson sampling for strategy selection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tactic {
     pub name: String,
     pub description: String,
-    pub alpha: u32,  // wins + 1
-    pub beta: u32,   // losses + 1
-    pub source: String,  // project or session that created this
+    pub alpha: u32,     // wins + 1
+    pub beta: u32,      // losses + 1
+    pub source: String, // project or session that created this
     pub created_at: String,
     pub last_used: Option<String>,
 }
@@ -175,7 +175,7 @@ pub struct Pattern {
     pub steps: Vec<String>,
     pub tags: Vec<String>,
     pub created_at: String,
-    pub project: Option<String>,  // None = global
+    pub project: Option<String>, // None = global
 }
 
 // ─── L5: Meta Memory ──────────────────────────────────────────────
@@ -198,7 +198,7 @@ pub struct MemoryStats {
 pub struct EvolutionState {
     pub tactic_count: u64,
     pub events_since_last_evolve: u64,
-    pub evolve_threshold: u64,  // default: 3
+    pub evolve_threshold: u64, // default: 3
     pub last_evolution: Option<String>,
 }
 

@@ -27,15 +27,29 @@ impl GlobalMemory {
 
     pub fn new_at(root: &Path) -> Result<Self> {
         fs::create_dir_all(root)?;
-        Ok(Self { root: root.to_path_buf() })
+        Ok(Self {
+            root: root.to_path_buf(),
+        })
     }
 
-    pub fn tactics_path(&self) -> PathBuf { self.root.join("tactics.json") }
-    pub fn ledger_path(&self) -> PathBuf { self.root.join("ledger.jsonl") }
-    pub fn stats_path(&self) -> PathBuf { self.root.join("meta").join("stats.json") }
-    pub fn baseline_path(&self) -> PathBuf { self.root.join("meta").join("baseline.json") }
-    pub fn evolution_path(&self) -> PathBuf { self.root.join("meta").join("evolution.json") }
-    pub fn backup_dir(&self, project: &str) -> PathBuf { self.root.join("backups").join(project) }
+    pub fn tactics_path(&self) -> PathBuf {
+        self.root.join("tactics.json")
+    }
+    pub fn ledger_path(&self) -> PathBuf {
+        self.root.join("ledger.jsonl")
+    }
+    pub fn stats_path(&self) -> PathBuf {
+        self.root.join("meta").join("stats.json")
+    }
+    pub fn baseline_path(&self) -> PathBuf {
+        self.root.join("meta").join("baseline.json")
+    }
+    pub fn evolution_path(&self) -> PathBuf {
+        self.root.join("meta").join("evolution.json")
+    }
+    pub fn backup_dir(&self, project: &str) -> PathBuf {
+        self.root.join("backups").join(project)
+    }
 
     // ─── Default Tactics ────────────────────────────────────────
 
@@ -46,8 +60,14 @@ impl GlobalMemory {
         let defaults = vec![
             ("cargo-test", "Run cargo test before committing"),
             ("typecheck", "Run typecheck before committing"),
-            ("review-adversarial", "Multi-angle security review with 7 attack vectors"),
-            ("review-first-principles", "First-principles architectural review with 6 steps"),
+            (
+                "review-adversarial",
+                "Multi-angle security review with 7 attack vectors",
+            ),
+            (
+                "review-first-principles",
+                "First-principles architectural review with 6 steps",
+            ),
             ("lint-fix", "Run lint and auto-fix before committing"),
             ("doc-update", "Update docs when changing public API"),
         ];
@@ -74,7 +94,9 @@ impl GlobalMemory {
 
     pub fn load_tactics(&self) -> Result<Vec<Tactic>> {
         let path = self.tactics_path();
-        if !path.exists() { return Ok(vec![]); }
+        if !path.exists() {
+            return Ok(vec![]);
+        }
         let data = fs::read_to_string(&path)?;
         Ok(serde_json::from_str(&data)?)
     }
@@ -93,7 +115,13 @@ impl GlobalMemory {
         Ok(tactic)
     }
 
-    pub fn record_event(&self, tactic_name: &str, outcome: Outcome, context: &str, project: Option<&str>) -> Result<()> {
+    pub fn record_event(
+        &self,
+        tactic_name: &str,
+        outcome: Outcome,
+        context: &str,
+        project: Option<&str>,
+    ) -> Result<()> {
         let entry = LedgerEntry {
             timestamp: chrono::Local::now().to_rfc3339(),
             tactic_name: tactic_name.to_string(),
@@ -102,7 +130,10 @@ impl GlobalMemory {
             project: project.map(|s| s.to_string()),
         };
 
-        let mut file = fs::OpenOptions::new().create(true).append(true).open(self.ledger_path())?;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.ledger_path())?;
         serde_json::to_writer(&mut file, &entry)?;
         writeln!(file)?;
 
@@ -154,7 +185,9 @@ impl GlobalMemory {
 
     pub fn load_stats(&self) -> Result<MemoryStats> {
         let path = self.stats_path();
-        if !path.exists() { return Ok(MemoryStats::default()); }
+        if !path.exists() {
+            return Ok(MemoryStats::default());
+        }
         let data = fs::read_to_string(&path)?;
         Ok(serde_json::from_str(&data)?)
     }
@@ -177,14 +210,19 @@ impl ProjectMemory {
 
     pub fn new_at(root: &Path) -> Result<Self> {
         fs::create_dir_all(root)?;
-        Ok(Self { root: root.to_path_buf() })
+        Ok(Self {
+            root: root.to_path_buf(),
+        })
     }
 
     // ─── L2: Episodic Memory ──────────────────────────────────
 
     pub fn append_finding(&self, finding: &Finding) -> Result<()> {
         let path = self.root.join("findings.jsonl");
-        let mut file = fs::OpenOptions::new().create(true).append(true).open(&path)?;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)?;
         serde_json::to_writer(&mut file, finding)?;
         writeln!(file)?;
         Ok(())
@@ -192,7 +230,10 @@ impl ProjectMemory {
 
     pub fn append_learning(&self, learning: &Learning) -> Result<()> {
         let path = self.root.join("learnings.jsonl");
-        let mut file = fs::OpenOptions::new().create(true).append(true).open(&path)?;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)?;
         serde_json::to_writer(&mut file, learning)?;
         writeln!(file)?;
         Ok(())
@@ -200,7 +241,9 @@ impl ProjectMemory {
 
     pub fn load_findings(&self) -> Result<Vec<Finding>> {
         let path = self.root.join("findings.jsonl");
-        if !path.exists() { return Ok(vec![]); }
+        if !path.exists() {
+            return Ok(vec![]);
+        }
         let data = fs::read_to_string(&path)?;
         let mut results = Vec::new();
         for line in data.lines() {
@@ -213,7 +256,9 @@ impl ProjectMemory {
 
     pub fn load_learnings(&self) -> Result<Vec<Learning>> {
         let path = self.root.join("learnings.jsonl");
-        if !path.exists() { return Ok(vec![]); }
+        if !path.exists() {
+            return Ok(vec![]);
+        }
         let data = fs::read_to_string(&path)?;
         let mut results = Vec::new();
         for line in data.lines() {
@@ -228,7 +273,10 @@ impl ProjectMemory {
 
     pub fn add_pattern(&self, pattern: &Pattern) -> Result<()> {
         let path = self.root.join("patterns.jsonl");
-        let mut file = fs::OpenOptions::new().create(true).append(true).open(&path)?;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)?;
         serde_json::to_writer(&mut file, pattern)?;
         writeln!(file)?;
         Ok(())
@@ -236,7 +284,9 @@ impl ProjectMemory {
 
     pub fn load_patterns(&self) -> Result<Vec<Pattern>> {
         let path = self.root.join("patterns.jsonl");
-        if !path.exists() { return Ok(vec![]); }
+        if !path.exists() {
+            return Ok(vec![]);
+        }
         let data = fs::read_to_string(&path)?;
         let mut results = Vec::new();
         for line in data.lines() {
