@@ -115,7 +115,6 @@ enum ChannelCommands {
         /// Channel ID
         channel_id: String,
     },
-    /// Execute an agent in a channel
     Execute {
         /// Channel ID
         channel_id: String,
@@ -125,6 +124,24 @@ enum ChannelCommands {
         /// Provider to use (optional)
         #[arg(long)]
         provider: Option<String>,
+        /// Timeout in seconds (optional, default: 300)
+        #[arg(short, long, default_value = "300")]
+        timeout: u64,
+        /// Follow output in real-time
+        #[arg(long)]
+        follow: bool,
+    },
+    /// Execute all active channels in parallel
+    ExecuteAll {
+        /// Model to use (optional)
+        #[arg(long)]
+        model: Option<String>,
+        /// Provider to use (optional)
+        #[arg(long)]
+        provider: Option<String>,
+        /// Timeout in seconds (optional, default: 300)
+        #[arg(short, long, default_value = "300")]
+        timeout: u64,
     },
 }
 #[derive(Subcommand)]
@@ -276,7 +293,8 @@ fn main() -> anyhow::Result<()> {
             ChannelCommands::Send { channel_id, message } => cmd_channel_send(&channel_id, &message),
             ChannelCommands::Status { channel_id } => cmd_channel_status(&channel_id),
             ChannelCommands::Stop { channel_id } => cmd_channel_stop(&channel_id),
-            ChannelCommands::Execute { channel_id, model, provider } => cmd_channel_execute(&channel_id, model.as_deref(), provider.as_deref()),
+            ChannelCommands::Execute { channel_id, model, provider, timeout, follow } => cmd_channel_execute(&channel_id, model.as_deref(), provider.as_deref(), timeout, follow),
+            ChannelCommands::ExecuteAll { model, provider, timeout } => cmd_channel_execute_all(model.as_deref(), provider.as_deref(), timeout),
         },
     }
 }
@@ -1208,7 +1226,7 @@ fn cmd_channel_stop(channel_id: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&str>) -> anyhow::Result<()> {
+fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&str>, timeout: u64, follow: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
@@ -1235,14 +1253,18 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
     let mut agent_name = "unknown".to_string();
     if channel_toml.exists() {
         let content = std::fs::read_to_string(&channel_toml)?;
-        if let Some(line) = content.lines().find(|l| l.contains("agent"))
-            && let Some(val) = line.split('=').nth(1)
-        {
-            agent_name = val.trim().trim_matches('"').to_string();
+        if let Some(line) = content.lines().find(|l| l.contains("agent")) {
+            if let Some(val) = line.split('=').nth(1) {
+                agent_name = val.trim().trim_matches('"').to_string();
+            }
         }
     }
 
     println!("  Executing agent '{}' in channel {}", agent_name, channel_id);
+    println!("  Timeout: {}s", timeout);
+    if follow {
+        println!("  Follow mode: enabled");
+    }
     println!();
 
     // Build pi command
@@ -1287,8 +1309,30 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
         stdin.write_all(prompt.as_bytes())?;
     }
 
-    // Wait for output
-    let output = child.wait_with_output()?;
+    // Wait for output with timeout
+    let start = std::time::Instant::now();
+    let output = loop {
+        match child.try_wait() {
+            Ok(Some(_status)) => {
+                // Process finished
+                let output = child.wait_with_output()?;
+                break output;
+            }
+            Ok(None) => {
+                // Check timeout
+                if start.elapsed().as_secs() >= timeout {
+                    println!("  Timeout after {}s, killing process...", timeout);
+                    child.kill()?;
+                    child.wait()?;
+                    anyhow::bail!("Execution timed out after {}s", timeout);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(e) => {
+                anyhow::bail!("Error waiting for process: {}", e);
+            }
+        }
+    };
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1305,6 +1349,10 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
         std::fs::write(&channel_toml, &new_content)?;
     }
 
+    if follow {
+        println!("{}", stdout);
+    }
+
     if output.status.success() {
         println!("  Agent execution completed.");
         println!("  Output: {} bytes", stdout.len());
@@ -1312,7 +1360,182 @@ fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&
             println!("  Warnings: {} bytes", stderr.len());
         }
     } else {
-        anyhow::bail!("Agent execution failed: {}", stderr);
+        println!("  Agent execution failed.");
+        println!("  stderr: {}", stderr);
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn cmd_channel_execute_all(model: Option<&str>, provider: Option<&str>, timeout: u64) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    let channels_dir = dijiang_dir.join("channels");
+    if !channels_dir.exists() {
+        println!("  No channels found.");
+        return Ok(());
+    }
+
+    // Collect active channels
+    let mut active_channels = Vec::new();
+    for entry in std::fs::read_dir(&channels_dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            let channel_id = entry.file_name().to_string_lossy().to_string();
+            let channel_toml = entry.path().join("channel.toml");
+            if channel_toml.exists() {
+                let content = std::fs::read_to_string(&channel_toml)?;
+                if content.contains("status = \"active\"") {
+                    active_channels.push(channel_id);
+                }
+            }
+        }
+    }
+
+    if active_channels.is_empty() {
+        println!("  No active channels to execute.");
+        return Ok(());
+    }
+
+    println!("  Executing {} active channel(s) in parallel", active_channels.len());
+    println!("  Timeout: {}s per channel", timeout);
+    println!();
+
+    // Execute each channel
+    let mut handles = Vec::new();
+    for channel_id in &active_channels {
+        let channel_id = channel_id.clone();
+        let model = model.map(|s| s.to_string());
+        let provider = provider.map(|s| s.to_string());
+        let cwd = cwd.clone();
+        let dijiang_dir = dijiang_dir.clone();
+
+        let handle = std::thread::spawn(move || {
+            match cmd_channel_execute_single(&channel_id, model.as_deref(), provider.as_deref(), timeout, &cwd, &dijiang_dir) {
+                Ok(_) => (channel_id, true, String::new()),
+                Err(e) => (channel_id, false, e.to_string()),
+            }
+        });
+        handles.push(handle);
+    }
+
+    // Collect results
+    let mut success_count = 0;
+    let mut fail_count = 0;
+    for handle in handles {
+        let (channel_id, success, error) = handle.join().unwrap();
+        if success {
+            println!("  {} completed", channel_id);
+            success_count += 1;
+        } else {
+            println!("  {} failed: {}", channel_id, error);
+            fail_count += 1;
+        }
+    }
+
+    println!();
+    println!("  Results: {} succeeded, {} failed", success_count, fail_count);
+
+    Ok(())
+}
+
+fn cmd_channel_execute_single(
+    channel_id: &str,
+    model: Option<&str>,
+    provider: Option<&str>,
+    timeout: u64,
+    cwd: &std::path::Path,
+    dijiang_dir: &std::path::Path,
+) -> anyhow::Result<()> {
+    let channel_dir = dijiang_dir.join("channels").join(channel_id);
+    if !channel_dir.exists() {
+        anyhow::bail!("Channel '{}' not found", channel_id);
+    }
+
+    // Read agent definition
+    let agent_file = channel_dir.join("agent.md");
+    if !agent_file.exists() {
+        anyhow::bail!("No agent definition found in channel");
+    }
+
+    // Read inbox
+    let inbox_file = channel_dir.join("inbox");
+    if !inbox_file.exists() {
+        anyhow::bail!("No inbox found in channel");
+    }
+
+    // Build pi command
+    let mut pi_args = vec!["--print".to_string()];
+    if let Some(m) = model {
+        pi_args.push("--model".to_string());
+        pi_args.push(m.to_string());
+    }
+    if let Some(p) = provider {
+        pi_args.push("--provider".to_string());
+        pi_args.push(p.to_string());
+    }
+
+    // Build the prompt
+    let agent_def = std::fs::read_to_string(&agent_file)?;
+    let inbox_content = std::fs::read_to_string(&inbox_file)?;
+    let prompt = format!(
+        "{}\n\n---\n\nInbox:\n{}",
+        agent_def, inbox_content
+    );
+
+    // Execute pi
+    let mut child = std::process::Command::new("pi")
+        .args(&pi_args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .current_dir(cwd)
+        .spawn()?;
+
+    // Write prompt to stdin
+    if let Some(mut stdin) = child.stdin.take() {
+        use std::io::Write;
+        stdin.write_all(prompt.as_bytes())?;
+    }
+
+    // Wait for output with timeout
+    let start = std::time::Instant::now();
+    let output = loop {
+        match child.try_wait() {
+            Ok(Some(_status)) => {
+                let output = child.wait_with_output()?;
+                break output;
+            }
+            Ok(None) => {
+                if start.elapsed().as_secs() >= timeout {
+                    child.kill()?;
+                    child.wait()?;
+                    anyhow::bail!("Execution timed out after {}s", timeout);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(e) => {
+                anyhow::bail!("Error waiting for process: {}", e);
+            }
+        }
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Write output
+    let output_file = channel_dir.join("output");
+    std::fs::write(&output_file, stdout.as_ref())?;
+
+    // Write status
+    let channel_toml = channel_dir.join("channel.toml");
+    let status = if output.status.success() { "completed" } else { "failed" };
+    if channel_toml.exists() {
+        let content = std::fs::read_to_string(&channel_toml)?;
+        let new_content = content.replace("status = \"active\"", &format!("status = \"{}\"", status));
+        std::fs::write(&channel_toml, &new_content)?;
     }
 
     Ok(())
