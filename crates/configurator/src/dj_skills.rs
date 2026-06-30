@@ -58,6 +58,14 @@ fn global_skills_dir() -> Result<PathBuf> {
     Ok(home.join(".dijiang").join("skills"))
 }
 
+/// Get embedded skill content by name.
+pub fn get_skill_content(name: &str) -> Option<&'static str> {
+    embedded_skills()
+        .into_iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, content)| content)
+}
+
 /// Ensure the global skill template directory exists and is populated
 /// from embedded resources. Only writes if the directory is missing or empty.
 pub fn ensure_global_skills() -> Result<PathBuf> {

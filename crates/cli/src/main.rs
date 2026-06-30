@@ -5,6 +5,7 @@ use dijiang_task::types::TaskStatus;
 use dijiang_configurator::TemplateRegistry;
 use dialoguer::{Input, MultiSelect, Confirm};
 use std::path::PathBuf;
+use sha2::{Sha256, Digest};
 #[derive(Parser)]
 #[command(name = "dijiang", version = "0.1.0", about = "DiJiang - AI coding assistant workflow layer")]
 struct Cli {
@@ -1841,69 +1842,69 @@ fn cmd_mem_finetune() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_update(force: bool) -> anyhow::Result<()> {
+fn cmd_update(_force: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?;
 
-    println!("  正在更新...");
+    println!("  正在检查更新...");
     println!();
 
-    // 强制更新技能
-    if force {
-        let skills_dir = cwd.join(".pi").join("skills");
-        if skills_dir.exists() {
-            std::fs::remove_dir_all(&skills_dir)?;
-            println!("  已清除旧技能文件");
-        }
-    }
+    // 加载模板哈希
+    let hashes_file = dijiang_dir.join(".template-hashes.json");
+    let mut template_hashes: std::collections::HashMap<String, String> =
+        if hashes_file.exists() {
+            let content = std::fs::read_to_string(&hashes_file)?;
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            std::collections::HashMap::new()
+        };
+
+    let mut updated = 0;
+    let mut skipped = 0;
 
     // 更新 dj-* 技能
-    let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
-    if skills_written > 0 {
-        println!("  已更新 {} 个 dj-* 技能到 .pi/skills/", skills_written);
-    } else {
-        println!("  技能已是最新。");
-    }
+    let skills_dir = cwd.join(".pi").join("skills");
+    std::fs::create_dir_all(&skills_dir)?;
 
-    // 更新模板文件
-    let template_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates");
-    if template_dir.exists() {
-        for entry in std::fs::read_dir(&template_dir)? {
-            let entry = entry?;
-            if entry.file_type()?.is_file() {
-                let filename = entry.file_name().to_string_lossy().to_string();
-                let src = entry.path();
-                let dst = dijiang_dir.join(&filename);
+    let skill_names = dijiang_configurator::dj_skills::list_skill_names();
+    for name in skill_names {
+        let skill_dir = skills_dir.join(name);
+        std::fs::create_dir_all(&skill_dir)?;
+        let skill_file = skill_dir.join("SKILL.md");
 
-                let content = std::fs::read_to_string(&src)?;
-                let needs_update = if dst.exists() {
-                    let existing = std::fs::read_to_string(&dst)?;
-                    existing != content
-                } else {
-                    true
-                };
+        // 获取嵌入的技能内容
+        let content = dijiang_configurator::dj_skills::get_skill_content(name)
+            .unwrap_or_default();
 
-                if needs_update {
-                    std::fs::write(&dst, &content)?;
-                    println!("  已更新: {}", filename);
-                }
-            }
+        if content.is_empty() {
+            continue;
+        }
+
+        // 计算新内容的哈希
+        let new_hash = format!("{:x}", Sha256::digest(content.as_bytes()));
+        let key = format!(".pi/skills/dj-{}/SKILL.md", name);
+        let old_hash = template_hashes.get(&key);
+
+        if old_hash != Some(&new_hash) {
+            std::fs::write(&skill_file, content)?;
+            template_hashes.insert(key, new_hash);
+            println!("  已更新: dj-{}/SKILL.md", name);
+            updated += 1;
+        } else {
+            skipped += 1;
         }
     }
 
-    // 更新 agents
-    let agents_dir = cwd.join(".pi").join("agents");
-    std::fs::create_dir_all(&agents_dir)?;
-
-    println!("  代理目录已存在于 .pi/agents/");
+    // 保存模板哈希
+    let hashes_json = serde_json::to_string_pretty(&template_hashes)?;
+    std::fs::write(&hashes_file, hashes_json)?;
 
     println!();
-    println!("  更新完成。");
+    println!("  更新完成: {} 个文件已更新, {} 个已是最新", updated, skipped);
 
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {
