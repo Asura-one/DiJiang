@@ -362,6 +362,114 @@
 
 ---
 
+## 7A. Canonical workflow model 与边界定义
+
+### 7A.1 问题定位
+
+当前割裂不只是 `review` 命名冲突，而是 CLI、skills、workflow、AGENTS.md、prompt、agent、平台模板分别定义了局部流程。后续改造必须先承认一条原则：DiJiang 只能有一套 canonical workflow model，其他文件都是它的投影。
+
+本节只定义模型和迁移边界，不改变现有 CLI 行为，也不批量改 skill 内容。后续 README、AGENTS、workflow、skills、CLI 对齐都必须以本节为准。
+
+### 7A.2 Canonical layer boundary
+
+| 层级 | Canonical 责任 | 允许出现的内容 | 不应承担的内容 |
+|------|----------------|----------------|----------------|
+| `dijiang` CLI | 项目状态、任务生命周期、记忆持久化、模板/平台管理、agent channel 运行时 | `init/update/status/start/finish-work/task/mem/template/skills/workflow-state/channel` | 不定义 skill 方法论，不把 prompt 生成器伪装成执行器 |
+| `.dijiang/workflow.md` | 高层流程编排和路由规则 | 阶段、状态、推荐 skill、产物、完成标准 | 不复制每个 skill 的完整手册，不引用不存在命令 |
+| `AGENTS.md` | 给 agent 注入的最小入口索引 | 项目结构、常用 CLI、canonical skill routing、状态路由 | 不维护另一套 workflow，不列不存在 skill/status |
+| `dj-*` skills | 原子工作能力 | `grill/implement/check/audit/output` 等执行细则 | 不管理 session 生命周期，不定义全局状态模型 |
+| `dijiang-*` skills | session wrapper | `start/continue/finish-work` 三个入口，加载上下文并路由 | 不成为第二套工作流，不直接替代 `dj-*` 能力 |
+| `.pi/prompts/*` | 平台快捷 prompt | 调用 canonical CLI/skill 的简短入口文案 | 不维护独立 workflow，不指向 legacy 主路径 |
+| `.pi/agents/*` 与跨平台 agents | 子代理聚合器 | `implement/check/research` role 的上下文加载和委派规则 | 不创造新状态、新命令语义或平台专属 workflow |
+| 平台 configurator | 平台适配 | hook、agent config、context injection | 不各自写一套 DiJiang 流程说明 |
+
+### 7A.3 Canonical lifecycle
+
+| Task status | Workflow phase | 推荐入口 | 产物与完成标准 |
+|-------------|----------------|----------|----------------|
+| none | dispatch | `dijiang start <name>` 或 `dj-dispatch` | 创建/选择任务，判断任务级别与主路径 |
+| `planning` | align | `dj-grill`，必要时 `dj-output` | `prd.md`，复杂任务补 `design.md` / `implement.md` |
+| `in_progress` | implement | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-script` / `dj-design` | 代码、测试、验证记录，准备进入质量闸门 |
+| `in_progress` | check | `dj-check` | diff、功能完整性、安全性、回归影响通过检查 |
+| `completed` | finish | `dijiang finish-work --verification ...` | journal、session closure、active task 清理、归档 |
+| `archived` | closed | 只读；如需继续则重新 `dijiang start <task>` | 不继续在旧任务上工作 |
+| `paused` | resume | `dijiang-continue` + 读取 workspace journal | 恢复上下文后回到 `planning` 或 `in_progress` 对应路径 |
+
+`review` 不作为 canonical task status。Trellis 兼容层可继续把 legacy `review` 读成 DiJiang 可处理的状态，但 workflow、AGENTS、skills 不应再把 `review` 当作正式状态。
+
+### 7A.4 Canonical skill taxonomy
+
+| 类别 | Canonical skills | 边界 |
+|------|------------------|------|
+| Routing | `dj-dispatch` | 只负责分类与路由，不直接实现 |
+| Alignment | `dj-grill` | 需求澄清和范围对齐，不写代码 |
+| Planning docs | `dj-output` | PRD、design、implement、spec 与代码一致性 |
+| Implementation | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-prototype`、`dj-script`、`dj-design` | 允许改代码；按任务类型选择 primary skill |
+| Quality gate | `dj-check` | 改动完成前的唯一质量闸门 |
+| Analysis reports | `dj-audit`、`dj-debt`、`dj-health`、`dj-pattern` | 产出报告或建议；除明确要求外不作为交付闸门 |
+| Style overlays | `dj-ponytail`、`dj-karpathy` | 作为约束叠加到实现路径，不单独代表 workflow 阶段 |
+| Writing polish | `dj-write` | 文本润色、去 AI 味、proofread；不拥有工程文档生命周期 |
+| Session transfer | `dj-handoff` | 跨 session 交接，不替代 finish-work journal |
+| Session wrappers | `dijiang-start`、`dijiang-continue`、`dijiang-finish-work` | 加载上下文、路由、收尾；不复制 `dj-*` 方法论 |
+
+### 7A.5 Known split points to resolve
+
+| 类型 | 割裂点 | 目标状态 |
+|------|--------|----------|
+| 重复入口 | `dijiang start` 与 `dijiang task start` | 前者定义为生命周期入口，后者定义为 task 原子操作，并在 README/AGENTS/help 中说明 |
+| 重复入口 | `dijiang finish-work` 与 `dijiang task archive/status` | 前者定义为完成工作流，后者定义为底层状态操作 |
+| 语义冲突 | `dijiang review` / `dj-review` / `dj-check` | `dj-check` 成为 canonical quality gate；`review` 成为 check mode、preset 或 deprecated alias |
+| 状态不一致 | workflow/AGENTS 中的 `review` 状态 | 移除正式路由；只保留 legacy compatibility 说明 |
+| 旧系统残留 | `.trellis/*` 作为主路径 | 模板主路径统一为 `.dijiang/*`；`.trellis` 只出现在兼容说明 |
+| 旧系统残留 | `muse_*` 与 `dj-muse` | workflow/skills 对外统一使用 `dijiang mem ...`；底层 MUSE 只作为 import/legacy scanner 细节 |
+| 文档漂移 | README 写 `task create`、`mem save` | 对齐真实 CLI 或新增兼容 alias，二者必须二选一 |
+| 生成重复 | `.pi/skills/dj-dj-*` | 增加检测和清理策略，防止 update/init 继续扩散重复目录 |
+| 平台漂移 | Pi/Claude/Cursor/Codex/Hermes/OpenCode 各写一套 workflow | 平台模板只引用同一 canonical lifecycle 摘要 |
+
+### 7A.6 分批迁移计划
+
+**Batch A — 文档入口对齐**
+
+更新 README、`crates/configurator/templates/config/agents.md`、`crates/configurator/templates/config/workflow.md`。目标是让对外文档只暴露 7A.2 到 7A.4 的模型，删除不存在的 `/dj-muse`、不存在的 `review` 状态、错误 CLI 命令和坏表格。
+
+验证：`cargo test -p dijiang --test e2e` 中 init/update 相关快照或断言仍通过；人工检查生成的 `.dijiang/workflow.md` 与 `AGENTS.md` 不含 `dj-muse`、`review → dj-check`、`task create`、`mem save`。
+
+**Batch B — wrapper / prompt / agent 模板对齐**
+
+更新 `dijiang-start`、`dijiang-continue`、`dijiang-finish-work`、`.pi/prompts/*`、`.pi/agents/*` 与跨平台 agent 模板。目标是全部使用 `.dijiang/*` 主路径、`dijiang mem ...` 对外命令、canonical lifecycle，不再读 `.trellis/workflow.md` 或 `.trellis/spec/` 作为主路径。
+
+验证：`dijiang init --platforms pi,codex,cursor,claude,opencode,hermes` 生成文件后，搜索模板产物中 legacy 主路径只出现在明确标注的 compatibility 段落。
+
+**Batch C — skill taxonomy 对齐**
+
+给 `dj-*` skills 补齐统一边界描述，重点处理 `dj-check`/`dj-review`、`dj-output`/`dj-write`、`dj-audit`/`dj-health`/`dj-debt`/`dj-pattern`、`dj-implement`/`dj-tdd`/`dj-hunt` 的选择规则。`dj-review` 的最终去留在本批次决定：保留为 lightweight preset、迁入 `dj-check`，或 deprecated。
+
+验证：`dj-dispatch` 的路由表只引用存在的 skill；每个质量类 skill 都能回答“检查对象是什么、是否改代码、是否阻塞交付”。
+
+**Batch D — CLI 命令语义对齐**
+
+不急于改 CLI 行为。先修 help、README 和 workflow 对 CLI 的解释。如果需要行为改动，优先做兼容 alias 而非删除：例如 `task create` 是否映射到 `task start`，`dijiang review` 是否迁移到 `dijiang check --mode`。
+
+验证：CLI e2e 覆盖 `start/task start/finish-work/task archive/mem/review` 的兼容路径，旧命令若 deprecated 必须输出明确替代命令。
+
+**Batch E — 生成链路与重复产物清理**
+
+明确 `PiConfigurator::write_skills` 负责 3 个 `dijiang-*` wrapper，`write_project_skills` 负责 `dj-*` core skills。修正注释、update report 和冲突检测；增加 `dj-dj-*` 重复目录检测，默认报告、不自动删除。
+
+验证：新 init/update 不再生成 `dj-dj-*`；已有重复目录会在 `dijiang update` 或 `dijiang doctor` 中提示清理建议。
+
+### 7A.7 完成标准
+
+- README、AGENTS、workflow、prompt、agent、skill frontmatter 中的入口命名可以映射回 7A.2 的唯一层级。
+- 没有文档把 `review` 描述成正式 task status。
+- 没有模板把 `.trellis/*` 描述为 DiJiang 主路径。
+- 没有模板引用不存在的 `/dj-muse`。
+- CLI help、README、workflow 中列出的命令都真实存在，或明确标记为 deprecated alias。
+- 每个 `dj-*` skill 都有明确的 category、primary use、non-goals。
+- 所有平台模板使用相同的 lifecycle 摘要，只保留平台适配差异。
+
+
+
 ## 8. 风险登记
 
 | 风险 | 概率 | 影响 | 缓解 |
@@ -392,7 +500,7 @@
 
 ## 附录：与 session 历史的关键衔接
 
-- **路径冲突**：session 已确认 DiJiang 根在 `.trellis/tasks/`（不是 `.dijiang/tasks/`），本计划与此一致
+- **路径冲突**：历史 session 曾把 DiJiang 主路径描述为 `.trellis/tasks/`；当前代码与 7A canonical model 均以 `.dijiang/*` 为主路径，`.trellis/*` 仅作为 legacy compatibility fallback
 - **Pi 0.80 API**：session 已确认使用 `@earendil-works/pi-coding-agent` factory function 模式，本计划不涉及 Pi 适配器代码（Pi 适配器深化不在本计划范围）
 - **cargo build 不只是 cargo test**：session 已确认编辑 configurator 后必须 `cargo build -p dijiang` 而非仅 `cargo test`，本计划 §7 验证矩阵已包含
 - **字段顺序契约**：Trellis 的 `TASK_RECORD_FIELD_ORDER`（TS 端）+ Python `TaskData`（Python 端）必须结构一致，本计划 §1.1 是把 DiJiang 也加入这个契约
