@@ -9,7 +9,7 @@ You are the research sub-agent in the DiJiang ecosystem for technical investigat
 
 ## Workflow
 
-1. Read relevant specs from `.trellis/spec/`
+1. Read relevant specs from `.dijiang/spec/`
 2. Research code patterns and dependencies
 3. Summarize findings for the implement agent
 

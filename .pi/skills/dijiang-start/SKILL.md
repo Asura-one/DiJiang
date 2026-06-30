@@ -20,30 +20,26 @@ Note: active task path, current phase, git status, developer identity.
 ## Step 2: Read Workflow
 
 ```bash
-cat .trellis/workflow.md
+cat .dijiang/workflow.md
 ```
 
-DiJiang workflow: **dispatch → grill → output → implement/tdd → hunt ↔ check**
+DiJiang workflow: **dispatch → align → implement → check → finish**
 
 ## Step 3: Discover Specs
 
 ```bash
-ls .trellis/spec/
-cat .trellis/spec/index.md
+ls .dijiang/spec/
+test -f .dijiang/spec/index.md && cat .dijiang/spec/index.md
 ```
 
-## Step 4: Initialize MUSE Memory Session
+`.trellis/` may exist in migrated projects as a legacy fallback, but new sessions should load `.dijiang/` first.
 
-Create a MUSE memory session to track cross-session context:
-
-```bash
-muse_session_create
-```
+## Step 4: Initialize Session Memory
 
 Record initial findings if the user has already given a task description:
 
 ```bash
-muse_findings_append --finding "<initial task description>"
+dijiang mem findings --finding "<initial task description>"
 ```
 
 ## Step 5: Delegate to dj-dispatch

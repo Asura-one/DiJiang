@@ -1,9 +1,12 @@
-platforms = ["pi"]
+platforms = [
+    "pi",
+    "claude",
+]
 tasks_dir = ".dijiang/tasks"
 spec_dir = ".dijiang/spec"
 workspace_dir = ".dijiang/workspace"
 
 [project]
 name = "DiJiang"
-developer = "TiZhu"
+developer = "cimer"
 version = "0.1.0"

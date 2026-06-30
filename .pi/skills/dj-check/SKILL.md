@@ -6,14 +6,17 @@ description: >
   触发词：review、审查、检查代码、看看有没有问题、合并前检查、check。
 ---
 
-# Check: 代码审查
+# Check: 质量闸门
 
 ## 职责
 
+`dj-check` 是 DiJiang 的 canonical quality gate。用于交付前验证 diff 质量、功能完整性、安全性、回归影响，并在需要发布/合并时遵守 git-safety 规范。
+
 1. **代码质量审查** — 逻辑、风格、安全性
 2. **功能完整性核对** — 对照 PRD/issue 逐项确认
-3. **过度工程检查** — dj-ponytail 视角：有没有可以删的；dj-karpathy 视角：代码是否最简
-4. **合并流程** — 遵守 git-safety 合并规范
+3. **回归影响检查** — 搜索引用点，确认调用方同步更新
+4. **过度工程检查** — dj-ponytail 视角：有没有可以删的；dj-karpathy 视角：代码是否最简
+5. **合并流程** — 仅在用户明确要求发布/合并时执行 git-safety 流程
 
 ## 原则
 

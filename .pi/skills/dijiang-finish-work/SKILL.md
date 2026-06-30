@@ -21,18 +21,18 @@ Wrap up the current DiJiang session.
    dijiang task status <name> completed
    ```
 
-4. **Write journal entry** at `.trellis/workspace//`:
+4. **Write journal entry** at `.dijiang/workspace//`:
    - What was accomplished
    - Key decisions made
    - Remaining work / next steps
 
 5. **Update specs** if learned anything new — use `dj-output` for spec documents.
 
-6. **Write learnings back to MUSE**: Capture what was learned for cross-session recall:
+6. **Write learnings back to DiJiang memory**: Capture what was learned for cross-session recall:
    ```bash
-   muse_findings_append --finding "<key decisions and learnings>"
-   muse_learn_write --lesson "<specific lesson learned>"
-   muse_session_archive
+   dijiang mem findings --finding "<key decisions and learnings>"
+   dijiang mem learn --lesson "<specific lesson learned>"
+   dijiang mem archive
    ```
 
 7. **Remind user** to commit with descriptive message.

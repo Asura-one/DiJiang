@@ -17,15 +17,14 @@ description: >
 
 session 开始时，dj-dispatch 自动执行以下步骤：
 
-1. 读取当前活跃 Task（`task.py current`）
+1. 读取当前活跃 Task（`dijiang task current`）
 2. 根据 Task.status 推断阶段 → 推荐技能：
 
    | status | 推断阶段 | 推荐技能 |
    |--------|---------|---------|
    | planning | 需求对齐 | `dj-grill` |
-   | in_progress | 实现中 | `dj-implement` |
-   | review | 审查中 | `dj-check` |
-   | completed | 已完成 | 提示 archive |
+   | in_progress | 实现或检查 | `dj-implement` / `dj-hunt` / `dj-check` |
+   | paused | 恢复上下文 | `dijiang-continue` |
    | (no task) | 无任务 | 等待用户指令 |
 
 3. 将推荐技能和任务上下文注入 session（无需手动调用 /dj-dispatch）
@@ -54,7 +53,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 | UI 设计、页面布局、组件样式 | 设计 UI | → `dj-design` + `impeccable` |
 | 审计代码、安全扫描、代码体检 | 审计代码 | → `dj-audit` |
 | 写文档、PRD、润色、去 AI 味 | 写文档 | → `dj-write` / `dj-output` |
-| 记忆沉淀、记住这个、学习记录 | 记忆管理 | → `dj-muse` |
+| 记忆沉淀、记住这个、学习记录 | 记忆管理 | → `dijiang mem findings` / `dijiang mem learn` |
 | 调研、想法细化、读 URL、方案对比 | 调研对齐 | → `dj-grill` |
 | 写脚本、工具、自动化 | 脚本工具 | → `dj-script` |
 | 搜索信息、查资料、看网页 | 搜索信息 | → `web-access` |
@@ -158,7 +157,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 | 调研 + 实现 | `dj-grill` | → `dj-tdd` |
 | 审计 + 修复 | `dj-audit` | → `dj-implement` → `dj-check` |
 | 设计 + 实现 | `dj-design` | → `dj-implement` → `dj-check` |
-| 排查 + 记忆 | `dj-hunt` | → `dj-muse` |
+| 排查 + 记忆 | `dj-hunt` | → `dijiang mem findings` / `dijiang mem learn` |
 | 调研 + 文档 | `dj-grill` | → `dj-output` |
 
 ## 判断流程
