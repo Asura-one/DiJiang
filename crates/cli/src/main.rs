@@ -26,14 +26,14 @@ enum Commands {
         #[arg(long)]
         compat: bool,
     },
-    /// 开始一个新的编码会话
+    /// 开始并激活一个 DiJiang 工作会话（生命周期入口）
     Start {
         /// 任务名称（slug 格式，如 "fix-login-bug"）
         name: String,
         /// 任务显示标题（可选）
         title: Option<String>,
     },
-    /// 任务管理
+    /// 底层任务管理（原子状态操作）
     Task {
         #[command(subcommand)]
         command: TaskCommands,
@@ -59,6 +59,7 @@ enum Commands {
         #[arg(long)]
         auto_detect: bool,
     },
+    /// 记忆管理：项目 findings/lessons 与全局 tactics/patterns
     Mem {
         #[command(subcommand)]
         command: MemCommands,
@@ -85,7 +86,7 @@ enum Commands {
     },
     /// 将 Trellis 项目迁移到 DiJiang
     Migrate,
-    /// 代码审查（对抗式/第一性原理）
+    /// 审查 prompt/tactic 兼容入口；交付质量闸门使用 dj-check
     Review {
         /// 审查模式：adversarial 或 first-principles
         #[arg(long, default_value = "adversarial")]
@@ -261,7 +262,7 @@ enum TaskCommands {
     List,
     /// Show current active task
     Current,
-    /// Create and activate a new task
+    /// Create and activate a task record (low-level task operation)
     Start {
         /// Task name (slug, e.g. "fix-login-bug")
         name: String,

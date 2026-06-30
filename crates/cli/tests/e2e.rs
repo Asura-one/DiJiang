@@ -78,6 +78,19 @@ fn dijang_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> Result<S
     Ok(stdout)
 }
 
+#[test]
+fn test_e2e_help_describes_canonical_boundaries() {
+    let (_tmp, project_dir) = init_project();
+
+    let help = dijang(&["--help"], &project_dir).unwrap();
+    assert!(help.contains("生命周期入口"));
+    assert!(help.contains("原子状态操作"));
+    assert!(help.contains("交付质量闸门使用 dj-check"));
+
+    let task_help = dijang(&["task", "--help"], &project_dir).unwrap();
+    assert!(task_help.contains("low-level task operation"));
+}
+
 /// Initialize a temporary dijiang project and return its path.
 fn init_project() -> (tempfile::TempDir, PathBuf) {
     let tmp = tempfile::tempdir().expect("tempdir");
