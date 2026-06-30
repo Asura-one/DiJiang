@@ -325,10 +325,10 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
         &project_dir,
     )
     .unwrap();
-    assert!(finish_out.contains("Finished task 'finish-e2e'"));
-    assert!(finish_out.contains("Active task cleared"));
-    assert!(finish_out.contains("Verification: cargo test -p dijiang-task"));
-    assert!(finish_out.contains("Session closed:"));
+    assert!(finish_out.contains("已完成任务 'finish-e2e'"));
+    assert!(finish_out.contains("当前 session 的 active task 已清理"));
+    assert!(finish_out.contains("验证：cargo test -p dijiang-task"));
+    assert!(finish_out.contains("Session 已关闭："));
 
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("(none)"), "current output: {current}");
@@ -385,10 +385,7 @@ fn test_e2e_finish_work_blocks_dirty_git_worktree() {
         &project_dir,
     )
     .unwrap_err();
-    assert!(
-        err.contains("git worktree has uncommitted changes"),
-        "error: {err}"
-    );
+    assert!(err.contains("git worktree 存在未提交修改"), "error: {err}");
     assert!(err.contains("dirty.txt"), "error: {err}");
 
     let current = dijang(&["task", "current"], &project_dir).unwrap();
@@ -434,8 +431,8 @@ fn test_e2e_finish_work_closes_session_on_clean_git_worktree() {
         &[("DIJIANG_CONTEXT_ID", "finish-window")],
     )
     .unwrap();
-    assert!(finish_out.contains("Finished task 'clean-task'"));
-    assert!(finish_out.contains("Session closed:"));
+    assert!(finish_out.contains("已完成任务 'clean-task'"));
+    assert!(finish_out.contains("Session 已关闭："));
 
     let session_journal = std::fs::read_to_string(
         project_dir

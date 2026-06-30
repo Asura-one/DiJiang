@@ -512,7 +512,7 @@ fn ensure_finish_preconditions(
             String::new()
         };
         return Err(anyhow::anyhow!(
-            "finish-work blocked: git worktree has uncommitted changes. Commit/stash them or rerun with --allow-dirty after reviewing.\n  {preview}{more}"
+            "finish-work 被阻止：git worktree 存在未提交修改。请先审查范围、决定版本影响、提交当前任务 diff，再重新运行 finish-work。只有明确要不提交就关闭任务时才使用 --allow-dirty。\n  {preview}{more}"
         ));
     }
 
@@ -628,14 +628,17 @@ fn cmd_finish_work(
     )?;
 
     println!(
-        "✓ Finished task '{}' (status: {})",
+        "✓ 已完成任务 '{}'（状态：{}）",
         active_task,
         task.status.as_str()
     );
-    println!("  Verification: {verification}");
-    println!("  Journal: {}", journal.display());
-    println!("  Session closed: {}", session_journal.display());
-    println!("  Active task cleared for current session");
+    println!("  验证：{verification}");
+    println!("  Journal：{}", journal.display());
+    println!("  Session 已关闭：{}", session_journal.display());
+    println!("  当前 session 的 active task 已清理");
+    println!(
+        "  Git 收尾：确认版本决策、范围一致的提交、可用时 push/merge，以及 worktree 清理已完成。"
+    );
     Ok(())
 }
 

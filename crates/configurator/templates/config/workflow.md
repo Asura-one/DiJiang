@@ -8,6 +8,7 @@
 2. **Specs injected, not remembered** — guidelines are injected via hook/skill, not recalled from memory.
 3. **Persist decisions** — task artifacts, findings, lessons, and handoffs are written to `.dijiang/`.
 4. **One canonical workflow** — CLI, skills, AGENTS, prompts, and agents are projections of this model.
+5. **Git 隔离优先** — 所有会修改代码的任务，修改前都必须创建专用 worktree/branch；任务结束时先做版本决策，再按权限完成提交、push、合并和 worktree 清理。
 
 ## DiJiang Canonical Workflow
 
@@ -19,7 +20,7 @@ DiJiang uses `dijiang` CLI for project state and `dj-*` skills for execution cap
 | `planning` | align | `dj-grill`, optionally `dj-output` | `prd.md`, optionally `design.md` / `implement.md` |
 | `in_progress` | implement | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-script` / `dj-design` | Working code, tests, verification notes |
 | `in_progress` | check | `dj-check` | Verified diff and follow-up fixes |
-| `completed` | finish | `dijiang finish-work --verification "..."` | Journal entry, archived task, cleared active session |
+| `completed` | finish | `dijiang finish-work --verification "..."` | 版本决策、范围一致的提交、journal、归档任务、清理当前 session active task |
 | `archived` | closed | Read-only, or restart with `dijiang start <task>` | No active work on archived task |
 | `paused` | resume | `dijiang-continue` | Context restored, then return to `planning` or `in_progress` |
 
@@ -37,6 +38,15 @@ DiJiang uses `dijiang` CLI for project state and `dj-*` skills for execution cap
 | Writing polish | `dj-write` | Polish prose; does not own engineering docs lifecycle |
 | Session transfer | `dj-handoff` | Prepare handoff; does not replace finish-work journal |
 | Session wrappers | `dijiang-start`, `dijiang-continue`, `dijiang-finish-work` | Load context, route, and close sessions |
+## Git Worktree 生命周期
+
+所有会修改代码的工作，在修改任何文件前都必须使用隔离 worktree。主 checkout 保持纯净，只在任务分支完成后用于集成。
+
+1. **修改前** — 从目标 base branch 创建任务分支和 worktree。分支名使用 `<type>/<task-slug>`，worktree 路径使用 `../<repo>-<task-slug>`。如果已经在主 checkout 中，先停止编辑，创建或切换到任务 worktree。
+2. **实现中** — 所有修改只留在任务 worktree。不要因为某个逻辑单元完成就提交；实现、检查、文档/spec 同步和版本决策都完成后再提交。
+3. **版本决策** — 任务结束时判断变更属于 `major`、`minor`、`patch` 或 `none`。只有项目存在可发布的 package/version 元数据，且变更需要发布时才更新版本文件。
+4. **提交内容** — 只提交当前任务的实际 diff。显式 stage 已审查的路径或 hunk，不能混入无关文件。commit message 描述行为变化，不堆文件名。
+5. **Push 与集成** — 当凭证和 remote 策略允许时，push 任务分支；检查通过后合并到主分支；必要时 push 主分支和 tag；最后删除任务 worktree。如果 push/merge 不可执行，保留分支和 worktree，并报告具体阻塞。
 
 ## Project Structure
 
@@ -64,7 +74,7 @@ DiJiang uses `dijiang` CLI for project state and `dj-*` skills for execution cap
 | `dijiang status` | Show project and active task status |
 | `dijiang status --compat` | Show compatibility diagnostics |
 | `dijiang start <name>` | Create and activate a work session |
-| `dijiang finish-work --verification "..."` | Finish current work, write journal, archive task |
+| `dijiang finish-work --verification "..."` | 在验证、版本决策、范围一致的提交/发布决策、journal 记录后完成当前工作并归档 |
 | `dijiang task list` | List all tasks |
 | `dijiang task current` | Show active task |
 | `dijiang task status <name> <status>` | Update task status |
