@@ -14,44 +14,42 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Show project status
-    /// Show project status
+    /// 显示项目状态
     Status {
-        /// Show detailed compatibility diagnostics
+        /// 显示详细的兼容性诊断信息
         #[arg(long)]
         compat: bool,
     },
-    /// Start a new coding session with a task
+    /// 开始一个新的编码会话
     Start {
-        /// Task name (slug, e.g. "fix-login-bug")
+        /// 任务名称（slug 格式，如 "fix-login-bug"）
         name: String,
-        /// Task display title (optional)
+        /// 任务显示标题（可选）
         title: Option<String>,
     },
-    /// Task management
+    /// 任务管理
     Task {
         #[command(subcommand)]
         command: TaskCommands,
     },
-    /// Initialize a DiJiang project
+    /// 初始化 DiJiang 项目
     Init {
-        /// Project name (defaults to directory name)
+        /// 项目名称（默认为目录名）
         #[arg(default_value = "")]
         name: String,
-        /// Developer name (detected from git if not provided)
+        /// 开发者名称（如未提供则从 git 检测）
         #[arg(long)]
         developer: Option<String>,
-        /// Skip interactive prompts, use defaults
-        /// Skip interactive prompts, use defaults
+        /// 跳过交互式提示，使用默认值
         #[arg(long, short = 'y')]
         yes: bool,
-        /// Force re-initialization even if already initialized
+        /// 强制重新初始化
         #[arg(long)]
         force: bool,
-        /// Comma-separated platforms to configure (pi,cursor,claude,codex,opencode,hermes)
+        /// 要配置的平台（逗号分隔：pi,cursor,claude,codex,opencode,hermes）
         #[arg(long)]
         platforms: Option<String>,
-        /// Auto-detect installed platforms
+        /// 自动检测已安装的平台
         #[arg(long)]
         auto_detect: bool,
     },
@@ -59,166 +57,170 @@ enum Commands {
         #[command(subcommand)]
         command: MemCommands,
     },
-    /// Template management
+    /// 模板管理
     Template {
         #[command(subcommand)]
         command: TemplateCommands,
     },
-    /// Manage dj-* skills (list, sync to project)
+    /// 管理 dj-* 技能（列出、同步到项目）
     Skills {
-        /// Sync skills to current project
+        /// 同步技能到当前项目
         #[arg(long)]
         sync: bool,
     },
-    /// Migrate a Trellis project to DiJiang
+    /// 将 Trellis 项目迁移到 DiJiang
     Migrate,
+    /// 代码审查（对抗式/第一性原理）
     Review {
-        /// Review mode: adversarial or first-principles
+        /// 审查模式：adversarial 或 first-principles
         #[arg(long, default_value = "adversarial")]
         mode: String,
     },
-    /// Agent channel management
+    /// Agent 通道管理
     Channel {
         #[command(subcommand)]
         command: ChannelCommands,
     },
-    /// Update dj-* skills and agents in current project
+    /// 更新当前项目的 dj-* 技能和代理
     Update {
-        /// Force update all files
+        /// 强制更新所有文件
         #[arg(long)]
         force: bool,
     },
 }
 #[derive(Subcommand)]
 enum ChannelCommands {
+    /// 生成一个 agent 执行任务
     Spawn {
-        /// Agent name (check, implement, etc.)
+        /// Agent 名称（check, implement 等）
         agent: String,
-        /// Task path (optional, defaults to current task)
+        /// 任务路径（可选，默认为当前任务）
         #[arg(long)]
         task: Option<String>,
-        /// Working directory (optional)
+        /// 工作目录（可选）
         #[arg(long)]
         dir: Option<String>,
     },
-    /// List active channels
+    /// 列出活跃的通道
     List,
-    /// Send a message to a channel
+    /// 向通道发送消息
     Send {
-        /// Channel ID
+        /// 通道 ID
         channel_id: String,
-        /// Message to send
+        /// 要发送的消息
         message: String,
     },
-    /// Check channel status
+    /// 查看通道状态
     Status {
-        /// Channel ID (or 'all' for all channels)
+        /// 通道 ID（或 'all' 查看所有通道）
         channel_id: String,
     },
-    /// Stop a channel
+    /// 停止通道
     Stop {
-        /// Channel ID
+        /// 通道 ID
         channel_id: String,
     },
+    /// 在通道中执行 agent
     Execute {
-        /// Channel ID
+        /// 通道 ID
         channel_id: String,
-        /// Model to use (optional)
+        /// 使用的模型（可选）
         #[arg(long)]
         model: Option<String>,
-        /// Provider to use (optional)
+        /// 使用的提供商（可选）
         #[arg(long)]
         provider: Option<String>,
-        /// Timeout in seconds (optional, default: 300)
+        /// 超时时间（秒，默认 300）
         #[arg(short, long, default_value = "300")]
         timeout: u64,
-        /// Follow output in real-time
+        /// 实时输出
         #[arg(long)]
         follow: bool,
     },
-    /// Execute all active channels in parallel
+    /// 并行执行所有活跃的通道
     ExecuteAll {
-        /// Model to use (optional)
+        /// 使用的模型（可选）
         #[arg(long)]
         model: Option<String>,
-        /// Provider to use (optional)
+        /// 使用的提供商（可选）
         #[arg(long)]
         provider: Option<String>,
-        /// Timeout in seconds (optional, default: 300)
+        /// 超时时间（秒，默认 300）
         #[arg(short, long, default_value = "300")]
         timeout: u64,
     },
 }
 #[derive(Subcommand)]
 enum MemCommands {
-    /// List sessions across platforms
+    /// 列出跨平台会话
     List,
-    /// Sync all platform sessions into ~/.dijiang/mem/
+    /// 同步所有平台会话到 ~/.dijiang/mem/
     Sync,
-    /// Append a finding to project journal
+    /// 追加发现到项目日志
     Findings {
         #[arg(long)]
         finding: String,
     },
-    /// Write a lesson learned to project journal
+    /// 记录学习到项目日志
     Learn {
         #[arg(long)]
         lesson: String,
     },
-    /// Archive current session
+    /// 归档当前会话
     Archive,
-    /// Add a tactic to global memory
+    /// 添加策略到全局记忆
     Tactic {
         #[arg(long)]
         name: String,
         #[arg(long)]
         description: String,
     },
-    /// List tactics or select top-k by Thompson sampling
+    /// 列出策略或通过 Thompson 采样选择 top-k
     Tactics {
         #[arg(long, default_value = "5")]
         select: usize,
     },
-    /// Record a tactic event (success/failure)
+    /// 记录策略事件（成功/失败）
     Record {
         #[arg(long)]
         tactic: String,
+        #[arg(long)]
         #[arg(long)]
         outcome: String,  // success or failure
         #[arg(long)]
         context: String,
     },
-    /// Add a pattern/SOP
+    /// 添加模式/标准操作流程
     Pattern {
         #[arg(long)]
         name: String,
         #[arg(long)]
         description: String,
     },
-    /// List patterns
+    /// 列出模式
     Patterns,
-    /// Show memory statistics
+    /// 显示记忆统计信息
     Stats,
-    /// Backup project memory to global
+    /// 备份项目记忆到全局
     Backup,
-    /// Run fast-loop evolution (analyze session,提炼tactics)
+    /// 运行快速进化循环（分析会话，提炼策略）
     Evolve,
-    /// Run slow-loop fine-tune (train on accumulated experience)
+    /// 运行慢速微调循环（基于积累的经验训练）
     Finetune,
 }
 
 #[derive(Subcommand)]
 enum TemplateCommands {
-    /// List available templates (built-in and cached)
+    /// 列出可用模板（内置和缓存）
     List,
-    /// Pull a template from a source (gh:owner/repo or URL)
+    /// 从源拉取模板（gh:owner/repo 或 URL）
     Pull {
-        /// Template source (e.g. gh:tiezhu/dijiang-templates)
+        /// 模板源（如 gh:tiezhu/dijiang-templates）
         source: String,
     },
-    /// Validate a template directory
+    /// 验证模板目录
     Validate {
-        /// Path to template directory or manifest.toml
+        /// 模板目录或 manifest.toml 路径
         path: String,
     },
 }
