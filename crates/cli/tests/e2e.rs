@@ -160,8 +160,12 @@ fn test_e2e_init_creates_project_structure() {
     // Pi platform files
     assert!(project_dir.join(".pi").join("settings.json").exists());
     assert!(project_dir.join("AGENTS.md").exists());
-}
 
+    let extension = std::fs::read_to_string(project_dir.join(".pi/extensions/dijiang/index.ts"))
+        .unwrap();
+    assert!(extension.contains("before_agent_start"));
+    assert!(extension.contains("dispatch"));
+}
 #[test]
 fn test_e2e_update_refreshes_existing_platform_hooks() {
     let (_tmp, project_dir) = init_project();
