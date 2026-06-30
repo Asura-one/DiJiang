@@ -115,6 +115,17 @@ enum ChannelCommands {
         /// Channel ID
         channel_id: String,
     },
+    /// Execute an agent in a channel
+    Execute {
+        /// Channel ID
+        channel_id: String,
+        /// Model to use (optional)
+        #[arg(long)]
+        model: Option<String>,
+        /// Provider to use (optional)
+        #[arg(long)]
+        provider: Option<String>,
+    },
 }
 #[derive(Subcommand)]
 enum MemCommands {
@@ -265,6 +276,7 @@ fn main() -> anyhow::Result<()> {
             ChannelCommands::Send { channel_id, message } => cmd_channel_send(&channel_id, &message),
             ChannelCommands::Status { channel_id } => cmd_channel_status(&channel_id),
             ChannelCommands::Stop { channel_id } => cmd_channel_stop(&channel_id),
+            ChannelCommands::Execute { channel_id, model, provider } => cmd_channel_execute(&channel_id, model.as_deref(), provider.as_deref()),
         },
     }
 }
@@ -1195,6 +1207,117 @@ fn cmd_channel_stop(channel_id: &str) -> anyhow::Result<()> {
     println!("  Channel {} stopped.", channel_id);
     Ok(())
 }
+
+fn cmd_channel_execute(channel_id: &str, model: Option<&str>, provider: Option<&str>) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    let channel_dir = dijiang_dir.join("channels").join(channel_id);
+    if !channel_dir.exists() {
+        anyhow::bail!("Channel '{}' not found", channel_id);
+    }
+
+    // Read agent definition
+    let agent_file = channel_dir.join("agent.md");
+    if !agent_file.exists() {
+        anyhow::bail!("No agent definition found in channel");
+    }
+
+    // Read inbox
+    let inbox_file = channel_dir.join("inbox");
+    if !inbox_file.exists() {
+        anyhow::bail!("No inbox found in channel");
+    }
+
+    // Read channel metadata
+    let channel_toml = channel_dir.join("channel.toml");
+    let mut agent_name = "unknown".to_string();
+    if channel_toml.exists() {
+        let content = std::fs::read_to_string(&channel_toml)?;
+        if let Some(line) = content.lines().find(|l| l.contains("agent"))
+            && let Some(val) = line.split('=').nth(1)
+        {
+            agent_name = val.trim().trim_matches('"').to_string();
+        }
+    }
+
+    println!("  Executing agent '{}' in channel {}", agent_name, channel_id);
+    println!();
+
+    // Build pi command
+    let mut pi_args = vec!["--print".to_string()];
+
+    if let Some(m) = model {
+        pi_args.push("--model".to_string());
+        pi_args.push(m.to_string());
+    }
+
+    if let Some(p) = provider {
+        pi_args.push("--provider".to_string());
+        pi_args.push(p.to_string());
+    }
+
+    // Build the prompt from agent definition + inbox
+    let agent_def = std::fs::read_to_string(&agent_file)?;
+    let inbox_content = std::fs::read_to_string(&inbox_file)?;
+
+    let prompt = format!(
+        "{}\n\n---\n\nInbox:\n{}",
+        agent_def, inbox_content
+    );
+
+    // Execute pi with the prompt
+    println!("  Running: pi {}", pi_args.join(" "));
+    println!("  Prompt length: {} chars", prompt.len());
+    println!();
+
+    // Execute pi using stdin to avoid command line length limits
+    let mut child = std::process::Command::new("pi")
+        .args(&pi_args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .current_dir(&cwd)
+        .spawn()?;
+
+    // Write prompt to stdin
+    if let Some(mut stdin) = child.stdin.take() {
+        use std::io::Write;
+        stdin.write_all(prompt.as_bytes())?;
+    }
+
+    // Wait for output
+    let output = child.wait_with_output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Write output
+    let output_file = channel_dir.join("output");
+    std::fs::write(&output_file, stdout.as_ref())?;
+
+    // Write status
+    let status = if output.status.success() { "completed" } else { "failed" };
+    if channel_toml.exists() {
+        let content = std::fs::read_to_string(&channel_toml)?;
+        let new_content = content.replace("status = \"active\"", &format!("status = \"{}\"", status));
+        std::fs::write(&channel_toml, &new_content)?;
+    }
+
+    if output.status.success() {
+        println!("  Agent execution completed.");
+        println!("  Output: {} bytes", stdout.len());
+        if !stderr.is_empty() {
+            println!("  Warnings: {} bytes", stderr.len());
+        }
+    } else {
+        anyhow::bail!("Agent execution failed: {}", stderr);
+    }
+
+    Ok(())
+}
+
 fn cmd_mem_findings(finding: &str) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
