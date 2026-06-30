@@ -37,6 +37,39 @@ impl GlobalMemory {
     pub fn evolution_path(&self) -> PathBuf { self.root.join("meta").join("evolution.json") }
     pub fn backup_dir(&self, project: &str) -> PathBuf { self.root.join("backups").join(project) }
 
+    // ─── Default Tactics ────────────────────────────────────────
+
+    pub fn ensure_default_tactics(&self) -> Result<()> {
+        let mut tactics = self.load_tactics()?;
+        let existing: Vec<String> = tactics.iter().map(|t| t.name.clone()).collect();
+
+        let defaults = vec![
+            ("cargo-test", "Run cargo test before committing"),
+            ("typecheck", "Run typecheck before committing"),
+            ("review-adversarial", "Multi-angle security review with 7 attack vectors"),
+            ("review-first-principles", "First-principles architectural review with 6 steps"),
+            ("lint-fix", "Run lint and auto-fix before committing"),
+            ("doc-update", "Update docs when changing public API"),
+        ];
+
+        for (name, desc) in defaults {
+            if !existing.contains(&name.to_string()) {
+                tactics.push(Tactic {
+                    name: name.to_string(),
+                    description: desc.to_string(),
+                    alpha: 1,
+                    beta: 1,
+                    source: "builtin".to_string(),
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                    last_used: Some(chrono::Utc::now().to_rfc3339()),
+                });
+            }
+        }
+
+        self.save_tactics(&tactics)?;
+        Ok(())
+    }
+
     // ─── Tactics (L3: Semantic Memory) ─────────────────────────
 
     pub fn load_tactics(&self) -> Result<Vec<Tactic>> {

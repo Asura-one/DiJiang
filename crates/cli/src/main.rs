@@ -731,9 +731,24 @@ fn cmd_init(name: &str, developer: Option<&str>, yes: bool, force: bool, platfor
     )?;
 
     // Write dj-* skills to project
+    // Write dj-* skills to project
     let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
     if skills_written > 0 {
         println!("  Wrote {} dj-* skills to .pi/skills/", skills_written);
+    }
+
+    // Initialize default tactics
+    match dijiang_mem::GlobalMemory::new() {
+        Ok(global_mem) => {
+            if let Err(e) = global_mem.ensure_default_tactics() {
+                eprintln!("  Warning: Failed to initialize default tactics: {}", e);
+            } else {
+                println!("  Initialized default tactics (cargo-test, typecheck, review-*, lint-fix, doc-update)");
+            }
+        }
+        Err(e) => {
+            eprintln!("  Warning: Failed to initialize global memory: {}", e);
+        }
     }
 
     Ok(())
