@@ -156,6 +156,56 @@ mod tests {
     }
 
     #[test]
+    fn test_runtime_hooks_surface_errors_and_session_lifecycle() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let reg = ConfiguratorRegistry::with_all();
+        let results = reg.configure(
+            tmp.path(),
+            &[
+                PlatformKind::Pi,
+                PlatformKind::Cursor,
+                PlatformKind::Claude,
+                PlatformKind::Codex,
+                PlatformKind::OpenCode,
+            ],
+        );
+        assert!(results.iter().all(|(_, result)| result.is_ok()));
+
+        let codex_hook =
+            std::fs::read_to_string(tmp.path().join(".codex/hooks/inject-workflow-state.py"))
+                .unwrap();
+        assert!(codex_hook.contains("Hook error:"));
+        assert!(codex_hook.contains("CODEX_SESSION_ID"));
+
+        let claude_hook =
+            std::fs::read_to_string(tmp.path().join(".claude/hooks/inject-workflow-state.py"))
+                .unwrap();
+        assert!(claude_hook.contains("Hook error:"));
+        assert!(claude_hook.contains("CLAUDE_SESSION_ID"));
+
+        let cursor_hooks = std::fs::read_to_string(tmp.path().join(".cursor/hooks.json")).unwrap();
+        assert!(cursor_hooks.contains(".cursor/hooks/inject-workflow-state.py"));
+        let cursor_hook =
+            std::fs::read_to_string(tmp.path().join(".cursor/hooks/inject-workflow-state.py"))
+                .unwrap();
+        assert!(cursor_hook.contains("Hook error:"));
+        assert!(cursor_hook.contains("CURSOR_SESSION_ID"));
+
+        let pi_extension =
+            std::fs::read_to_string(tmp.path().join(".pi/extensions/dijiang/index.ts")).unwrap();
+        assert!(pi_extension.contains("session_start"));
+        assert!(pi_extension.contains("session_shutdown"));
+        assert!(pi_extension.contains("Hook error:"));
+        assert!(pi_extension.contains("PI_SESSION_ID"));
+
+        let opencode_plugin =
+            std::fs::read_to_string(tmp.path().join(".opencode/plugins/session-start.js")).unwrap();
+        assert!(opencode_plugin.contains("--hook-event"));
+        assert!(opencode_plugin.contains("OPENCODE_SESSION_ID"));
+        assert!(opencode_plugin.contains("Hook error:"));
+    }
+
+    #[test]
     fn test_registry_unknown_platform() {
         let tmp = tempfile::TempDir::new().unwrap();
         let reg = ConfiguratorRegistry::new();

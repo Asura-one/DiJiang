@@ -143,6 +143,23 @@ cargo test
         r#"/* global process */
 import { execFileSync } from "node:child_process";
 
+function errorContext(message) {
+  const session =
+    process.env.DIJIANG_CONTEXT_ID ||
+    process.env.OPENCODE_SESSION_ID ||
+    process.env.OPENCODE_RUN_ID ||
+    "unknown";
+  return [
+    "<dijiang-workflow-state>",
+    "Platform: opencode",
+    `Session hint: ${session}`,
+    `Hook error: ${message}`,
+    "Active task: unknown",
+    "Next: run `dijiang workflow-state` from the project root and check that `dijiang` is on PATH.",
+    "</dijiang-workflow-state>",
+  ].join("\n");
+}
+
 export default async ({ directory }) => {
   return {
     "chat.message": async (_input, output) => {
@@ -150,18 +167,25 @@ export default async ({ directory }) => {
       let context = "";
 
       try {
-        context = execFileSync("dijiang", ["workflow-state"], {
-          cwd: directory,
-          encoding: "utf8",
-          timeout: 10000,
-        }).trim();
-      } catch {
-        context = [
-          "<dijiang-workflow-state>",
-          "Active task: unknown",
-          "Next: run `dijiang workflow-state` from the project root.",
-          "</dijiang-workflow-state>",
-        ].join("\n");
+        context = execFileSync(
+          "dijiang",
+          ["workflow-state", "--hook-event", "chat.message"],
+          {
+            cwd: directory,
+            encoding: "utf8",
+            timeout: 10000,
+            env: {
+              ...process.env,
+              DIJIANG_CONTEXT_ID:
+                process.env.DIJIANG_CONTEXT_ID ||
+                process.env.OPENCODE_SESSION_ID ||
+                process.env.OPENCODE_RUN_ID ||
+                "opencode",
+            },
+          }
+        ).trim();
+      } catch (error) {
+        context = errorContext(error instanceof Error ? error.message : String(error));
       }
 
       if (!context) {
