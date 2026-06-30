@@ -231,14 +231,14 @@ fn test_e2e_update_force_reports_duplicate_skill_dirs_without_blocking() {
 
     let out = dijang(&["update", "--force"], &project_dir).unwrap();
     assert!(
-        out.contains("warning   stale duplicate generated skill directory: .pi/skills/dj-dj-hunt"),
-        "force update should report duplicate skill dir as warning: {out}"
+        out.contains("removed   .pi/skills/dj-dj-hunt"),
+        "force update should remove duplicate skill dir: {out}"
     );
     assert!(
         out.contains("0 个冲突") || !out.contains("update blocked"),
         "duplicate skill dir should not block force update: {out}"
     );
-    assert!(duplicate_dir.join("SKILL.md").exists());
+    assert!(!duplicate_dir.exists());
 }
 
 #[test]

@@ -2394,6 +2394,9 @@ fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
     for path in &report.unchanged {
         println!("  unchanged {path}");
     }
+    for path in &report.removed {
+        println!("  removed   {path}");
+    }
     for warning in &report.warnings {
         println!("  warning   {warning}");
     }
@@ -2403,9 +2406,10 @@ fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
 
     println!();
     println!(
-        "  更新完成: {} 个文件已更新, {} 个已是最新, {} 个冲突, {} 个警告",
+        "  更新完成: {} 个文件已更新, {} 个已是最新, {} 个已删除, {} 个冲突, {} 个警告",
         report.updated.len(),
         report.unchanged.len(),
+        report.removed.len(),
         report.conflicts.len(),
         report.warnings.len()
     );

@@ -18,6 +18,7 @@ pub struct UpdateReport {
     pub unchanged: Vec<String>,
     pub conflicts: Vec<String>,
     pub warnings: Vec<String>,
+    pub removed: Vec<String>,
 }
 
 impl UpdateReport {
@@ -87,7 +88,7 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
 
     let mut hashes = load_hashes(&dijiang_dir)?;
     let mut report = UpdateReport::default();
-    record_duplicate_skill_dirs(cwd, &mut report);
+    record_duplicate_skill_dirs(cwd, &mut report, options.force)?;
     let mut seen = BTreeSet::new();
 
     for managed in managed_files {
@@ -262,10 +263,23 @@ fn protected(path: &str) -> ManagedFile {
     }
 }
 
-fn record_duplicate_skill_dirs(cwd: &Path, report: &mut UpdateReport) {
+fn record_duplicate_skill_dirs(
+    cwd: &Path,
+    report: &mut UpdateReport,
+    force: bool,
+) -> Result<(), ConfigError> {
     for name in crate::detect_skills_conflict(cwd).duplicate_dj_skill_dirs {
-        report.warnings.push(format!("stale duplicate generated skill directory: .pi/skills/{name}"));
+        let path = format!(".pi/skills/{name}");
+        if force {
+            fs::remove_dir_all(cwd.join(&path))?;
+            report.removed.push(path);
+        } else {
+            report.warnings.push(format!(
+                "stale duplicate generated skill directory: {path}; rerun with --force to remove"
+            ));
+        }
     }
+    Ok(())
 }
 
 fn apply_managed_file(
@@ -512,6 +526,7 @@ mod tests {
         let edited_skill = tmp.path().join(".pi/skills/dj-check/SKILL.md");
         fs::create_dir_all(edited_skill.parent().unwrap()).unwrap();
         fs::write(&edited_skill, "# local edit").unwrap();
+        fs::create_dir_all(tmp.path().join(".pi/skills/dj-dj-check")).unwrap();
 
         let report = update_project(tmp.path(), UpdateOptions { force: true }).unwrap();
         assert!(report.conflicts.is_empty(), "force should not conflict");
@@ -521,6 +536,11 @@ mod tests {
                 .contains(&".pi/skills/dj-check/SKILL.md".to_string()),
             "force should update edited skill: {report:?}"
         );
+        assert!(
+            report.removed.contains(&".pi/skills/dj-dj-check".to_string()),
+            "force should remove duplicate generated skill dir: {report:?}"
+        );
+        assert!(!tmp.path().join(".pi/skills/dj-dj-check").exists());
         assert!(tmp.path().join(".dijiang/.template-hashes.json").exists());
         let skill = fs::read_to_string(tmp.path().join(".pi/skills/dj-check/SKILL.md")).unwrap();
         assert_ne!(skill, "# local edit");
