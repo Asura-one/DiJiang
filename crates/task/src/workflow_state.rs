@@ -14,6 +14,7 @@ pub struct WorkflowState {
     pub active_task: Option<WorkflowTask>,
     pub guidance: String,
     pub runtime: WorkflowRuntime,
+    pub memory: WorkflowMemory,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,6 +43,21 @@ pub struct WorkflowTask {
     pub title: String,
     pub status: String,
     pub task_path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowMemory {
+    pub summary: String,
+    pub events: Vec<WorkflowMemoryEvent>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowMemoryEvent {
+    pub kind: String,
+    pub detail: String,
+    pub at: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -76,16 +92,17 @@ impl WorkflowState {
             self.runtime.log_path,
             self.runtime.journal_path
         );
+        let memory_line = format_memory(&self.memory);
 
         let Some(task) = &self.active_task else {
             return format!(
-                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\nActive task: none\nNext: {}\n</dijiang-workflow-state>",
+                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\nActive task: none\nNext: {}\n</dijiang-workflow-state>",
                 self.guidance
             );
         };
 
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\nActive task: {}\nTitle: {}\nStatus: {}\nTask path: {}\nGuidance: {}\nLoad context: read task.json plus prd.md/design.md/implement.md/check artifacts when present.\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\nActive task: {}\nTitle: {}\nStatus: {}\nTask path: {}\nGuidance: {}\nLoad context: read task.json plus prd.md/design.md/implement.md/check artifacts when present.\n</dijiang-workflow-state>",
             task.id, task.title, task.status, task.task_path, self.guidance
         )
     }
@@ -112,6 +129,7 @@ pub fn build_for_session(
         None => None,
     };
     let runtime = record_runtime_injection(dijiang_dir, identity, task.as_ref())?;
+    let memory = load_recent_memory(dijiang_dir, &runtime.journal_path, 5);
 
     let Some(task) = task else {
         return Ok(WorkflowState {
@@ -120,6 +138,7 @@ pub fn build_for_session(
             guidance: "run `dijiang start <name>` or read `.dijiang/workflow.md` before coding."
                 .to_string(),
             runtime,
+            memory,
         });
     };
 
@@ -130,6 +149,7 @@ pub fn build_for_session(
         active_task,
         guidance,
         runtime,
+        memory,
     })
 }
 
@@ -232,6 +252,99 @@ fn append_session_journal(
     Ok(journal_path)
 }
 
+fn load_recent_memory(dijiang_dir: &Path, journal_path: &str, limit: usize) -> WorkflowMemory {
+    let path = dijiang_dir
+        .parent()
+        .unwrap_or(dijiang_dir)
+        .join(journal_path);
+    let Ok(content) = fs::read_to_string(path) else {
+        return WorkflowMemory {
+            summary: "No previous session memory for this window.".to_string(),
+            events: Vec::new(),
+        };
+    };
+
+    let mut events = content
+        .lines()
+        .rev()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter_map(memory_event_from_json)
+        .take(limit)
+        .collect::<Vec<_>>();
+    events.reverse();
+
+    let summary = if events.is_empty() {
+        "No previous session memory for this window.".to_string()
+    } else {
+        format!(
+            "{} recent session event(s) loaded for this window.",
+            events.len()
+        )
+    };
+
+    WorkflowMemory { summary, events }
+}
+
+fn memory_event_from_json(value: serde_json::Value) -> Option<WorkflowMemoryEvent> {
+    let kind = value.get("event")?.as_str()?.to_string();
+    let at = value
+        .get("at")
+        .or_else(|| value.get("closed_at"))
+        .and_then(|value| value.as_str())
+        .map(str::to_string);
+    let detail = match kind.as_str() {
+        "workflow_state_injected" => {
+            let count = value
+                .get("injection_count")
+                .and_then(|value| value.as_u64())
+                .unwrap_or_default();
+            let active = value
+                .get("active_task")
+                .and_then(|value| value.as_str())
+                .unwrap_or("none");
+            let previous = value
+                .get("previous_active_task")
+                .and_then(|value| value.as_str())
+                .unwrap_or("none");
+            let changed = value
+                .get("active_task_changed")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(false);
+            format!("injection #{count}: active={active}, previous={previous}, changed={changed}")
+        }
+        "session_closed" => {
+            let task = value
+                .get("task")
+                .and_then(|value| value.as_str())
+                .unwrap_or("unknown");
+            let verification = value
+                .get("verification")
+                .and_then(|value| value.as_str())
+                .unwrap_or("not recorded");
+            format!("session closed for {task}; verification={verification}")
+        }
+        _ => return None,
+    };
+
+    Some(WorkflowMemoryEvent { kind, detail, at })
+}
+
+fn format_memory(memory: &WorkflowMemory) -> String {
+    if memory.events.is_empty() {
+        return format!("Recent memory: {}", memory.summary);
+    }
+
+    let events = memory
+        .events
+        .iter()
+        .map(|event| match &event.at {
+            Some(at) => format!("- [{}] {}", at, event.detail),
+            None => format!("- {}", event.detail),
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("Recent memory: {}\n{}", memory.summary, events)
+}
 fn read_developer(dijiang_dir: &Path) -> String {
     let config_path = dijiang_dir.join("config.toml");
     let Ok(config_str) = fs::read_to_string(config_path) else {

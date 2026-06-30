@@ -374,6 +374,8 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(
         first_a.contains("Session journal: .dijiang/workspace/e2e/sessions/dijiang_window-a.jsonl")
     );
+    assert!(first_a.contains("Recent memory: 1 recent session event(s) loaded for this window."));
+    assert!(first_a.contains("injection #1: active=window-a-task, previous=none, changed=true"));
 
     let second_a = dijang_with_env(
         &["workflow-state"],
@@ -383,6 +385,12 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     .unwrap();
     assert!(second_a.contains("Injection: #2"));
     assert!(second_a.contains("Active task changed: false"));
+    assert!(second_a.contains("Recent memory: 2 recent session event(s) loaded for this window."));
+    assert!(second_a.contains("injection #1: active=window-a-task, previous=none, changed=true"));
+    assert!(
+        second_a
+            .contains("injection #2: active=window-a-task, previous=window-a-task, changed=false")
+    );
 
     dijang_with_env(
         &["start", "window-b-task", "Window B Task"],
@@ -399,6 +407,8 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(first_b.contains("Session: dijiang_window-b (dijiang)"));
     assert!(first_b.contains("Injection: #1"));
     assert!(first_b.contains("Active task: window-b-task"));
+    assert!(first_b.contains("Recent memory: 1 recent session event(s) loaded for this window."));
+    assert!(!first_b.contains("window-a-task"));
 
     dijang_with_env(
         &["start", "window-a-next", "Window A Next"],
@@ -416,6 +426,11 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(changed_a.contains("Active task changed: true"));
     assert!(changed_a.contains("Previous active task: window-a-task"));
     assert!(changed_a.contains("Active task: window-a-next"));
+    assert!(changed_a.contains("Recent memory: 3 recent session event(s) loaded for this window."));
+    assert!(
+        changed_a
+            .contains("injection #3: active=window-a-next, previous=window-a-task, changed=true")
+    );
 
     let session_a = std::fs::read_to_string(
         project_dir
