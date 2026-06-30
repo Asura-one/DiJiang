@@ -180,6 +180,9 @@ grep -rn "功能key\|feature_flag\|路由路径" src/ --include="*.rs"
 6. **最小 harness** — 启动系统子集，单函数调用
 7. **属性/fuzz 循环** — 1000 个随机输入找失败模式
 8. **二分 harness** — `git bisect run`
+9. **人工可复核清单** — 当无法自动化时，列出输入、操作、期望输出和证据截图/日志
+
+反馈回路必须先证明关键命题，再扩大覆盖面。不要一开始追求全量自动化；一个可靠的 CLI fixture、截图对比或日志断言，比“看起来应该对”的代码审查更有价值。
 
 ### Phase 2：最小化
 
@@ -233,7 +236,9 @@ grep -rn "功能key\|feature_flag\|路由路径" src/ --include="*.rs"
 3. 确认反馈回路从红变绿
 4. 检查是否有兄弟路径存在同类问题
 5. 写回归测试（如果还没有的话）
-6. 跑全量测试确认没有引入新问题
+6. 分析 AI 为什么会写出这个 bug：源事实缺失、编码/乱码、术语误判、过度推断、上下文截断、提示词约束不足
+7. 选择沉淀位置：prompt/skill/spec/ADR/task artifact/memory。只有具备 source、scope、confidence、freshness、conflict、actionability 的经验才写入 memory。
+8. 跑全量测试确认没有引入新问题
 ## 回归 bug 专项
 
 "以前好现在坏"的特殊处理：

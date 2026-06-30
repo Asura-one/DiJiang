@@ -8,7 +8,11 @@
 2. **Specs injected, not remembered** — guidelines are injected via hook/skill, not recalled from memory.
 3. **Persist decisions** — task artifacts, findings, lessons, and handoffs are written to `.dijiang/`.
 4. **One canonical workflow** — CLI, skills, AGENTS, prompts, and agents are projections of this model.
-5. **Git 隔离优先** — 所有会修改代码的任务，修改前都必须创建专用 worktree/branch；任务结束时先做版本决策，再按权限完成提交、push、合并和 worktree 清理。
+5. **Verification loop first** — 把目标拆成可证明的命题，先建立 pass/fail 反馈回路，再让实现、审查和记忆围绕它收敛。
+6. **Decisions are durable** — 重要取舍写 ADR，记录 why、状态和替代方案；设计文档描述当前形态并引用 ADR。
+7. **Compound learning** — AI 造成或发现的问题必须沉淀到 prompt、skill、spec 或 memory，让下一轮工作少犯同类错。
+8. **Memory has a quality gate** — 长期记忆必须有 source、scope、confidence、freshness、conflict、actionability；不满足就留在 task artifact。
+9. **Git 隔离优先** — 所有会修改代码的任务，修改前都必须创建专用 worktree/branch；任务结束时先做版本决策，再按权限完成提交、push、合并和 worktree 清理。
 
 ## DiJiang Canonical Workflow
 
@@ -38,6 +42,19 @@ DiJiang uses `dijiang` CLI for project state and `dj-*` skills for execution cap
 | Writing polish | `dj-write` | Polish prose; does not own engineering docs lifecycle |
 | Session transfer | `dj-handoff` | Prepare handoff; does not replace finish-work journal |
 | Session wrappers | `dijiang-start`, `dijiang-continue`, `dijiang-finish-work` | Load context, route, and close sessions |
+
+## Verification & Compound Loop
+
+DiJiang 的默认交付循环是 `Plan → Verify → Work → Check → Compound`。
+
+1. **Plan** — 明确用户目标、约束、完成标准和不做什么；重大取舍写 ADR，普通任务写 task artifacts。
+2. **Verify** — 为目标选择最小可执行反馈回路：测试、CLI fixture、HTTP 脚本、浏览器/OCR、trace 重放或人工可复核清单。
+3. **Work** — 只围绕反馈回路实现，保持改动可审查；遇到不一致先保护源事实，不擅自“纠正”旧系统术语、字段或界面文案。
+4. **Check** — 对照需求、反馈回路、引用点和风险面审查。高风险改动可拆成多个 reviewer lens：correctness、security、performance、architecture、docs。
+5. **Compound** — 把新发现写回 `.dijiang/`：bug 根因进入 `dj-hunt` 记录，长期约束进入 spec，重大决策进入 ADR；只有通过记忆质量门禁的经验才进入 memory。
+
+反馈回路必须能回答“这个目标是否已经达成”。如果只能说明“代码看起来合理”，它还不是验证。
+
 ## Git Worktree 生命周期
 
 所有会修改代码的工作，在修改任何文件前都必须使用隔离 worktree。主 checkout 保持纯净，只在任务分支完成后用于集成。
