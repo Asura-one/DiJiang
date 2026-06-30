@@ -185,16 +185,19 @@ pub fn write_active_task_for_session(
         }
     };
 
-    let session = serde_json::json!({
-        "current_task": task_name,
-        "last_seen_at": chrono::Utc::now().to_rfc3339(),
-        "session_key": identity.key(),
-        "source": identity.source(),
-    });
-    fs::write(
-        session_path(dijiang_dir, identity),
-        serde_json::to_string_pretty(&session)?,
-    )?;
+    let path = session_path(dijiang_dir, identity);
+    let mut session = if path.exists() {
+        let content = fs::read_to_string(&path)?;
+        serde_json::from_str::<serde_json::Value>(&content)
+            .unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+    session["current_task"] = serde_json::json!(task_name);
+    session["last_seen_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+    session["session_key"] = serde_json::json!(identity.key());
+    session["source"] = serde_json::json!(identity.source());
+    fs::write(path, serde_json::to_string_pretty(&session)?)?;
     fs::write(runtime_dir.join(".dijiang_owned"), "")?;
 
     Ok(())

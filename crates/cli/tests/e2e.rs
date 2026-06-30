@@ -48,6 +48,35 @@ fn dijang(args: &[&str], cwd: &Path) -> Result<String, String> {
     }
     Ok(stdout)
 }
+fn dijang_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> Result<String, String> {
+    let bin = dijiang_bin();
+    if !bin.exists() {
+        return Err(format!(
+            "Binary not found at {}. Run `cargo build -p dijiang` first.",
+            bin.display()
+        ));
+    }
+    let mut command = Command::new(&bin);
+    command.args(args).current_dir(cwd);
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    let output = command
+        .output()
+        .map_err(|e| format!("Failed to execute {}: {e}", bin.display()))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+
+    if !output.status.success() {
+        return Err(format!(
+            "dijiang {} exited with {}:\n  stdout: {stdout}\n  stderr: {stderr}",
+            args.join(" "),
+            output.status,
+        ));
+    }
+    Ok(stdout)
+}
 
 /// Initialize a temporary dijiang project and return its path.
 fn init_project() -> (tempfile::TempDir, PathBuf) {
@@ -195,6 +224,92 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
     .unwrap();
     assert!(journal.contains("finish-e2e"));
     assert!(journal.contains("implemented finish-work flow"));
+}
+
+#[test]
+fn test_e2e_workflow_state_records_multi_turn_session_changes() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang_with_env(
+        &["start", "window-a-task", "Window A Task"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-a")],
+    )
+    .unwrap();
+    let first_a = dijang_with_env(
+        &["workflow-state"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-a")],
+    )
+    .unwrap();
+    assert!(first_a.contains("Session: dijiang_window-a (dijiang)"));
+    assert!(first_a.contains("Injection: #1"));
+    assert!(first_a.contains("Active task changed: true"));
+    assert!(first_a.contains("Active task: window-a-task"));
+
+    let second_a = dijang_with_env(
+        &["workflow-state"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-a")],
+    )
+    .unwrap();
+    assert!(second_a.contains("Injection: #2"));
+    assert!(second_a.contains("Active task changed: false"));
+
+    dijang_with_env(
+        &["start", "window-b-task", "Window B Task"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-b")],
+    )
+    .unwrap();
+    let first_b = dijang_with_env(
+        &["workflow-state"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-b")],
+    )
+    .unwrap();
+    assert!(first_b.contains("Session: dijiang_window-b (dijiang)"));
+    assert!(first_b.contains("Injection: #1"));
+    assert!(first_b.contains("Active task: window-b-task"));
+
+    dijang_with_env(
+        &["start", "window-a-next", "Window A Next"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-a")],
+    )
+    .unwrap();
+    let changed_a = dijang_with_env(
+        &["workflow-state"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "window-a")],
+    )
+    .unwrap();
+    assert!(changed_a.contains("Injection: #3"));
+    assert!(changed_a.contains("Active task changed: true"));
+    assert!(changed_a.contains("Previous active task: window-a-task"));
+    assert!(changed_a.contains("Active task: window-a-next"));
+
+    let session_a = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join(".runtime")
+            .join("sessions")
+            .join("dijiang_window-a.json"),
+    )
+    .unwrap();
+    assert!(session_a.contains("\"injection_count\": 3"));
+    assert!(session_a.contains("window-a-next"));
+
+    let log = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join(".runtime")
+            .join("workflow-state.log"),
+    )
+    .unwrap();
+    assert!(log.contains("workflow_state_injected"));
+    assert!(log.contains("dijiang_window-a"));
+    assert!(log.contains("dijiang_window-b"));
 }
 
 #[test]
