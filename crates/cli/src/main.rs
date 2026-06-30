@@ -1921,9 +1921,15 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
         std::fs::create_dir_all(&skill_dir)?;
         let skill_file = skill_dir.join("SKILL.md");
 
-        // 获取嵌入的技能内容
-        let content = dijiang_configurator::dj_skills::get_skill_content(name)
-            .unwrap_or_default();
+        // 获取技能内容：优先从当前项目的模板目录读取，否则用嵌入内容
+        let templates_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates").join("skills");
+        let content = if let Ok(content) = std::fs::read_to_string(templates_dir.join(name).join("SKILL.md")) {
+            content
+        } else {
+            dijiang_configurator::dj_skills::get_skill_content(name)
+                .unwrap_or_default()
+                .to_string()
+        };
 
         if content.is_empty() {
             continue;
@@ -1931,13 +1937,13 @@ fn cmd_update(_force: bool, from_github: bool) -> anyhow::Result<()> {
 
         // 计算新内容的哈希
         let new_hash = format!("{:x}", Sha256::digest(content.as_bytes()));
-        let key = format!(".pi/skills/dj-{}/SKILL.md", name);
+        let key = format!(".pi/skills/{}/SKILL.md", name);
         let old_hash = template_hashes.get(&key);
 
         if old_hash != Some(&new_hash) {
             std::fs::write(&skill_file, content)?;
             template_hashes.insert(key, new_hash);
-            println!("  已更新: dj-{}/SKILL.md", name);
+            println!("  已更新: {}/SKILL.md", name);
             updated += 1;
         } else {
             skipped += 1;
