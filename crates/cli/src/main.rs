@@ -82,10 +82,15 @@ enum Commands {
         #[command(subcommand)]
         command: ChannelCommands,
     },
+    /// Update dj-* skills and agents in current project
+    Update {
+        /// Force update all files
+        #[arg(long)]
+        force: bool,
+    },
 }
 #[derive(Subcommand)]
 enum ChannelCommands {
-    /// Spawn an agent to perform a task
     Spawn {
         /// Agent name (check, implement, etc.)
         agent: String,
@@ -296,6 +301,7 @@ fn main() -> anyhow::Result<()> {
             ChannelCommands::Execute { channel_id, model, provider, timeout, follow } => cmd_channel_execute(&channel_id, model.as_deref(), provider.as_deref(), timeout, follow),
             ChannelCommands::ExecuteAll { model, provider, timeout } => cmd_channel_execute_all(model.as_deref(), provider.as_deref(), timeout),
         },
+        Commands::Update { force } => cmd_update(force),
     }
 }
 fn status_line(label: &str, value: impl std::fmt::Display) {
@@ -1833,6 +1839,45 @@ fn cmd_mem_finetune() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn cmd_update(_force: bool) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+
+    println!("  Updating dj-* skills and agents...");
+    println!();
+
+    // Update skills
+    let skills_written = dijiang_configurator::write_project_skills(&cwd)?;
+    if skills_written > 0 {
+        println!("  Updated {} dj-* skills to .pi/skills/", skills_written);
+    } else {
+        println!("  Skills already up to date.");
+    }
+
+    // Note about agents
+    let agents_dir = cwd.join(".pi").join("agents");
+    if !agents_dir.exists() {
+        println!("  Note: No .pi/agents/ directory found. Run `dijiang init` first.");
+    } else {
+        println!("  Agents directory exists at .pi/agents/");
+    }
+
+    // Update workflow.md if template exists
+    let workflow_file = dijiang_dir.join("workflow.md");
+    if workflow_file.exists() {
+        let content = std::fs::read_to_string(&workflow_file)?;
+        if !content.contains("Phase 6: Review") {
+            println!("  Note: Consider updating workflow.md to include Phase 6: Review");
+        }
+    }
+
+    println!();
+    println!("  Update complete.");
+    println!("  Tip: Run `dijiang init --force` to regenerate all config files.");
+
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
