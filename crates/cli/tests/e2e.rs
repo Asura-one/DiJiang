@@ -246,6 +246,9 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(first_a.contains("Injection: #1"));
     assert!(first_a.contains("Active task changed: true"));
     assert!(first_a.contains("Active task: window-a-task"));
+    assert!(
+        first_a.contains("Session journal: .dijiang/workspace/e2e/sessions/dijiang_window-a.jsonl")
+    );
 
     let second_a = dijang_with_env(
         &["workflow-state"],
@@ -310,6 +313,32 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(log.contains("workflow_state_injected"));
     assert!(log.contains("dijiang_window-a"));
     assert!(log.contains("dijiang_window-b"));
+
+    let journal_a = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("workspace")
+            .join("e2e")
+            .join("sessions")
+            .join("dijiang_window-a.jsonl"),
+    )
+    .unwrap();
+    assert_eq!(journal_a.lines().count(), 3);
+    assert!(journal_a.contains("window-a-task"));
+    assert!(journal_a.contains("window-a-next"));
+    assert!(journal_a.contains("\"active_task_changed\":true"));
+
+    let journal_b = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("workspace")
+            .join("e2e")
+            .join("sessions")
+            .join("dijiang_window-b.jsonl"),
+    )
+    .unwrap();
+    assert_eq!(journal_b.lines().count(), 1);
+    assert!(journal_b.contains("window-b-task"));
 }
 
 #[test]

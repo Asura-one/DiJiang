@@ -31,6 +31,7 @@ pub struct WorkflowRuntime {
     pub previous_active_task: Option<String>,
     pub last_seen_at: String,
     pub log_path: String,
+    pub journal_path: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -67,12 +68,13 @@ impl WorkflowState {
             .as_deref()
             .unwrap_or("none");
         let runtime_line = format!(
-            "Injection: #{} at {}\nActive task changed: {}\nPrevious active task: {}\nRuntime log: {}",
+            "Injection: #{} at {}\nActive task changed: {}\nPrevious active task: {}\nRuntime log: {}\nSession journal: {}",
             self.runtime.injection_count,
             self.runtime.last_seen_at,
             self.runtime.active_task_changed,
             previous,
-            self.runtime.log_path
+            self.runtime.log_path,
+            self.runtime.journal_path
         );
 
         let Some(task) = &self.active_task else {
@@ -102,9 +104,16 @@ pub fn build_for_session(
         source: identity.source().to_string(),
     });
     let active_task_name = store::read_active_task_for_session(dijiang_dir, identity)?;
-    let runtime = record_runtime_injection(dijiang_dir, identity, active_task_name.as_deref())?;
+    let task = match active_task_name {
+        Some(active_task_name) => Some(store::load_task(
+            &dijiang_dir.join("tasks"),
+            &active_task_name,
+        )?),
+        None => None,
+    };
+    let runtime = record_runtime_injection(dijiang_dir, identity, task.as_ref())?;
 
-    let Some(active_task_name) = active_task_name else {
+    let Some(task) = task else {
         return Ok(WorkflowState {
             session,
             active_task: None,
@@ -114,11 +123,8 @@ pub fn build_for_session(
         });
     };
 
-    let tasks_dir = dijiang_dir.join("tasks");
-    let task = store::load_task(&tasks_dir, &active_task_name)?;
     let guidance = status_guidance(&task.status).to_string();
     let active_task = Some(workflow_task(dijiang_dir, &task));
-
     Ok(WorkflowState {
         session,
         active_task,
@@ -130,7 +136,7 @@ pub fn build_for_session(
 fn record_runtime_injection(
     dijiang_dir: &Path,
     identity: Option<&SessionIdentity>,
-    active_task: Option<&str>,
+    active_task: Option<&TaskRecord>,
 ) -> Result<WorkflowRuntime, TaskError> {
     let runtime_dir = dijiang_dir.join(".runtime");
     let sessions_dir = runtime_dir.join("sessions");
@@ -155,7 +161,7 @@ fn record_runtime_injection(
         RuntimeSessionRecord::default()
     };
     let previous_active_task = record.last_active_task.clone();
-    let current_active_task = active_task.map(str::to_string);
+    let current_active_task = active_task.map(|task| task.name.clone());
     let active_task_changed = previous_active_task != current_active_task;
     let last_seen_at = chrono::Utc::now().to_rfc3339();
 
@@ -169,12 +175,22 @@ fn record_runtime_injection(
     fs::write(&session_path, serde_json::to_string_pretty(&record)?)?;
 
     let log_path = runtime_dir.join("workflow-state.log");
+    let active_task_event = active_task.map(|task| {
+        serde_json::json!({
+            "id": task.id,
+            "name": task.name,
+            "title": task.title,
+            "status": task.status.as_str(),
+            "task_path": relative_path(dijiang_dir, &dijiang_dir.join("tasks").join(&task.name)),
+        })
+    });
     let event = serde_json::json!({
         "event": "workflow_state_injected",
         "session_key": identity.key(),
         "source": identity.source(),
         "injection_count": record.injection_count,
         "active_task": current_active_task,
+        "active_task_detail": active_task_event,
         "previous_active_task": previous_active_task,
         "active_task_changed": active_task_changed,
         "at": last_seen_at,
@@ -184,6 +200,7 @@ fn record_runtime_injection(
         .append(true)
         .open(&log_path)?;
     writeln!(log, "{}", serde_json::to_string(&event)?)?;
+    let journal_path = append_session_journal(dijiang_dir, identity, &event)?;
 
     Ok(WorkflowRuntime {
         injection_count: record.injection_count,
@@ -191,7 +208,42 @@ fn record_runtime_injection(
         previous_active_task,
         last_seen_at,
         log_path: relative_path(dijiang_dir, &log_path),
+        journal_path: relative_path(dijiang_dir, &journal_path),
     })
+}
+
+fn append_session_journal(
+    dijiang_dir: &Path,
+    identity: &SessionIdentity,
+    event: &serde_json::Value,
+) -> Result<std::path::PathBuf, TaskError> {
+    let developer = read_developer(dijiang_dir);
+    let sessions_dir = dijiang_dir
+        .join("workspace")
+        .join(developer)
+        .join("sessions");
+    fs::create_dir_all(&sessions_dir)?;
+    let journal_path = sessions_dir.join(format!("{}.jsonl", identity.key()));
+    let mut journal = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&journal_path)?;
+    writeln!(journal, "{}", serde_json::to_string(event)?)?;
+    Ok(journal_path)
+}
+
+fn read_developer(dijiang_dir: &Path) -> String {
+    let config_path = dijiang_dir.join("config.toml");
+    let Ok(config_str) = fs::read_to_string(config_path) else {
+        return "developer".to_string();
+    };
+    config_str
+        .lines()
+        .find(|line| line.trim_start().starts_with("developer"))
+        .and_then(|line| line.split('=').nth(1))
+        .map(|value| value.trim().trim_matches('"').to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "developer".to_string())
 }
 
 fn relative_path(dijiang_dir: &Path, path: &Path) -> String {
@@ -283,6 +335,12 @@ mod tests {
     fn builds_session_scoped_context() {
         let dir = tempfile::tempdir().unwrap();
         let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(&dijiang_dir).unwrap();
+        std::fs::write(
+            dijiang_dir.join("config.toml"),
+            "[project]\ndeveloper = \"tester\"\n",
+        )
+        .unwrap();
         let tasks_dir = dijiang_dir.join("tasks");
         std::fs::create_dir_all(&tasks_dir).unwrap();
 
@@ -303,6 +361,9 @@ mod tests {
         assert!(context_a.contains("Active task changed: true"));
         assert!(context_a.contains("Active task: task-a"));
         assert!(context_a.contains("Title: Task A"));
+        assert!(context_a.contains(
+            "Session journal: .dijiang/workspace/tester/sessions/dijiang_window-a.jsonl"
+        ));
         assert!(context_b.contains("Session: dijiang_window-b (dijiang)"));
         assert!(context_b.contains("Active task: task-b"));
         assert!(context_b.contains("Title: Task B"));
@@ -317,5 +378,14 @@ mod tests {
         assert!(log.contains("workflow_state_injected"));
         assert!(log.contains("dijiang_window-a"));
         assert!(log.contains("dijiang_window-b"));
+
+        let journal_a = std::fs::read_to_string(
+            dijiang_dir.join("workspace/tester/sessions/dijiang_window-a.jsonl"),
+        )
+        .unwrap();
+        assert_eq!(journal_a.lines().count(), 2);
+        assert!(journal_a.contains("workflow_state_injected"));
+        assert!(journal_a.contains("\"title\":\"Task A\""));
+        assert!(journal_a.contains("\"injection_count\":2"));
     }
 }
