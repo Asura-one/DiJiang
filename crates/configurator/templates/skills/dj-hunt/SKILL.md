@@ -350,19 +350,18 @@ fix_attempts = 0
 <怎么防止同类问题再次发生？需要更新哪些 spec/文档？>
 ```
 
-#### Step 3: 写入 learnings + 沉淀到 spec
+#### Step 3: 写入 DiJiang memory + 沉淀到 spec
 
 ```bash
-# 写入 MUSE learnings
-muse_learn_write '{"type":"ERR","summary":"[break-loop] <bug描述>","details":"<报告内容>","priority":"critical","tags":["break-loop","<根因分类>"]}'
+# 写入 DiJiang project learning
+dijiang mem learn --lesson "[break-loop] <bug描述>: <根因与预防措施>"
 
-# 晋升到 spec（防止复发）
-muse_learn_promote '{"id":"<id>","target":"spec","confirm":true}'
+# 需要防止复发时，使用 dj-output 更新 .dijiang/spec/
 ```
 
 ### 3.5 将 Break-Loop 发现晋升为 spec 合约
 
-当 `muse_learn_promote` 的 target 为 `spec` 时，必须按以下合约格式输出：
+当 Break-Loop 发现需要沉淀为 spec 时，必须按以下合约格式输出，并交给 `dj-output` 更新 `.dijiang/spec/`：
 
 ```markdown
 ### 1. Scope / Trigger

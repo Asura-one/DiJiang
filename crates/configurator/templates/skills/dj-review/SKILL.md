@@ -13,10 +13,10 @@ description: >
 对代码变更进行结构化审查，输出可操作的审查意见。
 
 与 `dj-check` 的关系：
-- `dj-check`：深层验证（运行测试、类型检查、lint）— 偏执行
-- `dj-review`：浅层审查（读 diff、识问题、checklist）— 偏阅读
+- `dj-check`：canonical quality gate，包含功能完整性、测试/类型检查建议、安全和回归风险，能阻塞交付。
+- `dj-review`：轻量 diff review，只读变更并输出发现，不运行测试、不修改代码、不替代 `dj-check`。
 
-先跑 `dj-check`，再跑 `dj-review`。
+当任务需要交付前验证时使用 `dj-check`。当用户只要求快速读 diff、PR review 或提交前人工审查意见时使用 `dj-review`。
 
 ## 流程
 
@@ -132,7 +132,7 @@ git diff --cached      # staged changes
 
 ## 边界
 
-- 不运行测试（那是 dj-check 的事）
+- 不替代 `dj-check` 作为交付前质量闸门
 - 不修改代码
 - 设计决策不参与讨论（只检查实现质量）
 - 一个 review 一个 scope（不跨变更审查）
