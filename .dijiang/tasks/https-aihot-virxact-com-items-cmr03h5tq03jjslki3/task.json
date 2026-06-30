@@ -1,0 +1,36 @@
+{
+  "id": "https-aihot-virxact-com-items-cmr03h5tq03jjslki3",
+  "name": "https-aihot-virxact-com-items-cmr03h5tq03jjslki3",
+  "title": "深度调研 https://aihot.virxact.com/items/cmr03h5tq03jjslki3a281zet 、https://www.phod",
+  "description": "深度调研 https://aihot.virxact.com/items/cmr03h5tq03jjslki3a281zet 、https://www.phodal.com/blog/verify-engineering/ 、https://blog.est.im/2026/stdout-24 、https://www.sunzhongwei.com/using-ai-fix-bugs-written-ai ，吸收其优秀的内容以融合到dijiang中",
+  "status": "in_progress",
+  "devType": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "",
+  "assignee": "",
+  "createdAt": "2026-06-30",
+  "completedAt": null,
+  "branch": null,
+  "baseBranch": null,
+  "worktreePath": null,
+  "commit": null,
+  "prUrl": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "dispatch": {
+      "task_type": "排查调试",
+      "primary_intent": "排查根因",
+      "skill": "dj-hunt",
+      "recommended_path": "dj-hunt → dj-implement → dj-check"
+    }
+  },
+  "startedAt": "2026-06-30T13:50:45.655019+00:00",
+  "source": "dijiang dispatch",
+  "sessionId": "global_global"
+}

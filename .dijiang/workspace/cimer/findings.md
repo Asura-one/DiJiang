@@ -4,3 +4,6 @@
 
 ## 2026-06-30 18:06
 DiJiang runtime dispatch/worktree workflow task: configurator lib、dijiang-task、dispatch e2e、finish-work e2e 通过；全量 e2e 中 test_e2e_update_refreshes_existing_platform_hooks 因 .pi/skills/dj-design/SKILL.md 被判定为受管文件冲突失败，需后续单独处理 update hash/conflict 逻辑。
+
+## 2026-06-30 21:45
+Pi 新项目自然语言未触发工作流的根因：项目扩展模板缺少 before_agent_start dispatch hook，仅注入 workflow-state；修复为在非 slash 自然语言输入时调用 dijiang dispatch，并用 e2e 断言初始化模板包含 dispatch。

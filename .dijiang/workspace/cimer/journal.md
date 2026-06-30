@@ -28,3 +28,10 @@ Notes for review:
 - Verification: cargo test -p dijiang-configurator --lib; cargo test -p dijiang-task; cargo test -p dijiang --test e2e test_e2e_dispatch -- --nocapture; cargo test -p dijiang --test e2e test_e2e_finish_work -- --nocapture; cargo test -p dijiang --test e2e 失败：test_e2e_update_refreshes_existing_platform_hooks 触发受管 skill 冲突
 - Dirty allowed: true
 - Status: archived
+
+## 2026-06-30 21:46 — finish-work
+- Task: `fix-natural-language-workflow-trigger`
+- Summary: 修复 Pi 新项目自然语言不触发 DiJiang 工作流，并完成提交、合并和清理
+- Verification: cargo test -p dijiang --test e2e; cargo check --workspace
+- Dirty allowed: true
+- Status: archived
