@@ -1,3 +1,9 @@
 test-prompts.json
 results.tsv
 target/
+.dijiang/
+.pi/
+.claude/
+.codex/
+.cursor/
+.opencode/
