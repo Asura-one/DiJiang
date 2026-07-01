@@ -13,17 +13,59 @@ description: >
 
 将当前对话的上下文压缩为一份结构化文档，让新的 session 或 agent 可以无缝接手。
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | Current task goal, conversation state, git state, changed files, verification output, and known blockers |
+| 输出 | One structured handoff document plus its save path |
+| 非目标 | Do not solve remaining work, rewrite PRD/design docs, or create a commit |
+
 ## 工作流
 
 ### 1. 收集上下文
 
-- 当前任务目标是什么
-- 已完成什么、未完成什么
-- 关键决策和理由
-- 遇到的问题和当前状态
-- 相关文件路径
+Run these commands when available:
 
-### 2. 生成交接文档
+```bash
+dijiang task current
+dijiang status
+git status --short --branch
+git diff --stat HEAD
+git diff --name-only HEAD
+```
+
+Collect exactly these fields:
+
+| Field | Required content |
+|---|---|
+| Task | 一句话说清楚在做什么 |
+| Goal | 用户真正要的结果 |
+| Completed | 已完成步骤、验证结果、保留的改动 |
+| Pending | 未完成项、下一步动作、阻塞原因 |
+| Decisions | 关键取舍和理由 |
+| Files | 相关文件路径，每行一个 |
+| Verification | 已运行命令及结果；未运行则写 `not run` 和原因 |
+| Risks | 已知风险、失败点、需要人审的地方 |
+| Next skill | 建议下一个 agent 使用的 `dj-*` skill |
+
+If a command fails, record the command and error summary in `Risks`; do not fabricate missing state.
+
+### 2. 脱敏检查
+
+保存前扫描草稿中的 secret 和个人数据：
+
+```text
+API keys: sk-, ghp_, xoxb-, AKIA
+Generic: password=, token=, secret=, private_key
+Files: .env, id_rsa, credentials.json
+```
+
+Replace the value with `[REDACTED]` and keep the key name when the key name is useful context.
+
+### 3. 生成交接文档
+
+Use this exact template:
 
 ```markdown
 ## 交接文档
@@ -31,26 +73,49 @@ description: >
 ### 任务
 <一句话说清楚在做什么>
 
+### 目标
+<用户真正要的结果>
+
 ### 已完成
-- <已完成的步骤和结果>
+- <已完成的步骤、结果、验证>
 
 ### 未完成
-- <待办事项>
+- <待办事项或阻塞>
 
 ### 关键决策
-- <做过的决策和理由>
+- <决策：理由>
 
 ### 当前状态
-- <正在做什么、卡在哪里>
+- Branch: <branch>
+- Dirty files: <count and paths>
+- Verification: <command => result>
 
 ### 相关文件
-- <涉及的文件路径>
+- <path>
+
+### 风险
+- <risk or none>
 
 ### 建议 skill
 - <下一个 agent 应该用哪个 skill 接手>
+
+### 下一步
+- <一条最小可执行动作>
 ```
 
-### 3. 保存
+### 4. 保存并验证
+
+保存到用户 OS 的 temp 目录，不写入工作区。文件名使用：
+
+```text
+dijiang-handoff-<task-name>-<YYYYMMDD-HHMM>.md
+```
+
+保存后确认文件存在并输出路径：
+
+```bash
+test -f <handoff-path> && wc -l <handoff-path>
+```
 
 保存到临时目录（用户 OS 的 temp 目录），不是工作区。
 

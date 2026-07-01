@@ -12,23 +12,49 @@ description: >
 
 对代码变更进行结构化审查，输出可操作的审查意见。
 
-与 `dj-check` 的关系：
-- `dj-check`：canonical quality gate，包含功能完整性、测试/类型检查建议、安全和回归风险，能阻塞交付。
-- `dj-review`：轻量 diff review，只读变更并输出发现，不运行测试、不修改代码、不替代 `dj-check`。
+## 与 `dj-check` 的关系
 
-当任务需要交付前验证时使用 `dj-check`。当用户只要求快速读 diff、PR review 或提交前人工审查意见时使用 `dj-review`。
+- `dj-review` 是轻量 diff / PR 人工审查，只读变更并输出 findings-first 报告。
+- `dj-review` 不运行完整验证、不修改代码、不替代 `dj-check`。
+- 任务需要交付前质量闸门时，只在结论中标记“需要 `dj-check` 后续”，不在 `dj-review` 内自行切换。
+
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | diff 范围、审查目标、相关规范、变更文件 |
+| 输出 | findings-first 审查报告，包含严重程度、`file:line` 证据、修复建议和最终结论 |
+| 非目标 | 不修改代码、不运行完整质量闸门、不替代 `dj-check` |
 
 ## 流程
 
 ### Step 1: 获取变更
 
 ```bash
-git diff --stat HEAD   # 变更概览
-git diff HEAD          # 完整 diff
-git diff --cached      # staged changes
+git diff --stat HEAD
+git diff --name-only HEAD
+git diff HEAD
+git diff --cached --stat
+git diff --cached --name-only
+git diff --cached
 ```
 
-也可以是针对特定文件或目录的对比。
+Also accept a user-provided PR diff, file path, commit range, or staged-only scope.
+
+## 🔴 CHECKPOINT · 审查范围
+
+审查前先报告：
+
+```text
+范围：<working tree / staged / commit range / files>
+文件：<N 个，关键路径>
+审查目标：<正确性 / 安全 / 可维护性 / 快速过一遍 / 完整 diff review>
+是否运行测试：no
+是否修改代码：no
+是否需要 dj-check 后续：<yes/no + 原因>
+```
+
+🛑 STOP if the user expects a release-blocking quality gate, test execution, or implementation. Report the required follow-up instead of switching skills inside `dj-review`.
 
 ### Step 2: 理解变更范围
 
@@ -60,14 +86,22 @@ git diff --cached      # staged changes
 - [ ] 回滚/幂等有保证？
 - [ ] 状态管理一致？
 
-#### B. 安全（CRITICAL / HIGH）
+#### B. 对抗式审查（CRITICAL / HIGH）
+
+站在恶意用户、异常数据、资源耗尽和未来维护者的角度走完整路径：
+- [ ] 恶意输入、超大输入、未来时间、乱码或空数据会怎样？
+- [ ] 重试、缓存、队列、worker、定时任务是否可能无限循环或污染状态？
+- [ ] 外部 API、文件系统、网络、数据库失败时是否会泄漏、重复执行或静默丢数据？
+- [ ] 并发请求、重复提交、乱序事件是否破坏幂等？
+
+#### C. 安全（CRITICAL / HIGH）
 
 - [ ] 用户输入有校验/转义？
 - [ ] 敏感信息有泄露风险？
 - [ ] 权限校验正确？
 - [ ] 没有 shell 注入/ eval / exec ？
 
-#### C. 可维护性（MEDIUM / HIGH）
+#### D. 可维护性（MEDIUM / HIGH）
 
 - [ ] 命名清晰？(is/has/get/set prefix, 无缩写)
 - [ ] 函数 <= 50 行（有例外但需理由）
@@ -76,42 +110,28 @@ git diff --cached      # staged changes
 - [ ] 测试覆盖率合理？
 - [ ] 错误信息可理解？
 
-#### D. 一致性（MEDIUM / LOW）
-
-- [ ] 与项目现有风格一致
-- [ ] 与 `.dijiang/spec/` 规范一致
-- [ ] 与同类功能使用相同模式
-- [ ] 遵循了项目使用的框架惯例
-
-#### E. 可评审性（LOW）
-
-- [ ] diff 大小合理（建议 < 400 行）
-- [ ] 一个 commit = 一个逻辑变更
-- [ ] 有注释解释"为什么"（而非"是什么"）
-- [ ] 测试清晰可读
-
 ### Step 4: 输出审查报告
 
 ```
 === 审查报告：<范围> ===
 
-变更摘要:
-  <stat 信息>
-
 发现问题（按严重程度排序）:
 
 [CRITICAL] <file>:<line> <问题描述>. <建议修复>.
-
 [HIGH] <file>:<line> <问题描述>. <建议修复>.
-
 [MEDIUM] <file>:<line> <问题描述>. <建议修复>.
-
 [LOW] <file>:<line> <问题描述>. <建议修复>.
 
-总结:
-  <N> CRITICAL + <M> HIGH + <P> MEDIUM + <Q> LOW
-  总体评估: <通过 / 有条件通过 / 需修改后重审>
+未发现阻塞问题: <yes/no>
+
+变更摘要:
+  <stat 信息>
+
+总体评估: <通过 / 有条件通过 / 需修改后重审>
+计数: <N> CRITICAL + <M> HIGH + <P> MEDIUM + <Q> LOW
 ```
+
+发现优先。正面观察只在发现之后出现，且仅用于说明剩余风险。
 
 ### Step 5: 评估结果
 
@@ -125,7 +145,7 @@ git diff --cached      # staged changes
 
 | 触发条件 | 一线修复 | 仍失败兜底 |
 |---------|---------|-----------|
-| diff 太大无法逐一审查 | 只审查关键文件（lib.rs, core/, API 层） | 用 dj-check 替代 |
+| diff 太大无法逐一审查 | 只审查关键文件（lib.rs, core/, API 层） | 标注“需要 `dj-check` 后续” |
 | 需要 spec 对照但无 spec | 跳过一致性检查 | 标注"无 spec，无法检查一致性" |
 | 项目有数百个 lint 警告 | 只关注 CRITICAL/HIGH 级别 | 标注"lint 警告过多，建议先清理" |
 | 用户要求快速审查 | 跳过 LOW 级别 | 只输出 CRITICAL + HIGH |
@@ -145,4 +165,6 @@ git diff --cached      # staged changes
 | 把偏好当问题提 | 标注为 LOW 且注明"个人偏好" |
 | 写长篇大论不给具体修复 | 每个 CRITICAL/HIGH 附建议修复 |
 | 对设计决策吹毛求疵 | 专注于实现质量和正确性 |
-| 只报问题不给正面 | 好的代码也要肯定（"这部分处理不错："） |
+| 先写鼓励再讲问题 | findings first，正面观察放在风险之后 |
+| review 过程中直接改代码 | 只报告；修复作为后续项交给 workflow 或用户显式任务 |
+| 把没跑测试说成通过 | 明确写 `Will run tests: no` 或 `not run` |

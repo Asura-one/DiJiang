@@ -60,14 +60,6 @@ impl GlobalMemory {
         let defaults = vec![
             ("cargo-test", "Run cargo test before committing"),
             ("typecheck", "Run typecheck before committing"),
-            (
-                "review-adversarial",
-                "Multi-angle security review with 7 attack vectors",
-            ),
-            (
-                "review-first-principles",
-                "First-principles architectural review with 6 steps",
-            ),
             ("lint-fix", "Run lint and auto-fix before committing"),
             ("doc-update", "Update docs when changing public API"),
         ];

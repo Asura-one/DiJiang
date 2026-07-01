@@ -17,31 +17,73 @@ description: >
 
 这不是检查清单，而是气味识别。用这些模式来识别 AI 味，然后做判断。
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | Source text, target language, audience, desired strength, and whether this is polish / rewrite / draft |
+| 输出 | Natural text that preserves intent, plus change notes only when requested or when edits are substantial |
+| 非目标 | Do not inflate vocabulary, add new claims, change facts, or make the text sound more formal by default |
+
 ## 工作流
 
-### 1. 识别
+### 1. 确认编辑模式
 
-读文本，用下表识别 AI 味模式：
+Use the user's wording to choose exactly one mode:
+
+| Mode | Use when | Allowed change |
+|---|---|---|
+| polish | 润色、去 AI 味、proofread | delete filler, smooth phrasing, keep structure |
+| rewrite | 改写、重写、换个说法 | restructure sentences while preserving facts |
+| draft | 帮我写、写一段 | create new text from supplied intent |
+| proofread | 校对、检查语病 | fix grammar/typos only |
+
+If mode is unclear, default to `polish`. State the mode only when it affects the output.
+
+需要起草、重写、论证或大改结构时，先做第一性原理判断：这段文字真正要让读者相信、理解或行动的核心是什么；哪些事实不能改；哪些表达只是作者习惯或 AI 填充。
+
+### 2. 识别
+
+Read the text and mark AI-flavored patterns:
+
 - 中文：过度渐变、空洞总结、堆砌形容词、营销腔、完美对称、过度连接
-- 英文：Empty opener、Filler、Hedging、Buzzwords、Parallel padding
+- English: empty opener, filler, hedging, buzzwords, parallel padding
 
-### 2. 判断
+### 3. 判断
 
-对每个 AI 味模式：
-- 删掉后意思不变 → 删
-- 删掉后意思变了 → 保留，标注原因
-- 不确定 → 保留，标注"待确认"
+For each pattern:
 
-### 3. 润色
+```text
+delete: meaning unchanged
+keep: meaning would change
+ask: fact or author intent is ambiguous
+```
 
-只删不改：
-- 删掉多余的连接词、总结句、形容词堆砌
-- 保留作者意图和核心信息
-- 允许不完美（人写的文本就是不完美的）
+Do not ask about reversible wording choices. Ask only when removing or rewriting would change facts, tone, audience, or ownership.
 
-### 4. 输出
+### 4. 润色
 
-只输出润色后的文本，除非用户要求附带修改说明。
+Default operation is deletion and compression:
+- Delete extra connectors, empty summaries, adjective piles, and generic claims.
+- Keep author intent, factual claims, terminology, and useful rough edges.
+- Do not add examples, features, benefits, or emotional emphasis not present in the source.
+- Keep technical terms stable unless the user asks for localization.
+
+对论证类文本做对抗式审查：找逻辑漏洞、事实断点、偷换概念、未证明的强结论和读者会反驳的地方。只在用户要求改稿或大改结构时修这些问题；普通 polish 只报告，不擅自改事实。
+
+### 5. 输出
+
+Default: output only the polished text.
+
+When edits are substantial or user asks for explanation, use:
+
+```text
+<polished text>
+
+Changes:
+- <changed pattern>: <what changed>
+- Preserved: <important intent or term kept>
+```
 
 ## 特殊场景
 

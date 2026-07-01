@@ -13,22 +13,40 @@ description: >
 
 收到用户请求后，识别任务类型，路由到对应 skill。不纠结、不拖沓。
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | User request, active task status, existing workflow state, and any explicit process preference |
+| 输出 | Route decision with evidence, task level, recommended skill path, and stop/continue rule |
+| 非目标 | Do not implement, debug, audit, or write docs inside dispatch; dispatch only chooses the next workflow route |
+
 ## 自动激活（session:start）
 
 session 开始时，dj-dispatch 自动执行以下步骤：
 
 1. 读取当前活跃 Task（`dijiang task current`）
-2. 根据 Task.status 推断阶段 → 推荐技能：
+2. 判断是否是新任务还是继续当前任务：
+
+   | 信号 | 行为 |
+   |---|---|
+   | active task exists + user says continue/继续 | 继续当前 task，不新建路线 |
+   | active task exists + user gives unrelated new request | 报告 task conflict，建议新 task 或切换 |
+   | no active task + user gives request | 创建/推荐新 route |
+   | user explicitly names skill/path | 尊重用户指定流程 |
+
+3. 根据 Task.status 推断阶段 → 推荐技能：
 
    | status | 推断阶段 | 推荐技能 |
    |--------|---------|---------|
    | planning | 需求对齐 | `dj-grill` |
    | in_progress | 实现或检查 | `dj-implement` / `dj-hunt` / `dj-check` |
    | paused | 恢复上下文 | `dijiang-continue` |
+   | completed | 收尾归档 | `dijiang-finish-work` |
    | (no task) | 无任务 | 等待用户指令 |
 
-3. 将推荐技能和任务上下文注入 session（无需手动调用 /dj-dispatch）
-4. 用户手动调用 `/dj-dispatch` 时走原有分类流程
+4. 输出 route，不执行目标 skill 的工作内容。
+5. 用户手动调用 `/dj-dispatch` 时走原有分类流程。
 
 ---
 
@@ -147,7 +165,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 | 不跳过主类型 | "排查并修复" 不能直接修，必须先 hunt |
 | 自动串联 | 主类型完成后自动加载辅助 skill |
 | 可拆分时拆分 | 明显独立的子任务拆成多个 dispatch 调用 |
-| 全速模式 | 用户说"直接干"→ 跳过检查点，按最短路径执行 |
+| 快速执行 | 用户说"直接干"→ 缩短可逆确认，但不能跳过真实需求歧义、安全检查点或项目强制 gate |
 
 ### 常见混合模式
 
@@ -195,24 +213,18 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 
 ## 流水线衔接
 
-**核心原则**：做完事再汇报。不征求继续许可，不问"要不要我做下一步"。
+**核心原则**：dispatch 只路由，不替代目标 skill 执行。确认是否继续由目标 skill 的检查点规则决定。
 
 ### 单一任务
-- 直接加载对应 skill 执行
-- 完成后告知用户
+- 输出 route decision。
+- 加载对应 skill 执行；执行内容不写在 dispatch 中。
+- 完成后由目标 skill 汇报。
 
 ### 混合任务
-- 主类型 skill 完成后，**🔴 CHECKPOINT** 确认是否继续串联：
-  ```
-  主类型 [skill] 已完成。
-  下一步：串联 [辅类型] → [skill]
-  继续？(Y/n/skip)
-  ```
-  - Y：自动加载辅助 skill
-  - n：停止，用户决定
-  - skip：跳过辅类型，直接结束
-- 不在中间停顿（除非有检查点）
-- 完成后告知用户
+- 主类型 skill 完成后，按目标 skill 的 checkpoint 规则决定是否串联辅助 skill。
+- 如果辅助 skill 会修改代码、写文件、访问外部系统或改变 task 状态，必须显式 checkpoint。
+- 如果辅助 skill 只是只读分析或文档同步，可按推荐路径继续，并在汇报中说明。
+- 完成后由最后一个执行 skill 告知用户。
 
 ### 检查点
 
@@ -236,21 +248,22 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 ```
 
 - 用户说"n"：停下来讨论，不强行继续
-- 用户说"跳过"：用推荐答案填充未决项，继续推进
-- 用户说"直接干"：跳过所有检查点
+- 用户说"跳过"：只跳过可逆偏好问题；真实需求歧义仍需确认
+- 用户说"直接干"：使用推荐默认值推进，但不跳过安全、提交、删除、外部系统、生产数据等强制检查点
 
 ## 失败处理
 
 | 触发条件 | 一线修复 | 仍失败兜底 |
 |---------|---------|-----------|
-| 判断不了任务类型 | 按关键词命中数最高的类型走 | 问用户"这个任务你想要什么粒度？" |
-| 分不清 M-simple 还是 M-phased | 涉及 2+ 层 → M-phased；1 层 → M-simple | 问用户"需要分步验证吗？" |
-| 混合任务拆不清主次 | 按用户请求中先出现的意图优先 | 问用户"先做哪个？" |
-| 混合任务串联失败（主类型完成后辅类型报错） | 跳过辅类型，告知用户主类型已完成 | 用户决定是否单独执行辅类型 |
-| skill 超时/不可用 | 跳过该 skill，按现有信息执行 | 告知用户"skill 不可用，按现有理解执行" |
-| 用户给了模糊任务 | 匹配最多关键词的类型 | 调用 dj-grill 快速确认 |
-| 用户中途改变需求 | 重新扫描关键词，重新判断类型 | 告知用户"需求变了，重新评估" |
-| 全速模式下结果不符合预期 | 停止执行，回到正常流程重新对齐 | 告知用户"全速模式结果有偏差，需要重新确认" |
+| 判断不了任务类型 | 按关键词命中数最高的类型走 | 路由到 `dj-grill` 快速确认，不在 dispatch 中深问 |
+| 分不清 M-simple 还是 M-phased | 涉及 2+ 层 → M-phased；1 层 → M-simple | 偏保守升级一级并说明依据 |
+| 混合任务拆不清主次 | 按用户请求中先出现的意图优先 | 输出两个候选 route，推荐较小闭环 |
+| active task 与新请求冲突 | 报告当前 task 和新请求差异 | 建议切换/新建 task，不擅自覆盖上下文 |
+| 混合任务串联失败 | 保留主类型结果，记录辅类型失败 | 将辅类型拆成独立 follow-up route |
+| skill 超时/不可用 | 选择最接近的可用 skill | 明确标注降级，不假装已使用目标 skill |
+| 用户给了模糊任务 | 匹配最多关键词的类型 | 调用 `dj-grill` 快速确认 |
+| 用户中途改变需求 | 重新扫描关键词，重新判断类型 | 告知 route changed 和旧 route 停止点 |
+| 快速执行结果不符合预期 | 停止执行，回到正常流程重新对齐 | 路由到 `dj-grill` 或 `dj-check` 查偏差 |
 
 ## 边界
 
@@ -265,9 +278,11 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 |---|---|
 | 排查任务直接修 bug | 必须先 hunt 找到根因 |
 | 调研任务不读 URL 就问 | 先读完再提问 |
-| 混合任务只做一部分 | 主类型完成后串联辅助 skill |
+| active task 未完成时默默开新路线 | 先说明当前 task 和新请求冲突 |
+| dispatch 判断后直接改代码 | 只输出 route，执行交给目标 skill |
+| 混合任务只做一部分 | 主类型完成后按 checkpoint 串联辅助 skill |
 | 判断为 M 但不告知用户 | 告知判断结果和推荐路径 |
-| 用户说"直接干"还要走流程 | 尊重用户意图，跳过所有检查点 |
-| 每步转场都问"确认？" | 只在需求确认点停顿，其余自动推进 |
+| 用户说"直接干"就跳过安全 gate | 只缩短可逆确认，保留强制检查点 |
+| 每步转场都问"确认？" | 只在需求确认点或强制 gate 停顿，其余自动推进 |
 | 用户说"你决定"还在追问 | 用推荐答案填充，继续推进 |
 | L级任务跳过 grill 直接写代码 | 不确定的需求必须先对齐 |

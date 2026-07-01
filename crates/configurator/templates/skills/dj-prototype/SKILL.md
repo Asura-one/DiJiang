@@ -30,15 +30,22 @@ description: >
 4. **能回答问题就行** — 不追求完美、不加错误处理、不做边缘情况
 5. **靠近使用位置** — 放在它原型化的模块/页面旁边
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | One design question, prototype type, runnable command, allowed files, and discard policy |
+| 输出 | Disposable prototype, run result, answer to the design question, and decision for formal implementation |
+| 非目标 | Do not ship prototype code, wire it into production paths, persist real data, or turn it into architecture by accident |
+
 ## 工作流
 
-1. 确认要回答什么问题
-2. 选择原型类型（逻辑推演 / UI 变体 / 集成验证）
-3. 写最少代码让问题可视化
-4. 运行，展示给用户
-5. 得到答案后：
-   - 原型回答了问题 → 进入 CHECKPOINT
-   - 原型没回答问题 → 缩小范围或换方式重试
+1. Confirm the one question the prototype must answer.
+2. Choose prototype type: logic simulation, UI variant, or integration check.
+3. Define scope limit: smallest files/data/interaction needed to answer the question.
+4. Write the minimum runnable code and label it as prototype in path or filename.
+5. Run it and capture the result.
+6. Decide: discard, keep as reference, or mark formal implementation as follow-up.
 
 ### 🔴 CHECKPOINT · 原型结论确认
 
@@ -46,23 +53,24 @@ description: >
 ```
 原型结果：<回答了什么问题>
 结论：<方案可行 / 方案不可行 / 需要进一步验证>
-原型代码：<删除 / 保留为参考 / 转为生产代码>
-
+原型代码：<删除 / 保留为参考 / 标记正式实现后续>
+生产路径影响：none
 确认结论？(Y/n)
 ```
 
-- 方案可行 → 删除原型（除非用户要保留为参考），进入正式实现
-- 方案不可行 → 记录原因，换方案
-- 需要进一步验证 → 缩小问题范围，再做一轮原型
+- 方案可行 → 不直接复用原型代码；标记正式实现后续。
+- 方案不可行 → 记录原因，换方案。
+- 需要进一步验证 → 缩小问题范围，再做一轮原型。
 
 ## 失败处理
 
 | 触发条件 | 一线修复 | 仍失败兜底 |
 |---------|---------|-----------|
-| 原型跑不起来 | 检查依赖和环境，用最简方式启动 | 降级为伪代码/手绘草图回答问题 |
-| 原型太像生产代码，用户不想删 | 重命名标记为 prototype，移到临时目录 | 明确告知这是废品，归档到 docs/prototype/ |
-| 30 分钟内做不出来 | 缩小问题范围，只验证核心疑问 | 用文字描述代替代码原型 |
-| 不确定要回答什么问题 | 问用户"你最不确定的是什么" | 默认验证最风险的那个假设 |
+| 原型跑不起来 | 检查依赖和环境，用最简方式启动 | 降级为伪代码/草图，明确 `not runnable` |
+| 原型太像生产代码，用户不想删 | 重命名标记为 prototype，隔离到临时或参考路径 | 明确告知不能直接发布，正式实现需另走任务 |
+| scope 变大做不出来 | 缩小问题范围，只验证核心假设 | 用文字决策表代替代码原型 |
+| 不确定要回答什么问题 | 问用户"你最不确定的是什么" | 默认验证风险最高、最难从静态阅读判断的假设 |
+| 原型需要真实数据或凭证 | 改用 mock/sample 数据 | 停止集成验证，标注 blocker |
 
 ## 🔴 CHECKPOINT · 原型确认
 
@@ -70,7 +78,9 @@ description: >
 ```
 原型目标：<要回答什么问题>
 类型：<逻辑推演 / UI 变体 / 集成验证>
-预期时间：<分钟>
+scope limit：<只验证哪些输入、状态或交互>
+runnable command：<命令或 not runnable>
+discard policy：<删除 / 保留为参考 / 标记正式实现后续>
 
 开始？(Y/n)
 ```
@@ -79,8 +89,10 @@ description: >
 
 | ❌ 不要做 | ✅ 正确做法 |
 |---|---|
-| 原型里加错误处理 | 能跑就行 |
-| 原型变成生产代码 | 标记为废品，用完删 |
-| 花一天时间做完美原型 | 30 分钟内出结果 |
+| 原型里加完整错误处理 | 只处理能回答问题的 happy path |
+| 原型变成生产代码 | 标记为废品；正式实现需另走任务 |
+| 原型接入真实生产路径 | 用隔离入口、mock 数据或临时路径 |
 | 不告诉用户这是原型 | 从一开始就说明是废品 |
-| 原型放在奇怪的位置 | 放在相关代码旁边 |
+| 原型放在奇怪的位置 | 放在相关代码旁边或明确的 prototype 路径 |
+| 用真实凭证/真实用户数据验证 | 用 sample/mock 数据；需要凭证时停止并标注 blocker |
+| 原型回答多个问题 | 一轮原型只回答一个设计问题 |

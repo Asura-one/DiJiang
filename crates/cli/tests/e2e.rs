@@ -85,7 +85,7 @@ fn test_e2e_help_describes_canonical_boundaries() {
     let help = dijang(&["--help"], &project_dir).unwrap();
     assert!(help.contains("生命周期入口"));
     assert!(help.contains("原子状态操作"));
-    assert!(help.contains("交付质量闸门使用 dj-check"));
+    assert!(help.contains("完成当前工作"));
 
     let task_help = dijang(&["task", "--help"], &project_dir).unwrap();
     assert!(task_help.contains("low-level task operation"));
@@ -93,6 +93,10 @@ fn test_e2e_help_describes_canonical_boundaries() {
 
 /// Initialize a temporary dijiang project and return its path.
 fn init_project() -> (tempfile::TempDir, PathBuf) {
+    init_project_with_env(&[])
+}
+
+fn init_project_with_env(envs: &[(&str, &str)]) -> (tempfile::TempDir, PathBuf) {
     let tmp = tempfile::tempdir().expect("tempdir");
     let project_dir = tmp.path().join("e2e-test");
     std::fs::create_dir_all(&project_dir).unwrap();
@@ -114,7 +118,7 @@ fn init_project() -> (tempfile::TempDir, PathBuf) {
         .output()
         .expect("git config name");
 
-    let _ = dijang(
+    let _ = dijang_with_env(
         &[
             "init",
             "--yes",
@@ -125,6 +129,7 @@ fn init_project() -> (tempfile::TempDir, PathBuf) {
             "e2e-test",
         ],
         &project_dir,
+        envs,
     )
     .expect("dijiang init should succeed");
 
@@ -164,7 +169,10 @@ fn test_e2e_init_creates_project_structure() {
 
 #[test]
 fn test_e2e_update_refreshes_existing_platform_hooks() {
-    let (_tmp, project_dir) = init_project();
+    let tmp = tempfile::tempdir().expect("home tempdir");
+    let home = tmp.path().join("home");
+    let home_str = home.to_str().unwrap();
+    let (_project_tmp, project_dir) = init_project_with_env(&[("HOME", home_str)]);
     std::fs::create_dir_all(project_dir.join(".codex/hooks")).unwrap();
     std::fs::write(
         project_dir.join(".codex/hooks/inject-workflow-state.py"),
@@ -172,7 +180,7 @@ fn test_e2e_update_refreshes_existing_platform_hooks() {
     )
     .unwrap();
 
-    let out = dijang(&["update"], &project_dir).unwrap();
+    let out = dijang_with_env(&["update"], &project_dir, &[("HOME", home_str)]).unwrap();
     assert!(
         out.contains(".codex/hooks/inject-workflow-state.py"),
         "update should report refreshed codex hook: {out}"
@@ -749,46 +757,6 @@ fn test_e2e_init_detects_reinit() {
     assert!(project_dir.join(".dijiang").join("config.toml").exists());
 }
 
-// ─── Review ───────────────────────────────────────────────────
-
-#[test]
-fn test_e2e_review_adversarial() {
-    let (_tmp, project_dir) = init_project();
-    let out = dijang(&["review", "--mode", "adversarial"], &project_dir);
-    assert!(
-        out.is_ok(),
-        "review adversarial should succeed: {:?}",
-        out.err()
-    );
-    let stdout = out.unwrap();
-    assert!(
-        stdout.contains("Adversarial"),
-        "should show adversarial mode"
-    );
-}
-
-#[test]
-fn test_e2e_review_first_principles() {
-    let (_tmp, project_dir) = init_project();
-    let out = dijang(&["review", "--mode", "first-principles"], &project_dir);
-    assert!(
-        out.is_ok(),
-        "review first-principles should succeed: {:?}",
-        out.err()
-    );
-    let stdout = out.unwrap();
-    assert!(
-        stdout.contains("First Principles"),
-        "should show first-principles mode"
-    );
-}
-
-#[test]
-fn test_e2e_review_invalid_mode() {
-    let (_tmp, project_dir) = init_project();
-    let out = dijang(&["review", "--mode", "invalid"], &project_dir);
-    assert!(out.is_err(), "review with invalid mode should fail");
-}
 
 // ─── Channel ──────────────────────────────────────────────────
 
@@ -922,9 +890,9 @@ fn test_e2e_mem_tactics() {
     let out = dijang(&["mem", "tactics"], &project_dir);
     assert!(out.is_ok(), "mem tactics should succeed: {:?}", out.err());
     let stdout = out.unwrap();
-    // Should show at least cargo-test or review tactics
+    // Should show default tactics or an empty message
     assert!(
-        stdout.contains("cargo-test") || stdout.contains("review") || stdout.contains("No tactics"),
+        stdout.contains("cargo-test") || stdout.contains("typecheck") || stdout.contains("No tactics"),
         "should show tactics or empty message"
     );
 }
