@@ -16,9 +16,10 @@ This project uses DiJiang for task management and workflow.
 
 | Layer | Responsibility |
 |-------|----------------|
-| `dijiang` CLI | Project state, task lifecycle, memory persistence, templates, platform config, agent channels |
+| `dijiang` CLI | Project state, task lifecycle, memory persistence, templates, platform config, agent channels; `dijiang finish-work` is the only layer that mutates task archive/journal/commit/push/integration state |
 | `dj-*` skills | Atomic work capabilities such as alignment, implementation, investigation, checking, docs, and reports |
-| `dijiang-*` skills | Session wrappers for start, continue, and finish-work |
+| `dijiang-*` skills | Session wrappers for start, continue, and finish-work; `/skill:dijiang-finish-work` drives agent workflow and calls CLI only after checks pass |
+| `/dijiang-*` prompts | Lightweight Pi prompt checklists; they inject guidance but do not execute CLI state transitions |
 | `AGENTS.md` | Minimal routing index for agents; not a second workflow definition |
 
 ## CLI Commands

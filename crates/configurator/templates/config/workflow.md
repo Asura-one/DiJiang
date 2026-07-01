@@ -42,7 +42,7 @@ DiJiang uses `dijiang` CLI for project state and `dj-*` skills for execution cap
 | Style overlays | `dj-ponytail`, `dj-karpathy` | Add constraints to another workflow path |
 | Writing polish | `dj-write` | Polish prose; does not own engineering docs lifecycle |
 | Session transfer | `dj-handoff` | Prepare handoff; does not replace finish-work journal |
-| Session wrappers | `dijiang-start`, `dijiang-continue`, `dijiang-finish-work` | Load context, route, and close sessions |
+| Session wrappers | `dijiang-start`, `dijiang-continue`, `dijiang-finish-work` | Load context, route, and close sessions; skill execution is distinct from prompt checklist injection |
 
 ## Verification & Compound Loop
 
@@ -64,7 +64,7 @@ DiJiang 的默认交付循环是 `Plan → Verify → Work → Check → Compoun
 2. **实现中** — 所有修改只留在任务 worktree。不要因为某个逻辑单元完成就提交；实现、检查、文档/spec 同步和版本决策都完成后再进入 finish-work。
 3. **文档同步** — 代码、行为、CLI、配置或模板改变后，先同步相关 task artifact、spec、docs 或 changelog；若无需更新，记录 `docs-sync: none` 和原因。
 4. **版本决策** — 任务结束时判断变更属于 `major`、`minor`、`patch` 或 `none`。只有项目存在可发布的 package/version 元数据，且变更需要发布时才更新版本文件。
-5. **提交内容** — `dijiang finish-work --commit` 只提交当前任务的实际 diff；提交前必须提供 `--verification`、`--docs-sync` 和 `--version-impact`。commit message 描述行为变化，不堆文件名。
+5. **提交内容** — `dijiang finish-work --commit` 只提交当前任务的实际 diff；提交前必须提供 `--verification`、`--docs-sync` 和 `--version-impact`。commit message 描述行为变化，不堆文件名。`/dijiang-finish-work` 只是 Pi prompt checklist，`/skill:dijiang-finish-work` 是 agent workflow，真实归档/提交状态只由 `dijiang finish-work ...` CLI 修改。
 6. **Push 与集成** — `dijiang finish-work --push --integrate` 是显式动作：push 任务分支、在主分支 worktree 中 `--no-ff` 合并、清理任务 worktree 并删除已合并分支。如果 push/merge 不可执行，保留分支和 worktree，并报告具体阻塞。
 
 ## Project Structure

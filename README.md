@@ -33,6 +33,16 @@ paused
 
 `review` 不是 DiJiang 的正式 task status，也没有独立 CLI 入口。质量闸门统一由 `dj-check` 承担；轻量只读审查使用 `dj-review` skill。
 
+### Finish Work 入口边界
+
+| 入口 | 职责 |
+|---|---|
+| `/dijiang-finish-work` | Pi prompt checklist，只注入收尾步骤，不执行命令、不归档任务 |
+| `/skill:dijiang-finish-work` | Agent skill workflow，驱动检查、版本决策和 git 隔离确认，需要真实状态变更时调用 CLI |
+| `dijiang finish-work ...` | CLI state transition，读取 active task 并执行归档、journal、可选 commit/push/integrate |
+
+`dijiang finish-work` 要求存在可读取的 active task；没有任务时不会凭对话内容自动创建或归档。
+
 ## Skill 清单
 
 ### 核心流程
