@@ -22,13 +22,14 @@ When this skill is loaded through `/skill:dijiang-finish-work`, do not summarize
 
 First actions, in order:
 
-1. Run `dijiang task current`, `git status --short --branch`, `git worktree list`, `git diff --stat HEAD`, and `git diff --name-only HEAD`.
+1. Run `dijiang task current`, `git status --short --branch`, `git worktree list`, `git diff --stat HEAD`, `git diff --name-only HEAD`, and `git log --oneline @{u}..HEAD` when an upstream exists.
 2. Read the active task artifacts when a task exists: `.dijiang/tasks/<name>/task.json`, `prd.md`, `design.md`, and `implement.md` when present.
 3. Classify the state as `ready-to-finish`, `no-task-finish`, `blocking`, or `nothing-to-archive`.
 4. Use `no-task-finish` when there is no active task but `git diff --name-only HEAD` shows reviewed changes. In this mode, `dijiang finish-work` may still run; it will skip task archive and active-task cleanup while preserving validation, docs-sync, version decision, commit, push, and integration semantics.
-5. Use `nothing-to-archive` only when there is no active task and no changed files.
-6. If blocking, stop with `blocking: <reason>` and the exact command or file that proves it.
-7. If ready or no-task, produce the pre-finish gate from step 2, including validation, docs-sync evidence, version decision, commit mode, and integration mode.
+5. Use `nothing-to-archive` only when there is no active task, no changed files, and no unpushed commits.
+6. If `nothing-to-archive`, output the Clean Status format below and stop. Do not print the pre-finish gate, do not ask for confirmation, and do not call `dijiang finish-work`.
+7. If blocking, stop with `blocking: <reason>` and the exact command or file that proves it.
+8. If ready or no-task, produce the pre-finish gate from step 2, including validation, docs-sync evidence, version decision, commit mode, and integration mode.
 
 Only call `dijiang finish-work ...` after the pre-finish gate is complete and the git scope is reviewed. If there is no active task, pass the same verification/docs/version/commit flags and expect task archive to be skipped. If validation, docs-sync evidence, version decision, or review scope is missing, stop instead of committing.
 ## 输入 / 输出
@@ -53,11 +54,28 @@ git status --short --branch
 git worktree list
 git diff --stat HEAD
 git diff --name-only HEAD
+git log --oneline @{u}..HEAD
 ```
 
 If code or behavior changed, run the relevant test, typecheck, lint, or `dj-check` before finishing. A failed check blocks finish-work unless the blocker is recorded and the task is intentionally left unfinished.
 
-Required output: active task state, changed files, validation commands, pass/fail result, and unverified areas.
+Required output: active task state, changed files, unpushed commits, validation commands, pass/fail result, and unverified areas.
+
+### Clean Status Output
+
+When there is no active task, no changed files, and no unpushed commits, use exactly this shape:
+
+```text
+Clean: no finish-work action needed.
+Active task: none
+Uncommitted changes: none
+Unpushed commits: none
+Docs/spec sync: skipped; reason=no changed files
+Version decision: none; reason=no changed files
+Memory: skipped; reason=no new verified, reusable finding
+Current branch: <branch status line from git status --short --branch>
+Action: skipped dijiang finish-work because there is nothing to archive, commit, push, integrate, document, version, or remember.
+```
 
 ### 2. 🔴 CHECKPOINT · Pre-finish Gate
 
@@ -68,13 +86,14 @@ Task: <name or none; mode: dijiang-finish / no-task-finish / nothing-to-archive>
 Branch/worktree: <branch> / <path>
 Changed files: <paths>
 Validation: <commands => result>
-Docs/spec sync: <updated / none + reason>
-Version decision: <major|minor|patch|none>
-Commit mode: <--commit yes/no>
-Integration mode: <--push/--integrate yes/no and reason>
+Docs/spec sync: <updated / none / skipped; reason=...>
+Version decision: <major|minor|patch|none; reason=...>
+Memory: <written / skipped; reason=...>
+Commit mode: <--commit yes/no; reason=...>
+Integration mode: <--push/--integrate yes/no; reason=...>
 ```
 
-🛑 STOP if validation is missing, docs/spec sync evidence is missing for changed work, the current directory is the main checkout for integration, changed files include unrelated work, or the version decision is unclear.
+🛑 STOP if validation is missing, docs/spec sync evidence is missing for changed work, memory decision is missing, the current directory is the main checkout for integration, changed files include unrelated work, or the version decision is unclear.
 
 ### 3. Confirm Git Isolation
 
@@ -102,7 +121,11 @@ Only update version files when version metadata exists and the decision is not `
 
 When behavior changed, update task notes, spec, docs, or changelog before finishing. `dijiang finish-work --commit` requires `--docs-sync "<evidence>"`; use `--docs-sync "none: <reason>"` only after checking that no docs/spec/changelog update is needed.
 
-Memory entries must pass source, scope, confidence, freshness, conflict, and actionability checks. If they do not pass, keep them in task notes.
+The gate must state the docs/spec decision with a reason: `updated; reason=<files>` when artifacts changed, `none; reason=<checked scope>` when no docs update is needed for changed work, or `skipped; reason=no changed files` only for clean state.
+
+The gate must state the version decision with a reason. Use `none; reason=no publishable behavior change` for internal/docs/test/workflow changes, or `none; reason=no changed files` for clean state.
+
+The gate must state the memory decision with a reason. Use `written; reason=<finding>` only for verified, reusable project knowledge. Use `skipped; reason=no new verified, reusable finding` when the work has no durable lesson. Memory entries must pass source, scope, confidence, freshness, conflict, and actionability checks; if they do not pass, keep them in task notes.
 
 ### 6. Commit Reviewed Scope
 
@@ -117,7 +140,7 @@ dijiang finish-work \
   --commit-message "<type>(<scope>): <actual behavior change>"
 ```
 
-`--commit` stages the current task diff with `git add --all`, archives the task, writes finish journals, commits the resulting diff, and prints the commit hash. Do not use `--allow-dirty` with `--commit`.
+`--commit` stages the current reviewed diff with `git add --all`, writes finish journals, commits the resulting diff, and prints the commit hash. It archives the task only when an active task exists; without an active task, task archive and active-task cleanup are skipped. Do not use `--allow-dirty` with `--commit`.
 
 If no code or artifact commit is needed, record `commit: none` and run finish-work without `--commit`.
 
