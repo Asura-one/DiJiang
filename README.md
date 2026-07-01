@@ -24,14 +24,14 @@ in_progress
   ├─ implement: dj-implement / dj-tdd / dj-hunt / dj-script / dj-design
   └─ check: dj-check
 completed
-  └─ finish: dijiang finish-work --verification "..."
+  └─ finish: dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>
 archived
   └─ closed: 只读；如需继续则重新 dijiang start <task>
 paused
   └─ resume: dijiang-continue 后回到 planning 或 in_progress
 ```
 
-`review` 不是 DiJiang 的正式 task status。质量闸门统一由 `dj-check` 承担；`dijiang review` 只是兼容保留的审查 prompt/tactic 入口。
+`review` 不是 DiJiang 的正式 task status，也没有独立 CLI 入口。质量闸门统一由 `dj-check` 承担；轻量只读审查使用 `dj-review` skill。
 
 ## Skill 清单
 
@@ -46,6 +46,7 @@ paused
 | Implementation | `dj-tdd` | 明确要求测试驱动或适合红绿重构 |
 | Implementation | `dj-hunt` | bug、回归、根因排查 |
 | Quality gate | `dj-check` | 代码审查、功能完整性、安全性、回归影响检查 |
+| Review lens | `dj-review` | 轻量只读审查，不运行测试、不修改代码、不替代质量闸门 |
 
 ### 辅助能力
 
@@ -111,7 +112,7 @@ dijiang task current                         # 显示活跃任务
 dijiang task status <name> <status>          # 更新任务状态
 dijiang task archive <name>                  # 归档任务
 dijiang task prune --days N                  # 删除超过 N 天的已归档任务
-dijiang finish-work --verification "..."     # 完成当前工作并写入 journal
+dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit
 ```
 
 ### mem — 记忆管理

@@ -1,13 +1,13 @@
 ---
 name: dijiang-continue
-description: "Resume work on the current task: find active task and phase, load artifacts, route to the appropriate dj-* skill."
+description: "Resume work on the current task: find active task and phase, load artifacts, then report the appropriate dj-* route."
 triggers:
   - session:start
 ---
 
 # Continue Session
 
-Resume work on the current DiJiang task. This skill reconstructs context and chooses the next workflow skill; it does not implement or finish work directly.
+Resume work on the current DiJiang task. This skill reconstructs context and reports the next workflow route; it does not implement or finish work directly.
 
 ## 输入 / 输出
 
@@ -30,7 +30,7 @@ git status --short --branch
 
 Output: active task name, task status, workflow phase, repository branch, and dirty state.
 
-If `dijiang task current` reports no active task, do not invent prior context. Load `dj-dispatch` to classify the current user request.
+If `dijiang task current` reports no active task, do not invent prior context. Report `follow-up: dj-dispatch` for classification of the current user request.
 
 ### 2. Load Memory Context
 
@@ -54,7 +54,7 @@ Read the active task directory in this order:
 
 Output: task goal, status, known decisions, verification state, and unresolved blockers.
 
-If `task.json` is missing, stop and route to `dj-hunt`; the task state is corrupt and continuing would create false context.
+If `task.json` is missing, stop and output `blocking: task state corrupt; follow-up: dj-hunt`. Continuing would create false context.
 
 ### 4. Read Journal Context
 
@@ -73,16 +73,16 @@ If the journal conflicts with `task.json`, prefer `task.json` and record the con
 | review / verification | `dj-check` | diff, requirements, validation output |
 | completed | `dijiang-finish-work` | verification summary and version decision |
 
-If the phase is ambiguous, route to `dj-grill` for alignment unless there is a concrete failure signal; concrete failures route to `dj-hunt`.
+If the phase is ambiguous, output `follow-up: dj-grill` for alignment unless there is a concrete failure signal; concrete failures output `follow-up: dj-hunt`.
 
 ## Failure Handling
 
 | Trigger | First action | Fallback |
 |---|---|---|
-| No active task | Load `dj-dispatch` | Ask for task selection only if dispatch cannot infer intent |
-| `task.json` missing | Stop normal continuation | Route to `dj-hunt` to repair task state |
+| No active task | Output `follow-up: dj-dispatch` | Ask for task selection only if dispatch classification cannot infer intent |
+| `task.json` missing | Stop normal continuation | Output `blocking: task state corrupt; follow-up: dj-hunt` |
 | Artifact referenced but absent | Mark it missing in summary | Continue only when the next skill can operate without it |
-| Journal contradicts task status | Prefer `task.json` | Record conflict and route to `dj-hunt` when unsafe |
+| Journal contradicts task status | Prefer `task.json` | Record conflict and output `follow-up: dj-hunt` when unsafe |
 | Git dirty state predates this session | List dirty paths | Require worktree/scope decision before implementation |
 | Workflow state command fails | Fall back to `task.json.status` | Mark workflow state as degraded in summary |
 
@@ -106,8 +106,8 @@ Next action: <one sentence>
 
 | Do not | Do this instead |
 |---|---|
-| Do not treat missing task files as empty requirements | Stop and route to `dj-hunt` |
+| Do not treat missing task files as empty requirements | Stop and output `blocking: task state corrupt; follow-up: dj-hunt` |
 | Do not continue implementation from memory alone | Load task artifacts first |
 | Do not overwrite the current phase because a journal says something older | Prefer `task.json` and record conflicts |
 | Do not create a new task while an active task exists | Resume or explicitly route through dispatch |
-| Do not finish work from continue mode | Route completed tasks to `dijiang-finish-work` |
+| Do not finish work from continue mode | Output `follow-up: dijiang-finish-work` for completed tasks |
