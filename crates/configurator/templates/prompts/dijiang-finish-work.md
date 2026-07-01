@@ -1,6 +1,6 @@
 ## Finish Work
 
-Complete your current task and prepare for `dijiang finish-work`.
+Complete your current task and prepare for `dijiang finish-work`. This prompt is a checklist only; use `/skill:dijiang-finish-work` for the agent workflow and `dijiang finish-work ...` for the CLI state transition.
 
 Steps:
 1. Run relevant checks or tests

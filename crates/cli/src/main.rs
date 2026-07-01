@@ -900,10 +900,21 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let project_root = dijiang_dir
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Invalid .dijiang directory"))?;
-    let active_task = store::read_active_task(&dijiang_dir)?
-        .ok_or_else(|| anyhow::anyhow!("No active task. Run `dijiang start <name>` first."))?;
+    let active_task = store::read_active_task(&dijiang_dir)?.ok_or_else(|| {
+        anyhow::anyhow!(
+            "finish-work 没有可归档的 active task。`/dijiang-finish-work` 只是 Pi prompt checklist，`/skill:dijiang-finish-work` 是 agent workflow，`dijiang finish-work` 只关闭已存在的 DiJiang active task。请先运行 `dijiang start <name>` 创建任务，或确认当前对话不需要任务归档。"
+        )
+    })?;
     let tasks_dir = dijiang_dir.join("tasks");
-    let task_before_archive = store::load_task(&tasks_dir, &active_task)?;
+    let task_before_archive = match store::load_task(&tasks_dir, &active_task) {
+        Ok(task) => task,
+        Err(store::TaskError::NotFound(_)) => {
+            anyhow::bail!(
+                "finish-work 的 active task 指向 `{active_task}`，但 `.dijiang/tasks/{active_task}/task.json` 不存在。这通常表示 task state 已陈旧或 task artifact 被清理。请用 `dijiang task current` / `dijiang task list` 检查状态；若当前工作仍需归档，请重新 `dijiang start <name>`，否则清理 stale active task 后再继续。"
+            );
+        }
+        Err(error) => return Err(error.into()),
+    };
     let (verification, docs_sync) =
         ensure_finish_preconditions(project_root, &task_before_archive, options)?;
     let version_update = update_workspace_version(project_root, options.version_impact)?;

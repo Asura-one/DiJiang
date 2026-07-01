@@ -471,6 +471,66 @@ fn test_e2e_finish_work_requires_verification() {
 }
 
 #[test]
+fn test_e2e_finish_work_explains_missing_active_task() {
+    let (_tmp, project_dir) = init_project();
+    let err = dijang(
+        &[
+            "finish-work",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: no task work",
+            "--version-impact",
+            "none",
+        ],
+        &project_dir,
+    )
+    .unwrap_err();
+
+    assert!(err.contains("没有可归档的 active task"), "error: {err}");
+    assert!(err.contains("/dijiang-finish-work"), "error: {err}");
+    assert!(err.contains("/skill:dijiang-finish-work"), "error: {err}");
+    assert!(err.contains("dijiang finish-work"), "error: {err}");
+}
+
+#[test]
+fn test_e2e_finish_work_explains_stale_active_task() {
+    let (_tmp, project_dir) = init_project();
+    let session_dir = project_dir
+        .join(".dijiang")
+        .join(".runtime")
+        .join("sessions");
+    std::fs::create_dir_all(&session_dir).unwrap();
+    std::fs::write(
+        session_dir.join("stale-window.json"),
+        r#"{"current_task":"missing-task","session_key":"stale-window","source":"env"}"#,
+    )
+    .unwrap();
+
+    let err = dijang_with_env(
+        &[
+            "finish-work",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: stale task",
+            "--version-impact",
+            "none",
+        ],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "stale-window")],
+    )
+    .unwrap_err();
+
+    assert!(
+        err.contains("active task 指向 `missing-task`"),
+        "error: {err}"
+    );
+    assert!(err.contains("task state 已陈旧"), "error: {err}");
+    assert!(err.contains("dijiang task current"), "error: {err}");
+}
+
+#[test]
 fn test_e2e_finish_work_blocks_dirty_git_worktree() {
     let (_tmp, project_dir) = init_project();
 
