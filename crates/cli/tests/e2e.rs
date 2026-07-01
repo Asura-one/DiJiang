@@ -482,6 +482,8 @@ fn test_e2e_finish_work_blocks_dirty_git_worktree() {
             "finish-work",
             "--verification",
             "cargo test -p dijiang-task",
+            "--docs-sync",
+            "none: dirty guard test",
         ],
         &project_dir,
     )
@@ -567,6 +569,99 @@ fn test_e2e_finish_work_closes_session_on_clean_git_worktree() {
     )
     .unwrap();
     assert!(current.contains("(none)"), "current output: {current}");
+}
+#[test]
+fn test_e2e_finish_work_commit_requires_docs_sync() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(
+        &["start", "commit-docs-gate", "Commit Docs Gate"],
+        &project_dir,
+    )
+    .unwrap();
+    std::fs::write(project_dir.join("change.txt"), "changed").unwrap();
+
+    let err = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "commit docs gate",
+            "--verification",
+            "manual check",
+            "--commit",
+        ],
+        &project_dir,
+    )
+    .unwrap_err();
+    assert!(err.contains("requires --docs-sync"), "error: {err}");
+
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(
+        current.contains("commit-docs-gate"),
+        "current output: {current}"
+    );
+}
+
+#[test]
+fn test_e2e_finish_work_commit_archives_and_commits_diff() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(&["start", "commit-finish", "Commit Finish"], &project_dir).unwrap();
+    std::fs::write(
+        project_dir.join("Cargo.toml"),
+        "[workspace.package]\nversion = \"0.1.0\"\n",
+    )
+    .unwrap();
+    std::fs::write(project_dir.join("change.txt"), "changed").unwrap();
+
+    let finish_out = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "commit finish",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: no docs affected",
+            "--version-impact",
+            "patch",
+            "--commit",
+            "--commit-message",
+            "test: finish work commit",
+        ],
+        &project_dir,
+    )
+    .unwrap();
+
+    assert!(finish_out.contains("已完成任务 'commit-finish'"));
+    assert!(finish_out.contains("文档/spec 同步：none: no docs affected"));
+    assert!(finish_out.contains("版本影响：patch"));
+    assert!(finish_out.contains("版本更新：0.1.0 -> 0.1.1"));
+    assert!(finish_out.contains("Commit："));
+
+    let cargo_toml = std::fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
+    assert!(cargo_toml.contains("version = \"0.1.1\""));
+
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(current.contains("(none)"), "current output: {current}");
+
+    let status = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git status");
+    assert_eq!(String::from_utf8_lossy(&status.stdout).trim(), "");
+
+    let log = Command::new("git")
+        .args(["log", "--oneline", "-1"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git log");
+    assert!(
+        String::from_utf8_lossy(&log.stdout).contains("test: finish work commit"),
+        "log: {}",
+        String::from_utf8_lossy(&log.stdout)
+    );
 }
 
 #[test]
@@ -757,7 +852,6 @@ fn test_e2e_init_detects_reinit() {
     assert!(project_dir.join(".dijiang").join("config.toml").exists());
 }
 
-
 // ─── Channel ──────────────────────────────────────────────────
 
 #[test]
@@ -892,7 +986,9 @@ fn test_e2e_mem_tactics() {
     let stdout = out.unwrap();
     // Should show default tactics or an empty message
     assert!(
-        stdout.contains("cargo-test") || stdout.contains("typecheck") || stdout.contains("No tactics"),
+        stdout.contains("cargo-test")
+            || stdout.contains("typecheck")
+            || stdout.contains("No tactics"),
         "should show tactics or empty message"
     );
 }

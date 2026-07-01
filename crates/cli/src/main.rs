@@ -105,7 +105,7 @@ enum Commands {
         #[command(subcommand)]
         command: ChannelCommands,
     },
-    /// 完成当前工作：归档任务、记录 journal、清理 session active task
+    /// 完成当前工作：验证、文档同步门禁、可选提交/集成、归档任务、记录 journal
     FinishWork {
         /// 本次工作的简短总结
         #[arg(long)]
@@ -113,7 +113,31 @@ enum Commands {
         /// 已执行的验证命令或人工检查结论
         #[arg(long)]
         verification: Option<String>,
-        /// 允许在 git 工作区存在未提交/未跟踪改动时完成任务
+        /// 文档/spec 同步结论；有代码变更或 --commit 时必填
+        #[arg(long)]
+        docs_sync: Option<String>,
+        /// 版本影响决策：major、minor、patch、none
+        #[arg(long, default_value = "none")]
+        version_impact: String,
+        /// 提交当前任务 diff 后再归档
+        #[arg(long)]
+        commit: bool,
+        /// 提交消息；未提供时根据 task 和 summary 自动生成
+        #[arg(long)]
+        commit_message: Option<String>,
+        /// push 任务分支；只在 --commit 后允许
+        #[arg(long)]
+        push: bool,
+        /// 合并任务分支到主分支并清理 worktree；只在 --commit 后允许
+        #[arg(long)]
+        integrate: bool,
+        /// 集成目标主分支
+        #[arg(long, default_value = "main")]
+        main_branch: String,
+        /// 远端名称
+        #[arg(long, default_value = "origin")]
+        remote: String,
+        /// 允许在 git 工作区存在未提交/未跟踪改动时不提交也完成任务
         #[arg(long)]
         allow_dirty: bool,
     },
@@ -418,8 +442,28 @@ fn main() -> anyhow::Result<()> {
         Commands::FinishWork {
             summary,
             verification,
+            docs_sync,
+            version_impact,
+            commit,
+            commit_message,
+            push,
+            integrate,
+            main_branch,
+            remote,
             allow_dirty,
-        } => cmd_finish_work(summary.as_deref(), verification.as_deref(), allow_dirty),
+        } => cmd_finish_work(FinishWorkOptions {
+            summary: summary.as_deref(),
+            verification: verification.as_deref(),
+            docs_sync: docs_sync.as_deref(),
+            version_impact: &version_impact,
+            commit,
+            commit_message: commit_message.as_deref(),
+            push,
+            integrate,
+            main_branch: &main_branch,
+            remote: &remote,
+            allow_dirty,
+        }),
         Commands::Update { force, from_github } => cmd_update(force, from_github),
     }
 }
@@ -492,27 +536,203 @@ fn git_dirty_entries(project_root: &Path) -> anyhow::Result<Vec<String>> {
         .map(str::to_string)
         .collect())
 }
+#[derive(Debug, Clone, Copy)]
+struct FinishWorkOptions<'a> {
+    summary: Option<&'a str>,
+    verification: Option<&'a str>,
+    docs_sync: Option<&'a str>,
+    version_impact: &'a str,
+    commit: bool,
+    commit_message: Option<&'a str>,
+    push: bool,
+    integrate: bool,
+    main_branch: &'a str,
+    remote: &'a str,
+    allow_dirty: bool,
+}
 
+fn trim_required(value: Option<&str>, message: &str) -> anyhow::Result<String> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| anyhow::anyhow!(message.to_string()))
+}
+
+fn run_git(project_root: &Path, args: &[&str]) -> anyhow::Result<String> {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(project_root)
+        .output()?;
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn git_current_branch(project_root: &Path) -> anyhow::Result<String> {
+    run_git(project_root, &["branch", "--show-current"])
+}
+
+fn git_common_dir(project_root: &Path) -> anyhow::Result<PathBuf> {
+    let path = run_git(project_root, &["rev-parse", "--git-common-dir"])?;
+    let path = PathBuf::from(path);
+    Ok(if path.is_absolute() {
+        path
+    } else {
+        project_root.join(path)
+    })
+}
+
+fn git_main_worktree(project_root: &Path, main_branch: &str) -> anyhow::Result<PathBuf> {
+    let common_dir = git_common_dir(project_root)?;
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(project_root)
+        .output()?;
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "git worktree list failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+
+    let mut current_path: Option<PathBuf> = None;
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        if let Some(path) = line.strip_prefix("worktree ") {
+            current_path = Some(PathBuf::from(path));
+            continue;
+        }
+        if line == format!("branch refs/heads/{main_branch}") {
+            return current_path.ok_or_else(|| anyhow::anyhow!("invalid git worktree output"));
+        }
+    }
+
+    let main_path = common_dir
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| anyhow::anyhow!("cannot infer main worktree from git common dir"))?
+        .to_path_buf();
+    if git_current_branch(&main_path).ok().as_deref() == Some(main_branch) {
+        return Ok(main_path);
+    }
+
+    Err(anyhow::anyhow!(
+        "未找到主分支 worktree：{main_branch}。请先 checkout 主分支或手动合并。"
+    ))
+}
+
+fn bump_semver(version: &str, impact: &str) -> anyhow::Result<String> {
+    let parts = version
+        .split('.')
+        .map(str::parse::<u64>)
+        .collect::<Result<Vec<_>, _>>()?;
+    if parts.len() != 3 {
+        return Err(anyhow::anyhow!("unsupported version format: {version}"));
+    }
+    let (major, minor, patch) = (parts[0], parts[1], parts[2]);
+    Ok(match impact {
+        "major" => format!("{}.0.0", major + 1),
+        "minor" => format!("{major}.{}.0", minor + 1),
+        "patch" => format!("{major}.{minor}.{}", patch + 1),
+        "none" => version.to_string(),
+        _ => return Err(anyhow::anyhow!("unsupported version impact: {impact}")),
+    })
+}
+
+fn update_workspace_version(project_root: &Path, impact: &str) -> anyhow::Result<Option<String>> {
+    if impact == "none" {
+        return Ok(None);
+    }
+    let cargo_toml = project_root.join("Cargo.toml");
+    if !cargo_toml.exists() {
+        return Ok(None);
+    }
+    let content = std::fs::read_to_string(&cargo_toml)?;
+    let mut in_workspace_package = false;
+    let mut changed = false;
+    let mut old_version = String::new();
+    let mut new_lines = Vec::new();
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_workspace_package = trimmed == "[workspace.package]";
+        }
+        if in_workspace_package && trimmed.starts_with("version") && trimmed.contains('=') {
+            let indent = line
+                .chars()
+                .take_while(|ch| ch.is_whitespace())
+                .collect::<String>();
+            let value = trimmed
+                .split_once('=')
+                .map(|(_, value)| value.trim().trim_matches('"'))
+                .ok_or_else(|| anyhow::anyhow!("invalid version line in Cargo.toml"))?;
+            let next = bump_semver(value, impact)?;
+            old_version = value.to_string();
+            new_lines.push(format!("{indent}version = \"{next}\""));
+            changed = true;
+            continue;
+        }
+        new_lines.push(line.to_string());
+    }
+
+    if changed {
+        std::fs::write(&cargo_toml, format!("{}\n", new_lines.join("\n")))?;
+        Ok(Some(format!(
+            "{old_version} -> {}",
+            bump_semver(&old_version, impact)?
+        )))
+    } else {
+        Ok(None)
+    }
+}
 fn ensure_finish_preconditions(
     project_root: &Path,
     task: &dijiang_task::types::TaskRecord,
-    verification: Option<&str>,
-    allow_dirty: bool,
-) -> anyhow::Result<String> {
+    options: FinishWorkOptions<'_>,
+) -> anyhow::Result<(String, String)> {
     if matches!(task.status, TaskStatus::Archived) {
         return Err(anyhow::anyhow!("Task '{}' is already archived.", task.name));
     }
 
-    let verification = verification
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| anyhow::anyhow!(
-            "finish-work requires --verification, e.g. `--verification \"cargo test -p dijiang-task\"`."
-        ))?
-        .to_string();
+    if options.commit && options.allow_dirty {
+        return Err(anyhow::anyhow!(
+            "finish-work 不能同时使用 --commit 和 --allow-dirty；提交模式会自动提交当前任务 diff。"
+        ));
+    }
+    if (options.push || options.integrate) && !options.commit {
+        return Err(anyhow::anyhow!(
+            "finish-work 的 --push/--integrate 需要同时使用 --commit，避免推送或合并未记录的 diff。"
+        ));
+    }
+    if !matches!(options.version_impact, "major" | "minor" | "patch" | "none") {
+        return Err(anyhow::anyhow!(
+            "--version-impact must be one of: major, minor, patch, none"
+        ));
+    }
+
+    let verification = trim_required(
+        options.verification,
+        "finish-work requires --verification, e.g. `--verification \"cargo test -p dijiang-task\"`.",
+    )?;
 
     let dirty = git_dirty_entries(project_root)?;
-    if !dirty.is_empty() && !allow_dirty {
+    if (options.commit || !dirty.is_empty()) && !options.allow_dirty {
+        let docs_sync = trim_required(
+            options.docs_sync,
+            "finish-work requires --docs-sync when code/artifacts changed, e.g. `--docs-sync \"docs/spec updated\"` or `--docs-sync \"none: no docs affected\"`.",
+        )?;
+        if options.commit {
+            return Ok((verification, docs_sync));
+        }
+    }
+
+    if !dirty.is_empty() && !options.allow_dirty {
         let preview = dirty
             .iter()
             .take(12)
@@ -529,7 +749,23 @@ fn ensure_finish_preconditions(
         ));
     }
 
-    Ok(verification)
+    Ok((
+        verification,
+        options
+            .docs_sync
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("none: no code or docs change")
+            .to_string(),
+    ))
+}
+
+fn default_commit_message(task_name: &str, summary: Option<&str>) -> String {
+    let summary = summary
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(task_name);
+    format!("chore(dijiang): 完成 {summary}")
 }
 
 fn current_session_key() -> (String, String) {
@@ -597,11 +833,69 @@ fn append_session_closure(
     Ok(journal)
 }
 
-fn cmd_finish_work(
+fn perform_finish_commit(
+    project_root: &Path,
+    task_name: &str,
     summary: Option<&str>,
-    verification: Option<&str>,
-    allow_dirty: bool,
+    message: Option<&str>,
+) -> anyhow::Result<Option<String>> {
+    let dirty = git_dirty_entries(project_root)?;
+    if dirty.is_empty() {
+        return Ok(None);
+    }
+
+    run_git(project_root, &["add", "--all"])?;
+    let commit_message = message
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| default_commit_message(task_name, summary));
+    run_git(project_root, &["commit", "-m", &commit_message])?;
+    let commit = run_git(project_root, &["rev-parse", "--short", "HEAD"])?;
+    Ok(Some(commit))
+}
+
+fn perform_finish_integration(
+    project_root: &Path,
+    options: FinishWorkOptions<'_>,
 ) -> anyhow::Result<()> {
+    let branch = git_current_branch(project_root)?;
+    if branch.is_empty() {
+        return Err(anyhow::anyhow!(
+            "finish-work 无法在 detached HEAD 上执行集成。"
+        ));
+    }
+    if branch == options.main_branch {
+        return Err(anyhow::anyhow!(
+            "finish-work 不在主分支上执行 --integrate。请在任务 worktree 分支中运行。"
+        ));
+    }
+
+    if options.push {
+        run_git(project_root, &["push", "-u", options.remote, &branch])?;
+    }
+
+    if options.integrate {
+        let main_worktree = git_main_worktree(project_root, options.main_branch)?;
+        let project_root_string = project_root.display().to_string();
+        run_git(&main_worktree, &["merge", "--no-ff", &branch])?;
+        if options.push {
+            run_git(
+                &main_worktree,
+                &["push", options.remote, options.main_branch],
+            )?;
+        }
+        run_git(
+            &main_worktree,
+            &["worktree", "remove", &project_root_string],
+        )?;
+        run_git(&main_worktree, &["branch", "-d", &branch])?;
+    }
+
+    Ok(())
+}
+
+fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
     let project_root = dijiang_dir
         .parent()
@@ -610,12 +904,9 @@ fn cmd_finish_work(
         .ok_or_else(|| anyhow::anyhow!("No active task. Run `dijiang start <name>` first."))?;
     let tasks_dir = dijiang_dir.join("tasks");
     let task_before_archive = store::load_task(&tasks_dir, &active_task)?;
-    let verification = ensure_finish_preconditions(
-        project_root,
-        &task_before_archive,
-        verification,
-        allow_dirty,
-    )?;
+    let (verification, docs_sync) =
+        ensure_finish_preconditions(project_root, &task_before_archive, options)?;
+    let version_update = update_workspace_version(project_root, options.version_impact)?;
     let developer = read_developer(&dijiang_dir)?;
     let (session_key, source) = current_session_key();
 
@@ -624,9 +915,9 @@ fn cmd_finish_work(
         &dijiang_dir,
         &developer,
         &active_task,
-        summary,
+        options.summary,
         &verification,
-        allow_dirty,
+        options.allow_dirty,
     )?;
     store::clear_active_task(&dijiang_dir)?;
     let session_journal = append_session_closure(
@@ -635,10 +926,25 @@ fn cmd_finish_work(
         &session_key,
         &source,
         &active_task,
-        summary,
+        options.summary,
         &verification,
-        allow_dirty,
+        options.allow_dirty,
     )?;
+
+    let commit = if options.commit {
+        perform_finish_commit(
+            project_root,
+            &active_task,
+            options.summary,
+            options.commit_message,
+        )?
+    } else {
+        None
+    };
+
+    if options.push || options.integrate {
+        perform_finish_integration(project_root, options)?;
+    }
 
     println!(
         "✓ 已完成任务 '{}'（状态：{}）",
@@ -646,12 +952,25 @@ fn cmd_finish_work(
         task.status.as_str()
     );
     println!("  验证：{verification}");
+    println!("  文档/spec 同步：{docs_sync}");
+    println!("  版本影响：{}", options.version_impact);
+    println!(
+        "  版本更新：{}",
+        version_update.as_deref().unwrap_or("none")
+    );
+    if let Some(commit) = commit {
+        println!("  Commit：{commit}");
+    } else {
+        println!("  Commit：none");
+    }
+    println!("  Push：{}", if options.push { "done" } else { "skipped" });
+    println!(
+        "  Integration：{}",
+        if options.integrate { "done" } else { "skipped" }
+    );
     println!("  Journal：{}", journal.display());
     println!("  Session 已关闭：{}", session_journal.display());
     println!("  当前 session 的 active task 已清理");
-    println!(
-        "  Git 收尾：确认版本决策、范围一致的提交、可用时 push/merge，以及 worktree 清理已完成。"
-    );
     Ok(())
 }
 
@@ -1625,7 +1944,6 @@ fn cmd_migrate() -> anyhow::Result<()> {
     println!("  Run `dijiang init` to reconfigure platforms.");
     Ok(())
 }
-
 
 fn cmd_channel_spawn(agent: &str, task: Option<&str>, dir: Option<&str>) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;

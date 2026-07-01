@@ -1,0 +1,36 @@
+{
+  "id": "dijiang-git-worktree-version-commit-push-merge-w",
+  "name": "dijiang-git-worktree-version-commit-push-merge-w",
+  "title": "调整 DiJiang git worktree version commit push merge workflow",
+  "description": "调整 DiJiang git worktree version commit push merge workflow",
+  "status": "planning",
+  "devType": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "",
+  "assignee": "",
+  "createdAt": "2026-06-30",
+  "completedAt": null,
+  "branch": null,
+  "baseBranch": null,
+  "worktreePath": null,
+  "commit": null,
+  "prUrl": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "dispatch": {
+      "task_type": "调研对齐",
+      "primary_intent": "需求澄清",
+      "skill": "dj-grill",
+      "recommended_path": "dj-grill → dj-output/dj-implement"
+    }
+  },
+  "startedAt": "2026-06-30T09:26:54.376342+00:00",
+  "source": "dijiang dispatch",
+  "sessionId": "global_global"
+}

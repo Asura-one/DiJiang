@@ -28,7 +28,7 @@ This project uses DiJiang for task management and workflow.
 | `dijiang status` | Show project status |
 | `dijiang status --compat` | Show compatibility diagnostics |
 | `dijiang start <name>` | Create and activate a work session |
-| `dijiang finish-work --verification "..."` | Finish current work, write journal, archive task |
+| `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>` | Finish current work with validation, docs/spec evidence, version decision, optional commit/integration, journal, and archive |
 | `dijiang task list` | List active tasks |
 | `dijiang task current` | Show active task |
 | `dijiang task status <name> <status>` | Update task status |
@@ -55,6 +55,7 @@ This project uses DiJiang for task management and workflow.
 | Feature implementation | `dj-implement` or `dj-tdd` |
 | Bug / regression | `dj-hunt` |
 | Code review / quality gate | `dj-check` |
+| Lightweight read-only review | `dj-review` |
 | Whole-codebase audit | `dj-audit` |
 | Technical debt assessment | `dj-debt` |
 | Codebase health report | `dj-health` |
@@ -78,7 +79,7 @@ This project uses DiJiang for task management and workflow.
    - none → `dijiang start <name>` or `dj-dispatch`
    - `planning` → `dj-grill`, optionally `dj-output`
    - `in_progress` → implementation skill, then `dj-check`
-   - `completed` → `dijiang finish-work --verification "..."`
+   - `completed` → `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>`
    - `archived` → read-only unless restarted with `dijiang start <task>`
    - `paused` → `dijiang-continue` then return to `planning` or `in_progress`
 

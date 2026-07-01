@@ -1,13 +1,13 @@
 ---
 name: dijiang-start
-description: "Initialize a DiJiang session: load project context, active task, workflow state, then delegate to dj-dispatch for task routing."
+description: "Initialize a DiJiang session: load project context, active task, workflow state, then report the appropriate dj-* route."
 triggers:
   - session:start
 ---
 
 # Start Session
 
-Initialize a DiJiang-managed development session. This skill only loads context and routes the request; task execution belongs to the selected `dj-*` skill.
+Initialize a DiJiang-managed development session. This skill only loads context and reports the selected route; task execution belongs to the selected `dj-*` skill.
 
 ## 输入 / 输出
 
@@ -29,7 +29,7 @@ git status --short --branch
 
 Output: active task path, current phase, git branch, dirty state, and developer identity when available.
 
-If `dijiang status` fails, run `pwd` and check whether `.dijiang/` exists. If `.dijiang/` is missing, stop and route to project initialization instead of inventing task state.
+If `dijiang status` fails, run `pwd` and check whether `.dijiang/` exists. If `.dijiang/` is missing, stop and output `follow-up: project initialization` instead of inventing task state.
 
 ### 2. Read Workflow
 
@@ -63,9 +63,9 @@ dijiang mem findings --finding "<initial task description; source=user; scope=cu
 
 If memory commands fail, continue without writing memory and mention the failure in the handoff. Do not block session startup on memory persistence.
 
-### 5. Delegate to dj-dispatch
+### 5. Select dj-dispatch Route
 
-Load `dj-dispatch` to classify the user's request and route to the appropriate `dj-*` skill.
+Use `dj-dispatch` classification rules to identify the appropriate `dj-*` route for the user's request.
 
 | Request type | Routes to |
 |---|---|
@@ -89,7 +89,7 @@ Output: one route, one next action, and the task artifacts that the routed skill
 | `dijiang status` fails | Confirm repository root and `.dijiang/` presence | Stop and ask for project initialization or correct working directory |
 | No active task exists | Route the user request through `dj-dispatch` | Create a task only through DiJiang start/dispatch flow |
 | Active task exists but artifacts are missing | Read `task.json` and list present files | Mark missing artifacts explicitly before routing |
-| Workflow state conflicts with task status | Prefer `.dijiang/tasks/<task>/task.json` as source of truth | Record conflict and route to `dj-hunt` if execution would be unsafe |
+| Workflow state conflicts with task status | Prefer `.dijiang/tasks/<task>/task.json` as source of truth | Record conflict and output `follow-up: dj-hunt` if execution would be unsafe |
 | Git tree is dirty before work starts | Report dirty files and keep them out of the new task scope | Use a dedicated worktree before implementation |
 
 ## 🔴 CHECKPOINT · Startup Complete
@@ -110,8 +110,8 @@ Next action: <one sentence>
 
 | Do not | Do this instead |
 |---|---|
-| Do not implement code during startup | Route to `dj-implement`, `dj-tdd`, or `dj-hunt` first |
+| Do not implement code during startup | Output a route such as `dj-implement`, `dj-tdd`, or `dj-hunt` first |
 | Do not invent an active task when DiJiang reports none | Use `dj-dispatch` to create or select one |
 | Do not ignore dirty git state | Report it and require a task worktree before edits |
 | Do not write durable memory from guesses | Keep uncertain context in the task artifact |
-| Do not bypass `dj-dispatch` for ambiguous user requests | Let dispatch classify and record the route |
+| Do not bypass `dj-dispatch` for ambiguous user requests | Let dispatch classification produce and record the route |
