@@ -38,10 +38,10 @@ paused
 | 入口 | 职责 |
 |---|---|
 | `/dijiang-finish-work` | Pi prompt checklist，只注入收尾步骤，不执行命令、不归档任务 |
-| `/skill:dijiang-finish-work` | Agent skill workflow，驱动检查、版本决策和 git 隔离确认，需要真实状态变更时调用 CLI |
-| `dijiang finish-work ...` | CLI state transition，读取 active task 并执行归档、journal、可选 commit/push/integrate |
+| `/skill:dijiang-finish-work` | Agent skill workflow，加载 skill 后 agent 必须按 Invocation Contract 执行检查、版本决策和 git 隔离确认，需要真实状态变更时调用 CLI |
+| `dijiang finish-work ...` | CLI state transition，有 active task 时归档任务；无 active task 时跳过归档但仍可完成验证、记录、commit/push/integrate |
 
-`dijiang finish-work` 要求存在可读取的 active task；没有任务时不会凭对话内容自动创建或归档。
+`dijiang finish-work` 不再要求必须存在 active task；没有任务时不会凭对话内容自动创建或归档，只跳过 task archive / active-task cleanup。active task 指向缺失 artifact 时仍会报 stale state。
 
 ## Skill 清单
 
