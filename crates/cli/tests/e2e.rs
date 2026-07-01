@@ -471,9 +471,9 @@ fn test_e2e_finish_work_requires_verification() {
 }
 
 #[test]
-fn test_e2e_finish_work_explains_missing_active_task() {
+fn test_e2e_finish_work_allows_missing_active_task() {
     let (_tmp, project_dir) = init_project();
-    let err = dijang(
+    let out = dijang(
         &[
             "finish-work",
             "--verification",
@@ -482,15 +482,84 @@ fn test_e2e_finish_work_explains_missing_active_task() {
             "none: no task work",
             "--version-impact",
             "none",
+            "--allow-dirty",
         ],
         &project_dir,
     )
-    .unwrap_err();
+    .unwrap();
 
-    assert!(err.contains("没有可归档的 active task"), "error: {err}");
-    assert!(err.contains("/dijiang-finish-work"), "error: {err}");
-    assert!(err.contains("/skill:dijiang-finish-work"), "error: {err}");
-    assert!(err.contains("dijiang finish-work"), "error: {err}");
+    assert!(out.contains("已完成工作（无 active task"), "output: {out}");
+    assert!(
+        out.contains("Task archive：skipped: no active task"),
+        "output: {out}"
+    );
+    assert!(
+        out.contains("当前 session 没有 active task 需要清理"),
+        "output: {out}"
+    );
+    let journal = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("workspace")
+            .join("e2e")
+            .join("journal.md"),
+    )
+    .unwrap();
+    assert!(journal.contains("no-active-task"));
+    assert!(journal.contains("completed-no-task"));
+
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(current.contains("(none)"), "current output: {current}");
+}
+
+#[test]
+fn test_e2e_finish_work_commit_without_active_task_skips_archive() {
+    let (_tmp, project_dir) = init_project();
+    std::fs::write(project_dir.join("change.txt"), "changed").unwrap();
+
+    let out = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "standalone finish",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: standalone change",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test: standalone finish",
+        ],
+        &project_dir,
+    )
+    .unwrap();
+
+    assert!(out.contains("已完成工作（无 active task"), "output: {out}");
+    assert!(
+        out.contains("Task archive：skipped: no active task"),
+        "output: {out}"
+    );
+    assert!(out.contains("Commit："), "output: {out}");
+
+    let status = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git status");
+    assert_eq!(String::from_utf8_lossy(&status.stdout).trim(), "");
+
+    let log = Command::new("git")
+        .args(["log", "--oneline", "-1"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git log");
+    assert!(
+        String::from_utf8_lossy(&log.stdout).contains("test: standalone finish"),
+        "log: {}",
+        String::from_utf8_lossy(&log.stdout)
+    );
 }
 
 #[test]

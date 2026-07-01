@@ -498,14 +498,20 @@ fn append_finish_journal(
     let workspace = dijiang_dir.join("workspace").join(developer);
     std::fs::create_dir_all(&workspace)?;
     let journal = workspace.join("journal.md");
-    let summary = summary.unwrap_or("Work finished and task archived.");
+    let summary = summary.unwrap_or("Work finished.");
+    let status = if task_name == "no-active-task" {
+        "completed-no-task"
+    } else {
+        "archived"
+    };
     let entry = format!(
-        "\n## {} — finish-work\n- Task: `{}`\n- Summary: {}\n- Verification: {}\n- Dirty allowed: {}\n- Status: archived\n",
+        "\n## {} — finish-work\n- Task: `{}`\n- Summary: {}\n- Verification: {}\n- Dirty allowed: {}\n- Status: {}\n",
         chrono::Local::now().format("%Y-%m-%d %H:%M"),
         task_name,
         summary,
         verification,
-        dirty_allowed
+        dirty_allowed,
+        status
     );
     std::fs::OpenOptions::new()
         .create(true)
@@ -693,11 +699,13 @@ fn update_workspace_version(project_root: &Path, impact: &str) -> anyhow::Result
 }
 fn ensure_finish_preconditions(
     project_root: &Path,
-    task: &dijiang_task::types::TaskRecord,
+    task: Option<&dijiang_task::types::TaskRecord>,
     options: FinishWorkOptions<'_>,
 ) -> anyhow::Result<(String, String)> {
-    if matches!(task.status, TaskStatus::Archived) {
-        return Err(anyhow::anyhow!("Task '{}' is already archived.", task.name));
+    if let Some(task) = task {
+        if matches!(task.status, TaskStatus::Archived) {
+            return Err(anyhow::anyhow!("Task '{}' is already archived.", task.name));
+        }
     }
 
     if options.commit && options.allow_dirty {
@@ -900,43 +908,54 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let project_root = dijiang_dir
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Invalid .dijiang directory"))?;
-    let active_task = store::read_active_task(&dijiang_dir)?.ok_or_else(|| {
-        anyhow::anyhow!(
-            "finish-work 没有可归档的 active task。`/dijiang-finish-work` 只是 Pi prompt checklist，`/skill:dijiang-finish-work` 是 agent workflow，`dijiang finish-work` 只关闭已存在的 DiJiang active task。请先运行 `dijiang start <name>` 创建任务，或确认当前对话不需要任务归档。"
-        )
-    })?;
     let tasks_dir = dijiang_dir.join("tasks");
-    let task_before_archive = match store::load_task(&tasks_dir, &active_task) {
-        Ok(task) => task,
-        Err(store::TaskError::NotFound(_)) => {
-            anyhow::bail!(
-                "finish-work 的 active task 指向 `{active_task}`，但 `.dijiang/tasks/{active_task}/task.json` 不存在。这通常表示 task state 已陈旧或 task artifact 被清理。请用 `dijiang task current` / `dijiang task list` 检查状态；若当前工作仍需归档，请重新 `dijiang start <name>`，否则清理 stale active task 后再继续。"
-            );
-        }
-        Err(error) => return Err(error.into()),
+    let active_task = store::read_active_task(&dijiang_dir)?;
+    let task_before_archive = match active_task.as_deref() {
+        Some(active_task) => match store::load_task(&tasks_dir, active_task) {
+            Ok(task) => Some(task),
+            Err(store::TaskError::NotFound(_)) => {
+                anyhow::bail!(
+                    "finish-work 的 active task 指向 `{active_task}`，但 `.dijiang/tasks/{active_task}/task.json` 不存在。这通常表示 task state 已陈旧或 task artifact 被清理。请用 `dijiang task current` / `dijiang task list` 检查状态；若当前工作仍需归档，请重新 `dijiang start <name>`，否则清理 stale active task 后再继续。"
+                );
+            }
+            Err(error) => return Err(error.into()),
+        },
+        None => None,
     };
     let (verification, docs_sync) =
-        ensure_finish_preconditions(project_root, &task_before_archive, options)?;
+        ensure_finish_preconditions(project_root, task_before_archive.as_ref(), options)?;
     let version_update = update_workspace_version(project_root, options.version_impact)?;
     let developer = read_developer(&dijiang_dir)?;
     let (session_key, source) = current_session_key();
-
-    let task = store::archive_task(&tasks_dir, &active_task)?;
+    let task_label = active_task.as_deref().unwrap_or("no-active-task");
     let journal = append_finish_journal(
         &dijiang_dir,
         &developer,
-        &active_task,
+        task_label,
         options.summary,
         &verification,
         options.allow_dirty,
     )?;
-    store::clear_active_task(&dijiang_dir)?;
+
+    let archive_status = if let Some(active_task) = active_task.as_deref() {
+        let task = store::archive_task(&tasks_dir, active_task)?;
+        store::clear_active_task(&dijiang_dir)?;
+        format!(
+            "archived task `{}` (status: {}), journal: {}",
+            active_task,
+            task.status.as_str(),
+            journal.display()
+        )
+    } else {
+        "skipped: no active task".to_string()
+    };
+
     let session_journal = append_session_closure(
         &dijiang_dir,
         &developer,
         &session_key,
         &source,
-        &active_task,
+        task_label,
         options.summary,
         &verification,
         options.allow_dirty,
@@ -945,7 +964,7 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let commit = if options.commit {
         perform_finish_commit(
             project_root,
-            &active_task,
+            task_label,
             options.summary,
             options.commit_message,
         )?
@@ -957,11 +976,11 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         perform_finish_integration(project_root, options)?;
     }
 
-    println!(
-        "✓ 已完成任务 '{}'（状态：{}）",
-        active_task,
-        task.status.as_str()
-    );
+    if let Some(active_task) = active_task.as_deref() {
+        println!("✓ 已完成任务 '{active_task}'");
+    } else {
+        println!("✓ 已完成工作（无 active task，已跳过任务归档）");
+    }
     println!("  验证：{verification}");
     println!("  文档/spec 同步：{docs_sync}");
     println!("  版本影响：{}", options.version_impact);
@@ -979,9 +998,13 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         "  Integration：{}",
         if options.integrate { "done" } else { "skipped" }
     );
-    println!("  Journal：{}", journal.display());
+    println!("  Task archive：{archive_status}");
     println!("  Session 已关闭：{}", session_journal.display());
-    println!("  当前 session 的 active task 已清理");
+    if active_task.is_some() {
+        println!("  当前 session 的 active task 已清理");
+    } else {
+        println!("  当前 session 没有 active task 需要清理");
+    }
     Ok(())
 }
 
