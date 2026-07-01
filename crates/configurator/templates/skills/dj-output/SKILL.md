@@ -16,7 +16,31 @@ description: >
 2. **维护文档** — 代码变更后同步更新文档
 3. **对齐检查** — 发现文档与代码不一致时，双向修复
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | Confirmed alignment summary, target document type, source artifacts, target path, and code/spec evidence when updating docs |
+| 输出 | Structured document or patch, evidence of code/doc alignment, unresolved assumptions, and save/update summary |
+| 非目标 | Do not invent requirements, create new doc locations by default, or change code while producing docs |
+
 ## 创建文档
+
+### 🔴 CHECKPOINT · 文档来源门禁
+
+创建、重写或无明确输入时，先自动收集当前任务与已有文档证据，再报告：
+```text
+文档类型：<PRD / design / API / spec / report / sync>
+事实来源：<active task / existing docs / code / user request / none>
+目标路径：<已有 task/doc 路径或 proposed path>
+已读证据：<files/URLs/code refs>
+未决假设：<none or list>
+是否修改代码：no
+```
+
+默认行为：如果用户使用当前文档技能且没有额外输入，执行文档同步模式：读取 active task、现有 task artifacts、相关 docs/spec 与当前 diff，更新或补齐当前任务相关文档。不要把“缺少显式输入”解释成 bug 排查或自动切换到其他 skill。
+
+🛑 STOP：只有在没有任何来源材料，且用户要求创建会凭空发明产品需求的新文档时，停止并报告“需要需求对齐”；不要在 `dj-output` 内自行切换 skill。
 
 ### PRD 模板
 
@@ -66,6 +90,12 @@ description: >
 为什么要做这件事。
 
 ## 方案
+### 第一性原理推导
+- 核心问题：这份设计真正解决什么用户或系统问题？
+- 硬事实：哪些现有代码、接口、数据、约束不可改？
+- 隐含假设：哪些判断来自推测而非证据？
+- 推导结论：为什么当前方案能从硬事实推出？
+
 ### 选项对比
 | 方案 | 优点 | 缺点 | 结论 |
 |---|---|---|---|
@@ -75,6 +105,13 @@ description: >
 
 ## 影响范围
 改动了哪些模块、需要同步更新什么。
+
+## 对抗式审查
+从反方视角检查这份文档：
+- 逻辑链是否断裂？
+- 事实来源是否不足？
+- 是否遗漏失败路径、边界条件或验收标准？
+- 是否把愿望、推测或实现偏好写成了需求？
 
 ## 验证方式
 怎么确认方案可行。
@@ -111,28 +148,37 @@ description: >
 ## 文档存放
 
 优先使用项目已有的文档结构：
-- 有 `docs/` 目录 → 放 docs/
-- 有 dijiang task 目录 → 放对应 task 下
-- 都没有 → 放项目根目录
+
+- 当前任务有 `.dijiang/tasks/<task>/` → 放对应 task 下
+- 已有 `docs/` 目录且该文档属于长期项目文档 → 放 docs/
+- 已有 spec 目录且是规范更新 → 放 `.dijiang/spec/<layer>/`
+- 都没有 → 先在对话中输出内容并提出路径，不主动创建新目录或根目录文档
+
+写入前必须明确目标路径。生成任务 artifact 时使用当前 active task 目录。
 
 ## 失败处理
 
 | 触发条件 | 一线修复 | 仍失败兜底 |
 |---------|---------|-----------|
-| 文档和代码对不上，不知道哪个是真相 | 检查 git log 看哪个更近 | 以代码为准，文档标注"待确认" |
-| PRD 写完用户不满意 | 问清楚哪里不满意，逐项修正 | 用最小版本重写，只保留核心需求 |
-| 项目没有 docs/ 目录 | 创建 docs/ 或用项目根目录 | 输出到对话中，让用户决定存放位置 |
+| 文档和代码对不上，不知道哪个是真相 | 检查 git log 和当前代码行为 | 以代码为准，文档标注 `待确认` |
+| PRD 写完用户不满意 | 对照 source gate 找缺失输入 | 标记为“需要需求对齐”，由 workflow 或用户决定是否进入 `dj-grill` |
+| 项目没有 docs/ 目录 | 使用 active task 目录或先在对话中输出 | 询问目标路径，不主动创建 docs/ |
 | 功能偏移发现后不知道改哪个 | 展示偏移详情，问用户意图 | 文档过时→改文档；设计意图偏离→标记并等用户决策 |
+| 缺少代码证据 | 读取相关实现或测试 | 标注 `not verified against code` 和原因 |
+| 用户要求边写文档边改代码 | 先完成文档输出并标记实现后续项 | 不在 `dj-output` 中改代码，后续实现由 workflow 或用户显式触发 |
 
 ## 🔴 CHECKPOINT · 文档确认
 
 创建/大改文档后：
 ```
 文档：<文档名>
+目标路径：<path>
 内容摘要：<关键章节>
-与代码一致性：<已确认 / 需要对齐>
+来源证据：<alignment/code/docs refs>
+与代码一致性：<已确认 / 需要对齐 / not verified>
+未决假设：<none or list>
 
-确认保存？(Y/n)
+确认保存或更新？(Y/n)
 ```
 
 ## TemplateContext 模型
@@ -227,6 +273,9 @@ dj-output 按以下结构化合约格式输出：
 |---|---|
 | 代码改了不管文档 | 每次实现后检查文档是否需要更新 |
 | 文档和代码不一致时只改文档 | 先判断哪个是真相，再决定改哪个 |
+| 没有来源材料就凭空写 PRD | 停止并报告需要需求对齐 |
 | PRD 写成散文 | 用结构化模板，每节有明确用途 |
-| 文档路径随便放 | 遵循项目已有的文档结构 |
+| 文档路径随便放 | 遵循项目已有结构，写入前确认目标路径 |
+| 项目没有 docs/ 就主动创建 | 先输出内容或使用 active task 目录 |
 | 功能偏移不标记 | 发现偏离设计意图时必须告知用户 |
+| 写文档时顺便改代码 | 文档完成后只给实现后续项，不自行切换 skill |

@@ -13,9 +13,59 @@ license: MIT
 
 减少 LLM 编码常见错误的行为准则，源自 [Andrej Karpathy 的观察](https://x.com/karpathy/status/2015883857489522876)。
 
-**权衡**：这些准则偏向谨慎而非速度。简单任务自行判断。
+**权衡**：这些准则偏向谨慎而非速度。简单任务也必须保留可验证成功标准。
 
-## 1. Think Before Coding
+## Execution Protocol
+
+### 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | User request, relevant code, existing tests, project style, and known constraints |
+| 输出 | Stated assumptions, minimal plan, verified change, and concise delivery summary |
+| 非目标 | Do not broaden scope, rewrite unrelated code, or replace the active workflow skill |
+
+### 工作流
+
+1. **State assumptions** → Output every assumption that affects scope, behavior, or data safety.
+2. **Define success** → Convert the request into pass/fail checks: test, typecheck, lint, CLI fixture, or manual checklist.
+3. **Choose the smallest design** → Prefer deletion, stdlib, existing dependency, and direct code before adding abstraction.
+4. **Make surgical changes** → Edit only lines traceable to the request; clean only orphan code created by this edit.
+5. **Run verification** → Start with the narrowest relevant check, then widen only when needed.
+6. **Report outcome** → Say what changed, why it is enough, what was verified, and what remains unverified.
+
+实现前使用这个格式：
+
+```text
+假设：<影响范围的假设；没有则写 none>
+成功检查：<命令或人工检查>
+计划：
+1. <步骤> → 验证：<检查项>
+2. <步骤> → 验证：<检查项>
+非目标：<明确跳过的工作>
+```
+
+### 第一性原理审查
+
+如果假设会改变产品行为，停止并提问。如果假设只影响可逆实现细节，说明后继续。
+
+需要审查设计或重构方案时，按这个顺序拆解：
+
+```text
+1. Fundamental problem：这段代码真正解决的问题是什么？
+2. Basic facts：已有代码、数据、用户约束中哪些是硬事实？
+3. Hidden assumptions：实现依赖了哪些未验证假设？
+4. Derived solution：从硬事实出发，当前方案是否能推导出来？
+5. Simpler approach：是否存在更小、更直接、更少抽象的方案？
+6. Trade-offs：保留当前方案要付出什么复杂度、风险或维护成本？
+```
+
+输出发现时必须说明：
+- 哪个假设被代码依赖；
+- 为什么它可能不成立；
+- 第一性原理下的替代方案是什么。
+
+## 1. 写代码前先想清楚
 
 **不假设。不掩盖困惑。主动暴露权衡。**
 
@@ -85,10 +135,10 @@ license: MIT
 开始实现前：
 ```
 遵循准则：
-- Think Before Coding：假设已明确？[是/否]
-- Simplicity First：方案是最简？[是/否]
-- Surgical Changes：只改必要代码？[是/否]
-- Goal-Driven：成功标准已定义？[是/否]
+- 写代码前先想清楚：假设已明确？[是/否]
+- 优先简单方案：方案是最简？[是/否]
+- 外科式修改：只改必要代码？[是/否]
+- 目标驱动：成功标准已定义？[是/否]
 
 确认开始实现？(Y/n)
 ```

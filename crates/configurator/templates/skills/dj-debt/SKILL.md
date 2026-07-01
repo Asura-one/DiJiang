@@ -20,6 +20,14 @@ description: >
 
 **治理路径必须是最便宜的路径**，否则你建的每一道墙，都在为翻墙者训练肌肉。
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | Scan scope, source file types, and whether the user asked for export |
+| 输出 | Read-only debt ledger grouped by file, with trigger quality, risk, and recommended follow-up |
+| 非目标 | Do not fix debt, create docs by default, or label ordinary style preferences as debt |
+
 ## 工作流
 
 ### 1. 扫描
@@ -34,42 +42,59 @@ grep -rnE '(#|//) ?ponytail:' . \
 
 ### 2. 整理
 
-每个命中是一行台账。注释格式约定：`ponytail: <上限>, <触发条件>`
+每个命中是一行台账。注释格式约定：`ponytail: <简化内容>, <触发条件>`
 
-输出格式：
-```
-<file>:<line>, <简化了什么>. 上限: <天花板>. 触发: <何时重新审视>.
+分诊字段：
+
+```text
+Location: <file>:<line>
+Shortcut: <what was simplified>
+Ceiling: <when it stops being acceptable>
+Trigger: <specific revisit condition or no-trigger>
+Risk: <low/medium/high>
+Follow-up: <leave / revisit / implementation needed>
 ```
 
-没有标记触发条件的 → 加 `no-trigger` 标签（这些最容易悄悄腐烂）
+风险规则：
+
+- `high`: no trigger, touches security/data loss/release flow, or blocks future work.
+- `medium`: trigger exists but is vague, or affected code is central.
+- `low`: trigger is precise and local impact is limited.
 
 ### 3. 报告
 
-```
+```text
 ## 债务台账
 
 <按文件分组的台账>
 
-总计：<N> 个标记，<M> 个无触发条件
+Summary:
+- Total: <N> markers
+- No trigger: <M>
+- High risk: <H>
+- Exported: no
 ```
 
-无触发条件的标记是风险最高的——没人知道什么时候该回来修。
+无触发条件的标记是风险最高的，因为没人知道什么时候该回来修。
 
 ## 🔴 CHECKPOINT · 台账确认
 
 扫描完成后：
-```
+
+```text
 债务台账：
 - 总计：<N> 个标记
 - 无触发条件：<M> 个（最高风险）
+- 高风险：<H> 个
 - 按文件分组：<文件数>
 
-确认保存到 DEBT.md？(Y/n)
+默认动作：只报告
+导出文件：<仅在用户明确要求时填写>
 ```
 
-- 用户说"Y" → 写入 DEBT.md
-- 用户说"n" → 只在对话中展示
-- 用户要求修复 → 拒绝（只报告），提供修复建议
+- 默认只在对话中展示台账。
+- 只有用户明确要求导出时，才写入用户指定文件。
+- 用户要求修复 → 拒绝在 `dj-debt` 中修复，只提供 follow-up type。
 
 ## 标记约定
 
@@ -97,13 +122,17 @@ function processOrder(order: Order) { ... }
 
 - 只读报告，不修改代码
 - 如果没有找到标记：`No ponytail: debt. Clean ledger.`
-- 用户可以要求将台账写入文件（如 `DEBT.md`）
+- 不主动创建 `DEBT.md` 或任何文档文件
+- 用户明确要求导出时，使用用户指定路径；未指定路径时先确认路径
+- 技术债必须来自明确 shortcut 标记或可证据化的延期决策，不把审美偏好算作债务
 
 ## 反例
 
 | ❌ 不要做 | ✅ 正确做法 |
 |---|---|
 | 找到标记后自动修复 | 只报告，用户决定 |
+| 默认写入 `DEBT.md` | 默认只报告，明确要求导出才写文件 |
 | 忽略无触发条件的标记 | 标记 no-trigger，重点提示 |
 | 不扫描就声称没有债务 | 实际跑 grep 确认 |
+| 把风格偏好当技术债 | 只记录 shortcut 或延期决策 |
 | ponytail 简化时不加注释 | 每个简化都加 ponytail: 标记 |

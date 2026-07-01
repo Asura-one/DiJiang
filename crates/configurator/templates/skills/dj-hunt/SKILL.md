@@ -163,24 +163,53 @@ grep -rn "功能key\|feature_flag\|路由路径" src/ --include="*.rs"
 
 必须指出具体文件、函数、行号或条件。"状态管理有问题"不可测试。"`useUser` 在 `src/hooks/user.ts:42` 缺少 `userId` 依赖"可测试。
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | Symptom, reproduction signal, expected behavior, observed behavior, environment, and changed range if known |
+| 输出 | Root cause with evidence, minimal fix, regression verification, sibling-path check, and learning/spec recommendation |
+| 非目标 | Do not patch before root cause, hide failed hypotheses, or use destructive git commands as normal recovery |
+
 ## 工作流
+
+### Phase 0：排障约定
+
+改代码前先定义：
+
+```text
+Symptom: <what fails>
+Expected: <what should happen>
+Observed: <what happened>
+Reproduction: <test/command/manual steps or unknown>
+Search entry: <error/log/UI/API/test/git history>
+Will modify code before root cause: no
+```
+
+If reproduction is unknown, Phase 1 is to build or approximate the feedback loop. Do not skip to a fix.
 
 ### Phase 1：构建反馈回路
 
 **这是核心技能。** 有了精确的 pass/fail 信号，找到原因只是时间问题。
 
-花不成比例的精力在这里。积极、创造、拒绝放弃。
-
-构建回路的方式（按优先级）：
+反馈回路的方式（按优先级）：
 1. **失败测试** — 在能触达 bug 的任何层面
 2. **curl / HTTP 脚本** — 对着开发服务器
 3. **CLI 调用** — fixture 输入，对比已知正确的快照
 4. **浏览器脚本** — Playwright/Puppeteer 驱动 UI
 5. **重放捕获的 trace** — 存真实请求到磁盘，隔离重放
 6. **最小 harness** — 启动系统子集，单函数调用
-7. **属性/fuzz 循环** — 1000 个随机输入找失败模式
+7. **属性/fuzz 循环** — 随机输入找失败模式
 8. **二分 harness** — `git bisect run`
 9. **人工可复核清单** — 当无法自动化时，列出输入、操作、期望输出和证据截图/日志
+
+Record:
+
+```text
+Feedback loop: <command or manual checklist>
+Red signal: <exact failure>
+False positive risk: <low/medium/high>
+```
 
 反馈回路必须先证明关键命题，再扩大覆盖面。不要一开始追求全量自动化；一个可靠的 CLI fixture、截图对比或日志断言，比“看起来应该对”的代码审查更有价值。
 
@@ -202,11 +231,18 @@ grep -rn "功能key\|feature_flag\|路由路径" src/ --include="*.rs"
 
 2. **推理阶段**（基于证据下结论）
    - 提出假设（一句话）——必须基于收集到的证据
+   - 对复杂或反复复发的问题做第一性原理追问：
+     ```text
+     问题本质：系统本来必须保证什么不变量？
+     硬事实：哪些输入、状态、时序、依赖行为已被证据证明？
+     隐藏假设：之前的解释是否只修表层症状？
+     根因推导：从硬事实能否推出真正破坏不变量的位置？
+     治本修复：什么改动能防止同类路径再次出错？
+     ```
    - 设计验证方式
    - 执行验证
    - 假设成立 → 进入 Phase 4
    - 假设不成立 → 回到取证阶段补充证据
-
 **🛑 禁止行为**：
 - ❌ 带着结论去找证据（确认偏误）
 - ❌ 推理阶段发现证据不足时回去补充新证据
@@ -218,20 +254,19 @@ grep -rn "功能key\|feature_flag\|路由路径" src/ --include="*.rs"
    ```bash
    # 确认在 worktree 中
    pwd  # 应在 ../<项目名>-<分支名> 中
+   git status --short --branch
    ```
 2. **回滚操作（如需回滚）**
    ```bash
    # 步骤1：创建备份 tag
    git tag backup/$(date +%Y%m%d-%H%M%S) HEAD
    
-   # 步骤2：用户确认
-   echo "备份已创建：backup/xxx"
-   echo "确认回滚？(Y/n)"
+   # 步骤2：优先用 git revert 创建可审计撤销提交
+   git revert <commit-hash>
    
-   # 步骤3：执行回滚（用户确认后）
-   git revert <commit-hash>  # 推荐：创建新 commit 撤销变更
-   # 或
-   git reset --hard <backup-tag>  # 丢弃历史（谨慎使用）
+   # 步骤3：如果只是撤销本轮未提交改动，先列出文件并请求确认
+   git diff --stat
+   # 经用户明确确认后，只还原本轮触碰的文件
    ```
 3. 确认反馈回路从红变绿
 4. 检查是否有兄弟路径存在同类问题
@@ -268,11 +303,11 @@ UI 相关的回归 bug：
 | 触发条件 | 一线修复 | 仍失败兜底 |
 |---------|---------|-----------|
 | 构建不了反馈回路 | 降级到手动复现步骤 | 文字描述复现步骤，让用户手动验证 |
-| git bisect 找不到引入 commit | 缩小范围，手动二分 | 用最近 10 个 commit 逐个 checkout 测试 |
+| git bisect 找不到引入 commit | 缩小范围，手动二分 | 用最近相关 commit 逐个测试 |
 | 假设全部被否定 | 回到 Phase 1 重新构建回路 | 扩大搜索范围（换模块/换数据/换环境） |
-|| 修复引入了新 bug | 回滚修复，在新 worktree 重来 | 只修最小范围，其他问题新建 issue |
-| 无法复现（间歇性 bug） | 加日志/监控，等下次出现 | 代码审查找竞态条件/缓存问题 |
-
+| 修复引入了新 bug | 回滚本轮修复，保留证据 | 新建更小 worktree 或更小 patch 重来 |
+| 无法复现（间歇性 bug） | 加日志/监控，等下次出现 | 代码审查找竞态条件/缓存问题并标注风险 |
+| 用户要求先改再说 | 输出当前证据缺口 | 拒绝猜修，先建立最小反馈回路 |
 ## 🔴 CHECKPOINT · 根因确认
 
 修复前必须确认：
@@ -361,12 +396,12 @@ fix_attempts = 0
 # 写入 DiJiang project learning
 dijiang mem learn --lesson "[break-loop] <bug描述>: <根因与预防措施>"
 
-# 需要防止复发时，使用 dj-output 更新 .dijiang/spec/
+# 需要防止复发时，输出 spec 更新后续项；不要在 dj-hunt 内切换到文档 skill
 ```
 
 ### 3.5 将 Break-Loop 发现晋升为 spec 合约
 
-当 Break-Loop 发现需要沉淀为 spec 时，必须按以下合约格式输出，并交给 `dj-output` 更新 `.dijiang/spec/`：
+当 Break-Loop 发现需要沉淀为 spec 时，必须按以下合约格式输出，并标记 `.dijiang/spec/` 更新后续项：
 
 ```markdown
 ### 1. Scope / Trigger
@@ -412,6 +447,7 @@ dijiang mem learn --lesson "[break-loop] <bug描述>: <根因与预防措施>"
 | "可能是 X 问题"就去改 | 必须有证据支持假设 |
 | 修完不写回归测试 | 回归测试是修复的一部分 |
 | 只修报告的那个点 | 检查兄弟路径是否有同类问题 |
-|| 在 main 上修 bug | 在 worktree 中修 |
+| 在 main 上修 bug | 在 worktree 中修 |
+| 把破坏性重置当常规恢复手段 | 优先 `git revert` 或只还原本轮触碰文件，且需明确确认 |
 | 一次改多个可能原因 | 一次改一个，确认效果 |
 | 修了3次还没好继续硬试 | 🛑 3次必须换思路，不能在同一死胡同里打转 |

@@ -16,29 +16,73 @@ description: >
 
 **如果看起来像是默认 prompt 生成的，就不够好。**
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | User goal, target audience, existing UI/design system, viewport requirements, and implementation surface |
+| 输出 | One committed design direction, implemented UI changes when requested, screenshots or review notes, and validation summary |
+| 非目标 | Do not produce a marketing landing page unless requested; do not offer multiple vague options for the user to choose |
+
 ## 工作流
 
-### 1. 确认设计方向
+### 1. Build the Design Brief
 
-问用户（或从上下文推断）：
-- 参考哪个现有产品/风格？
-- 目标用户是谁？
-- 明亮/暗色/中性？
-- 简约/丰富/功能优先？
+Collect or infer exactly these fields:
 
-### 2. 实现
+| Field | Required answer |
+|---|---|
+| Product surface | 页面、组件或 flow 名称 |
+| Primary user | 谁会重复使用它 |
+| Job | 用户在此界面完成什么动作 |
+| Density | 工具型高密 / 内容型中密 / 展示型低密 |
+| Existing system | design tokens、组件库、图标库、CSS 框架 |
+| Viewports | 至少 desktop + mobile；复杂工具加 tablet |
+| Hard constraints | 禁止元素、品牌色、无障碍、数据量、状态数 |
 
-- 选定一个方向，commit 到它（不给多个"你选"）
-- 遵循项目已有的设计系统/token（如果有）
-- 响应式：至少考虑桌面和移动端
-- 无障碍：语义化 HTML、颜色对比度、键盘导航
+If a field is missing but does not affect layout or behavior, choose the conservative default and state it. If it changes the product meaning, ask one question before implementation.
 
-### 3. 验证
+### 2. Commit to One Direction
 
-- 截图检查实际渲染效果
-- 检查关键 viewport 状态（桌面、平板、手机）
-- 确认没有布局溢出、文字截断、对齐问题
+Output one concrete direction:
+```text
+Design direction: <one sentence>
+First principles: <user job + hard constraints + discarded assumptions>
+Reference fit: <existing product/system or none>
+Layout: <navigation/content/action hierarchy>
+Visual system: <color, type scale, spacing, icon approach>
+States: <empty/loading/error/success/disabled as applicable>
+```
 
+Do not present three decorative alternatives. Pick the direction that best fits the product surface and explain the tradeoff in one sentence.
+
+第一性原理要求：先从用户任务、信息层级、输入输出和设备约束推导布局，再套视觉风格。不要从好看的截图、流行组件或默认模板反推产品界面。
+
+### 3. Implement With Existing System First
+
+Follow this order:
+
+1. Existing component or token
+2. Existing CSS utility or local style pattern
+3. Browser-native control
+4. New style only when no local pattern fits
+
+For operational tools, prefer dense but readable layouts, predictable navigation, restrained color, and stable dimensions. Avoid hero-style composition, decorative cards, and ornamental gradients unless the product explicitly calls for them.
+
+### 4. Validate the UI
+
+Minimum checks:
+
+```text
+Desktop viewport: <pass/fail + issue>
+Mobile viewport: <pass/fail + issue>
+Overflow/text clipping: <pass/fail + issue>
+Keyboard/focus path: <pass/fail + issue>
+Color contrast: <pass/fail + issue>
+Empty/loading/error states: <pass/fail + issue or n/a>
+```
+
+Use screenshots or browser inspection when a runnable frontend is available. If no frontend runtime is available, do code review against layout constraints and mark screenshot verification as `not run`.
 ## 失败处理
 
 | 触发条件 | 一线修复 | 仍失败兜底 |

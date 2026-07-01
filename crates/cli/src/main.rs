@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use dialoguer::{Confirm, Input, MultiSelect};
+use dialoguer::{Input, MultiSelect};
 use dijiang_configurator::PlatformKind;
 use dijiang_configurator::TemplateRegistry;
 use dijiang_task::store;
@@ -100,12 +100,6 @@ enum Commands {
     },
     /// 将 Trellis 项目迁移到 DiJiang
     Migrate,
-    /// 审查 prompt/tactic 兼容入口；交付质量闸门使用 dj-check
-    Review {
-        /// 审查模式：adversarial 或 first-principles
-        #[arg(long, default_value = "adversarial")]
-        mode: String,
-    },
     /// Agent 通道管理
     Channel {
         #[command(subcommand)]
@@ -391,7 +385,6 @@ fn main() -> anyhow::Result<()> {
         Commands::Skills { sync } => cmd_skills(sync),
         Commands::Migrate => cmd_migrate(),
         Commands::WorkflowState { json, hook_event } => cmd_workflow_state(json, &hook_event),
-        Commands::Review { mode } => cmd_review(&mode),
         Commands::Channel { command } => match command {
             ChannelCommands::Spawn { agent, task, dir } => {
                 cmd_channel_spawn(&agent, task.as_deref(), dir.as_deref())
@@ -1404,7 +1397,7 @@ fn cmd_init(
                 eprintln!("  Warning: Failed to initialize default tactics: {}", e);
             } else {
                 println!(
-                    "  Initialized default tactics (cargo-test, typecheck, review-*, lint-fix, doc-update)"
+                    "  Initialized default tactics (cargo-test, typecheck, lint-fix, doc-update)"
                 );
             }
         }
@@ -1633,106 +1626,6 @@ fn cmd_migrate() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_review(mode: &str) -> anyhow::Result<()> {
-    let cwd = std::env::current_dir()?;
-    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
-        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
-
-    // Read agent definitions
-    let agents_dir = dijiang_dir
-        .parent()
-        .map(|p| p.join(".pi").join("agents"))
-        .unwrap_or_default();
-
-    match mode {
-        "adversarial" => {
-            println!("  🔍 Adversarial Review Mode (对抗式审查)");
-            println!();
-            println!("  Use the dijiang-check agent with these review angles:");
-            println!("  1. Security - How would a malicious user attack this?");
-            println!("  2. Edge cases - What happens with extreme inputs?");
-            println!("  3. Performance - What if resources are exhausted?");
-            println!("  4. Data corruption - What if data is malformed?");
-            println!("  5. Race conditions - What if concurrent access occurs?");
-            println!("  6. Resource leaks - What if cleanup fails?");
-            println!("  7. Error handling - What if dependencies fail?");
-            println!();
-            println!("  Agent definition: .pi/agents/dijiang-check.md");
-            println!();
-            // Generate review prompt
-            let prompt = "Review the code changes from a security perspective.\n\n".to_string()
-                + "Focus on these attack vectors:\n"
-                + "1. Input validation - What if inputs are malicious?\n"
-                + "2. Injection attacks - SQL, command, XSS?\n"
-                + "3. Authentication bypass - Can unauthorized access occur?\n"
-                + "4. Data exposure - Are secrets or sensitive data leaked?\n"
-                + "5. Denial of service - Can the system be overwhelmed?\n"
-                + "6. Supply chain - Are dependencies trustworthy?\n"
-                + "\n"
-                + "For each issue found, provide:\n"
-                + "- file:line citation\n"
-                + "- attack scenario\n"
-                + "- severity (critical/high/medium/low)\n"
-                + "- recommended fix\n"
-                + "\n"
-                + "Run: git diff to see changes, then review each file.";
-            println!("  Generated prompt:");
-            println!("  {}", prompt);
-        }
-        "first-principles" => {
-            println!("  🧠 First Principles Review Mode (第一性原理审查)");
-            println!();
-            println!("  Use the dijiang-implement agent with these analysis steps:");
-            println!("  1. What is the fundamental problem being solved?");
-            println!("  2. What are the basic facts and constraints?");
-            println!("  3. What assumptions are we making?");
-            println!("  4. Can we derive the solution from first principles?");
-            println!("  5. Is there a simpler, more fundamental approach?");
-            println!("  6. What are the trade-offs of each approach?");
-            println!();
-            println!("  Agent definition: .pi/agents/dijiang-implement.md");
-            println!();
-            // Generate review prompt
-            let prompt = "Review this code from first principles.\n\n".to_string()
-                + "Step 1: Identify the fundamental problem this code solves.\n"
-                + "Step 2: List the basic facts and constraints.\n"
-                + "Step 3: Identify hidden assumptions.\n"
-                + "Step 4: Derive the solution from first principles.\n"
-                + "Step 5: Propose a simpler approach if possible.\n"
-                + "Step 6: Analyze trade-offs.\n"
-                + "\n"
-                + "For each finding, explain:\n"
-                + "- What assumption is being made\n"
-                + "- Why it might be wrong\n"
-                + "- What the first-principles alternative would be\n"
-                + "\n"
-                + "Run: git diff to see changes, then analyze each component.";
-            println!("  Generated prompt:");
-            println!("  {}", prompt);
-        }
-        _ => anyhow::bail!("mode must be 'adversarial' or 'first-principles'"),
-    }
-
-    // Record this as a tactic
-    let global_mem = dijiang_mem::GlobalMemory::new()?;
-    let tactic_name = format!("review-{}", mode);
-    global_mem.add_tactic(
-        &tactic_name,
-        &format!("{} review performed", mode),
-        &dijiang_dir.to_string_lossy(),
-    )?;
-    global_mem.record_event(
-        &tactic_name,
-        dijiang_mem::Outcome::Success,
-        "review completed",
-        Some(&dijiang_dir.to_string_lossy()),
-    )?;
-
-    println!();
-    println!("  Review recorded as tactic: {}", tactic_name);
-    println!("  Use this prompt with dj-check or dj-implement agent.");
-    Ok(())
-}
 
 fn cmd_channel_spawn(agent: &str, task: Option<&str>, dir: Option<&str>) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;

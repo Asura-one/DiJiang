@@ -12,15 +12,30 @@ description: >
 
 按 PRD / 设计文档 / issue 描述实现代码。遵守深度模块设计原则和 git 安全工作流。
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | Confirmed requirement, PRD/design/issue, active task, target worktree, validation commands, and affected modules |
+| 输出 | Verified code diff, validation evidence, version recommendation, and handoff data for `dijiang-finish-work` |
+| 非目标 | Do not commit, push, merge, clean worktrees, or make unrelated refactors during implementation |
+
 ## 工作流
 
 ### 1. 准备
 
-```
-🔴 CHECKPOINT · 开始前确认
+```text
+🔴 CHECKPOINT · 实现门禁
+Task: <task name>
+Source artifact: <PRD / design / issue / user request>
+Worktree: <path and branch>
+Expected files/modules: <scope>
+Validation plan: <typecheck/test/lint/manual>
+Will commit: no
 ```
 
-- 读取 PRD / 设计文档 / issue，理解要做什么
+- 读取 PRD / 设计文档 / issue，理解要做什么。
+- 确认需求已经足够实现；如果核心行为不明确，停止并报告“需要需求对齐”，不要在 `dj-implement` 内自行切换 skill。
 - 确认在专用 worktree 中（git-safety）：
   ```bash
   git status --short --branch
@@ -29,27 +44,52 @@ description: >
   git worktree add ../<项目名>-<任务名> -b <type>/<任务名> <base-branch>
   ```
 - 主 checkout 必须保持纯净；所有代码修改只发生在任务 worktree。
-- 确认测试环境可用（typecheck、test runner）
+- 确认测试环境可用，或记录不可用原因。
 
 ### 2. 实现
 
-**Surgical Changes**：只改必要的代码，不顺手重构。改完后问自己："这一行改动是用户要求的吗？"
+**Surgical Changes**：只改必要的代码，不顺手重构。每一行改动都必须能追溯到用户请求、PRD 或验证失败。
 
-- **用 TDD**（如果项目有测试框架）：先写失败测试，再实现，再重构
-- **不用 TDD**（脚本、原型、无测试框架）：直接实现并自验证；不要在实现阶段提交中间 commit。
-- 遵循项目已有的代码规范（读 CLAUDE.md / AGENTS.md / .cursorrules）
-- **阶梯决策**（dj-ponytail 原则）：引入新依赖前，按顺序判断：
-  1. stdlib 能做？ → 用 stdlib
-  2. 已有依赖能做？ → 用它
-  3. 一行能搞定？ → 一行
-  4. 以上都不行 → 写最少能工作的代码
+Implementation order:
 
+1. Locate existing patterns and APIs before editing.
+2. For non-trivial design choices, derive the approach from first principles before coding.
+3. Add or adjust tests when the repo has an established test path.
+4. Implement the smallest behavior-complete change.
+5. Remove unused imports, dead branches introduced by this change, and temporary debug output.
+6. Re-read the touched area after edits to verify local consistency.
+### 2.1 第一性原理实现检查
+
+在实现复杂功能、修 bug、改架构边界或引入新抽象前，先打断类比式实现，回到事实推导：
+
+```text
+问题本质：这次改动真正要满足的用户/系统行为是什么？
+硬事实：已有接口、数据模型、运行约束、失败信号中哪些不能改？
+隐藏假设：当前方案依赖了哪些未经验证的推断？
+推导方案：从硬事实出发，最小可行实现是什么？
+更简单方案：有没有不新增抽象、不新增依赖的路径？
+取舍：选择当前方案会留下什么维护成本？
+```
+
+如果第一性原理推导得出的方案与 PRD / design 冲突，停止并报告需要对齐的冲突点；后续路由由 workflow 或用户显式决定。
+
+Rules:
 ### 3. 验证
 
-- 跑 typecheck
-- 跑相关测试文件
-- 跑全量测试（最后）
-- 有任何失败 → 修好再提交
+Use this matrix:
+
+```text
+Typecheck: <command or not applicable> => <result>
+Relevant tests: <command> => <result>
+Full tests: <command or not run + reason> => <result>
+Manual check: <input/action or n/a> => <result>
+Regression risk: <low/medium/high + why>
+```
+
+- 跑 typecheck。
+- 跑相关测试文件。
+- 最后跑全量测试，除非项目规模或环境不可用；不可用时记录原因。
+- 有任何新失败 → 修好再交接。
 
 ### 4. 收尾交接
 
@@ -87,21 +127,23 @@ description: >
 
 | 触发条件 | 一线修复 | 仍失败兜底 |
 |---------|---------|-----------|
-| 测试跑不过（已有测试） | 检查是已有问题还是新引入 | 已有问题不阻塞，新问题必须修 |
-| typecheck 报错 | 修类型错误 | 如果是第三方库类型问题，加 `@ts-ignore` + 注释 |
-|| worktree 创建失败 | 分支名加后缀或换路径 | `git worktree list` 检查已有，询问是否复用 |
-| PRD 描述不清无法实现 | 回到 grill 补充对齐 | 用最保守的实现，标注假设 |
-| 依赖冲突 | 检查已有依赖是否能满足 | 用标准库替代，加 dj-ponytail 标记 |
-| 测试环境不可用（typecheck/test runner 挂了） | 检查依赖安装和配置 | 标注"验证未执行"，手动检查关键逻辑 |
-| worktree 中发现主分支有新 commit | 先 `git fetch` 检查是否有冲突 | `git rebase main` 后继续，有冲突则解决 |
+| 测试跑不过（已有测试） | 判断是已有问题还是新引入 | 已有问题记录为 pre-existing；新问题必须修 |
+| typecheck 报错 | 修类型错误 | 第三方库类型问题才允许最小 suppress，并写明原因 |
+| worktree 创建失败 | 分支名加后缀或换路径 | `git worktree list` 检查已有，明确复用或新建 |
+| PRD 描述不清无法实现 | 停止并报告需要需求对齐 | 用最保守实现前必须标注假设并获得确认 |
+| 依赖冲突 | 检查已有依赖是否能满足 | 用标准库替代，或停止并报告需要收窄方案 |
+| 测试环境不可用 | 检查依赖安装和配置 | 标注 `not run`，手动检查关键逻辑并说明风险 |
+| worktree 中发现 base 有新 commit | 先 `git fetch` 判断影响 | 需要 rebase/merge 时先说明冲突面，再继续 |
 
 ## 反例
 
 | ❌ 不要做 | ✅ 正确做法 |
 |---|---|
-|| 在 main/master 上直接写代码 | 在 worktree 中开发 |
+| 在 main/master 上直接写代码 | 在 worktree 中开发 |
 | 实现中途频繁 commit | 完成验证和版本决策后，由 finish-work 做一次范围一致的提交 |
 | 引入新依赖不检查替代方案 | 先问 stdlib/已有依赖能不能做 |
-| 跑完测试有失败不管 | 修好再提交 |
-| commit 消息写"fix bug" | 用结构化格式 feat/fix/refactor |
-| 测试通过就不管文档了 | 检查文档是否需要同步更新 |
+| 跑完测试有失败不管 | 修好新失败；已有失败明确标注 |
+| commit 消息写"fix bug" | 只给 finish-work 准备版本和提交建议，不在 implement 中提交 |
+| 测试通过就不管文档了 | 检查文档或 spec 是否需要同步更新 |
+| 改到无关模块顺便清理 | 只报告无关问题，不在本任务改 |
+| 验证没跑却写成通过 | 写 `not run` 和原因 |

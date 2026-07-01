@@ -21,31 +21,63 @@ description: >
 | 测试 | 必须 | 视重要程度 |
 | 代码规范 | 严格 | 务实 |
 
+## 输入 / 输出
+
+| Item | One-off script | Reusable tool |
+|---|---|---|
+| Input contract | explicit file/stdin/args sample | documented args and `--help` |
+| Output contract | stdout/file diff/sample output | stable stdout, exit codes, help text |
+| Verification | run once on fixture or real safe input | run happy path plus at least one bad input |
+| Location | temp path or task-local scratch when disposable | project `scripts/`, `tools/`, or existing CLI area |
+| Cleanup | report path and cleanup recommendation | keep as project artifact |
+
 ## 工作流
 
 ### 1. 确认需求
 
-- 输入是什么？（文件、参数、stdin）
-- 输出是什么？（文件、stdout、副作用）
-- 运行环境？（语言、依赖、操作系统）
-- 一次性还是复用？
+Collect exactly:
 
-### 2. 实现
+```text
+Purpose: <what the script automates>
+Inputs: <files / args / stdin / env vars>
+Outputs: <stdout / files / side effects>
+Safety: <read-only / writes files / deletes files / network / system>
+Lifetime: <one-off / reusable>
+Language: <project default or reason for another>
+```
 
-- **一次性脚本**：能跑就行，加必要注释，放在合理位置
-- **复用工具**：加 `--help`、错误处理、输入验证
-- 默认用项目已有语言（项目是 Python 就写 Python，是 TS 就写 TS）
-- 不引入新依赖，除非脚本复杂度确实需要
+If the script writes, deletes, calls network, or touches system state, require dry-run output before the real run.
 
-### 3. 运行验证
+### 2. 设计最小接口
 
-- 实际执行一次，确认输出正确
-- 边界情况：空输入、错误输入、大文件
+- One-off script: prefer direct constants plus clear top-of-file settings; avoid CLI framework.
+- Reusable tool: add `--help`, input validation, non-zero exit codes, and stable output shape.
+- Default to the project language and standard library.
+- Do not introduce a dependency unless the script would become meaningfully riskier without it.
 
-### 4. 清理
+### 3. 实现
 
-- 一次性脚本：用完问用户是否删除
-- 复用工具：放到项目的 `scripts/` 或 `tools/` 目录
+- Keep file placement explicit before writing.
+- Use structured parsers for JSON/YAML/TOML/CSV instead of ad hoc string edits.
+- Print what changed or would change.
+- Never print secret values; redact suspicious tokens as `[REDACTED]`.
+
+### 4. 运行验证
+
+Minimum validation matrix:
+
+```text
+happy path: <command> => <result>
+empty input: <command or n/a> => <result>
+bad input: <command or n/a> => <result>
+dry-run destructive path: <command or n/a> => <result>
+```
+
+For data-changing scripts, verify output files or diffs after running. If validation cannot run locally, mark it `not run` with the blocker.
+
+### 5. 交付
+
+Report: script path, exact command, sample output, validation result, and cleanup recommendation. Do not delete generated scripts unless the user explicitly asks in a separate cleanup request.
 
 ## 失败处理
 
@@ -77,8 +109,10 @@ description: >
 
 | ❌ 不要做 | ✅ 正确做法 |
 |---|---|
-| 脚本里硬编码路径 | 用参数或环境变量 |
-| 不跑就声称能用 | 实际执行验证 |
-| 一次性脚本放到 scripts/ 目录 | 用完问是否删除 |
+| 脚本里硬编码用户机器路径 | 用参数、环境变量，或顶部配置常量 |
+| 不跑就声称能用 | 实际执行验证，或明确写 `not run` 和原因 |
+| 一次性脚本用完直接删除 | 报告路径和清理建议，等用户明确要求 |
 | 脚本引入整个框架 | 几行标准库能搞定的不引依赖 |
 | 不加错误处理就跑破坏性操作 | 先 dry-run 展示影响 |
+| 用字符串拼接改 JSON/YAML/TOML | 用结构化 parser 读写 |
+| 输出 token/password 原文 | 输出 `[REDACTED]` 和字段名 |

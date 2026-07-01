@@ -17,6 +17,23 @@ description: >
 
 只报告，不修改。一次性执行。
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | Audit scope, audit type, language/framework signals, dependency files, and user risk focus |
+| 输出 | Sorted findings with evidence, severity/impact, suggested fix, and no code changes |
+| 非目标 | Do not fix findings, refactor code, or turn audit into implementation |
+
+## 工作流
+
+1. **Confirm scope** → directory, whole repo, or named subsystem.
+2. **Detect stack** → package managers, languages, frameworks, dependency manifests.
+3. **Run over-engineering scan** → bloat, unused abstraction, duplicated wrappers, needless deps.
+4. **Run security scan** → credentials, injection, permissions, dependency risk, sensitive logging.
+5. **Rank findings** → severity for security; deletion/simplification impact for bloat.
+6. **Report only** → include exact evidence and recommended follow-up type; do not start fixes inside audit.
+
 ## 过度工程扫描
 
 ### 扫描目标
@@ -28,19 +45,30 @@ description: >
 - 可以内联的包装函数
 - 没人设置的配置项
 
+### 最小命令
+
+```bash
+git status --short --branch
+find . -maxdepth 3 -type f \( -name 'package.json' -o -name 'Cargo.toml' -o -name 'go.mod' -o -name 'pyproject.toml' \)
+grep -R "TODO\|FIXME\|deprecated\|unused\|eval\|exec\|password\|token\|secret" . --exclude-dir=.git --exclude-dir=target --exclude-dir=node_modules
+```
+
+Adapt commands to the stack. Use project-native tools when available, but keep the report evidence tied to file paths and lines.
+
 ### 输出格式
 
+```text
+OVER-ENGINEERING
+<file>:<line> <tag> impact=<delete|simplify|replace>. <problem>. <replacement>.
 ```
-<file>:<line> <tag> <问题>. <替代>.
-```
 
-标签：`delete:` / `stdlib:` / `native:` / `yagni:` / `shrink:`
+Tags: `delete:` / `stdlib:` / `native:` / `yagni:` / `shrink:`
 
-按影响大小排序（最大的删减排最前）。
+Sort by practical impact: deleted dependency, deleted file, deleted abstraction, deleted branch, then local line reduction.
 
-结尾：`net: -<N> lines, -<M> deps possible.`
+End with: `net: -<N> lines, -<M> deps possible` when estimable; otherwise `net: not estimated`.
 
-如果已经很精简了：`Lean already. Ship.`
+If the codebase is already lean: `Lean already. Ship.`
 
 ## 安全扫描
 
@@ -54,6 +82,22 @@ description: >
 | 权限问题 | 过宽的文件权限、未验证的用户操作 |
 | 信息泄露 | 错误信息暴露内部路径、调试模式未关闭 |
 | 加密问题 | 弱算法、硬编码 IV/key、HTTP 传敏感数据 |
+| 对抗式输入 | 超大输入、恶意文件、未来时间、乱码、空数据、重复事件 |
+| 资源耗尽 | worker OOM 重试循环、缓存穿透、队列堆积、无限重试 |
+
+### 全局对抗式审查
+
+当用户要求全仓、架构、近期变更或上线前审计时，加入这轮反方视角：
+
+```text
+第一性原理：系统最核心的不变量是什么？哪些事实和边界必须成立？
+攻击者视角：如果我要让系统崩溃、泄漏、污染数据或反复重试，会走哪条路径？
+异常数据视角：未来时间、超大 HTML、损坏 JSON、重复 webhook、空响应会触发什么？
+资源视角：内存、队列、缓存、文件句柄、网络超时是否会形成放大器？
+维护者视角：哪些抽象、文档或依赖关系会让后续修复变成缝补？
+```
+
+输出仍然只报告，不修复。
 
 ### 输出格式
 
@@ -76,20 +120,24 @@ description: >
 
 ## 🔴 CHECKPOINT · 审计范围确认
 
-开始扫描前：
-```
-扫描范围：<目录/全仓>
-扫描类型：<过度工程 / 安全 / 两者>
-预计时间：<分钟>
+扫描前先报告：
 
-开始扫描？(Y/n)
+```text
+Scope: <directory / whole repo / subsystem>
+Audit type: <over-engineering / security / both>
+Stack signals: <languages/frameworks/manifests>
+Output limit: <top N findings per category>
+Will modify code: no
 ```
+
+🛑 STOP if the user asks for fixes during audit. Finish the report first, then output remediation follow-up type without switching skills inside `dj-audit`.
 
 ## 边界
 
 - 只扫描，不修改代码
-- 正确性 bug 和性能问题不在范围内（那是 `hunt` 的事）
+- 正确性 bug 和性能问题不在范围内（那是 `dj-hunt` 的事）
 - 一次性报告，不持续监控
+- 不读取或打印 secret 值；只报告疑似位置和 key 名
 
 ## 反例
 
@@ -97,5 +145,7 @@ description: >
 |---|---|
 | 审计完直接改代码 | 只报告，用户决定修不修 |
 | 把正确性 bug 也算过度工程 | 过度工程和 bug 是两回事 |
-| 只查代码不查安全 | 过度工程 + 安全都要扫 |
+| 输出 secret 原文 | 只写 `[REDACTED]` 和文件位置 |
+| 只查代码不查安全 | 过度工程 + 安全都要扫，除非用户限定范围 |
 | 扫描结果不排序 | 按影响/严重程度排序 |
+| 发现问题就创建大重构计划 | 给最小修复路径和后续工作类型 |

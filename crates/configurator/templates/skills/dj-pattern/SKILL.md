@@ -19,14 +19,38 @@ description: >
 
 只报告，不修改。一次性分析。
 
+## 输入 / 输出
+
+| 项目 | 约定 |
+|---|---|
+| 输入 | Scan scope, source type, target language, and user goal for pattern discovery |
+| 输出 | Pattern report with evidence, YAGNI decision, affected files, and optional next-skill recommendation |
+| 非目标 | Do not edit code, create abstractions, or run broad audits unrelated to recurring patterns |
+
 ## 扫描范围
 
-```
+```text
 scope: <目录/文件/函数>
 source: <代码扫描 / git 历史 / 两者>
+language: <detected or specified>
+goal: <重复 / 历史修复 / 抽象建议 / 一致性>
 ```
 
 默认全仓扫描。可限定到目录。
+
+## 🔴 CHECKPOINT · 模式扫描范围
+
+扫描前先报告：
+
+```text
+Scope: <path or whole repo>
+Source: <code / git history / both>
+Goal: <analysis goal>
+Output limit: <top N findings>
+Will modify code: no
+```
+
+🛑 STOP if the user asked for direct refactoring. Finish the pattern report first and mark implementation as follow-up; do not edit inside `dj-pattern`.
 
 ## 重复模式扫描
 
@@ -103,8 +127,21 @@ TO ABSTRACT:
   Estimated: -<N> lines, -<N> duplications
 ```
 
-如果不是明显必要，标明 `YAGNI: <理由> — 跳过`。
+If the abstraction is not clearly necessary, mark it as `YAGNI: <reason> — skipped`.
 
+## 🔴 CHECKPOINT · 建议门禁
+
+推荐提取或共享抽象前先检查：
+
+```text
+Evidence count: <N occurrences>
+Change history: <same bug/fix repeated? yes/no>
+Coupling risk: <low/medium/high>
+Simpler alternative: <leave as-is / local helper / docs / shared abstraction>
+Recommendation: <skip / investigate / extract>
+```
+
+Recommend extraction only when duplication is harmful, repeated, and likely to change together. Otherwise report the pattern and skip the abstraction.
 ## 一致性检查
 
 识别同一项目/模块中不一致的实现方式：
