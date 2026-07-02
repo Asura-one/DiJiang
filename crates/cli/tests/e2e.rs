@@ -132,6 +132,17 @@ fn init_project_with_env(envs: &[(&str, &str)]) -> (tempfile::TempDir, PathBuf) 
         envs,
     )
     .expect("dijiang init should succeed");
+    std::fs::write(project_dir.join("baseline.txt"), "baseline").unwrap();
+    Command::new("git")
+        .args(["add", "baseline.txt"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git add baseline");
+    Command::new("git")
+        .args(["commit", "-m", "test: init baseline"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git commit baseline");
 
     (tmp, project_dir)
 }
@@ -371,7 +382,7 @@ fn test_e2e_dispatch_creates_task_from_natural_language() {
     )
     .unwrap();
     assert!(out.contains("dijiang-dispatch"), "dispatch output: {out}");
-    assert!(out.contains("dj-hunt"), "dispatch output: {out}");
+    assert!(out.contains("路线：dj-hunt"), "dispatch output: {out}");
 
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(!current.contains("(none)"), "current output: {current}");
@@ -403,8 +414,8 @@ fn test_e2e_dispatch_discussion_of_exception_states_does_not_route_to_hunt() {
     )
     .unwrap();
 
-    assert!(out.contains("Route: dj-grill"), "dispatch output: {out}");
-    assert!(!out.contains("Route: dj-hunt"), "dispatch output: {out}");
+    assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
+    assert!(!out.contains("路线：dj-hunt"), "dispatch output: {out}");
 }
 
 #[test]
@@ -413,8 +424,8 @@ fn test_e2e_dispatch_vague_feature_routes_to_grill() {
 
     let out = dijang(&["dispatch", "做个导出功能", "--force-new"], &project_dir).unwrap();
 
-    assert!(out.contains("Route: dj-grill"), "dispatch output: {out}");
-    assert!(out.contains("Status: planning"), "dispatch output: {out}");
+    assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
+    assert!(out.contains("状态：planning"), "dispatch output: {out}");
 }
 
 #[test]
@@ -427,14 +438,9 @@ fn test_e2e_dispatch_specific_feature_routes_to_implement() {
     )
     .unwrap();
 
-    assert!(
-        out.contains("Route: dj-implement"),
-        "dispatch output: {out}"
-    );
-    assert!(
-        out.contains("Status: in_progress"),
-        "dispatch output: {out}"
-    );
+    assert!(out.contains("路线：dj-implement"), "dispatch output: {out}");
+    assert!(out.contains("Git 工作流：已创建任务 worktree"), "dispatch output: {out}");
+    assert!(out.contains("状态：in_progress"), "dispatch output: {out}");
 }
 #[test]
 fn test_e2e_start_keeps_new_task_in_planning_for_dispatch() {
@@ -466,7 +472,7 @@ fn test_e2e_dispatch_reuses_active_task_by_default() {
     let second = dijang(&["task", "current"], &project_dir).unwrap();
 
     assert_eq!(first.trim(), second.trim());
-    assert!(second_out.contains("Task created:"));
+    assert!(second_out.contains("任务："));
 }
 
 #[test]
@@ -1030,11 +1036,8 @@ fn test_e2e_workflow_state_reports_stale_active_task_without_failing() {
     )
     .unwrap();
 
-    assert!(
-        out.contains("Session: stale-window (dijiang)"),
-        "output: {out}"
-    );
-    assert!(out.contains("Active task: none"), "output: {out}");
+    assert!(out.contains("会话：stale-window（dijiang）"), "output: {out}");
+    assert!(out.contains("活跃任务：none"), "output: {out}");
     assert!(out.contains("missing-task"), "output: {out}");
     assert!(out.contains("task state 已陈旧"), "output: {out}");
     assert!(out.contains("dj-hunt"), "output: {out}");
@@ -1056,13 +1059,13 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
         &[("DIJIANG_CONTEXT_ID", "window-a")],
     )
     .unwrap();
-    assert!(first_a.contains("Session: window-a (dijiang)"));
-    assert!(first_a.contains("Injection: #1"));
-    assert!(first_a.contains("Active task changed: true"));
-    assert!(first_a.contains("Active task: window-a-task"));
-    assert!(first_a.contains("Session journal: .dijiang/workspace/e2e/sessions/window-a.jsonl"));
-    assert!(first_a.contains("Recent memory: 1 recent session event(s) loaded for this window."));
-    assert!(first_a.contains("injection #1: active=window-a-task, previous=none, changed=true"));
+    assert!(first_a.contains("会话：window-a（dijiang）"));
+    assert!(first_a.contains("注入：#1"));
+    assert!(first_a.contains("活跃任务是否变化：true"));
+    assert!(first_a.contains("活跃任务：window-a-task"));
+    assert!(first_a.contains("会话日志：.dijiang/workspace/e2e/sessions/window-a.jsonl"));
+    assert!(first_a.contains("最近记忆：当前窗口已加载 1 条最近会话事件。"));
+    assert!(first_a.contains("注入 #1：活跃任务=window-a-task，上一个任务=none，变化=true"));
 
     let second_a = dijang_with_env(
         &["workflow-state"],
@@ -1070,15 +1073,15 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
         &[("DIJIANG_CONTEXT_ID", "window-a")],
     )
     .unwrap();
-    assert!(second_a.contains("Injection: #2"));
-    assert!(second_a.contains("Active task changed: false"));
-    assert!(second_a.contains("Recent memory: 2 recent session event(s) loaded for this window."));
-    assert!(second_a.contains("injection #1: active=window-a-task, previous=none, changed=true"));
+    assert!(second_a.contains("注入：#2"));
+    assert!(second_a.contains("活跃任务是否变化：false"));
+    assert!(second_a.contains("最近记忆：当前窗口已加载 2 条最近会话事件。"));
+    assert!(second_a.contains("注入 #1：活跃任务=window-a-task，上一个任务=none，变化=true"));
     assert!(
         second_a
-            .contains("injection #2: active=window-a-task, previous=window-a-task, changed=false")
+            .contains("注入 #2：活跃任务=window-a-task，上一个任务=window-a-task，变化=false")
     );
-    assert!(second_a.contains("Other active windows: none"));
+    assert!(second_a.contains("其他活跃窗口：none"));
 
     dijang_with_env(
         &["start", "window-b-task", "Window B Task"],
@@ -1092,13 +1095,13 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
         &[("DIJIANG_CONTEXT_ID", "window-b")],
     )
     .unwrap();
-    assert!(first_b.contains("Session: window-b (dijiang)"));
-    assert!(first_b.contains("Injection: #1"));
-    assert!(first_b.contains("Active task: window-b-task"));
-    assert!(first_b.contains("Recent memory: 1 recent session event(s) loaded for this window."));
-    assert!(first_b.contains("Other active windows: 1"));
-    assert!(first_b.contains("window-a (dijiang) task=window-a-task state=active injections=2"));
-    assert!(!first_b.contains("injection #1: active=window-a-task"));
+    assert!(first_b.contains("会话：window-b（dijiang）"));
+    assert!(first_b.contains("注入：#1"));
+    assert!(first_b.contains("活跃任务：window-b-task"));
+    assert!(first_b.contains("最近记忆：当前窗口已加载 1 条最近会话事件。"));
+    assert!(first_b.contains("其他活跃窗口：1"));
+    assert!(first_b.contains("window-a (dijiang) 任务=window-a-task 状态=active 注入=2"));
+    assert!(!first_b.contains("注入 #1：活跃任务=window-a-task"));
 
     dijang_with_env(
         &["start", "window-a-next", "Window A Next"],
@@ -1112,17 +1115,17 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
         &[("DIJIANG_CONTEXT_ID", "window-a")],
     )
     .unwrap();
-    assert!(changed_a.contains("Injection: #3"));
-    assert!(changed_a.contains("Active task changed: true"));
-    assert!(changed_a.contains("Previous active task: window-a-task"));
-    assert!(changed_a.contains("Active task: window-a-next"));
-    assert!(changed_a.contains("Recent memory: 3 recent session event(s) loaded for this window."));
+    assert!(changed_a.contains("注入：#3"));
+    assert!(changed_a.contains("活跃任务是否变化：true"));
+    assert!(changed_a.contains("上一个活跃任务：window-a-task"));
+    assert!(changed_a.contains("活跃任务：window-a-next"));
+    assert!(changed_a.contains("最近记忆：当前窗口已加载 3 条最近会话事件。"));
     assert!(
         changed_a
-            .contains("injection #3: active=window-a-next, previous=window-a-task, changed=true")
+            .contains("注入 #3：活跃任务=window-a-next，上一个任务=window-a-task，变化=true")
     );
-    assert!(changed_a.contains("Other active windows: 1"));
-    assert!(changed_a.contains("window-b (dijiang) task=window-b-task state=active injections=1"));
+    assert!(changed_a.contains("其他活跃窗口：1"));
+    assert!(changed_a.contains("window-b (dijiang) 任务=window-b-task 状态=active 注入=1"));
 
     let session_a = std::fs::read_to_string(
         project_dir

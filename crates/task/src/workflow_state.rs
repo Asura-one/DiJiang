@@ -110,15 +110,15 @@ impl WorkflowState {
         let session_line = self
             .session
             .as_ref()
-            .map(|session| format!("Session: {} ({})", session.key, session.source))
-            .unwrap_or_else(|| "Session: global fallback".to_string());
+            .map(|session| format!("会话：{}（{}）", session.key, session.source))
+            .unwrap_or_else(|| "会话：global fallback".to_string());
         let previous = self
             .runtime
             .previous_active_task
             .as_deref()
             .unwrap_or("none");
         let runtime_line = format!(
-            "Injection: #{} at {}\nActive task changed: {}\nPrevious active task: {}\nRuntime log: {}\nSession journal: {}",
+            "注入：#{}，时间：{}\n活跃任务是否变化：{}\n上一个活跃任务：{}\n运行日志：{}\n会话日志：{}",
             self.runtime.injection_count,
             self.runtime.last_seen_at,
             self.runtime.active_task_changed,
@@ -131,13 +131,13 @@ impl WorkflowState {
 
         let Some(task) = &self.active_task else {
             return format!(
-                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\nActive task: none\nNext: {}\n</dijiang-workflow-state>",
+                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
                 self.guidance
             );
         };
 
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\nActive task: {}\nTitle: {}\nStatus: {}\nTask path: {}\nGuidance: {}\nLoad context: read task.json plus prd.md/design.md/implement.md/check artifacts when present.\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
             task.id, task.title, task.status, task.task_path, self.guidance
         )
     }
@@ -307,7 +307,7 @@ fn load_recent_memory(dijiang_dir: &Path, journal_path: &str, limit: usize) -> W
         .join(journal_path);
     let Ok(content) = fs::read_to_string(path) else {
         return WorkflowMemory {
-            summary: "No previous session memory for this window.".to_string(),
+            summary: "当前窗口没有上一轮会话记忆。".to_string(),
             events: Vec::new(),
         };
     };
@@ -322,12 +322,9 @@ fn load_recent_memory(dijiang_dir: &Path, journal_path: &str, limit: usize) -> W
     events.reverse();
 
     let summary = if events.is_empty() {
-        "No previous session memory for this window.".to_string()
+        "当前窗口没有上一轮会话记忆。".to_string()
     } else {
-        format!(
-            "{} recent session event(s) loaded for this window.",
-            events.len()
-        )
+        format!("当前窗口已加载 {} 条最近会话事件。", events.len())
     };
 
     WorkflowMemory { summary, events }
@@ -358,7 +355,7 @@ fn memory_event_from_json(value: serde_json::Value) -> Option<WorkflowMemoryEven
                 .get("active_task_changed")
                 .and_then(|value| value.as_bool())
                 .unwrap_or(false);
-            format!("injection #{count}: active={active}, previous={previous}, changed={changed}")
+            format!("注入 #{count}：活跃任务={active}，上一个任务={previous}，变化={changed}")
         }
         "session_closed" => {
             let task = value
@@ -369,7 +366,7 @@ fn memory_event_from_json(value: serde_json::Value) -> Option<WorkflowMemoryEven
                 .get("verification")
                 .and_then(|value| value.as_str())
                 .unwrap_or("not recorded");
-            format!("session closed for {task}; verification={verification}")
+            format!("会话已关闭：任务={task}，验证={verification}")
         }
         _ => return None,
     };
@@ -379,7 +376,7 @@ fn memory_event_from_json(value: serde_json::Value) -> Option<WorkflowMemoryEven
 
 fn format_memory(memory: &WorkflowMemory) -> String {
     if memory.events.is_empty() {
-        return format!("Recent memory: {}", memory.summary);
+        return format!("最近记忆：{}", memory.summary);
     }
 
     let events = memory
@@ -391,7 +388,7 @@ fn format_memory(memory: &WorkflowMemory) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    format!("Recent memory: {}\n{}", memory.summary, events)
+    format!("最近记忆：{}\n{}", memory.summary, events)
 }
 
 fn load_peer_sessions(
@@ -441,7 +438,7 @@ fn load_peer_sessions(
 
 fn format_peer_sessions(peers: &[WorkflowPeerSession]) -> String {
     if peers.is_empty() {
-        return "Other active windows: none".to_string();
+        return "其他活跃窗口：none".to_string();
     }
 
     let sessions = peers
@@ -460,13 +457,13 @@ fn format_peer_sessions(peers: &[WorkflowPeerSession]) -> String {
                 "idle"
             };
             format!(
-                "- {} ({}) task={} state={} injections={} last_seen={}",
+                "- {} ({}) 任务={} 状态={} 注入={} 最近活跃={}",
                 peer.key, peer.source, task, state, peer.injection_count, peer.last_seen_at,
             )
         })
         .collect::<Vec<_>>()
         .join("\n");
-    format!("Other active windows: {}\n{}", peers.len(), sessions)
+    format!("其他活跃窗口：{}\n{}", peers.len(), sessions)
 }
 fn read_developer(dijiang_dir: &Path) -> String {
     let config_path = dijiang_dir.join("config.toml");
@@ -592,23 +589,23 @@ mod tests {
         let state_b = build_for_session(&dijiang_dir, Some(&window_b)).unwrap();
         let context_b = state_b.additional_context();
 
-        assert!(context_a.contains("Session: dijiang_window-a (dijiang)"));
-        assert!(context_a.contains("Injection: #1"));
-        assert!(context_a.contains("Active task changed: true"));
-        assert!(context_a.contains("Active task: task-a"));
-        assert!(context_a.contains("Title: Task A"));
+        assert!(context_a.contains("会话：dijiang_window-a（dijiang）"));
+        assert!(context_a.contains("注入：#1"));
+        assert!(context_a.contains("活跃任务是否变化：true"));
+        assert!(context_a.contains("活跃任务：task-a"));
+        assert!(context_a.contains("标题：Task A"));
         assert!(context_a.contains(
-            "Session journal: .dijiang/workspace/tester/sessions/dijiang_window-a.jsonl"
+            "会话日志：.dijiang/workspace/tester/sessions/dijiang_window-a.jsonl"
         ));
-        assert!(context_b.contains("Session: dijiang_window-b (dijiang)"));
-        assert!(context_b.contains("Active task: task-b"));
-        assert!(context_b.contains("Title: Task B"));
+        assert!(context_b.contains("会话：dijiang_window-b（dijiang）"));
+        assert!(context_b.contains("活跃任务：task-b"));
+        assert!(context_b.contains("标题：Task B"));
 
         let next_a = build_for_session(&dijiang_dir, Some(&window_a))
             .unwrap()
             .additional_context();
-        assert!(next_a.contains("Injection: #2"));
-        assert!(next_a.contains("Active task changed: false"));
+        assert!(next_a.contains("注入：#2"));
+        assert!(next_a.contains("活跃任务是否变化：false"));
 
         let log = std::fs::read_to_string(dijiang_dir.join(".runtime/workflow-state.log")).unwrap();
         assert!(log.contains("workflow_state_injected"));
@@ -643,8 +640,8 @@ mod tests {
         let context = state.additional_context();
 
         assert!(state.active_task.is_none());
-        assert!(context.contains("Session: dijiang_stale-window (dijiang)"));
-        assert!(context.contains("Active task: none"));
+        assert!(context.contains("会话：dijiang_stale-window（dijiang）"));
+        assert!(context.contains("活跃任务：none"));
         assert!(context.contains("missing-task"));
         assert!(context.contains("task state 已陈旧"));
         assert!(context.contains("dj-hunt"));
