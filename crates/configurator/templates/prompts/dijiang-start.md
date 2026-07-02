@@ -1,6 +1,6 @@
 ## Active Task Context
 
-Active Task: {{activeTask}}
+当前任务：{{activeTask}}
 
 ## Spec Index
 
@@ -8,5 +8,5 @@ Active Task: {{activeTask}}
 
 ---
 
-Read `dijiang task current` to load current task.
-Read `.dijiang/workflow.md` for the canonical development workflow.
+运行 `dijiang task current` 加载当前任务。
+读取 `.dijiang/workflow.md` 获取规范开发流程。

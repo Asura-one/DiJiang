@@ -17,8 +17,8 @@ description: >
 | 项目 | 约定 |
 |---|---|
 | 输入 | Confirmed requirement, PRD/design/issue, active task, target worktree, validation commands, and affected modules |
-| 输出 | Verified code diff, validation evidence, version recommendation, and handoff data for `dijiang-finish-work` |
-| 非目标 | Do not commit, push, merge, clean worktrees, or make unrelated refactors during implementation |
+| 输出 | 已验证的代码 diff、验证证据、版本建议，以及给 `dijiang-finish-work` 的 handoff 数据 |
+| 非目标 | 不在实现阶段 commit、push、merge、清理 worktree，也不做无关重构 |
 
 ## 工作流
 
@@ -26,16 +26,16 @@ description: >
 
 ```text
 🔴 CHECKPOINT · 实现门禁
-Task: <task name>
-Source artifact: <PRD / design / issue / user request>
+任务: <task name>
+源产物: <PRD / design / issue / user request>
 Worktree: <path and branch>
-Expected files/modules: <scope>
+预期文件/模块: <scope>
 Behavior/Invariant: <要保护或新增的行为命题>
 RED/Repro evidence: <先失败的测试、复现命令、fixture、trace 或人工可复核步骤>
 GREEN command: <实现后必须变绿的最小命令或检查>
 Regression scope: <可能受影响的调用方、兄弟路径、全量/相关测试范围>
 Exception: <none，或无法自动化/纯机械变更/环境不可用的具体原因和替代检查>
-Will commit: no
+将提交: no
 ```
 
 - 读取 PRD / 设计文档 / issue，理解要做什么。
