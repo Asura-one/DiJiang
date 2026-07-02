@@ -601,6 +601,94 @@ fn test_e2e_finish_work_commit_without_active_task_skips_archive() {
 }
 
 #[test]
+fn test_e2e_finish_work_commit_from_git_worktree_without_local_dijiang() {
+    let (tmp, project_dir) = init_project();
+    std::fs::write(project_dir.join("base.txt"), "base").unwrap();
+    Command::new("git")
+        .args(["add", "base.txt"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git add base");
+    Command::new("git")
+        .args(["commit", "-m", "test: base"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git commit base");
+
+    let worktree_dir = tmp.path().join("external-worktree");
+    Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "finish-work-external",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git worktree add");
+    assert!(!worktree_dir.join(".dijiang").exists());
+    std::fs::write(
+        project_dir.join(".dijiang/active_task.txt"),
+        "stale-main-worktree-task",
+    )
+    .unwrap();
+    let parent_dijiang = tmp.path().join(".dijiang");
+    std::fs::create_dir_all(&parent_dijiang).unwrap();
+    std::fs::write(
+        parent_dijiang.join("config.toml"),
+        "[project]\ndeveloper = \"wrong-root\"\n",
+    )
+    .unwrap();
+    std::fs::write(parent_dijiang.join("active_task.txt"), "stale-parent-task").unwrap();
+
+    std::fs::write(worktree_dir.join("change.txt"), "changed").unwrap();
+    let out = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "external worktree finish",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: standalone external worktree change",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test: external worktree finish",
+        ],
+        &worktree_dir,
+    )
+    .unwrap();
+
+    assert!(out.contains("已完成工作（无 active task"), "output: {out}");
+    assert!(
+        out.contains("Task archive：skipped: no active task"),
+        "output: {out}"
+    );
+    assert!(!out.contains("Commit：none"), "output: {out}");
+
+    let status = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&worktree_dir)
+        .output()
+        .expect("git status");
+    assert_eq!(String::from_utf8_lossy(&status.stdout).trim(), "");
+
+    let log = Command::new("git")
+        .args(["log", "--oneline", "-1"])
+        .current_dir(&worktree_dir)
+        .output()
+        .expect("git log");
+    assert!(
+        String::from_utf8_lossy(&log.stdout).contains("test: external worktree finish"),
+        "log: {}",
+        String::from_utf8_lossy(&log.stdout)
+    );
+}
+
+#[test]
 fn test_e2e_finish_work_explains_stale_active_task() {
     let (_tmp, project_dir) = init_project();
     let session_dir = project_dir
