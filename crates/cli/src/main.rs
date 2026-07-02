@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 #[derive(Parser)]
 #[command(
     name = "dijiang",
-    version = "0.1.0",
+    version = env!("CARGO_PKG_VERSION"),
     about = "DiJiang - AI coding assistant workflow layer"
 )]
 struct Cli {
@@ -3410,6 +3410,26 @@ fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
 
     let report =
         dijiang_configurator::update_project(&cwd, dijiang_configurator::UpdateOptions { force })?;
+
+    // Show version comparison
+    let old_version = report.old_version.as_deref().unwrap_or("unknown");
+    println!(
+        "  DiJiang 版本: {old_version} -> {}",
+        report.new_version
+    );
+
+    // Show changelog if version changed
+    if report.old_version.as_deref() != Some(&report.new_version) {
+        let changelog =
+            dijiang_configurator::changelog_between(old_version, &report.new_version);
+        if !changelog.is_empty() {
+            println!("\n  ── 变更日志 ──");
+            for line in changelog.lines() {
+                println!("  {line}");
+            }
+            println!();
+        }
+    }
 
     for path in &report.updated {
         println!("  updated   {path}");

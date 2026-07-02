@@ -1,6 +1,7 @@
 pub mod claude;
 pub mod codex;
 pub mod cursor;
+pub mod changelog;
 pub mod dj_skills;
 pub mod hermes;
 pub mod init;
@@ -12,6 +13,7 @@ pub mod templates;
 pub mod types;
 pub mod update;
 pub use claude::*;
+pub use changelog::*;
 pub use codex::*;
 pub use cursor::*;
 pub use dj_skills::*;

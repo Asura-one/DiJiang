@@ -19,6 +19,10 @@ pub struct UpdateReport {
     pub conflicts: Vec<String>,
     pub warnings: Vec<String>,
     pub removed: Vec<String>,
+    /// Previous DiJiang version (before update)
+    pub old_version: Option<String>,
+    /// New DiJiang version (after update)
+    pub new_version: String,
 }
 
 impl UpdateReport {
@@ -113,9 +117,14 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     }
 
     save_hashes(&dijiang_dir, &hashes)?;
+
+    let new_version = env!("CARGO_PKG_VERSION").to_string();
+    let old_version = config.as_ref().map(|c| c.dijiang_version.clone());
+    report.old_version = old_version;
+    report.new_version = new_version;
+
     Ok(report)
 }
-
 fn read_existing_config(cwd: &Path) -> Option<DijiangConfig> {
     fs::read_to_string(cwd.join(".dijiang/config.toml"))
         .ok()
@@ -367,6 +376,8 @@ fn update_config(
     if next.workspace_dir.trim().is_empty() {
         next.workspace_dir = ".dijiang/workspace".to_string();
     }
+
+    next.dijiang_version = env!("CARGO_PKG_VERSION").to_string();
 
     let latest =
         toml::to_string_pretty(&next).map_err(|e| ConfigError::Serialize(e.to_string()))?;

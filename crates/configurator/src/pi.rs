@@ -233,7 +233,7 @@ impl PiConfigurator {
                 name: name.to_string(),
                 description: None,
                 developer: dev.map(|s| s.to_string()),
-                version: "0.1.0".to_string(),
+                version: env!("CARGO_PKG_VERSION").to_string(),
             },
             platforms: Some(vec!["pi".to_string()]),
             ..Default::default()

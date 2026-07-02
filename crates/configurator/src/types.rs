@@ -70,6 +70,10 @@ pub struct DijiangConfig {
     /// Workspace directory
     #[serde(default = "default_workspace_dir")]
     pub workspace_dir: String,
+
+    /// DiJiang version that last initialized or updated this project
+    #[serde(default = "dijiang_version_default")]
+    pub dijiang_version: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,6 +110,10 @@ fn default_version() -> String {
     "0.1.0".to_string()
 }
 
+fn dijiang_version_default() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 impl Default for DijiangConfig {
     fn default() -> Self {
         Self {
@@ -114,6 +122,7 @@ impl Default for DijiangConfig {
             tasks_dir: default_tasks_dir(),
             spec_dir: default_spec_dir(),
             workspace_dir: default_workspace_dir(),
+            dijiang_version: dijiang_version_default(),
         }
     }
 }
