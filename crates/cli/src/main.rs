@@ -1135,7 +1135,6 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// 从通道元数据中读取 agent 名称
 fn cmd_workflow_state(json: bool, hook_event: &str) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
     let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
@@ -1394,7 +1393,6 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
     Ok(())
 }
 
-/// 从通道元数据中读取 agent 名称
 /// 从通道元数据中读取 agent 名称
 fn read_channel_agent_name(channel_dir: &std::path::Path) -> String {
     let channel_toml = channel_dir.join("channel.toml");
@@ -1748,8 +1746,6 @@ fn cmd_init(
 ) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
-    // Check if already initialized
-    // Check if already initialized
     // Check if already initialized
     if cwd.join(".dijiang").join("config.toml").exists() {
         if !force {
