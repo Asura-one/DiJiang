@@ -80,7 +80,11 @@ fn render_if_blocks(template: &str, vars: &[(&str, &str)]) -> String {
         } else {
             // Truthy check
             let met = !actual_value.is_empty();
-            if negated { !met } else { met }
+            if negated {
+                !met
+            } else {
+                met
+            }
         };
 
         let replacement = if condition_met {
@@ -171,7 +175,7 @@ mod tests {
     fn test_load_skill_template() {
         let content = render("skills/dijiang-start/SKILL.md", &[]).unwrap();
         assert!(content.contains("dj-dispatch"));
-        assert!(content.contains("dj-implement"));
+        assert!(content.contains("交接给 dj-dispatch"));
     }
 
     #[test]
@@ -199,7 +203,7 @@ mod tests {
     #[test]
     fn test_workflow_template() {
         let content = render("config/workflow.md", &[]).unwrap();
-        assert!(content.contains("DiJiang Canonical Workflow"));
+        assert!(content.contains("DiJiang 规范工作流"));
         assert!(content.contains("dj-dispatch"));
         assert!(!content.contains("dj-muse"));
     }
@@ -224,7 +228,7 @@ mod tests {
     fn test_finish_work_requires_worktree_residue_decision() {
         let content = render("skills/dijiang-finish-work/SKILL.md", &[]).unwrap();
         for required in [
-            "Worktree residue",
+            "worktree 残留",
             "默认使用 `--integrate`",
             "残留 worktree 检查",
             "git worktree list",

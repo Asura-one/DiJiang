@@ -36,4 +36,4 @@ flowchart TD
 
 ---
 
-*Task: {{task_name}} | Project: {{project_name}}*
+*任务: {{task_name}} | 项目: {{project_name}}*

@@ -5,21 +5,21 @@ triggers:
   - session:start
 ---
 
-# Continue Session
+# 继续会话
 
-Resume work on the current DiJiang task. This skill reconstructs context and reports the next workflow route; it does not implement or finish work directly.
+继续当前 DiJiang 任务。本 skill 重建上下文并报告下一条 workflow 路线；不直接实现或收尾工作。
 
 ## 输入 / 输出
 
 | 项目 | 约定 |
 |---|---|
-| 输入 | Existing DiJiang task state, prior task artifacts, workspace journal, and current user request |
-| 输出 | Restored context summary, current phase, loaded artifacts, and one phase-appropriate `dj-*` route |
-| 非目标 | Do not edit code, create a new plan, or close a task from this skill |
+| 输入 | 已有 DiJiang 任务状态、先前任务产物、workspace journal 和当前用户请求 |
+| 输出 | 恢复后的上下文摘要、当前阶段、已加载产物，以及一个适合当前阶段的 `dj-*` 路线 |
+| 非目标 | 不要在本 skill 中编辑代码、创建新计划或关闭任务 |
 
-## Steps
+## 步骤
 
-### 1. Load State
+### 1. 加载状态
 
 ```bash
 dijiang status
@@ -28,23 +28,23 @@ dijiang workflow-state --json
 git status --short --branch
 ```
 
-Output: active task name, task status, workflow phase, repository branch, and dirty state.
+输出：当前任务名称、任务状态、workflow 阶段、仓库分支和脏改状态。
 
-If `dijiang task current` reports no active task, do not invent prior context. Report `follow-up: dj-dispatch` for classification of the current user request.
+如果 `dijiang task current` 报告没有 active task，不要臆造先前上下文。报告 `follow-up: dj-dispatch`，让当前用户请求进入分类。
 
-### 2. Load Memory Context
+### 2. 加载记忆上下文
 
-Restore project context from DiJiang workspace memory when present.
+存在 DiJiang workspace memory 时，从中恢复项目上下文。
 
 ```bash
 dijiang mem list
 ```
 
-If memory commands fail, continue from task artifacts and mention `memory unavailable` in the restored context summary.
+如果 memory 命令失败，从任务产物继续，并在恢复摘要中说明 `memory unavailable`。
 
-### 3. Read Active Task Artifacts
+### 3. 读取当前任务产物
 
-Read the active task directory in this order:
+按以下顺序读取 active task 目录：
 
 1. `task.json`
 2. `prd.md` when present
@@ -52,19 +52,19 @@ Read the active task directory in this order:
 4. `implement.md` when present
 5. `check.md` or handoff artifacts when present
 
-Output: task goal, status, known decisions, verification state, and unresolved blockers.
+输出：任务目标、状态、已知决策、验证状态和未解决 blocker。
 
-If `task.json` is missing, stop and output `blocking: task state corrupt; follow-up: dj-hunt`. Continuing would create false context.
+如果缺少 `task.json`，停止并输出 `blocking: task state corrupt; follow-up: dj-hunt`。继续会制造错误上下文。
 
-### 4. Read Journal Context
+### 4. 读取 Journal 上下文
 
-Read `.dijiang/workspace/{{developer}}/` only for recent entries that reference the active task.
+只读取 `.dijiang/workspace/{{developer}}/` 中引用当前任务的近期条目。
 
-If the journal conflicts with `task.json`, prefer `task.json` and record the conflict in the context summary.
+如果 journal 与 `task.json` 冲突，以 `task.json` 为准，并在上下文摘要中记录冲突。
 
-### 5. Select the Next Skill
+### 5. 选择下一个 Skill
 
-| Phase / status | Skill | Required loaded context |
+| 阶段 / 状态 | Skill | 必需加载上下文 |
 |---|---|---|
 | requirements alignment | `dj-grill` | task goal and open questions |
 | document creation | `dj-output` | PRD/design/doc target |
@@ -73,41 +73,41 @@ If the journal conflicts with `task.json`, prefer `task.json` and record the con
 | review / verification | `dj-check` | diff, requirements, validation output |
 | completed | `dijiang-finish-work` | verification summary and version decision |
 
-If the phase is ambiguous, output `follow-up: dj-grill` for alignment unless there is a concrete failure signal; concrete failures output `follow-up: dj-hunt`.
+阶段不明确时，输出 `follow-up: dj-grill` 进行对齐；除非存在具体失败信号，具体失败输出 `follow-up: dj-hunt`。
 
-## Failure Handling
+## 失败处理
 
-| Trigger | First action | Fallback |
+| 触发条件 | 第一动作 | 回退 |
 |---|---|---|
-| No active task | Output `follow-up: dj-dispatch` | Ask for task selection only if dispatch classification cannot infer intent |
-| `task.json` missing | Stop normal continuation | Output `blocking: task state corrupt; follow-up: dj-hunt` |
-| Artifact referenced but absent | Mark it missing in summary | Continue only when the next skill can operate without it |
-| Journal contradicts task status | Prefer `task.json` | Record conflict and output `follow-up: dj-hunt` when unsafe |
-| Git dirty state predates this session | List dirty paths | Require worktree/scope decision before implementation |
-| Workflow state command fails | Fall back to `task.json.status` | Mark workflow state as degraded in summary |
+| 没有 active task | 输出 `follow-up: dj-dispatch` | 只有 dispatch 无法推断意图时才询问任务选择 |
+| 缺少 `task.json` | 停止正常继续流程 | 输出 `blocking: task state corrupt; follow-up: dj-hunt` |
+| 引用的产物不存在 | 在摘要中标记缺失 | 只有下一个 skill 可以在没有它的情况下工作时才继续 |
+| Journal 与任务状态冲突 | 以 `task.json` 为准 | 记录冲突；不安全时输出 `follow-up: dj-hunt` |
+| Git 脏改早于当前 session | 列出脏改路径 | 实现前要求 worktree/范围决策 |
+| Workflow state 命令失败 | 回退到 `task.json.status` | 在摘要中标记 workflow state degraded |
 
 ## 🔴 CHECKPOINT · Context Restored
 
 离开该 skill 前先报告：
 
 ```text
-Active task: <name>
-Status / phase: <status> / <phase>
-Loaded artifacts: <paths>
-Missing artifacts: <paths or none>
-Dirty state: <summary>
-Route: <dj-skill>
-Next action: <one sentence>
+当前任务: <name>
+状态 / 阶段: <status> / <phase>
+已加载产物: <paths>
+缺失产物: <paths or none>
+脏改状态: <summary>
+路线: <dj-skill>
+下一动作: <one sentence>
 ```
 
-🛑 STOP if active task state is corrupt, route selection is ambiguous, or continuing would require guessing prior intent.
+🛑 如果 active task 状态损坏、路线选择不明确，或继续需要猜测先前意图，停止。
 
-## Anti-patterns
+## 反模式
 
-| Do not | Do this instead |
+| 不要 | 改为这样做 |
 |---|---|
-| Do not treat missing task files as empty requirements | Stop and output `blocking: task state corrupt; follow-up: dj-hunt` |
-| Do not continue implementation from memory alone | Load task artifacts first |
-| Do not overwrite the current phase because a journal says something older | Prefer `task.json` and record conflicts |
-| Do not create a new task while an active task exists | Resume or explicitly route through dispatch |
-| Do not finish work from continue mode | Output `follow-up: dijiang-finish-work` for completed tasks |
+| 不要把缺失任务文件当成空需求 | 停止并输出 `blocking: task state corrupt; follow-up: dj-hunt` |
+| 不要只凭 memory 继续实现 | 先加载任务产物 |
+| 不要因为 journal 里有旧状态就覆盖当前阶段 | 以 `task.json` 为准并记录冲突 |
+| active task 存在时不要创建新任务 | 继续当前任务，或明确通过 dispatch 路由 |
+| 不要从 continue mode 收尾 | 对 completed 任务输出 `follow-up: dijiang-finish-work` |

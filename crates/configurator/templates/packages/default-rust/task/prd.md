@@ -30,4 +30,4 @@ As a <role>, I want to <action>, so that <outcome>.
 
 ---
 
-*Task: {{task_name}} | Project: {{project_name}}*
+*任务: {{task_name}} | 项目: {{project_name}}*

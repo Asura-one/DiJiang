@@ -54,9 +54,9 @@ Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
 
 ## CLI Commands
 
-- `dijiang status` — Project overview
-- `dijiang task list` — All tasks
-- `dijiang task current` — Active task
+- `dijiang status` — 项目概览
+- `dijiang task list` — 所有任务
+- `dijiang task current` — 当前任务
 - `dijiang start <name>` — Start task
 - `cargo build -p dijiang-cli` — Build CLI
 - `cargo test` — Run all tests
@@ -95,11 +95,11 @@ def visible_error(message: str) -> str:
     context = "\n".join(
         [
             "<dijiang-workflow-state>",
-            "Platform: claude",
-            f"Session hint: {session}",
-            f"Hook error: {message}",
-            "Active task: unknown",
-            "Next: run `dijiang workflow-state` from the project root and check that `dijiang` is on PATH.",
+            "平台: claude",
+            f"会话: {session}",
+            f"Hook 错误: {message}",
+            "当前任务: unknown",
+            "下一步: 在项目根目录运行 `dijiang workflow-state`，并确认 `dijiang` 已在 PATH 中。",
             "</dijiang-workflow-state>",
         ]
     )

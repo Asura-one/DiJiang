@@ -16,11 +16,11 @@ function errorContext(message: string): string {
     "unknown";
   return [
     "<dijiang-workflow-state>",
-    "Platform: pi",
-    `Session hint: ${session}`,
-    `Hook error: ${message}`,
-    "Active task: unknown",
-    "Next: run `dijiang workflow-state` from the project root and check that `dijiang` is on PATH.",
+    "平台: pi",
+    `会话: ${session}`,
+    `Hook 错误: ${message}`,
+    "当前任务: unknown",
+    "下一步: 在项目根目录运行 `dijiang workflow-state`，并确认 `dijiang` 已在 PATH 中。",
     "</dijiang-workflow-state>",
   ].join("\n");
 }
@@ -70,9 +70,9 @@ function failedToolResult(event: ToolResultEvent): boolean {
 function routeMessage(route: string, reason: string, next: string): string {
   return [
     "<dijiang-route>",
-    `Route: ${route}`,
-    `Reason: ${reason}`,
-    `Next: ${next}`,
+    `路线: ${route}`,
+    `原因: ${reason}`,
+    `下一步: ${next}`,
     "</dijiang-route>",
   ].join("\n");
 }

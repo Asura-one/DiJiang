@@ -546,14 +546,14 @@ fn append_finish_journal(
     let workspace = dijiang_dir.join("workspace").join(developer);
     std::fs::create_dir_all(&workspace)?;
     let journal = workspace.join("journal.md");
-    let summary = summary.unwrap_or("Work finished.");
+    let summary = summary.unwrap_or("工作已完成。");
     let status = if task_name == "no-active-task" {
         "completed-no-task"
     } else {
         "archived"
     };
     let entry = format!(
-        "\n## {} — finish-work\n- Task: `{}`\n- Summary: {}\n- Verification: {}\n- Dirty allowed: {}\n- Status: {}\n",
+        "\n## {} — finish-work\n- 任务：`{}`\n- 摘要：{}\n- 验证：{}\n- 允许脏改：{}\n- 状态：{}\n",
         chrono::Local::now().format("%Y-%m-%d %H:%M"),
         task_name,
         summary,
@@ -1583,7 +1583,9 @@ fn ensure_task_worktree(
             branch: String::new(),
             path: PathBuf::new(),
             created: false,
-            note: Some("当前 git 仓库还没有提交，无法创建任务 worktree；请先建立基线提交。".to_string()),
+            note: Some(
+                "当前 git 仓库还没有提交，无法创建任务 worktree；请先建立基线提交。".to_string(),
+            ),
         }));
     }
 
@@ -1794,26 +1796,26 @@ fn cmd_status(compat: bool) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
 
     let name = dijiang_configurator::read_project_name(&cwd);
-    status_line("Project:", &name);
+    status_line("项目:", &name);
 
-    // Active task
+    // 当前任务
     let active = store::read_active_task(&dijiang_dir).unwrap_or(None);
     let tasks_dir = dijiang_dir.join("tasks");
     let tasks = store::list_tasks(&tasks_dir).unwrap_or_default();
 
     match &active {
         Some(t) => {
-            status_line("Active Task:", t);
+            status_line("当前任务:", t);
             if let Some(task) = tasks.iter().find(|x| &x.name == t) {
-                status_line("Status:", task.status.as_str());
-                status_line("Phase:", task.status.to_trellis_status());
-                status_line("Compatible:", "yes");
+                status_line("状态:", task.status.as_str());
+                status_line("阶段:", task.status.to_trellis_status());
+                status_line("兼容:", "yes");
             }
         }
-        None => status_line("Active Task:", "(none)"),
+        None => status_line("当前任务:", "(none)"),
     }
 
-    println!("  Tasks ({count}):", count = tasks.len());
+    println!("  任务 ({count}):", count = tasks.len());
     for t in &tasks {
         let marker = active
             .as_ref()
@@ -2484,8 +2486,8 @@ fn cmd_channel_spawn(agent: &str, task: Option<&str>, dir: Option<&str>) -> anyh
 
     // Write inbox with task
     let inbox_content = match task {
-        Some(t) => format!("Active task: {}\n", t),
-        None => format!("Active task: {}\n", cwd.display()),
+        Some(t) => format!("当前任务: {}\n", t),
+        None => format!("当前任务: {}\n", cwd.display()),
     };
     std::fs::write(channel_dir.join("inbox"), &inbox_content)?;
 
@@ -3413,15 +3415,11 @@ fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
 
     // Show version comparison
     let old_version = report.old_version.as_deref().unwrap_or("unknown");
-    println!(
-        "  DiJiang 版本: {old_version} -> {}",
-        report.new_version
-    );
+    println!("  DiJiang 版本: {old_version} -> {}", report.new_version);
 
     // Show changelog if version changed
     if report.old_version.as_deref() != Some(&report.new_version) {
-        let changelog =
-            dijiang_configurator::changelog_between(old_version, &report.new_version);
+        let changelog = dijiang_configurator::changelog_between(old_version, &report.new_version);
         if !changelog.is_empty() {
             println!("\n  ── 变更日志 ──");
             for line in changelog.lines() {
