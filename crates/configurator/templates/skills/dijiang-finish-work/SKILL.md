@@ -166,7 +166,7 @@ dijiang finish-work \
   --remote origin
 ```
 
-`--push` pushes the task branch. `--integrate` merges the task branch into the main branch worktree with `--no-ff`, removes the task worktree, and deletes the merged branch. For task worktrees, 默认使用 `--integrate` so finish-work leaves no residual task worktree. If credentials, remote policy, CI, conflicts, or user permission block integration, stop integration, report the blocker, and preserve the branch and worktree with an explicit Worktree residue reason.
+`--integrate` merges the task branch into the main branch worktree with `--no-ff`, removes the task worktree, and deletes the merged branch. `--push` pushes the task branch when the remote is reachable and policy allows it; it is a publication step, not a prerequisite for local integration. For task worktrees, 默认使用 `--integrate` so finish-work leaves no residual task worktree. If credentials, remote policy, CI, or network availability block push, report the push blocker and continue with local integration when the merge is safe. Preserve the branch/worktree only when merge is blocked, scope is unclear, conflicts exist, or evidence must be retained.
 
 After any finish-work that commits, run a 残留 worktree 检查 with `git worktree list`. The final report must state whether the task worktree was removed or intentionally retained.
 
@@ -190,7 +190,8 @@ Skip durable memory when the finding lacks future actionability.
 | Diff contains unrelated files | Stage only reviewed paths | Split unrelated files into another task |
 | Version decision unclear | Re-read task scope and package metadata | Use `none` only when no publishable behavior changed |
 | Commit fails | Show `git status` and staged diff | Unstage, fix scope, and retry once |
-| Push/merge blocked | Preserve branch/worktree and report exact blocker plus Worktree residue reason | Leave integration for user or CI owner |
+| Push blocked | Report the exact push blocker | Continue local integration and cleanup when merge is safe; leave main ahead of remote |
+| Merge blocked | Preserve branch/worktree and report exact blocker plus Worktree residue reason | Leave integration for user or CI owner |
 | Memory quality gate fails | Keep note in task artifact | Do not write durable memory |
 
 ## Anti-patterns
@@ -200,6 +201,6 @@ Skip durable memory when the finding lacks future actionability.
 | Do not commit from the main checkout | Finish only from the task worktree |
 | Do not stage `git add .` blindly | Stage reviewed paths or hunks |
 | Do not hide failed validation in the final message | Report the command and failure |
-| Do not push or merge without permission, credentials, and clean scope | Preserve branch/worktree and report blocker plus explicit Worktree residue reason |
+| Do not treat an unreachable remote as a reason to keep merged worktrees | Merge locally when safe, clean merged worktrees/branches, and report push as a separate blocker |
 | Do not write vague memory such as "fixed bug" | Write source-scoped, verified, actionable findings |
 | Do not close a task with unrelated dirty files | Split or clean scope first |
