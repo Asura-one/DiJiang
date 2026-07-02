@@ -9,7 +9,7 @@
 
 ### Changed
 - 统一版本号来源：CLI 和 configurator 均使用 `CARGO_PKG_VERSION`，不再硬编码 `0.1.0`
-- 明确 Git worktree 完成后的主仓库落地规则：未执行 `--integrate` 时必须在主 checkout 合并任务分支，避免从旧代码安装或发布
+- 明确 Git worktree 完成后的主仓库落地规则：未执行 `--integrate` 时必须在主 checkout 合并任务分支；远端不可达时 push 不阻塞本地 merge 与已合并 worktree 清理
 
 ## 0.1.1 (2026-06-30)
 
