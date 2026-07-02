@@ -168,6 +168,44 @@ fn test_e2e_init_creates_project_structure() {
 }
 
 #[test]
+fn test_e2e_init_projects_include_code_task_tdd_contract() {
+    let tmp = tempfile::tempdir().expect("home tempdir");
+    let home = tmp.path().join("home");
+    let home_str = home.to_str().unwrap();
+    let (_project_tmp, project_dir) = init_project_with_env(&[("HOME", home_str)]);
+
+    let workflow = std::fs::read_to_string(project_dir.join(".dijiang/workflow.md")).unwrap();
+    assert_code_task_tdd_contract(".dijiang/workflow.md", &workflow);
+
+    for skill in [
+        "dj-dispatch",
+        "dj-implement",
+        "dj-hunt",
+        "dj-check",
+        "dijiang-finish-work",
+    ] {
+        let path = format!(".pi/skills/{skill}/SKILL.md");
+        let content = std::fs::read_to_string(project_dir.join(&path)).unwrap();
+        assert_code_task_tdd_contract(&path, &content);
+    }
+}
+
+fn assert_code_task_tdd_contract(artifact: &str, content: &str) {
+    for required in [
+        "Code Task TDD Contract",
+        "RED/Repro evidence",
+        "GREEN command",
+        "Regression scope",
+        "Exception",
+    ] {
+        assert!(
+            content.contains(required),
+            "{artifact} missing TDD contract marker: {required}"
+        );
+    }
+}
+
+#[test]
 fn test_e2e_update_refreshes_existing_platform_hooks() {
     let tmp = tempfile::tempdir().expect("home tempdir");
     let home = tmp.path().join("home");
@@ -791,6 +829,36 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
         "log: {}",
         String::from_utf8_lossy(&log.stdout)
     );
+}
+#[test]
+fn test_e2e_workflow_state_reports_stale_active_task_without_failing() {
+    let (_tmp, project_dir) = init_project();
+    let session_dir = project_dir
+        .join(".dijiang")
+        .join(".runtime")
+        .join("sessions");
+    std::fs::create_dir_all(&session_dir).unwrap();
+    std::fs::write(
+        session_dir.join("stale-window.json"),
+        r#"{"current_task":"missing-task","session_key":"stale-window","source":"dijiang"}"#,
+    )
+    .unwrap();
+
+    let out = dijang_with_env(
+        &["workflow-state"],
+        &project_dir,
+        &[("DIJIANG_CONTEXT_ID", "stale-window")],
+    )
+    .unwrap();
+
+    assert!(
+        out.contains("Session: stale-window (dijiang)"),
+        "output: {out}"
+    );
+    assert!(out.contains("Active task: none"), "output: {out}");
+    assert!(out.contains("missing-task"), "output: {out}");
+    assert!(out.contains("task state 已陈旧"), "output: {out}");
+    assert!(out.contains("dj-hunt"), "output: {out}");
 }
 
 #[test]

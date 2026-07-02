@@ -207,9 +207,11 @@ Record:
 
 ```text
 Feedback loop: <command or manual checklist>
-Red signal: <exact failure>
+RED/Repro evidence: <exact failure, observed output, or screenshot/log reference>
+GREEN command: <same command/checklist that must pass after fix>
+Regression scope: <sibling paths, related callers, full/relevant tests>
 False positive risk: <low/medium/high>
-```
+Exception: <none, or why the reproduction cannot be automated and what replaces it>
 
 反馈回路必须先证明关键命题，再扩大覆盖面。不要一开始追求全量自动化；一个可靠的 CLI fixture、截图对比或日志断言，比“看起来应该对”的代码审查更有价值。
 
@@ -249,7 +251,6 @@ False positive risk: <low/medium/high>
 - ❌ 只收集支持自己假设的证据
 
 ### Phase 4：修复 + 回归
-
 1. **在 worktree 中修复（git-safety）**
    ```bash
    # 确认在 worktree 中
@@ -268,13 +269,13 @@ False positive risk: <low/medium/high>
    git diff --stat
    # 经用户明确确认后，只还原本轮触碰的文件
    ```
-3. 确认反馈回路从红变绿
-4. 检查是否有兄弟路径存在同类问题
-5. 写回归测试（如果还没有的话）
-6. 分析 AI 为什么会写出这个 bug：源事实缺失、编码/乱码、术语误判、过度推断、上下文截断、提示词约束不足
-7. 选择沉淀位置：prompt/skill/spec/ADR/task artifact/memory。只有具备 source、scope、confidence、freshness、conflict、actionability 的经验才写入 memory。
-8. 跑全量测试确认没有引入新问题
-## 回归 bug 专项
+3. 修复前确认 **Code Task TDD Contract**：根因明确，RED/Repro evidence 已记录，GREEN command 已定义，Regression scope 已列出，Exception 为 `none` 或有可审查理由。
+4. 确认反馈回路从红变绿：同一 RED/Repro 对应的 GREEN command 必须通过。
+5. 检查是否有兄弟路径存在同类问题，并按 Regression scope 跑相关回归。
+6. 写回归测试（如果还没有自动化覆盖，且不是已记录的 Exception）。
+7. 分析 AI 为什么会写出这个 bug：源事实缺失、编码/乱码、术语误判、过度推断、上下文截断、提示词约束不足。
+8. 选择沉淀位置：prompt/skill/spec/ADR/task artifact/memory。只有具备 source、scope、confidence、freshness、conflict、actionability 的经验才写入 memory。
+9. 跑全量测试确认没有引入新问题。
 
 "以前好现在坏"的特殊处理：
 1. 找到最后一个正常的 commit：`git bisect`
@@ -315,6 +316,10 @@ UI 相关的回归 bug：
 根因：<一句话>
 证据：<文件:行号 / 测试 / 日志>
 修复方案：<一句话>
+RED/Repro evidence: <修复前失败信号>
+GREEN command: <修复后必须通过的命令或检查>
+Regression scope: <相关回归范围>
+Exception: <none 或无法自动化原因>
 
 确认修复？(Y/n)
 ```

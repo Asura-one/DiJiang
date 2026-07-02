@@ -205,6 +205,38 @@ mod tests {
     }
 
     #[test]
+    fn test_code_task_tdd_contract_templates() {
+        let workflow = render("config/workflow.md", &[]).unwrap();
+        assert_code_task_tdd_contract(&workflow);
+
+        for template in [
+            "skills/dj-dispatch/SKILL.md",
+            "skills/dj-implement/SKILL.md",
+            "skills/dj-hunt/SKILL.md",
+            "skills/dj-check/SKILL.md",
+            "skills/dijiang-finish-work/SKILL.md",
+        ] {
+            let content = render(template, &[]).unwrap();
+            assert_code_task_tdd_contract(&content);
+        }
+    }
+
+    fn assert_code_task_tdd_contract(content: &str) {
+        for required in [
+            "Code Task TDD Contract",
+            "RED/Repro evidence",
+            "GREEN command",
+            "Regression scope",
+            "Exception",
+        ] {
+            assert!(
+                content.contains(required),
+                "template missing TDD contract marker: {required}"
+            );
+        }
+    }
+
+    #[test]
     fn test_conditional_true() {
         let template = "Hello {{#if show}}World{{/if}}!";
         let result = render_if_blocks(template, &[("show", "yes")]);

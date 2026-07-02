@@ -29,8 +29,7 @@ First actions, in order:
 5. Use `nothing-to-archive` only when there is no active task, no changed files, and no unpushed commits.
 6. If `nothing-to-archive`, output the Clean Status format below and stop. Do not print the pre-finish gate, do not ask for confirmation, and do not call `dijiang finish-work`.
 7. If blocking, stop with `blocking: <reason>` and the exact command or file that proves it.
-8. If ready or no-task, produce the pre-finish gate from step 2, including validation, docs-sync evidence, version decision, commit mode, and integration mode.
-
+8. If ready or no-task, produce the pre-finish gate from step 2, including validation, TDD evidence for code work, docs-sync evidence, version decision, commit mode, and integration mode.
 Only call `dijiang finish-work ...` after the pre-finish gate is complete and the git scope is reviewed. If there is no active task, pass the same verification/docs/version/commit flags and expect task archive to be skipped. If validation, docs-sync evidence, version decision, or review scope is missing, stop instead of committing.
 ## 输入 / 输出
 
@@ -59,7 +58,9 @@ git log --oneline @{u}..HEAD
 
 If code or behavior changed, run the relevant test, typecheck, lint, or `dj-check` before finishing. A failed check blocks finish-work unless the blocker is recorded and the task is intentionally left unfinished.
 
-Required output: active task state, changed files, unpushed commits, validation commands, pass/fail result, and unverified areas.
+Code or behavior changes must include **Code Task TDD Contract** evidence in validation output: RED/Repro evidence, GREEN command, Regression scope, and Exception. Pure docs, prose, formatting-only, or no-code changes may set these fields to `n/a` with a reason.
+
+Required output: active task state, changed files, unpushed commits, validation commands, TDD evidence, pass/fail result, and unverified areas.
 
 ### Clean Status Output
 
@@ -86,6 +87,10 @@ Task: <name or none; mode: dijiang-finish / no-task-finish / nothing-to-archive>
 Branch/worktree: <branch> / <path>
 Changed files: <paths>
 Validation: <commands => result>
+RED/Repro evidence: <command/checklist or n/a + reason>
+GREEN command: <command/checklist => result>
+Regression scope: <commands/reference checks/sibling paths => result>
+Exception: <none or justified gap>
 Docs/spec sync: <updated / none / skipped; reason=...>
 Version decision: <major|minor|patch|none; reason=...>
 Memory: <written / skipped; reason=...>
@@ -93,7 +98,7 @@ Commit mode: <--commit yes/no; reason=...>
 Integration mode: <--push/--integrate yes/no; reason=...>
 ```
 
-🛑 STOP if validation is missing, docs/spec sync evidence is missing for changed work, memory decision is missing, the current directory is the main checkout for integration, changed files include unrelated work, or the version decision is unclear.
+🛑 STOP if validation is missing, TDD evidence is missing for changed code/behavior/templates/scripts, docs/spec sync evidence is missing for changed work, memory decision is missing, the current directory is the main checkout for integration, changed files include unrelated work, or the version decision is unclear.
 
 ### 3. Confirm Git Isolation
 
@@ -133,7 +138,7 @@ Use CLI automation only after the scope has been reviewed:
 
 ```bash
 dijiang finish-work \
-  --verification "<commands or manual checks>" \
+  --verification "RED/Repro evidence: <...>; GREEN command: <...>; Regression scope: <...>; Exception: <none or reason>; commands: <...>" \
   --docs-sync "<updated docs/spec or none: reason>" \
   --version-impact <major|minor|patch|none> \
   --commit \
