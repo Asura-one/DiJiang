@@ -220,6 +220,21 @@ mod tests {
             assert_code_task_tdd_contract(&content);
         }
     }
+    #[test]
+    fn test_finish_work_requires_worktree_residue_decision() {
+        let content = render("skills/dijiang-finish-work/SKILL.md", &[]).unwrap();
+        for required in [
+            "Worktree residue",
+            "默认使用 `--integrate`",
+            "残留 worktree 检查",
+            "git worktree list",
+        ] {
+            assert!(
+                content.contains(required),
+                "finish-work template missing worktree residue guard: {required}"
+            );
+        }
+    }
 
     fn assert_code_task_tdd_contract(content: &str) {
         for required in [
