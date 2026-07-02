@@ -1164,10 +1164,22 @@ struct DispatchRoute {
 fn dispatch_route(prompt: &str) -> DispatchRoute {
     let lower = prompt.to_lowercase();
     let has_any = |words: &[&str]| words.iter().any(|word| lower.contains(word));
+    let has_hunt_intent = lower.contains("排查")
+        || lower.contains("调试")
+        || lower.contains("修 bug")
+        || lower.contains("修bug")
+        || lower.contains("debug")
+        || lower.contains("bug")
+        || lower.contains("crash")
+        || lower.contains("error")
+        || lower.contains("fail")
+        || lower.contains("报错")
+        || lower.contains("崩溃")
+        || lower.contains("无法启动")
+        || lower.contains("不能运行")
+        || lower.contains("失败");
 
-    if has_any(&[
-        "报错", "崩溃", "异常", "排查", "debug", "bug", "crash", "error", "fail",
-    ]) {
+    if has_hunt_intent {
         return DispatchRoute {
             task_type: "排查调试",
             primary_intent: "排查根因",
@@ -1892,27 +1904,33 @@ fn cmd_start(name: &str, title: Option<&str>) -> anyhow::Result<()> {
     let tasks_dir = dijiang_dir.join("tasks");
     let now = chrono::Utc::now();
 
-    // Load existing task or create new one
+    // Load existing task or create new one. `start` activates session context;
+    // dispatch owns classification and phase selection for new work.
     match store::load_task(&tasks_dir, name) {
         Ok(mut task) => {
             // Update existing task
             let was_status = task.status.as_str().to_string();
-            task.status = TaskStatus::InProgress;
+            if matches!(task.status, TaskStatus::Archived) {
+                task.status = TaskStatus::Planning;
+            }
             task.started_at = task.started_at.take().or(Some(now.to_rfc3339()));
             store::save_task(&tasks_dir, &task)?;
             println!("  ✓ Task '{name}' updated");
-            println!("    Status: {was_status} → in_progress");
+            println!(
+                "    Status: {was_status} → {status}",
+                status = task.status.as_str()
+            );
         }
         Err(store::TaskError::NotFound(_)) => {
             // Create new task
             let display_title = title.unwrap_or(name);
             let mut task = store::create_task(name, display_title);
-            task.status = TaskStatus::InProgress;
+            task.status = TaskStatus::Planning;
             task.started_at = Some(now.to_rfc3339());
             store::save_task(&tasks_dir, &task)?;
             println!("  ✓ Task '{name}' created");
             println!("    Title: {display_title}");
-            println!("    Status: planning → in_progress");
+            println!("    Status: planning");
         }
         Err(e) => {
             eprintln!("Error accessing task: {e}");
