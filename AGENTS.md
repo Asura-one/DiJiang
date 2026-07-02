@@ -75,9 +75,8 @@ This project uses DiJiang for task management and workflow.
 | Category | Use |
 |----------|-----|
 | New task / unclear request | `dj-dispatch` |
-| Requirements alignment | `dj-grill` |
-| Planning docs | `dj-output` |
-| Feature implementation | `dj-implement` or `dj-tdd` |
+| Requirements alignment; vague feature/optimization or vague bug/fix requests | `dj-grill` |
+| Specific feature implementation with concrete object/scope | `dj-implement` or `dj-tdd` |
 | Bug / regression | `dj-hunt` |
 | Code review / quality gate | `dj-check` |
 | Lightweight read-only review | `dj-review` |
