@@ -580,6 +580,46 @@ fn run_git(project_root: &Path, args: &[&str]) -> anyhow::Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
+fn git_worktree_root(cwd: &Path) -> anyhow::Result<Option<PathBuf>> {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(cwd)
+        .output()?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if path.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(PathBuf::from(path)))
+    }
+}
+
+fn find_dijiang_dir_in_git_worktrees(project_root: &Path) -> anyhow::Result<Option<PathBuf>> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(project_root)
+        .output()?;
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "git worktree list failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        if let Some(path) = line.strip_prefix("worktree ") {
+            let candidate = PathBuf::from(path).join(".dijiang");
+            if candidate.is_dir() {
+                return Ok(Some(candidate));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
 fn git_current_branch(project_root: &Path) -> anyhow::Result<String> {
     run_git(project_root, &["branch", "--show-current"])
 }
@@ -904,12 +944,22 @@ fn perform_finish_integration(
 }
 
 fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
-    let dijiang_dir = require_dijiang_dir()?;
-    let project_root = dijiang_dir
-        .parent()
-        .ok_or_else(|| anyhow::anyhow!("Invalid .dijiang directory"))?;
+    let cwd = std::env::current_dir()?;
+    let project_root = git_worktree_root(&cwd)?.unwrap_or(cwd);
+    let local_dijiang_dir = project_root.join(".dijiang");
+    let uses_local_dijiang_state = local_dijiang_dir.is_dir();
+    let dijiang_dir = if uses_local_dijiang_state {
+        local_dijiang_dir
+    } else {
+        find_dijiang_dir_in_git_worktrees(&project_root)?
+            .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?
+    };
     let tasks_dir = dijiang_dir.join("tasks");
-    let active_task = store::read_active_task(&dijiang_dir)?;
+    let active_task = if uses_local_dijiang_state {
+        store::read_active_task(&dijiang_dir)?
+    } else {
+        None
+    };
     let task_before_archive = match active_task.as_deref() {
         Some(active_task) => match store::load_task(&tasks_dir, active_task) {
             Ok(task) => Some(task),
@@ -923,8 +973,8 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         None => None,
     };
     let (verification, docs_sync) =
-        ensure_finish_preconditions(project_root, task_before_archive.as_ref(), options)?;
-    let version_update = update_workspace_version(project_root, options.version_impact)?;
+        ensure_finish_preconditions(&project_root, task_before_archive.as_ref(), options)?;
+    let version_update = update_workspace_version(&project_root, options.version_impact)?;
     let developer = read_developer(&dijiang_dir)?;
     let (session_key, source) = current_session_key();
     let task_label = active_task.as_deref().unwrap_or("no-active-task");
@@ -963,7 +1013,7 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
 
     let commit = if options.commit {
         perform_finish_commit(
-            project_root,
+            &project_root,
             task_label,
             options.summary,
             options.commit_message,
@@ -973,7 +1023,7 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     };
 
     if options.push || options.integrate {
-        perform_finish_integration(project_root, options)?;
+        perform_finish_integration(&project_root, options)?;
     }
 
     if let Some(active_task) = active_task.as_deref() {

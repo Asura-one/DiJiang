@@ -66,14 +66,14 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 
 | 信号 | 任务类型 | 入口 skill |
 |------|---------|-----------|
-| 改代码、加功能、修 bug、重构 | 代码开发 | → 第二层分级 |
-| 报错、崩溃、异常、排查、debug | 排查调试 | → `dj-hunt` |
+| 改代码、加功能、重构 | 代码开发 | → 第二层分级；默认携带 Code Task TDD Contract |
+| 报错、崩溃、异常、排查、debug、回归、修 bug | 排查调试 | → `dj-hunt`，修复前保留 RED/Repro evidence |
 | UI 设计、页面布局、组件样式 | 设计 UI | → `dj-design` + `impeccable` |
 | 审计代码、安全扫描、代码体检 | 审计代码 | → `dj-audit` |
 | 写文档、PRD、润色、去 AI 味 | 写文档 | → `dj-write` / `dj-output` |
 | 记忆沉淀、记住这个、学习记录 | 记忆管理 | → `dijiang mem findings` / `dijiang mem learn` |
 | 调研、想法细化、读 URL、方案对比 | 调研对齐 | → `dj-grill` |
-| 写脚本、工具、自动化 | 脚本工具 | → `dj-script` |
+| 写脚本、工具、自动化 | 脚本工具 | → `dj-script`，涉及代码时携带 Code Task TDD Contract |
 | 搜索信息、查资料、看网页 | 搜索信息 | → `web-access` |
 | 测试驱动开发、先写测试 | 测试开发 | → `dj-tdd` |
 | 代码审查、合并前检查 | 代码审查 | → `dj-check` |
@@ -83,7 +83,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 
 ## 第二层：代码任务分级
 
-只有任务类型为"代码开发"时，才走这层分级：
+只有任务类型为"代码开发"时，才走这层分级。所有分级都必须遵守 **Code Task TDD Contract**：先写清 Behavior/Invariant、RED/Repro evidence、GREEN command、Regression scope、Exception，再实现或检查。
 
 ### S级（零碎）— 直接干
 
@@ -92,7 +92,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 - 影响范围 < 3 个文件
 - 不涉及架构、不需要调研、不需要设计
 
-路径：直接执行 → 完成
+路径：建立最小 RED/Repro 或明确 Exception → 直接执行 → 跑 GREEN command + regression scope → 完成
 
 ### M级（中等）— 快速确认后干
 
@@ -105,7 +105,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 - 一次性改完就能交付
 - 只涉及单一层面（只改数据/只改接口/只改前端/只改配置）
 
-路径：直接实现 → 完成
+路径：建立最小 RED/Repro 或明确 Exception → `dj-implement` → `dj-check` → 完成
 
 **M-phased（分阶段 M）**：
 - 需要分 2-3 步实现，每步需要验证
@@ -115,7 +115,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 
 **快速判断**：改动只涉及 1 层 → M-simple；涉及 2+ 层 → M-phased。
 
-**用户可覆盖**：用户说"走 TDD"→ 按 M-phased 走；用户说"不走 TDD"→ 按 M-simple 走。
+**用户可覆盖**：用户说"走 TDD"→ 按 M-phased 走；用户说"不走 TDD"→ 仍必须保留 Code Task TDD Contract，只允许把自动化测试降级为明确 Exception 和人工可复核检查。
 
 ### L级（完整）— 走完整流程
 
@@ -139,7 +139,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 用户说："排查这个 bug 并修复"
 ├── 主意图：排查 → dj-hunt
 ├── 次要意图：修复 → dj-implement
-└── 流程：dj-hunt（找到根因）→ dj-implement（修复）→ dj-check（验证）
+└── 流程：dj-hunt（找到根因 + RED/Repro evidence）→ dj-implement（修复到 GREEN）→ dj-check（验证 regression scope）
 
 用户说："调研这个库，然后做个 demo"
 ├── 主意图：调研 → dj-grill
@@ -171,8 +171,7 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 
 | 混合类型 | 入口 | 串联 |
 |---------|------|------|
-| 排查 + 修复 | `dj-hunt` | → `dj-implement` → `dj-check` |
-| 调研 + 实现 | `dj-grill` | → `dj-tdd` |
+| 排查 + 修复 | `dj-hunt` | → `dj-implement` → `dj-check`，全程保留 RED/Repro、GREEN、Regression evidence |
 | 审计 + 修复 | `dj-audit` | → `dj-implement` → `dj-check` |
 | 设计 + 实现 | `dj-design` | → `dj-implement` → `dj-check` |
 | 排查 + 记忆 | `dj-hunt` | → `dijiang mem findings` / `dijiang mem learn` |

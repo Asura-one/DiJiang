@@ -49,6 +49,11 @@ description: >
 需求来源：<PRD / issue / task / user request>
 基准引用：<main / HEAD / other>
 验证计划：<typecheck/test/lint/manual>
+Behavior/Invariant: <要保护或新增的行为命题，或 n/a>
+RED/Repro evidence: <修复/实现前失败信号，或 n/a + reason>
+GREEN command: <实现后通过的最小命令或检查>
+Regression scope: <引用点 / sibling paths / 相关和全量测试范围>
+Exception: <none，或无法自动化/纯机械变更/环境不可用原因>
 是否修改代码：no
 是否 commit/push/merge：no
 ```
@@ -75,6 +80,24 @@ git diff --cached
 ```
 
 缺失或偏离的功能 → 标记为 blocking，并在结论中写明需要实现或排障后续；不要在 `dj-check` 内自行切换 skill。
+
+### 2.4 Code Task TDD Contract
+
+编程 diff 必须有可审查的 TDD evidence。缺失证据时，`dj-check` 不能给通过结论，只能标记 blocking 或 `待澄清`。
+
+```text
+Behavior/Invariant: <目标行为或被保护不变量>
+RED/Repro evidence: <先失败的测试、复现命令、fixture、trace 或人工可复核步骤>
+GREEN command: <实现后通过的最小命令或检查>
+Regression scope: <相关测试、引用点、兄弟路径、全量测试范围>
+Exception: <none，或为什么本次不适用并用什么替代检查>
+```
+
+检查规则：
+- 新功能/行为变化：必须有 RED → GREEN 证据，或清楚的 Exception。
+- Bug 修复：必须有修复前 RED/Repro evidence；只描述根因但没有复现证据不足以通过。
+- 重构/迁移：必须列出被保护的不变量和 regression scope。
+- 纯文案、机械 rename、格式化或无法运行测试的场景，Exception 必须写具体替代检查和 residual risk。
 
 ### 2.5 回归检查（改A不坏B）
 
@@ -202,10 +225,13 @@ Minimum validation evidence:
 
 ```text
 Typecheck: <command or not run + reason> => <result>
+RED/Repro evidence: <command/checklist or n/a + reason> => <result>
+GREEN command: <command/checklist> => <result>
 Relevant tests: <command or not run + reason> => <result>
 Full tests: <command or not run + reason> => <result>
 Manual checks: <steps or n/a> => <result>
-```
+Regression scope: <reference checks/sibling paths/commands> => <result>
+Exception: <none or justified gap>
 
 所有未运行项必须写 `not run` 和原因，不能暗示通过。
 

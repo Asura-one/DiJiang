@@ -56,6 +56,28 @@ DiJiang 的默认交付循环是 `Plan → Verify → Work → Check → Compoun
 
 反馈回路必须能回答“这个目标是否已经达成”。如果只能说明“代码看起来合理”，它还不是验证。
 
+## Code Task TDD Contract
+
+所有会修改代码、行为、配置、模板或脚本的任务默认遵守 TDD 约束。TDD 在 DiJiang 中不是形式化地堆测试，而是先固定目标行为和回归边界，再实现最小改动。
+
+编程任务进入实现前必须写清：
+
+```text
+Behavior/Invariant: <要保护或新增的行为命题>
+RED/Repro evidence: <先失败的测试、复现命令、fixture、trace 或人工可复核步骤>
+GREEN command: <实现后必须变绿的最小命令或检查>
+Regression scope: <可能受影响的调用方、兄弟路径、全量/相关测试范围>
+Exception: <none，或无法自动化/纯机械变更/环境不可用的具体原因和替代检查>
+```
+
+规则：
+
+1. 新功能或行为变化优先走 `dj-tdd`：先 RED，再 GREEN，再 REFACTOR，再 RECORD。
+2. Bug 修复优先走 `dj-hunt`：先定位根因并保留 RED/Repro evidence，再修复到 GREEN。
+3. `dj-implement` 不绕过 TDD contract；它只在需求已清楚、反馈回路已定义时执行实现。
+4. `dj-check` 必须把 RED/Repro、GREEN、Regression、Exception 作为编程 diff 的交付门禁；缺失证据时不能给通过结论。
+5. `dijiang-finish-work` 的 verification 必须包含 TDD evidence，或说明本次变更为什么不适用。
+
 ## Git Worktree 生命周期
 
 所有会修改代码的工作，在修改任何文件前都必须使用隔离 worktree。主 checkout 保持纯净，只在任务分支完成后用于集成。

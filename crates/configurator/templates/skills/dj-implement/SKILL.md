@@ -30,7 +30,11 @@ Task: <task name>
 Source artifact: <PRD / design / issue / user request>
 Worktree: <path and branch>
 Expected files/modules: <scope>
-Validation plan: <typecheck/test/lint/manual>
+Behavior/Invariant: <要保护或新增的行为命题>
+RED/Repro evidence: <先失败的测试、复现命令、fixture、trace 或人工可复核步骤>
+GREEN command: <实现后必须变绿的最小命令或检查>
+Regression scope: <可能受影响的调用方、兄弟路径、全量/相关测试范围>
+Exception: <none，或无法自动化/纯机械变更/环境不可用的具体原因和替代检查>
 Will commit: no
 ```
 
@@ -45,6 +49,7 @@ Will commit: no
   ```
 - 主 checkout 必须保持纯净；所有代码修改只发生在任务 worktree。
 - 确认测试环境可用，或记录不可用原因。
+- 遵守 **Code Task TDD Contract**：所有代码、行为、配置、模板或脚本变更，先固定行为和回归边界，再实现。
 
 ### 2. 实现
 
@@ -53,11 +58,12 @@ Will commit: no
 Implementation order:
 
 1. Locate existing patterns and APIs before editing.
-2. For non-trivial design choices, derive the approach from first principles before coding.
-3. Add or adjust tests when the repo has an established test path.
-4. Implement the smallest behavior-complete change.
-5. Remove unused imports, dead branches introduced by this change, and temporary debug output.
-6. Re-read the touched area after edits to verify local consistency.
+2. Define the behavior/invariant and the smallest feedback loop before coding.
+3. Produce RED/Repro evidence first: a failing test, bug reproduction, fixture, trace, or manual checklist with expected output. If this is impossible, record `Exception` before coding.
+4. Implement the smallest behavior-complete change that turns the GREEN command green.
+5. Run the regression scope that can prove related behavior still holds.
+6. Remove unused imports, dead branches introduced by this change, and temporary debug output.
+7. Re-read the touched area after edits to verify local consistency.
 ### 2.1 第一性原理实现检查
 
 在实现复杂功能、修 bug、改架构边界或引入新抽象前，先打断类比式实现，回到事实推导：
@@ -80,14 +86,20 @@ Use this matrix:
 
 ```text
 Typecheck: <command or not applicable> => <result>
+RED/Repro evidence: <command/checklist => failed as expected, or Exception reason>
+GREEN command: <command/checklist => passed>
 Relevant tests: <command> => <result>
 Full tests: <command or not run + reason> => <result>
 Manual check: <input/action or n/a> => <result>
+Regression scope: <commands/reference checks/sibling paths => result>
 Regression risk: <low/medium/high + why>
+Exception: <none or justified gap>
 ```
 
 - 跑 typecheck。
-- 跑相关测试文件。
+- 跑 RED/Repro 对应的最小反馈回路，确认它在修复前能证明目标命题；若不能自动化，保留人工可复核证据。
+- 跑 GREEN command，确认实现后目标命题通过。
+- 跑相关测试文件和 regression scope。
 - 最后跑全量测试，除非项目规模或环境不可用；不可用时记录原因。
 - 有任何新失败 → 修好再交接。
 

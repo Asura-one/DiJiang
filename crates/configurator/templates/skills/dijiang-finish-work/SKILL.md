@@ -29,15 +29,14 @@ First actions, in order:
 5. Use `nothing-to-archive` only when there is no active task, no changed files, and no unpushed commits.
 6. If `nothing-to-archive`, output the Clean Status format below and stop. Do not print the pre-finish gate, do not ask for confirmation, and do not call `dijiang finish-work`.
 7. If blocking, stop with `blocking: <reason>` and the exact command or file that proves it.
-8. If ready or no-task, produce the pre-finish gate from step 2, including validation, docs-sync evidence, version decision, commit mode, and integration mode.
-
-Only call `dijiang finish-work ...` after the pre-finish gate is complete and the git scope is reviewed. If there is no active task, pass the same verification/docs/version/commit flags and expect task archive to be skipped. If validation, docs-sync evidence, version decision, or review scope is missing, stop instead of committing.
+8. If ready or no-task, produce the pre-finish gate from step 2, including validation, TDD evidence for code work, docs-sync evidence, version decision, commit mode, integration mode, and Worktree residue decision.
+Only call `dijiang finish-work ...` after the pre-finish gate is complete and the git scope is reviewed. If there is no active task, pass the same verification/docs/version/commit flags and expect task archive to be skipped. If validation, docs-sync evidence, version decision, review scope, or Worktree residue decision is missing, stop instead of committing.
 ## 输入 / 输出
 
 | 项目 | 约定 |
 |---|---|
 | 输入 | Verified diff, task status, validation output, docs/spec sync evidence, version decision, and reviewed paths |
-| 输出 | Completed task, scoped commit when requested, archived memory/session, and push/merge/worktree cleanup when explicitly requested |
+| 输出 | Completed task, scoped commit when requested, archived memory/session, and push/merge/worktree cleanup. Task worktrees must not remain after finish-work unless the gate records a blocker or explicit retention reason. |
 | 非目标 | Do not fix new bugs, broaden scope, or include unrelated files during finish work |
 
 ## Steps
@@ -59,7 +58,9 @@ git log --oneline @{u}..HEAD
 
 If code or behavior changed, run the relevant test, typecheck, lint, or `dj-check` before finishing. A failed check blocks finish-work unless the blocker is recorded and the task is intentionally left unfinished.
 
-Required output: active task state, changed files, unpushed commits, validation commands, pass/fail result, and unverified areas.
+Code or behavior changes must include **Code Task TDD Contract** evidence in validation output: RED/Repro evidence, GREEN command, Regression scope, and Exception. Pure docs, prose, formatting-only, or no-code changes may set these fields to `n/a` with a reason.
+
+Required output: active task state, changed files, unpushed commits, validation commands, TDD evidence, pass/fail result, and unverified areas.
 
 ### Clean Status Output
 
@@ -86,14 +87,19 @@ Task: <name or none; mode: dijiang-finish / no-task-finish / nothing-to-archive>
 Branch/worktree: <branch> / <path>
 Changed files: <paths>
 Validation: <commands => result>
+RED/Repro evidence: <command/checklist or n/a + reason>
+GREEN command: <command/checklist => result>
+Regression scope: <commands/reference checks/sibling paths => result>
+Exception: <none or justified gap>
 Docs/spec sync: <updated / none / skipped; reason=...>
 Version decision: <major|minor|patch|none; reason=...>
 Memory: <written / skipped; reason=...>
 Commit mode: <--commit yes/no; reason=...>
 Integration mode: <--push/--integrate yes/no; reason=...>
+Worktree residue: <none expected via --integrate / retained; reason=... / n/a main checkout or clean state>
 ```
 
-🛑 STOP if validation is missing, docs/spec sync evidence is missing for changed work, memory decision is missing, the current directory is the main checkout for integration, changed files include unrelated work, or the version decision is unclear.
+🛑 STOP if validation is missing, TDD evidence is missing for changed code/behavior/templates/scripts, docs/spec sync evidence is missing for changed work, memory decision is missing, the current directory is the main checkout for integration, changed files include unrelated work, the version decision is unclear, or Worktree residue is not decided.
 
 ### 3. Confirm Git Isolation
 
@@ -133,7 +139,7 @@ Use CLI automation only after the scope has been reviewed:
 
 ```bash
 dijiang finish-work \
-  --verification "<commands or manual checks>" \
+  --verification "RED/Repro evidence: <...>; GREEN command: <...>; Regression scope: <...>; Exception: <none or reason>; commands: <...>" \
   --docs-sync "<updated docs/spec or none: reason>" \
   --version-impact <major|minor|patch|none> \
   --commit \
@@ -160,7 +166,9 @@ dijiang finish-work \
   --remote origin
 ```
 
-`--push` pushes the task branch. `--integrate` merges the task branch into the main branch worktree with `--no-ff`, removes the task worktree, and deletes the merged branch. If credentials, remote policy, CI, conflicts, or user permission block integration, stop integration, report the blocker, and preserve the branch and worktree.
+`--push` pushes the task branch. `--integrate` merges the task branch into the main branch worktree with `--no-ff`, removes the task worktree, and deletes the merged branch. For task worktrees, 默认使用 `--integrate` so finish-work leaves no residual task worktree. If credentials, remote policy, CI, conflicts, or user permission block integration, stop integration, report the blocker, and preserve the branch and worktree with an explicit Worktree residue reason.
+
+After any finish-work that commits, run a 残留 worktree 检查 with `git worktree list`. The final report must state whether the task worktree was removed or intentionally retained.
 
 ### 8. Close DiJiang State
 
@@ -182,7 +190,7 @@ Skip durable memory when the finding lacks future actionability.
 | Diff contains unrelated files | Stage only reviewed paths | Split unrelated files into another task |
 | Version decision unclear | Re-read task scope and package metadata | Use `none` only when no publishable behavior changed |
 | Commit fails | Show `git status` and staged diff | Unstage, fix scope, and retry once |
-| Push/merge blocked | Preserve branch/worktree and report exact blocker | Leave integration for user or CI owner |
+| Push/merge blocked | Preserve branch/worktree and report exact blocker plus Worktree residue reason | Leave integration for user or CI owner |
 | Memory quality gate fails | Keep note in task artifact | Do not write durable memory |
 
 ## Anti-patterns
@@ -192,6 +200,6 @@ Skip durable memory when the finding lacks future actionability.
 | Do not commit from the main checkout | Finish only from the task worktree |
 | Do not stage `git add .` blindly | Stage reviewed paths or hunks |
 | Do not hide failed validation in the final message | Report the command and failure |
-| Do not push or merge without permission, credentials, and clean scope | Preserve branch/worktree and report blocker |
+| Do not push or merge without permission, credentials, and clean scope | Preserve branch/worktree and report blocker plus explicit Worktree residue reason |
 | Do not write vague memory such as "fixed bug" | Write source-scoped, verified, actionable findings |
 | Do not close a task with unrelated dirty files | Split or clean scope first |

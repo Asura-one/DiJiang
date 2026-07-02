@@ -83,6 +83,27 @@ struct RuntimeSessionRecord {
     last_seen_at: String,
     closed_task: Option<String>,
 }
+enum ActiveTaskState {
+    Present(TaskRecord),
+    Missing(String),
+    None,
+}
+
+impl ActiveTaskState {
+    fn task(&self) -> Option<&TaskRecord> {
+        match self {
+            Self::Present(task) => Some(task),
+            Self::Missing(_) | Self::None => None,
+        }
+    }
+
+    fn missing_name(&self) -> Option<&str> {
+        match self {
+            Self::Missing(name) => Some(name),
+            Self::Present(_) | Self::None => None,
+        }
+    }
+}
 
 impl WorkflowState {
     pub fn additional_context(&self) -> String {
@@ -134,24 +155,33 @@ pub fn build_for_session(
         key: identity.key().to_string(),
         source: identity.source().to_string(),
     });
-    let active_task_name = store::read_active_task_for_session(dijiang_dir, identity)?;
-    let task = match active_task_name {
-        Some(active_task_name) => Some(store::load_task(
-            &dijiang_dir.join("tasks"),
-            &active_task_name,
-        )?),
-        None => None,
+    let active_task_state = match store::read_active_task_for_session(dijiang_dir, identity)? {
+        Some(active_task_name) => {
+            match store::load_task(&dijiang_dir.join("tasks"), &active_task_name) {
+                Ok(task) => ActiveTaskState::Present(task),
+                Err(TaskError::NotFound(_)) => ActiveTaskState::Missing(active_task_name),
+                Err(error) => return Err(error),
+            }
+        }
+        None => ActiveTaskState::None,
     };
-    let runtime = record_runtime_injection(dijiang_dir, identity, task.as_ref())?;
+    let task = active_task_state.task();
+    let runtime = record_runtime_injection(dijiang_dir, identity, task)?;
     let memory = load_recent_memory(dijiang_dir, &runtime.journal_path, 5);
     let peers = load_peer_sessions(dijiang_dir, identity, 8)?;
 
     let Some(task) = task else {
+        let guidance = match active_task_state.missing_name() {
+            Some(missing) => format!(
+                "active task `{missing}` 指向缺失的 `.dijiang/tasks/{missing}/task.json`，task state 已陈旧。按 dj-hunt 排查；用 `dijiang task current` / `dijiang task list` 对比状态，确认后运行 `dijiang start <name>` 恢复有效任务，或清理 stale active task。"
+            ),
+            None => "run `dijiang start <name>` or read `.dijiang/workflow.md` before coding."
+                .to_string(),
+        };
         return Ok(WorkflowState {
             session,
             active_task: None,
-            guidance: "run `dijiang start <name>` or read `.dijiang/workflow.md` before coding."
-                .to_string(),
+            guidance,
             runtime,
             memory,
             peers,
@@ -593,5 +623,41 @@ mod tests {
         assert!(journal_a.contains("workflow_state_injected"));
         assert!(journal_a.contains("\"title\":\"Task A\""));
         assert!(journal_a.contains("\"injection_count\":2"));
+    }
+
+    #[test]
+    fn builds_recoverable_context_for_stale_active_task_pointer() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(&dijiang_dir).unwrap();
+        std::fs::write(
+            dijiang_dir.join("config.toml"),
+            "[project]\ndeveloper = \"tester\"\n",
+        )
+        .unwrap();
+
+        let window = store::SessionIdentity::new("dijiang", "stale-window").unwrap();
+        store::write_active_task_for_session(&dijiang_dir, "missing-task", Some(&window)).unwrap();
+
+        let state = build_for_session(&dijiang_dir, Some(&window)).unwrap();
+        let context = state.additional_context();
+
+        assert!(state.active_task.is_none());
+        assert!(context.contains("Session: dijiang_stale-window (dijiang)"));
+        assert!(context.contains("Active task: none"));
+        assert!(context.contains("missing-task"));
+        assert!(context.contains("task state 已陈旧"));
+        assert!(context.contains("dj-hunt"));
+
+        let session_runtime = std::fs::read_to_string(
+            dijiang_dir.join(".runtime/sessions/dijiang_stale-window.json"),
+        )
+        .unwrap();
+        assert!(session_runtime.contains("\"current_task\": null"));
+        assert!(session_runtime.contains("\"last_active_task\": null"));
+
+        let log = std::fs::read_to_string(dijiang_dir.join(".runtime/workflow-state.log")).unwrap();
+        assert!(log.contains("workflow_state_injected"));
+        assert!(log.contains("\"active_task\":null"));
     }
 }
