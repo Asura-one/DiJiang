@@ -1161,6 +1161,14 @@ struct DispatchRoute {
     status: TaskStatus,
 }
 
+#[derive(Debug, Clone)]
+struct WorktreeDecision {
+    branch: String,
+    path: PathBuf,
+    created: bool,
+    note: Option<String>,
+}
+
 fn strip_embedded_context(prompt: &str) -> String {
     let mut output = String::with_capacity(prompt.len());
     let mut rest = prompt;
@@ -1486,14 +1494,154 @@ fn unique_task_name(tasks_dir: &Path, base: &str) -> String {
     format!("{base}-{}", chrono::Utc::now().timestamp())
 }
 
+fn route_requires_worktree(route: &DispatchRoute) -> bool {
+    matches!(
+        route.skill,
+        "dj-implement" | "dj-hunt" | "dj-tdd" | "dj-script" | "dj-design"
+    )
+}
+
+fn branch_prefix(route: &DispatchRoute) -> &'static str {
+    match route.skill {
+        "dj-hunt" => "fix",
+        "dj-tdd" => "test",
+        "dj-script" => "chore",
+        _ => "feat",
+    }
+}
+
+fn git_has_head(project_root: &Path) -> anyhow::Result<bool> {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--verify", "HEAD"])
+        .current_dir(project_root)
+        .output()?;
+    Ok(output.status.success())
+}
+
+fn unique_git_branch(project_root: &Path, base: &str) -> anyhow::Result<String> {
+    for index in 0..1000 {
+        let candidate = if index == 0 {
+            base.to_string()
+        } else {
+            format!("{base}-{index}")
+        };
+        let output = std::process::Command::new("git")
+            .args(["show-ref", "--verify", &format!("refs/heads/{candidate}")])
+            .current_dir(project_root)
+            .output()?;
+        if !output.status.success() {
+            return Ok(candidate);
+        }
+    }
+    anyhow::bail!("无法为任务 worktree 生成唯一分支名：{base}")
+}
+
+fn unique_worktree_path(project_root: &Path, task_name: &str) -> PathBuf {
+    let repo_name = project_root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("repo");
+    let parent = project_root.parent().unwrap_or(project_root);
+    for index in 0..1000 {
+        let suffix = if index == 0 {
+            String::new()
+        } else {
+            format!("-{index}")
+        };
+        let candidate = parent.join(format!("{repo_name}-{task_name}{suffix}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    parent.join(format!(
+        "{repo_name}-{task_name}-{}",
+        chrono::Utc::now().timestamp()
+    ))
+}
+
+fn ensure_task_worktree(
+    project_root: &Path,
+    tasks_dir: &Path,
+    task: &mut TaskRecord,
+    route: &DispatchRoute,
+) -> anyhow::Result<Option<WorktreeDecision>> {
+    if !route_requires_worktree(route) {
+        return Ok(None);
+    }
+
+    if let (Some(branch), Some(path)) = (&task.branch, &task.worktree_path) {
+        return Ok(Some(WorktreeDecision {
+            branch: branch.clone(),
+            path: PathBuf::from(path),
+            created: false,
+            note: None,
+        }));
+    }
+
+    if !git_has_head(project_root)? {
+        return Ok(Some(WorktreeDecision {
+            branch: String::new(),
+            path: PathBuf::new(),
+            created: false,
+            note: Some("当前 git 仓库还没有提交，无法创建任务 worktree；请先建立基线提交。".to_string()),
+        }));
+    }
+
+    let base_branch = git_current_branch(project_root).unwrap_or_else(|_| "HEAD".to_string());
+    let branch_base = format!("{}/{}", branch_prefix(route), task.name);
+    let branch = unique_git_branch(project_root, &branch_base)?;
+    let path = unique_worktree_path(project_root, &task.name);
+    let path_string = path.display().to_string();
+    run_git(
+        project_root,
+        &["worktree", "add", &path_string, "-b", &branch, &base_branch],
+    )?;
+
+    task.branch = Some(branch.clone());
+    task.base_branch = Some(base_branch);
+    task.worktree_path = Some(path_string);
+    store::save_task(tasks_dir, task)?;
+
+    Ok(Some(WorktreeDecision {
+        branch,
+        path,
+        created: true,
+        note: None,
+    }))
+}
+
 fn dispatch_context(
     task_name: &str,
     title: &str,
     route: &DispatchRoute,
     state_context: &str,
+    worktree: Option<&WorktreeDecision>,
 ) -> String {
+    let worktree_line = match worktree {
+        Some(decision) if decision.created => format!(
+            "Git 工作流：已创建任务 worktree `{}`，分支 `{}`。\n下一步：切换到该 worktree，读取 `.dijiang/tasks/{task_name}/task.json`，然后按 {skill} 执行。",
+            decision.path.display(),
+            decision.branch,
+            skill = route.skill,
+        ),
+        Some(decision) if !decision.branch.is_empty() => format!(
+            "Git 工作流：复用任务 worktree `{}`，分支 `{}`。\n下一步：切换到该 worktree，读取 `.dijiang/tasks/{task_name}/task.json`，然后按 {skill} 执行。",
+            decision.path.display(),
+            decision.branch,
+            skill = route.skill,
+        ),
+        Some(decision) => format!(
+            "Git 工作流：未创建 worktree，原因：{}\n下一步：先处理 Git 基线，再按 {skill} 执行。",
+            decision.note.as_deref().unwrap_or("未知"),
+            skill = route.skill,
+        ),
+        None => format!(
+            "Git 工作流：当前路线不需要立即创建代码 worktree。\n下一步：读取 `.dijiang/tasks/{task_name}/task.json`，然后按 {skill} 执行。",
+            skill = route.skill,
+        ),
+    };
     format!(
-        "<dijiang-dispatch>\nTask created: {task_name}\nTitle: {title}\nTask type: {task_type}\nPrimary intent: {primary_intent}\nRoute: {skill}\nRecommended path: {recommended_path}\nNext: follow {skill}; load .dijiang/tasks/{task_name}/task.json before acting.\n</dijiang-dispatch>\n{state_context}",
+        "<dijiang-dispatch>\n任务：{task_name}\n标题：{title}\n任务类型：{task_type}\n主要意图：{primary_intent}\n路线：{skill}\n推荐路径：{recommended_path}\n{worktree_line}\n</dijiang-dispatch>\n{state_context}",
         task_type = route.task_type,
         primary_intent = route.primary_intent,
         skill = route.skill,
@@ -1513,15 +1661,22 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
 
     if !force_new {
         if let Some(active) = store::read_active_task(&dijiang_dir)? {
-            let task = store::load_task(&tasks_dir, &active)?;
+            let mut task = store::load_task(&tasks_dir, &active)?;
             let route = if matches!(hook_event, "session:start" | "session_start") {
                 dispatch_route_for_active_task(&task)
             } else {
                 dispatch_route(prompt)
             };
+            let project_root = dijiang_dir.parent().unwrap_or(&dijiang_dir);
+            let worktree = ensure_task_worktree(project_root, &tasks_dir, &mut task, &route)?;
             let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
-            let context =
-                dispatch_context(&active, &task.title, &route, &state.additional_context());
+            let context = dispatch_context(
+                &active,
+                &task.title,
+                &route,
+                &state.additional_context(),
+                worktree.as_ref(),
+            );
             if json {
                 let payload = serde_json::json!({
                     "hookEventName": hook_event,
@@ -1555,9 +1710,17 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
     });
     store::save_task(&tasks_dir, &task)?;
     store::write_active_task(&dijiang_dir, &task_name)?;
+    let project_root = dijiang_dir.parent().unwrap_or(&dijiang_dir);
+    let worktree = ensure_task_worktree(project_root, &tasks_dir, &mut task, &route)?;
 
     let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
-    let context = dispatch_context(&task_name, &title, &route, &state.additional_context());
+    let context = dispatch_context(
+        &task_name,
+        &title,
+        &route,
+        &state.additional_context(),
+        worktree.as_ref(),
+    );
     if json {
         let payload = serde_json::json!({
             "hookEventName": hook_event,
