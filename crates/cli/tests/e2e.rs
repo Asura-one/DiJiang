@@ -467,8 +467,8 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
     assert!(finish_out.contains("已完成任务 'finish-e2e'"));
     assert!(finish_out.contains("当前 session 的 active task 已清理"));
     assert!(finish_out.contains("验证：cargo test -p dijiang-task"));
+    assert!(finish_out.contains("Memory closure：written"));
     assert!(finish_out.contains("Session 已关闭："));
-
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("(none)"), "current output: {current}");
 
@@ -493,6 +493,20 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
     assert!(journal.contains("finish-e2e"));
     assert!(journal.contains("implemented finish-work flow"));
     assert!(journal.contains("cargo test -p dijiang-task"));
+
+    let closures = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("memory")
+            .join("sessions.jsonl"),
+    )
+    .unwrap();
+    assert!(closures.contains("finish-e2e"), "closures: {closures}");
+    assert!(
+        closures.contains("cargo test -p dijiang-task"),
+        "closures: {closures}"
+    );
+    assert!(closures.contains("verified"), "closures: {closures}");
 }
 
 #[test]
@@ -545,6 +559,16 @@ fn test_e2e_finish_work_allows_missing_active_task() {
     .unwrap();
     assert!(journal.contains("no-active-task"));
     assert!(journal.contains("completed-no-task"));
+
+    let closures = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("memory")
+            .join("sessions.jsonl"),
+    )
+    .unwrap();
+    assert!(closures.contains("no-active-task"), "closures: {closures}");
+    assert!(closures.contains("manual check"), "closures: {closures}");
 
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("(none)"), "current output: {current}");
@@ -1244,23 +1268,81 @@ fn test_e2e_execute_all_no_active() {
 fn test_e2e_mem_record_and_findings() {
     let (_tmp, project_dir) = init_project();
 
-    // Record learning
     let out = dijang(&["mem", "learn", "--lesson", "test-learning"], &project_dir);
     assert!(out.is_ok(), "mem learn should succeed: {:?}", out.err());
 
-    // Record finding
     let out = dijang(
         &["mem", "findings", "--finding", "Found something important"],
         &project_dir,
     );
     assert!(out.is_ok(), "mem findings should succeed: {:?}", out.err());
 
-    // List sessions
+    let memory_dir = project_dir.join(".dijiang").join("memory");
+    let learnings = std::fs::read_to_string(memory_dir.join("learnings.jsonl")).unwrap();
+    assert!(
+        learnings.contains("test-learning"),
+        "learnings: {learnings}"
+    );
+    let findings = std::fs::read_to_string(memory_dir.join("findings.jsonl")).unwrap();
+    assert!(
+        findings.contains("Found something important"),
+        "findings: {findings}"
+    );
+
+    let stats = dijang(&["mem", "stats"], &project_dir).unwrap();
+    assert!(stats.contains("Findings: 1"), "stats: {stats}");
+    assert!(stats.contains("Learnings: 1"), "stats: {stats}");
+    assert!(stats.contains("Corrections: 0"), "stats: {stats}");
+
     let out = dijang(&["mem", "list"], &project_dir);
     assert!(out.is_ok(), "mem list should succeed: {:?}", out.err());
     let stdout = out.unwrap();
-    // Should show something (sessions or empty message)
     assert!(!stdout.is_empty(), "should have some output");
+}
+
+#[test]
+fn test_e2e_mem_correction_writes_structured_record() {
+    let (_tmp, project_dir) = init_project();
+
+    let out = dijang(
+        &[
+            "mem",
+            "correction",
+            "--correction",
+            "missed full mem scope",
+            "--lesson",
+            "include all existing mem commands",
+            "--scope",
+            "workflow",
+            "--actionability",
+            "future implementation must preserve all mem subcommands",
+        ],
+        &project_dir,
+    );
+    assert!(
+        out.is_ok(),
+        "mem correction should succeed: {:?}",
+        out.err()
+    );
+
+    let corrections = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("memory")
+            .join("corrections.jsonl"),
+    )
+    .unwrap();
+    assert!(
+        corrections.contains("missed full mem scope"),
+        "corrections: {corrections}"
+    );
+    assert!(
+        corrections.contains("user-confirmed"),
+        "corrections: {corrections}"
+    );
+
+    let stats = dijang(&["mem", "stats"], &project_dir).unwrap();
+    assert!(stats.contains("Corrections: 1"), "stats: {stats}");
 }
 
 #[test]

@@ -164,7 +164,13 @@ impl GlobalMemory {
         let backup_dir = self.backup_dir(project);
         fs::create_dir_all(&backup_dir)?;
 
-        for name in &["findings.jsonl", "learnings.jsonl", "patterns.jsonl"] {
+        for name in &[
+            "sessions.jsonl",
+            "findings.jsonl",
+            "learnings.jsonl",
+            "corrections.jsonl",
+            "patterns.jsonl",
+        ] {
             let src = project_memory.root.join(name);
             if src.exists() {
                 fs::copy(&src, backup_dir.join(name))?;
@@ -195,9 +201,23 @@ impl GlobalMemory {
 
 impl ProjectMemory {
     pub fn new(project_dir: &Path) -> Result<Self> {
+        Self::from_project_root(project_dir)
+    }
+
+    pub fn from_project_root(project_dir: &Path) -> Result<Self> {
         let root = project_dir.join(".dijiang").join("memory");
         fs::create_dir_all(&root)?;
         Ok(Self { root })
+    }
+
+    pub fn from_dijiang_dir(dijiang_dir: &Path) -> Result<Self> {
+        let root = dijiang_dir.join("memory");
+        fs::create_dir_all(&root)?;
+        Ok(Self { root })
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
     }
 
     pub fn new_at(root: &Path) -> Result<Self> {
@@ -209,83 +229,71 @@ impl ProjectMemory {
 
     // ─── L2: Episodic Memory ──────────────────────────────────
 
-    pub fn append_finding(&self, finding: &Finding) -> Result<()> {
-        let path = self.root.join("findings.jsonl");
+    fn append_jsonl<T: serde::Serialize>(&self, name: &str, value: &T) -> Result<()> {
+        let path = self.root.join(name);
         let mut file = fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(&path)?;
-        serde_json::to_writer(&mut file, finding)?;
+        serde_json::to_writer(&mut file, value)?;
         writeln!(file)?;
         Ok(())
+    }
+
+    fn load_jsonl<T: for<'de> serde::Deserialize<'de>>(&self, name: &str) -> Result<Vec<T>> {
+        let path = self.root.join(name);
+        if !path.exists() {
+            return Ok(vec![]);
+        }
+        let data = fs::read_to_string(&path)?;
+        let mut results = Vec::new();
+        for line in data.lines() {
+            if !line.is_empty() {
+                results.push(serde_json::from_str::<T>(line)?);
+            }
+        }
+        Ok(results)
+    }
+
+    pub fn append_session_closure(&self, closure: &SessionClosure) -> Result<()> {
+        self.append_jsonl("sessions.jsonl", closure)
+    }
+
+    pub fn load_session_closures(&self) -> Result<Vec<SessionClosure>> {
+        self.load_jsonl("sessions.jsonl")
+    }
+
+    pub fn append_finding(&self, finding: &Finding) -> Result<()> {
+        self.append_jsonl("findings.jsonl", finding)
     }
 
     pub fn append_learning(&self, learning: &Learning) -> Result<()> {
-        let path = self.root.join("learnings.jsonl");
-        let mut file = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)?;
-        serde_json::to_writer(&mut file, learning)?;
-        writeln!(file)?;
-        Ok(())
+        self.append_jsonl("learnings.jsonl", learning)
+    }
+
+    pub fn append_correction(&self, correction: &Correction) -> Result<()> {
+        self.append_jsonl("corrections.jsonl", correction)
+    }
+
+    pub fn load_corrections(&self) -> Result<Vec<Correction>> {
+        self.load_jsonl("corrections.jsonl")
     }
 
     pub fn load_findings(&self) -> Result<Vec<Finding>> {
-        let path = self.root.join("findings.jsonl");
-        if !path.exists() {
-            return Ok(vec![]);
-        }
-        let data = fs::read_to_string(&path)?;
-        let mut results = Vec::new();
-        for line in data.lines() {
-            if !line.is_empty() {
-                results.push(serde_json::from_str::<Finding>(line)?);
-            }
-        }
-        Ok(results)
+        self.load_jsonl("findings.jsonl")
     }
 
     pub fn load_learnings(&self) -> Result<Vec<Learning>> {
-        let path = self.root.join("learnings.jsonl");
-        if !path.exists() {
-            return Ok(vec![]);
-        }
-        let data = fs::read_to_string(&path)?;
-        let mut results = Vec::new();
-        for line in data.lines() {
-            if !line.is_empty() {
-                results.push(serde_json::from_str::<Learning>(line)?);
-            }
-        }
-        Ok(results)
+        self.load_jsonl("learnings.jsonl")
     }
 
     // ─── L4: Procedural Memory ────────────────────────────────
 
     pub fn add_pattern(&self, pattern: &Pattern) -> Result<()> {
-        let path = self.root.join("patterns.jsonl");
-        let mut file = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)?;
-        serde_json::to_writer(&mut file, pattern)?;
-        writeln!(file)?;
-        Ok(())
+        self.append_jsonl("patterns.jsonl", pattern)
     }
 
     pub fn load_patterns(&self) -> Result<Vec<Pattern>> {
-        let path = self.root.join("patterns.jsonl");
-        if !path.exists() {
-            return Ok(vec![]);
-        }
-        let data = fs::read_to_string(&path)?;
-        let mut results = Vec::new();
-        for line in data.lines() {
-            if !line.is_empty() {
-                results.push(serde_json::from_str::<Pattern>(line)?);
-            }
-        }
-        Ok(results)
+        self.load_jsonl("patterns.jsonl")
     }
 }

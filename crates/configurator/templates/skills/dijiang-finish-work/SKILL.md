@@ -131,7 +131,7 @@ The gate must state the docs/spec decision with a reason: `updated; reason=<file
 
 The gate must state the version decision with a reason. Use `none; reason=no publishable behavior change` for internal/docs/test/workflow changes, or `none; reason=no changed files` for clean state.
 
-The gate must state the memory decision with a reason. Use `written; reason=<finding>` only for verified, reusable project knowledge. Use `skipped; reason=no new verified, reusable finding` when the work has no durable lesson. Memory entries must pass source, scope, confidence, freshness, conflict, and actionability checks; if they do not pass, keep them in task notes.
+The gate must state the memory decision with a reason. Successful `dijiang finish-work` writes a session closure memory record by default; report this separately from durable memory. Use `Memory closure: written; reason=finish-work default` for successful closure. Use `Durable memory: written; reason=<finding|lesson|correction>` only for verified, reusable project knowledge. Use `Durable memory: skipped; reason=no new verified, reusable finding` when the work has no durable lesson. User corrections that should change future behavior must be recorded with `dijiang mem correction` and must pass source, scope, confidence, freshness, conflict, and actionability checks; if they do not pass, keep them in task notes.
 
 ### 6. Commit Reviewed Scope
 

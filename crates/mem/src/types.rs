@@ -95,6 +95,37 @@ pub struct Finding {
     pub project: Option<String>,
 }
 
+/// A session closure written when work finishes successfully.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionClosure {
+    pub timestamp: String,
+    pub session_key: String,
+    pub source: String,
+    pub task: String,
+    pub summary: String,
+    pub verification: String,
+    pub docs_sync: String,
+    pub version_impact: String,
+    pub status: String,
+    pub confidence: String,
+}
+
+/// A user correction that should change future agent behavior.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Correction {
+    pub timestamp: String,
+    pub session_key: Option<String>,
+    pub task: Option<String>,
+    pub source: String,
+    pub correction: String,
+    pub lesson: String,
+    pub scope: String,
+    pub confidence: String,
+    pub freshness: String,
+    pub conflict: String,
+    pub actionability: String,
+}
+
 /// A lesson learned during a session.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Learning {
@@ -185,6 +216,7 @@ pub struct Pattern {
 pub struct MemoryStats {
     pub total_findings: u64,
     pub total_learnings: u64,
+    pub total_corrections: u64,
     pub total_tactics: u64,
     pub total_patterns: u64,
     pub total_sessions: u64,
