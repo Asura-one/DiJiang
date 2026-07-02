@@ -390,6 +390,43 @@ fn test_e2e_dispatch_creates_task_from_natural_language() {
 }
 
 #[test]
+fn test_e2e_dispatch_discussion_of_exception_states_does_not_route_to_hunt() {
+    let (_tmp, project_dir) = init_project();
+
+    let out = dijang(
+        &[
+            "dispatch",
+            "解释一下这些异常情况为什么全部走 hunt",
+            "--force-new",
+        ],
+        &project_dir,
+    )
+    .unwrap();
+
+    assert!(out.contains("Route: dj-grill"), "dispatch output: {out}");
+    assert!(!out.contains("Route: dj-hunt"), "dispatch output: {out}");
+}
+#[test]
+fn test_e2e_start_keeps_new_task_in_planning_for_dispatch() {
+    let (_tmp, project_dir) = init_project();
+
+    let out = dijang(&["start", "new-session", "New Session"], &project_dir).unwrap();
+
+    assert!(out.contains("Status: planning"), "start output: {out}");
+    assert!(out.contains("State:  planning"), "start output: {out}");
+    assert!(out.contains("Phase:  plan"), "start output: {out}");
+
+    let task_json = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("tasks")
+            .join("new-session")
+            .join("task.json"),
+    )
+    .unwrap();
+    assert!(task_json.contains(r#""status": "planning""#));
+}
+#[test]
 fn test_e2e_dispatch_reuses_active_task_by_default() {
     let (_tmp, project_dir) = init_project();
 

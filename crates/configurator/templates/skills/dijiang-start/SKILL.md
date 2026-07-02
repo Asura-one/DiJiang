@@ -63,32 +63,25 @@ dijiang mem findings --finding "<initial task description; source=user; scope=cu
 
 If memory commands fail, continue without writing memory and mention the failure in the handoff. Do not block session startup on memory persistence.
 
-### 5. Select dj-dispatch Route
+### 5. Hand Off to dj-dispatch
 
-Use `dj-dispatch` classification rules to identify the appropriate `dj-*` route for the user's request.
+Do not classify the request inside `dijiang-start`. Startup only loads context; task classification and level selection must be delegated to `dj-dispatch`, which is the single routing authority.
 
-| Request type | Routes to |
-|---|---|
-| New feature / unclear requirements | `dj-grill` |
-| Feature implementation | `dj-implement` or `dj-tdd` |
-| Bug / regression / crash | `dj-hunt` |
-| Code review / quality check | `dj-check` |
-| Documentation / PRD / design | `dj-output` |
-| Refactoring / code quality | `dj-ponytail` |
-| Prototype / spike | `dj-prototype` |
-| Tech debt tracking | `dj-debt` |
-| UI design | `dj-design` |
-| Script / tooling | `dj-script` |
+```bash
+dijiang dispatch "<user request>" --json --hook-event session:start
+```
 
-Output: one route, one next action, and the task artifacts that the routed skill must read.
+When there is already an active task, read its `task.json` and the workflow-state output before deciding whether this is a continuation or a conflicting new request. Use the `dj-dispatch` session-start rules for that decision.
+
+Only route directly to `dj-hunt` when project state is unsafe to interpret. Unsafe states are limited to missing/stale active task pointers, missing or unreadable `task.json`, invalid task status, or direct conflict between workflow-state and `task.json` about the active task or status. Missing optional artifacts such as `prd.md`, `design.md`, `implement.md`, or check notes is not a hunt trigger; mark them as absent and continue through `dj-dispatch` or the status-based route. Do not treat every `in_progress` task as a hunt task.
 
 ## Failure Handling
 
 | Trigger | First action | Fallback |
 |---|---|---|
 | `dijiang status` fails | Confirm repository root and `.dijiang/` presence | Stop and ask for project initialization or correct working directory |
-| No active task exists | Route the user request through `dj-dispatch` | Create a task only through DiJiang start/dispatch flow |
-| Active task exists but artifacts are missing | Read `task.json` and list present files | Mark missing artifacts explicitly before routing |
+| No active task exists | Route the user request through `dj-dispatch` | Create a task only through DiJiang dispatch/start flow |
+| Active task exists but artifacts are missing | Read `task.json` and list present files | Route to `dj-hunt` only when `task.json` is missing/unreadable or status is invalid; optional docs may be absent |
 | Workflow state conflicts with task status | Prefer `.dijiang/tasks/<task>/task.json` as source of truth | Record conflict and output `follow-up: dj-hunt` if execution would be unsafe |
 | Git tree is dirty before work starts | Report dirty files and keep them out of the new task scope | Use a dedicated worktree before implementation |
 
@@ -110,8 +103,8 @@ Next action: <one sentence>
 
 | Do not | Do this instead |
 |---|---|
-| Do not implement code during startup | Output a route such as `dj-implement`, `dj-tdd`, or `dj-hunt` first |
+| Do not implement code during startup | Output the route returned by `dj-dispatch` first |
 | Do not invent an active task when DiJiang reports none | Use `dj-dispatch` to create or select one |
 | Do not ignore dirty git state | Report it and require a task worktree before edits |
 | Do not write durable memory from guesses | Keep uncertain context in the task artifact |
-| Do not bypass `dj-dispatch` for ambiguous user requests | Let dispatch classification produce and record the route |
+| Do not duplicate `dj-dispatch` classification tables in startup | Delegate ambiguous and new-task routing to `dj-dispatch` |
