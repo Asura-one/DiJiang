@@ -132,15 +132,15 @@ export default function (pi: ExtensionAPI) {
   let lastHuntInjection = "";
   let lastDocsInjection = "";
 
-  pi.on("before_agent_start", async (event) => {
-    const text = event.prompt?.trim();
+  async function maybeDispatchFromPrompt(eventName: string, prompt?: string) {
+    const text = prompt?.trim();
     if (!text || text.startsWith("/")) {
-      return;
+      return undefined;
     }
 
-    const context = await dispatchContext(pi, "before_agent_start", text);
+    const context = await dispatchContext(pi, eventName, text);
     if (!context) {
-      return;
+      return undefined;
     }
 
     return {
@@ -150,6 +150,14 @@ export default function (pi: ExtensionAPI) {
         display: false,
       },
     };
+  }
+
+  pi.on("before_agent_start", async (event) => {
+    return maybeDispatchFromPrompt("before_agent_start", event.prompt);
+  });
+
+  pi.on("user_prompt_submit", async (event) => {
+    return maybeDispatchFromPrompt("user_prompt_submit", event.prompt);
   });
 
   pi.on("tool_call", (event) => {

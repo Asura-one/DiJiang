@@ -3,7 +3,7 @@ use dialoguer::{Input, MultiSelect};
 use dijiang_configurator::PlatformKind;
 use dijiang_configurator::TemplateRegistry;
 use dijiang_task::store;
-use dijiang_task::types::TaskStatus;
+use dijiang_task::types::{TaskRecord, TaskStatus};
 use serde_json::Value;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -1161,23 +1161,80 @@ struct DispatchRoute {
     status: TaskStatus,
 }
 
+fn strip_embedded_context(prompt: &str) -> String {
+    let mut output = String::with_capacity(prompt.len());
+    let mut rest = prompt;
+
+    loop {
+        let Some(start) = rest.find("<skill ") else {
+            output.push_str(rest);
+            break;
+        };
+        output.push_str(&rest[..start]);
+        let after_start = &rest[start..];
+        if let Some(end) = after_start.find("</skill>") {
+            rest = &after_start[end + "</skill>".len()..];
+        } else {
+            break;
+        }
+    }
+
+    output
+}
+
 fn dispatch_route(prompt: &str) -> DispatchRoute {
-    let lower = prompt.to_lowercase();
+    let visible_prompt = strip_embedded_context(prompt);
+    let lower = visible_prompt.to_lowercase();
     let has_any = |words: &[&str]| words.iter().any(|word| lower.contains(word));
-    let has_hunt_intent = lower.contains("排查")
-        || lower.contains("调试")
-        || lower.contains("修 bug")
-        || lower.contains("修bug")
-        || lower.contains("debug")
-        || lower.contains("bug")
-        || lower.contains("crash")
-        || lower.contains("error")
-        || lower.contains("fail")
-        || lower.contains("报错")
-        || lower.contains("崩溃")
-        || lower.contains("无法启动")
-        || lower.contains("不能运行")
-        || lower.contains("失败");
+    let has_vague_bug_intent = has_any(&[
+        "修 bug",
+        "修bug",
+        "fix bug",
+        "fix bugs",
+        "修复 bug",
+        "修复bug",
+        "有个 bug",
+        "有 bug",
+        "bug 这些",
+        "bug这些",
+    ]);
+    let has_specific_failure_signal = has_any(&[
+        "排查",
+        "调试",
+        "debug",
+        "crash",
+        "error",
+        "fail",
+        "报错",
+        "崩溃",
+        "无法启动",
+        "不能运行",
+        "失败",
+        "复现",
+        "日志",
+        "stack",
+        "trace",
+    ]);
+    let has_specific_implementation_signal = has_any(&[
+        "字段", "接口", "按钮", "页面", "文件", "函数", "方法", "模块", "配置", "校验", "样式",
+        "布局", "api", "cli", "command", "config", "button", "field",
+    ]);
+    let has_vague_feature_intent = has_any(&[
+        "做个",
+        "做一个",
+        "加个",
+        "加一个",
+        "新增个",
+        "新增一个",
+        "实现个",
+        "实现一个",
+        "优化",
+        "改进",
+        "提升",
+        "体验",
+    ]) && !has_specific_implementation_signal;
+    let has_hunt_intent =
+        has_specific_failure_signal || lower.contains("bug") && !has_vague_bug_intent;
 
     if has_hunt_intent {
         return DispatchRoute {
@@ -1186,6 +1243,16 @@ fn dispatch_route(prompt: &str) -> DispatchRoute {
             skill: "dj-hunt",
             recommended_path: "dj-hunt → dj-implement → dj-check",
             status: TaskStatus::InProgress,
+        };
+    }
+
+    if has_vague_feature_intent {
+        return DispatchRoute {
+            task_type: "调研对齐",
+            primary_intent: "需求澄清",
+            skill: "dj-grill",
+            recommended_path: "dj-grill → dj-output/dj-implement",
+            status: TaskStatus::Planning,
         };
     }
 
@@ -1279,6 +1346,100 @@ fn dispatch_route(prompt: &str) -> DispatchRoute {
     }
 }
 
+fn dispatch_route_from_skill(skill: &str) -> Option<DispatchRoute> {
+    match skill {
+        "dj-hunt" => Some(DispatchRoute {
+            task_type: "排查调试",
+            primary_intent: "继续排查",
+            skill: "dj-hunt",
+            recommended_path: "dj-hunt → dj-implement → dj-check",
+            status: TaskStatus::InProgress,
+        }),
+        "dj-implement" => Some(DispatchRoute {
+            task_type: "代码开发",
+            primary_intent: "继续实现",
+            skill: "dj-implement",
+            recommended_path: "dj-implement → dj-check",
+            status: TaskStatus::InProgress,
+        }),
+        "dj-tdd" => Some(DispatchRoute {
+            task_type: "测试开发",
+            primary_intent: "继续 TDD",
+            skill: "dj-tdd",
+            recommended_path: "dj-tdd → dj-check",
+            status: TaskStatus::InProgress,
+        }),
+        "dj-check" => Some(DispatchRoute {
+            task_type: "代码审查",
+            primary_intent: "质量检查",
+            skill: "dj-check",
+            recommended_path: "dj-check",
+            status: TaskStatus::InProgress,
+        }),
+        "dj-output" => Some(DispatchRoute {
+            task_type: "写文档",
+            primary_intent: "文档产出",
+            skill: "dj-output",
+            recommended_path: "dj-output",
+            status: TaskStatus::Planning,
+        }),
+        "dj-grill" => Some(DispatchRoute {
+            task_type: "调研对齐",
+            primary_intent: "需求澄清",
+            skill: "dj-grill",
+            recommended_path: "dj-grill → dj-output/dj-implement",
+            status: TaskStatus::Planning,
+        }),
+        _ => None,
+    }
+}
+
+fn dispatch_route_for_active_task(task: &TaskRecord) -> DispatchRoute {
+    match task.status {
+        TaskStatus::Planning => DispatchRoute {
+            task_type: "调研对齐",
+            primary_intent: "需求澄清",
+            skill: "dj-grill",
+            recommended_path: "dj-grill → dj-output/dj-implement",
+            status: TaskStatus::Planning,
+        },
+        TaskStatus::InProgress => task
+            .meta
+            .get("dispatch")
+            .and_then(|dispatch| dispatch.get("skill"))
+            .and_then(|skill| skill.as_str())
+            .and_then(dispatch_route_from_skill)
+            .unwrap_or(DispatchRoute {
+                task_type: "代码开发",
+                primary_intent: "继续实现",
+                skill: "dj-implement",
+                recommended_path: "dj-implement → dj-check",
+                status: TaskStatus::InProgress,
+            }),
+        TaskStatus::Completed => DispatchRoute {
+            task_type: "收尾归档",
+            primary_intent: "完成工作",
+            skill: "dijiang-finish-work",
+            recommended_path: "dijiang-finish-work",
+            status: TaskStatus::Completed,
+        },
+        TaskStatus::Paused => DispatchRoute {
+            task_type: "恢复上下文",
+            primary_intent: "继续暂停任务",
+            skill: "dijiang-continue",
+            recommended_path: "dijiang-continue",
+            status: TaskStatus::Paused,
+        },
+        TaskStatus::Archived => DispatchRoute {
+            task_type: "调研对齐",
+            primary_intent: "重新确认归档任务",
+            skill: "dj-grill",
+            recommended_path: "dj-grill → dj-output/dj-implement",
+            status: TaskStatus::Planning,
+        },
+    }
+}
+
 fn title_from_prompt(prompt: &str) -> String {
     let compact = prompt.split_whitespace().collect::<Vec<_>>().join(" ");
     let title = compact.chars().take(80).collect::<String>();
@@ -1353,7 +1514,11 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
     if !force_new {
         if let Some(active) = store::read_active_task(&dijiang_dir)? {
             let task = store::load_task(&tasks_dir, &active)?;
-            let route = dispatch_route(prompt);
+            let route = if matches!(hook_event, "session:start" | "session_start") {
+                dispatch_route_for_active_task(&task)
+            } else {
+                dispatch_route(prompt)
+            };
             let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
             let context =
                 dispatch_context(&active, &task.title, &route, &state.additional_context());
@@ -3121,6 +3286,8 @@ fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::{dispatch_route, dispatch_route_for_active_task};
+    use dijiang_task::store;
     use dijiang_task::types::TaskStatus;
 
     fn status_format(status: TaskStatus) -> (String, String) {
@@ -3163,5 +3330,99 @@ mod tests {
         let (s, p) = status_format(TaskStatus::Archived);
         assert_eq!(p, "complete");
         assert_eq!(s, "archived");
+    }
+
+    #[test]
+    fn test_dispatch_ignores_embedded_skill_context_for_visible_prompt() {
+        let route = dispatch_route(
+            r#"<skill name="dijiang-start">排查调试 debug bug</skill>新问题，grill未触发"#,
+        );
+
+        assert_eq!(route.skill, "dj-grill");
+        assert_eq!(route.status, TaskStatus::Planning);
+    }
+
+    #[test]
+    fn test_dispatch_routes_vague_bug_request_to_grill() {
+        let route = dispatch_route("有个 bug 帮我修一下");
+
+        assert_eq!(route.skill, "dj-grill");
+        assert_eq!(route.status, TaskStatus::Planning);
+    }
+
+    #[test]
+    fn test_dispatch_routes_specific_bug_request_to_hunt() {
+        let route = dispatch_route("登录接口报错，帮我排查并修复");
+
+        assert_eq!(route.skill, "dj-hunt");
+        assert_eq!(route.status, TaskStatus::InProgress);
+    }
+
+    #[test]
+    fn test_dispatch_routes_vague_feature_request_to_grill() {
+        let route = dispatch_route("做个导出功能");
+
+        assert_eq!(route.skill, "dj-grill");
+        assert_eq!(route.status, TaskStatus::Planning);
+    }
+
+    #[test]
+    fn test_dispatch_routes_specific_feature_request_to_implement() {
+        let route = dispatch_route("新增一个导出按钮");
+
+        assert_eq!(route.skill, "dj-implement");
+        assert_eq!(route.status, TaskStatus::InProgress);
+    }
+
+    #[test]
+    fn test_dispatch_routes_specific_interface_request_to_implement() {
+        let route = dispatch_route("新增一个导出接口");
+
+        assert_eq!(route.skill, "dj-implement");
+        assert_eq!(route.status, TaskStatus::InProgress);
+    }
+
+    #[test]
+    fn test_dispatch_routes_vague_login_optimization_to_grill() {
+        let route = dispatch_route("优化登录体验");
+
+        assert_eq!(route.skill, "dj-grill");
+        assert_eq!(route.status, TaskStatus::Planning);
+    }
+
+    #[test]
+    fn test_dispatch_routes_test_work_to_tdd() {
+        let route = dispatch_route("补测试");
+
+        assert_eq!(route.skill, "dj-tdd");
+        assert_eq!(route.status, TaskStatus::InProgress);
+    }
+
+    #[test]
+    fn test_session_start_dispatch_routes_planning_task_to_grill() {
+        let mut task = store::create_task("needs-alignment", "Needs Alignment");
+        task.status = TaskStatus::Planning;
+        task.meta = serde_json::json!({
+            "dispatch": { "skill": "dj-hunt" }
+        });
+
+        let route = dispatch_route_for_active_task(&task);
+
+        assert_eq!(route.skill, "dj-grill");
+        assert_eq!(route.status, TaskStatus::Planning);
+    }
+
+    #[test]
+    fn test_session_start_dispatch_keeps_in_progress_hunt_route() {
+        let mut task = store::create_task("bug", "Bug");
+        task.status = TaskStatus::InProgress;
+        task.meta = serde_json::json!({
+            "dispatch": { "skill": "dj-hunt" }
+        });
+
+        let route = dispatch_route_for_active_task(&task);
+
+        assert_eq!(route.skill, "dj-hunt");
+        assert_eq!(route.status, TaskStatus::InProgress);
     }
 }

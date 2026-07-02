@@ -66,8 +66,10 @@ session 开始时，dj-dispatch 自动执行以下步骤：
 
 | 信号 | 任务类型 | 入口 skill |
 |------|---------|-----------|
-| 改代码、加功能、重构 | 代码开发 | → 第二层分级；默认携带 Code Task TDD Contract |
-| 报错、崩溃、异常、排查、debug、回归、修 bug | 排查调试 | → `dj-hunt`，修复前保留 RED/Repro evidence |
+| 明确改代码、加字段、改接口、改按钮、改文件、重构 | 代码开发 | → 第二层分级；默认携带 Code Task TDD Contract |
+| 模糊新功能/优化请求（做个、加个、优化体验，但缺少对象/范围/验收） | 调研对齐 | → `dj-grill` |
+| 明确报错、崩溃、异常、排查、debug、回归、可复现 bug | 排查调试 | → `dj-hunt`，修复前保留 RED/Repro evidence |
+| 模糊 bug/修复请求（有 bug、修 bug，但缺少对象/症状/复现） | 调研对齐 | → `dj-grill` |
 | UI 设计、页面布局、组件样式 | 设计 UI | → `dj-design` + `impeccable` |
 | 审计代码、安全扫描、代码体检 | 审计代码 | → `dj-audit` |
 | 写文档、PRD、润色、去 AI 味 | 写文档 | → `dj-write` / `dj-output` |

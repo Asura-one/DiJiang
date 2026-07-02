@@ -406,6 +406,36 @@ fn test_e2e_dispatch_discussion_of_exception_states_does_not_route_to_hunt() {
     assert!(out.contains("Route: dj-grill"), "dispatch output: {out}");
     assert!(!out.contains("Route: dj-hunt"), "dispatch output: {out}");
 }
+
+#[test]
+fn test_e2e_dispatch_vague_feature_routes_to_grill() {
+    let (_tmp, project_dir) = init_project();
+
+    let out = dijang(&["dispatch", "做个导出功能", "--force-new"], &project_dir).unwrap();
+
+    assert!(out.contains("Route: dj-grill"), "dispatch output: {out}");
+    assert!(out.contains("Status: planning"), "dispatch output: {out}");
+}
+
+#[test]
+fn test_e2e_dispatch_specific_feature_routes_to_implement() {
+    let (_tmp, project_dir) = init_project();
+
+    let out = dijang(
+        &["dispatch", "新增一个导出按钮", "--force-new"],
+        &project_dir,
+    )
+    .unwrap();
+
+    assert!(
+        out.contains("Route: dj-implement"),
+        "dispatch output: {out}"
+    );
+    assert!(
+        out.contains("Status: in_progress"),
+        "dispatch output: {out}"
+    );
+}
 #[test]
 fn test_e2e_start_keeps_new_task_in_planning_for_dispatch() {
     let (_tmp, project_dir) = init_project();
