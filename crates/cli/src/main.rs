@@ -164,7 +164,22 @@ enum Commands {
         #[arg(long)]
         from_github: bool,
     },
+    DocSync {
+        #[command(subcommand)]
+        command: DocSyncCommands,
+    },
 }
+
+#[derive(Subcommand)]
+enum DocSyncCommands {
+    /// 扫描 git diff，输出受代码变更影响的文档清单（不改文件）
+    Check {
+        /// 对比的基础分支（默认 main）
+        #[arg(long, default_value = "main")]
+        base: String,
+    },
+}
+
 #[derive(Subcommand)]
 enum ChannelCommands {
     /// 生成一个 agent 执行任务
@@ -519,6 +534,9 @@ fn main() -> anyhow::Result<()> {
             remote: &remote,
             allow_dirty,
         }),
+        Commands::DocSync { command } => match command {
+            DocSyncCommands::Check { base } => cmd_doc_sync_check(base),
+        },
         Commands::Update { force, from_github } => cmd_update(force, from_github),
     }
 }
@@ -528,6 +546,22 @@ fn require_dijiang_dir() -> anyhow::Result<std::path::PathBuf> {
     let cwd = std::env::current_dir()?;
     crate::store::find_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))
+}
+
+fn cmd_doc_sync_check(base: String) -> anyhow::Result<()> {
+    let project_root = std::env::current_dir()?;
+
+    // Run the diff analyzer
+    let report = dijiang_task::doc_sync::analyzer::DiffAnalyzer::analyze(&project_root, &base)
+        .map_err(|e| anyhow::anyhow!(e))?;
+    // Map changes to affected documents
+    let impacts = dijiang_task::doc_sync::mapper::map_changes_to_docs(&report);
+
+    // Output report
+    let output = dijiang_task::doc_sync::format_report(&report, &impacts);
+    print!("{output}");
+
+    Ok(())
 }
 
 fn read_developer(dijiang_dir: &std::path::Path) -> anyhow::Result<String> {
