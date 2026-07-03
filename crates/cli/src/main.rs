@@ -1047,63 +1047,99 @@ fn append_session_closure(
 }
 
 fn auto_cleanup_worktree(project_root: &Path, main_branch: &str) -> anyhow::Result<()> {
-    let branch = git_current_branch(project_root)?;
-    if branch.is_empty() || branch == main_branch {
-        return Ok(());
-    }
-    let common_dir = git_common_dir(project_root)?;
-    let worktree_list = std::process::Command::new("git")
+    let output = std::process::Command::new("git")
 .args(["worktree", "list", "--porcelain"])
 .current_dir(project_root)
 .output()?;
-    if !worktree_list.status.success() {
-        eprintln!("⚠  无法列出 worktree：{}", String::from_utf8_lossy(&worktree_list.stderr).trim());
+    if !output.status.success() {
+        eprintln!("⚠  无法列出 worktree：{}", String::from_utf8_lossy(&output.stderr).trim());
         return Ok(());
     }
-    let mut main_worktree: Option<PathBuf> = None;
-    let mut seen_self = false;
-    for line in String::from_utf8_lossy(&worktree_list.stdout).lines() {
-        if let Some(path) = line.strip_prefix("worktree ") {
-            if !seen_self && Path::new(path) == project_root {
-                seen_self = true;
-                continue;
+    let main_path = std::fs::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf());
+    let entries: Vec<(String, String)> = {
+        let mut entries = Vec::new();
+        let mut current_path = String::new();
+        let mut current_branch = String::new();
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            if let Some(path) = line.strip_prefix("worktree ") {
+                current_path = path.to_string();
+            } else if let Some(head) = line.strip_prefix("HEAD ") {
+                // Parse branch from HEAD ref, but we only need the path for removal
+                if !head.is_empty() {
+                    // Some HEAD entries are just commit hashes (detached HEAD)
+                }
+            } else if let Some(br) = line.strip_prefix("branch refs/heads/") {
+                current_branch = br.to_string();
+            } else if line.trim().is_empty() && !current_path.is_empty() {
+                entries.push((current_path.clone(), current_branch.clone()));
+                current_path.clear();
+                current_branch.clear();
             }
-            let branch_out = std::process::Command::new("git")
-.args(["branch", "--show-current"])
-.current_dir(path)
-.output()?;
-            if branch_out.status.success()
-                && String::from_utf8_lossy(&branch_out.stdout).trim() == main_branch
-            {
-                main_worktree = Some(PathBuf::from(path));
-                break;
+        }
+        if !current_path.is_empty() {
+            entries.push((current_path, current_branch));
+        }
+        entries
+    };
+    let mut cleaned_any = false;
+    for (path, branch_name) in &entries {
+        if path.is_empty() {
+            continue;
+        }
+        let canonical = std::fs::canonicalize(path.as_str()).unwrap_or_else(|_| PathBuf::from(path.as_str()));
+        // Skip the main checkout itself
+        if canonical == main_path || branch_name == main_branch {
+            continue;
+        }
+        println!("  → 清理 worktree：{} ({})", path, if branch_name.is_empty() { "detached" } else { branch_name });
+        let remove = std::process::Command::new("git")
+.args(["worktree", "remove", path.as_str()])
+.current_dir(project_root)
+.status();
+        match remove {
+            Ok(status) if status.success() => {
+                cleaned_any = true;
+                println!("    ✓ 已删除 worktree");
+                if !branch_name.is_empty() {
+                    let _ = std::process::Command::new("git")
+.args(["branch", "-d", branch_name.as_str()])
+.current_dir(project_root)
+.status();
+                }
+            }
+            Ok(_) => {
+                eprintln!("    ⚠  删除失败（可能有未提交改动），尝试强制删除");
+                // Second attempt: try --force
+                let force_remove = std::process::Command::new("git")
+.args(["worktree", "remove", "--force", path.as_str()])
+.current_dir(project_root)
+.status();
+                match force_remove {
+                    Ok(status) if status.success() => {
+                        cleaned_any = true;
+                        println!("    ✓ 已强制删除 worktree");
+                        if !branch_name.is_empty() {
+                            let _ = std::process::Command::new("git")
+.args(["branch", "-D", branch_name.as_str()])
+.current_dir(project_root)
+.status();
+                        }
+                    }
+                    Ok(_) => {
+                        eprintln!("    ⚠  强制删除也失败，请手动处理");
+                    }
+                    Err(e) => {
+                        eprintln!("    ⚠  强制删除命令失败：{e}");
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("    ⚠  git worktree remove 命令失败：{e}");
             }
         }
     }
-    let main_worktree = main_worktree.unwrap_or_else(|| {
-        common_dir.parent()
-.and_then(Path::parent)
-.map(Path::to_path_buf)
-.unwrap_or_else(|| project_root.to_path_buf())
-    });
-    let project_str = project_root.display().to_string();
-    match std::process::Command::new("git")
-.args(["worktree", "remove", &project_str])
-.current_dir(&main_worktree)
-.status() {
-        Ok(status) if status.success() => {
-            println!("  ✓ 已清理任务 worktree：{project_str}");
-            let _ = std::process::Command::new("git")
-.args(["branch", "-d", &branch])
-.current_dir(&main_worktree)
-.status();
-        }
-        Ok(_) => {
-            eprintln!("⚠  无法删除 worktree（有未提交改动或脏文件？）：{project_str}");
-        }
-        Err(e) => {
-            eprintln!("⚠  git worktree remove 失败：{e}");
-        }
+    if !cleaned_any {
+        println!("  ✓ 无可清理的 worktree");
     }
     Ok(())
 }
