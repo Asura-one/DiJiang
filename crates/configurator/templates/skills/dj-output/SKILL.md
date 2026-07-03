@@ -119,6 +119,59 @@ description: >
 
 ## 文档与代码对齐
 
+### 自动文档同步（doc-sync check）
+
+`dijiang doc-sync check` 自动检测 git diff 中的代码变更，
+报告受影响的 11 种长期文档：
+
+| 文档类型 | 路径 | 触发条件 | 置信度 |
+|---------|------|---------|--------|
+| API 参考 | `docs/api/` | pub API 变更 | 0.9 |
+| CHANGELOG | `CHANGELOG.md` | 新 commit | 0.8 |
+| README | `README.md` | Cargo.toml / README.md / Makefile / package.json 变更 | 0.7 |
+| 部署说明 | `docs/deploy/` | Cargo.toml / Dockerfile / CI 配置变更 | 0.8 |
+| 架构文档 | `docs/architecture/` | 模块结构变化（新增/删除 .rs 文件） | 0.7 |
+| 测试标准 | `docs/test-criteria.md` | 测试文件变更 | 0.6 |
+| 设计文档 | `docs/design.md` | 依赖变更（Cargo.toml deps） | 0.5 |
+| RCA | `docs/rca/` | 单个文件的频繁变更（≥3 files/changed） | 0.4 |
+| 用户手册 | `docs/guide/` | *.md 文件变更 | 0.4 |
+| 需求文档 | `docs/requirements.md` | 新增模块 | 0.6 |
+| 设计笔记 | `docs/DESIGN_NOTES.md` | docs/ 目录内文件变更 | 0.4 |
+
+#### 使用时机
+
+- 实现完成、ci/check 通过后，进入主动对齐前
+- 收到 `doc-sync` 集成提示时
+- 用户要求检查文档是否需要更新时
+
+```bash
+# 检测当前分支与 main 的差异
+dijiang doc-sync check
+
+# 检测指定基准
+dijiang doc-sync check --base dev
+```
+
+#### 输出解读
+
+示例输出：
+
+```
+📋 以下文档可能因代码变更需要更新：
+
+  ⚠️  CHANGELOG.md — 2 个 commit 未记录
+  🔍  docs/architecture/ — 模块结构变更（src）
+```
+
+- ⚠️ 高置信度（≥0.7）：应优先同步
+- 🔍 中置信度（0.5–0.6）：需人工判断
+- 📦 配置相关：变更涉及构建或部署依赖
+
+#### dj-write 集成（Phase 2）
+
+当前 `doc-sync check` 为只读检测模式（Phase 1），不改写任何文档。
+检测结果作为 `dj-write` 的输入，指导后续文档生成或更新。
+
 ### 主动对齐（代码改了 → 同步文档）
 
 触发场景：实现完一个功能后、check 审查通过后。

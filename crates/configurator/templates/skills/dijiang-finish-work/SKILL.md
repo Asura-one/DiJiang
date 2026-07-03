@@ -96,7 +96,7 @@ Exception: <none or justified gap>
 记忆: <written / skipped; reason=...>
 提交模式: <--commit yes/no; reason=...>
 集成模式: <--push/--integrate yes/no; reason=...>
-worktree 残留: <none expected via --integrate / retained; reason=... / n/a main checkout or clean state>
+worktree 残留: <auto-cleaned via commit / retained via --keep-worktree / n/a main checkout>
 ```
 
 🛑 如果缺少验证、代码/行为/模板/脚本变更缺少 TDD evidence、变更工作缺少 docs/spec 同步证据、缺少记忆决策、当前目录是用于集成的主 checkout、变更文件包含无关工作、版本决策不清楚，或 worktree 残留未决，停止。
@@ -143,7 +143,7 @@ dijiang finish-work \
   --docs-sync "<updated docs/spec or none: reason>" \
   --version-impact <major|minor|patch|none> \
   --commit \
-  --commit-message "<type>(<scope>): <actual behavior change>"
+  --commit-message "<类型>(<范围>): <中文改动描述>"
 ```
 
 `--commit` 使用 `git add --all` 暂存当前已审查 diff，写入 finish journal，提交结果 diff，并打印 commit hash。只有存在 active task 时才归档任务；没有 active task 时跳过任务归档和 active-task 清理。不要将 `--allow-dirty` 与 `--commit` 一起使用。
@@ -166,9 +166,14 @@ dijiang finish-work \
   --remote origin
 ```
 
-`--integrate` 将任务分支以 `--no-ff` 合并到主分支 worktree，删除任务 worktree，并删除已合并分支。`--push` 仅在远端可达且策略允许时推送任务分支；它是发布步骤，不是本地集成前置条件。对于任务 worktree，默认使用 `--integrate`，让 finish-work 不留下任务 worktree 残留。如果凭证、远端策略、CI 或网络可用性阻塞 push，报告 push blocker，并在 merge 安全时继续本地集成。只有 merge 被阻塞、范围不清、存在冲突或必须保留证据时，才保留 branch/worktree。
 
-任何带 commit 的 finish-work 后，都必须用 `git worktree list` 做残留 worktree 检查。最终报告必须说明任务 worktree 已删除还是有意保留。
+`--integrate` 将任务分支以 `--no-ff` 合并到主分支后清理 worktree。`--push` 仅在远端可达且策略允许时推送任务分支。
+
+对于任务 worktree，不传 `--keep-worktree` 时 finish-work 会自动清理 worktree（删除 worktree 和本地分支）。
+`--integrate` 额外做合并操作后同样清理 worktree。`--keep-worktree` 仅在需要保留孤立证据时使用。
+
+最终报告必须说明任务 worktree 已删除还是通过 `--keep-worktree` 有意保留。
+
 
 ### 8. 关闭 DiJiang 状态
 

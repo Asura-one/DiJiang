@@ -154,6 +154,9 @@ enum Commands {
         /// 允许在 git 工作区存在未提交/未跟踪改动时不提交也完成任务
         #[arg(long)]
         allow_dirty: bool,
+        /// 保留任务 worktree（默认自动清理）
+        #[arg(long)]
+        keep_worktree: bool,
     },
     /// 同步 spec 文件 checksums：检查是否有 specs 发生变化
     SpecSync {
@@ -532,6 +535,7 @@ fn main() -> anyhow::Result<()> {
             main_branch,
             remote,
             allow_dirty,
+            keep_worktree,
         } => cmd_finish_work(FinishWorkOptions {
             summary: summary.as_deref(),
             verification: verification.as_deref(),
@@ -546,6 +550,7 @@ fn main() -> anyhow::Result<()> {
             main_branch: &main_branch,
             remote: &remote,
             allow_dirty,
+            keep_worktree,
         }),
         Commands::DocSync { command } => match command {
             DocSyncCommands::Check { base } => cmd_doc_sync_check(base),
@@ -714,6 +719,7 @@ struct FinishWorkOptions<'a> {
     main_branch: &'a str,
     remote: &'a str,
     allow_dirty: bool,
+    keep_worktree: bool,
 }
 
 fn trim_required(value: Option<&str>, message: &str) -> anyhow::Result<String> {
@@ -972,7 +978,7 @@ fn default_commit_message(task_name: &str, summary: Option<&str>) -> String {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .unwrap_or(task_name);
-    format!("chore(dijiang): 完成 {summary}")
+    format!("{summary}")
 }
 
 fn current_session_key() -> (String, String) {
@@ -1038,6 +1044,68 @@ fn append_session_closure(
     std::fs::write(runtime_path, serde_json::to_string_pretty(&value)?)?;
 
     Ok(journal)
+}
+
+fn auto_cleanup_worktree(project_root: &Path, main_branch: &str) -> anyhow::Result<()> {
+    let branch = git_current_branch(project_root)?;
+    if branch.is_empty() || branch == main_branch {
+        return Ok(());
+    }
+    let common_dir = git_common_dir(project_root)?;
+    let worktree_list = std::process::Command::new("git")
+.args(["worktree", "list", "--porcelain"])
+.current_dir(project_root)
+.output()?;
+    if !worktree_list.status.success() {
+        eprintln!("⚠  无法列出 worktree：{}", String::from_utf8_lossy(&worktree_list.stderr).trim());
+        return Ok(());
+    }
+    let mut main_worktree: Option<PathBuf> = None;
+    let mut seen_self = false;
+    for line in String::from_utf8_lossy(&worktree_list.stdout).lines() {
+        if let Some(path) = line.strip_prefix("worktree ") {
+            if !seen_self && Path::new(path) == project_root {
+                seen_self = true;
+                continue;
+            }
+            let branch_out = std::process::Command::new("git")
+.args(["branch", "--show-current"])
+.current_dir(path)
+.output()?;
+            if branch_out.status.success()
+                && String::from_utf8_lossy(&branch_out.stdout).trim() == main_branch
+            {
+                main_worktree = Some(PathBuf::from(path));
+                break;
+            }
+        }
+    }
+    let main_worktree = main_worktree.unwrap_or_else(|| {
+        common_dir.parent()
+.and_then(Path::parent)
+.map(Path::to_path_buf)
+.unwrap_or_else(|| project_root.to_path_buf())
+    });
+    let project_str = project_root.display().to_string();
+    match std::process::Command::new("git")
+.args(["worktree", "remove", &project_str])
+.current_dir(&main_worktree)
+.status() {
+        Ok(status) if status.success() => {
+            println!("  ✓ 已清理任务 worktree：{project_str}");
+            let _ = std::process::Command::new("git")
+.args(["branch", "-d", &branch])
+.current_dir(&main_worktree)
+.status();
+        }
+        Ok(_) => {
+            eprintln!("⚠  无法删除 worktree（有未提交改动或脏文件？）：{project_str}");
+        }
+        Err(e) => {
+            eprintln!("⚠  git worktree remove 失败：{e}");
+        }
+    }
+    Ok(())
 }
 
 fn perform_finish_commit(
@@ -1237,6 +1305,11 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     } else {
         None
     };
+
+    /* Auto cleanup: remove worktree after commit unless --integrate handles it or --keep-worktree is set */
+    if options.commit && !options.integrate && !options.keep_worktree {
+        let _ = auto_cleanup_worktree(&project_root, options.main_branch);
+    }
 
     if options.push || options.integrate {
         perform_finish_integration(&project_root, options, options.approve_integrate)?;
