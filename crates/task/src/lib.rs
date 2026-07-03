@@ -2,6 +2,7 @@ pub mod capability_gate;
 pub mod git_gate;
 pub mod route_gate;
 pub mod skill_manifest;
+pub mod spec_sync;
 pub mod store;
 pub mod types;
 pub mod workflow_state;
