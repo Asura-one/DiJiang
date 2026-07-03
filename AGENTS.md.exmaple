@@ -115,11 +115,10 @@ MUSE 是跨会话记忆系统。以下操作在任务生命周期中自动执行
 
 ### 任务完成后
 
-用简洁语言总结任务。如用户有具体要求，按要求输出。非处于子代理时，在总结末尾提示用户：
+用简洁语言总结任务。如用户有具体要求，按要求输出。非处于子代理时，检查是否需要进入 `dijiang finish-work` 流程。
 
-1. 提交 commit，自动生成 message（输入 `/skill:commit`）
+**绝不主动 commit 或 push。** commit 只在 `dijiang finish-work --commit` 流程中自动进行，不在任务总结时推荐手动 commit。
 
-**绝不主动 commit 或 push。**
 
 ## 范围纪律
 
