@@ -1,12 +1,23 @@
+pub mod capability_gate;
+pub mod git_gate;
 pub mod route_gate;
+pub mod skill_manifest;
 pub mod store;
 pub mod types;
 pub mod workflow_state;
 
+pub use capability_gate::{
+    evaluate_capability, CapabilityAction, CapabilityDecision, CapabilityTarget,
+};
+pub use git_gate::{
+    evaluate_worktree_readiness, GitGateInput, GitGateState, GitGateSummary, GitRuntimeLocation,
+    WorktreeReadiness, summarize_git_gate, worktree_readiness,
+};
 pub use route_gate::{
     evaluate_route, summarize_route_gate, RouteAction, RouteDecision, RouteGateSummary,
     RouteIntent, WorkflowCapsule,
 };
+pub use skill_manifest::{manifest_by_name, manifests_for_capsule, render_selected_skill_bodies, select_skill_bodies, skill_body_by_name, SelectedSkillBody, SkillBodyCache, SkillManifestEntry};
 pub use types::{TASK_RECORD_FIELD_ORDER, TaskRecord, TaskStatus};
 
 #[cfg(test)]

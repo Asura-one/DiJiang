@@ -182,6 +182,8 @@ mod tests {
     fn test_load_agent_template() {
         let content = render("agents/dijiang-implement.md", &[]).unwrap();
         assert!(content.contains("dj-implement"));
+        assert!(content.contains("dijiang workflow-state --json"));
+        assert!(content.contains("<dijiang-target-skill ...>"));
     }
 
     #[test]

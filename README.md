@@ -33,6 +33,32 @@ paused
 
 `review` 不是 DiJiang 的正式 task status，也没有独立 CLI 入口。质量闸门统一由 `dj-check` 承担；轻量只读审查使用 `dj-review` skill。
 
+### Runtime Route Gate
+
+DiJiang 现在已经把一部分 workflow 规则从 skill 文本提升到了 runtime gate。当前已实现的是 Phase 1 Route Gate：
+
+- 对已有 active task，`dijiang dispatch` 会根据 task status 和请求 intent 输出结构化 route decision。
+
+- `planning` active task 的实现类请求会被 redirect 到 `dj-grill`；`dj-output` 仍允许作为 planning 阶段的文档产物入口。
+
+- `paused` active task 会先 redirect 到 `dijiang-continue`。
+
+- `archived` active task 会被 block，并提示重新 `dijiang start <task>`。
+
+- 新建任务保留原有 classifier 行为，不强行套用 active-task route gate。
+
+这套 gate 主要落在 `crates/task/src/route_gate.rs`、`crates/task/src/workflow_state.rs` 和 `crates/cli/src/main.rs`。CLI dispatch 输出会稳定包含 `action`、`reason` 和 `nextAction`。
+
+### Phase Plan
+
+- Phase 1: Route Gate，已完成。把 active task 的 workflow route 从 prompt 建议升级为 runtime hard gate。
+
+- Phase 2: Git Gate，已完成最小闭环。把 active task 的实现类 dispatch 从纯 worktree 提示升级为 runtime readiness gate，支持 `ready / provisioned / blocked`，并区分“需要 provision”和“当前 runtime 不在正确 worktree”两类 blocked。
+
+- Phase 3: Progressive Skill Loading，已部分落地。当前 runtime 已在 `dispatch` 与 `workflow-state` 两个 agent-facing 入口上复用同一套 shared body registry，相关的 Pi/Codex/OpenCode/Hermes agent prompt 也已统一改成优先消费这套 runtime context：先暴露 capsule-scoped skill manifests，再按 route 目标延迟展开单个或少量顺序/分叉 skill body，并已补上 risk/capsule 驱动的最小展开阈值；同时已提供 `dijiang skill-body` 作为兼容优先的执行期 lazy fetch 通路。当前仍未完成的只剩：切掉默认预注 body 的全链路切换。
+
+- Phase 4: Approval / Capability Policy，已开始最小闭环。当前已对 `finish-work --integrate`、`finish-work --push` 与 merge 后 cleanup（worktree remove / branch delete）接入首批高风险 runtime approval gate：未显式批准时 block，显式批准后才允许继续集成、push 与清理。当前正式 phase plan 到 4 为止；`Phase 5+` 只出现在历史分析文档，不属于现行规范路线图。
+
 ### Finish Work 入口边界
 
 | 入口 | 职责 |
@@ -79,12 +105,22 @@ paused
 所有涉及 git 操作的 skill 自动遵守以下规则：
 
 1. 主工作区永远干净，只做同步，严禁在主目录上直接写代码。
+
 2. 每个功能一个独立 worktree，所有开发、AI 调试均在 worktree 中进行。
+
 3. 合并需用户确认，展示变更摘要后等待确认。
+
 4. 回滚必须备份 + 确认，tag 备份 → 用户确认 → 执行。
+
 5. 禁止自动执行破坏性操作：`reset --hard`、`force push`、`clean -f`、`rm -rf worktree` 等。
+
 6. 提交信息遵循 Conventional Commits。
+
 7. 版本号使用 Major.Minor.Revision。
+
+当前这组 Git 规则已经有一部分下沉成 runtime hard gate。Phase 2 Git Gate 现在由 `crates/task/src/git_gate.rs` 提供 readiness evaluator，并由 `crates/cli/src/main.rs` 在 dispatch / active-task implementation route 中统一消费。当前已覆盖 `ready / provisioned / blocked`、缺失 task worktree metadata 时的 provision 决策、以及当前 runtime 仍在主 checkout 或错误 worktree 时的阻断。
+
+当前还没有覆盖的边界也要说清：跨 worktree 的 `.dijiang` discovery 还没统一，所以直接在纯 task worktree 目录里运行 `dijiang dispatch` 仍可能因为找不到 `.dijiang/` 失败；`finish-work` 的语义与 Git Gate 也还没有接线。这两项属于 Phase 2 之后的后续点，而不是当前已交付行为。
 
 ## CLI 工具
 

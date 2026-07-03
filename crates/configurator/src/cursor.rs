@@ -34,8 +34,8 @@ This project uses DiJiang, an AI-native development workflow framework.
 
 Task lifecycle follows `plan → implement → check → archive`:
 
-1. **plan** — Read `prd.md` (requirements) + `design.md` (design) + `implement.md` (execution plan)
-2. **implement** — Write code, following specs in `.dijiang/spec/`
+1. **plan** — Read `dijiang workflow-state --json` first, and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context before reading `prd.md` (requirements) + `design.md` (design) + `implement.md` (execution plan)
+2. **implement** — Write code, following runtime context and specs in `.dijiang/spec/`
 3. **check** — Run `cargo test`, verify types, lint, verify cross-layer consistency
 4. **archive** — Commit changes
 
@@ -46,11 +46,12 @@ Task lifecycle follows `plan → implement → check → archive`:
 - `dijiang task current` — Show active task
 - `dijiang mem list` — Cross-platform session memory
 - `dijiang start <name> [title]` — Start a new session/task
+- `dijiang workflow-state --json` — Load injected runtime route + target skill context
 - `cargo build` / `cargo test` — Build and test Rust code
 
 ## Hooks
 
-Hooks call `dijiang workflow-state` to load session-scoped task context.
+Hooks call `dijiang workflow-state` to load session-scoped task context, including `Skill Manifests` and `<dijiang-target-skill ...>`.
 "#
     }
 

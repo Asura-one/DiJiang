@@ -440,7 +440,7 @@ fn test_e2e_dispatch_specific_feature_routes_to_implement() {
     assert!(out.contains("路线：dj-implement"), "dispatch output: {out}");
     assert!(out.contains("action：allow"), "dispatch output: {out}");
     assert!(out.contains("nextAction：continue with the requested skill for the new task"), "dispatch output: {out}");
-    assert!(out.contains("Git 工作流：已创建任务 worktree"), "dispatch output: {out}");
+    assert!(out.contains("Git 工作流：Git Gate=provisioned；已创建任务 worktree"), "dispatch output: {out}");
     assert!(out.contains("状态：in_progress"), "dispatch output: {out}");
 }
 
@@ -483,6 +483,52 @@ fn test_e2e_dispatch_archived_task_blocks_until_restart() {
     assert!(out.contains("action：block"), "dispatch output: {out}");
     assert!(out.contains("reason：archived tasks are closed and must be explicitly restarted before more work"), "dispatch output: {out}");
     assert!(out.contains("nextAction：run dijiang start <task> or create a new task before continuing"), "dispatch output: {out}");
+}
+
+#[test]
+fn test_e2e_dispatch_blocks_implement_route_from_main_checkout_when_task_worktree_exists() {
+    let (_tmp, project_dir) = init_project();
+
+    std::fs::write(project_dir.join("base.txt"), "base").unwrap();
+    Command::new("git")
+        .args(["add", "base.txt"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git add base");
+    Command::new("git")
+        .args(["commit", "-m", "test: base"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git commit base");
+
+    dijang(&["dispatch", "新增一个导出按钮", "--force-new"], &project_dir).unwrap();
+    let task_name = dijang(&["task", "current"], &project_dir).unwrap();
+    let task_name = task_name.trim();
+    let task_json = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("tasks")
+            .join(task_name)
+            .join("task.json"),
+    )
+    .unwrap();
+    let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
+    let worktree_path = task["worktreePath"].as_str().unwrap();
+    assert!(Path::new(worktree_path).exists());
+
+    let out = dijang(&["dispatch", "实现一个导出按钮"], &project_dir).unwrap();
+    assert!(out.contains("Git Gate=blocked"), "dispatch output: {out}");
+    assert!(out.contains("当前 runtime 尚未进入正确位置"), "dispatch output: {out}");
+    assert!(out.contains("expected"), "dispatch output: {out}");
+
+    let json_out = dijang(&["dispatch", "实现一个导出按钮", "--json"], &project_dir).unwrap();
+    let payload: serde_json::Value = serde_json::from_str(&json_out).unwrap();
+    assert_eq!(payload["gitGate"]["state"], "blocked");
+    assert_eq!(payload["gitGate"]["needsProvision"], false);
+    assert!(payload["gitGate"]["locationKind"].as_str().is_some());
+
+    let worktree_dir = PathBuf::from(worktree_path);
+    assert!(worktree_dir.exists());
 }
 #[test]
 fn test_e2e_start_keeps_new_task_in_planning_for_dispatch() {
@@ -888,6 +934,15 @@ fn test_e2e_finish_work_blocks_dirty_git_worktree() {
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("dirty-task"), "current output: {current}");
 }
+#[test]
+fn test_e2e_skill_body_returns_json_payload() {
+    let (_tmp, project_dir) = init_project();
+    let out = dijang(&["skill-body", "dj-tdd", "--json"], &project_dir).unwrap();
+    let payload: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(payload["name"], "dj-tdd");
+    assert!(payload["summary"].as_str().unwrap().contains("测试驱动"));
+    assert!(payload["body"].as_str().unwrap().contains("TDD"));
+}
 
 #[test]
 fn test_e2e_finish_work_closes_session_on_clean_git_worktree() {
@@ -994,6 +1049,118 @@ fn test_e2e_finish_work_commit_requires_docs_sync() {
         current.contains("commit-docs-gate"),
         "current output: {current}"
     );
+}
+#[test]
+fn test_e2e_finish_work_blocks_integrate_without_approval() {
+    let (_tmp, project_dir) = init_project();
+    dijang(&["start", "integrate-blocked", "Integrate Blocked"], &project_dir).unwrap();
+    std::fs::write(project_dir.join("change.txt"), "changed").unwrap();
+    let err = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "integrate blocked",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: integrate gate test",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test: integrate blocked",
+            "--integrate",
+        ],
+        &project_dir,
+    )
+    .unwrap_err();
+    assert!(err.contains("finish-work integration blocked"), "error: {err}");
+    assert!(err.contains("requires explicit approval"), "error: {err}");
+}
+#[test]
+fn test_e2e_finish_work_blocks_push_without_approval() {
+    let (_tmp, project_dir) = init_project();
+    dijang(&["start", "push-blocked", "Push Blocked"], &project_dir).unwrap();
+    std::fs::write(project_dir.join("change.txt"), "changed").unwrap();
+    let err = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "push blocked",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: push gate test",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test: push blocked",
+            "--push",
+        ],
+        &project_dir,
+    )
+    .unwrap_err();
+    assert!(err.contains("finish-work push blocked"), "error: {err}");
+    assert!(err.contains("requires explicit approval"), "error: {err}");
+}
+#[test]
+fn test_e2e_finish_work_blocks_cleanup_without_approval() {
+    let (tmp, project_dir) = init_project();
+    // git init creates 'master' but git_main_worktree expects 'main'
+    Command::new("git")
+        .args(["branch", "-m", "master", "main"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git branch -m master main");
+    std::fs::write(project_dir.join("base.txt"), "base").unwrap();
+    Command::new("git")
+        .args(["add", "base.txt"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git add base");
+    Command::new("git")
+        .args(["commit", "-m", "test: cleanup base"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git commit base");
+
+    let worktree_dir = tmp.path().join("cleanup-worktree");
+    Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "cleanup-blocked",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git worktree add");
+
+    std::fs::write(worktree_dir.join("change.txt"), "changed").unwrap();
+    let err = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "cleanup blocked",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: cleanup gate test",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test: cleanup blocked",
+            "--integrate",
+            "--approve-integrate",
+        ],
+        &worktree_dir,
+    )
+    .unwrap_err();
+    assert!(err.contains("finish-work cleanup blocked"), "error: {err}");
+    assert!(err.contains("requires explicit approval"), "error: {err}");
 }
 
 #[test]

@@ -30,11 +30,12 @@ You are already the `dijiang-implement` sub-agent. Do the implementation work di
 
 ## Protocol
 
-1. Find active task: `dijiang task current`
-2. Read `prd.md`, `design.md`, `implement.md` from the task directory
-3. Load implement.jsonl for spec references
-4. Implement the changes
-5. Verify: `cargo build && cargo test`
+1. Read `dijiang workflow-state --json` and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context.
+2. Find active task: `dijiang task current`
+3. Read `prd.md`, `design.md`, `implement.md` from the task directory
+4. Load implement.jsonl for spec references
+5. Implement the changes
+6. Verify: `cargo build && cargo test`
 
 ## Forbidden
 
@@ -55,13 +56,14 @@ You are the Check Agent in the DiJiang workflow.
 
 ## Protocol
 
-1. Find active task: `dijiang task current`
-2. Read `prd.md` for acceptance criteria
-3. Load check.jsonl for spec references
-4. Get changes: `git diff`
-5. Check against specs in `.dijiang/spec/`
-6. Self-fix any issues
-7. Verify: `cargo build && cargo test`
+1. Read `dijiang workflow-state --json` and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context.
+2. Find active task: `dijiang task current`
+3. Read `prd.md` for acceptance criteria
+4. Load check.jsonl for spec references
+5. Get changes: `git diff`
+6. Check against specs in `.dijiang/spec/`
+7. Self-fix any issues
+8. Verify: `cargo build && cargo test`
 "#
     }
 

@@ -47,8 +47,8 @@ Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
 
 ## Core Workflow
 
-1. **plan**: Start by reading `prd.md`, `design.md`, `implement.md`. Load specs from `spec/`.
-2. **implement**: Write code following the specs. Run `cargo build` to verify.
+1. **plan**: Start by reading `dijiang workflow-state --json`, and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context before reading `prd.md`, `design.md`, `implement.md`.
+2. **implement**: Write code following the runtime context and specs. Run `cargo build` to verify.
 3. **check**: Run `cargo test`, verify types, lint.
 4. **archive**: Commit changes when done.
 
@@ -58,6 +58,7 @@ Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
 - `dijiang task list` — 所有任务
 - `dijiang task current` — 当前任务
 - `dijiang start <name>` — Start task
+- `dijiang workflow-state --json` — Load injected runtime route + target skill context
 - `cargo build -p dijiang-cli` — Build CLI
 - `cargo test` — Run all tests
 "#,

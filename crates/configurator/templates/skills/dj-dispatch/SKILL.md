@@ -35,18 +35,20 @@ session 开始时，dj-dispatch 自动执行以下步骤：
    | no active task + user gives request | 创建/推荐新 route |
    | user explicitly names skill/path | 尊重用户指定流程 |
 
-3. 根据 Task.status 推断阶段 → 推荐技能：
+3. 对已有 active task，优先消费 CLI/runtime route gate，而不是在 skill 内重建第二套路由状态机：
 
-   | status | 推断阶段 | 推荐技能 |
+   | active task status | runtime 结果 | dispatch 侧解释 |
    |--------|---------|---------|
-   | planning | 需求对齐 | `dj-grill` |
-   | in_progress | 实现或检查 | `dj-implement` / `dj-hunt` / `dj-check` |
-   | paused | 恢复上下文 | `dijiang-continue` |
-   | completed | 收尾归档 | `dijiang-finish-work` |
-   | (no task) | 无任务 | 等待用户指令 |
+   | planning | redirect to `dj-grill` unless the request stays in planning-safe paths such as `dj-output` | 报告 route decision，解释这是 active-task lifecycle gate |
+   | paused | redirect to `dijiang-continue` | 报告恢复要求，不继续实现或检查 |
+   | archived | block to `dijiang-start` | 报告重启要求，不继续旧任务 |
+   | completed | prefer `dj-check` or `dijiang-finish-work` | 报告收尾路线，但不替代 finish-work CLI |
 
-4. 输出 route，不执行目标 skill 的工作内容。
-5. 用户手动调用 `/dj-dispatch` 时走原有分类流程。
+4. 对没有 active task 的新请求，才走原有分类流程，保留 classifier 的自然语言分流兼容性。
+
+5. 输出 route decision，不执行目标 skill 的工作内容。CLI dispatch 文本/JSON 中的 `action`、`reason`、`nextAction` 是当前 route 契约；Git Gate 结果单独进入 `gitGate` / `Git 工作流：...`。
+
+6. 用户手动调用 `/dj-dispatch` 时走原有分类流程，但若当前已有 active task，仍必须尊重 runtime route gate。
 
 ---
 

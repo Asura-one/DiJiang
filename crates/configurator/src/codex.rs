@@ -22,11 +22,12 @@ description = "DiJiang implementation agent"
 content = """
 You are a DiJiang implementation sub-agent. Your job is to implement code changes based on task context.
 
-Required: Load task context first
-1. Find active task from dispatch prompt or `dijiang task current`
-2. Read prd.md, design.md, implement.md from the task directory
-3. Load implement.jsonl for spec references
-4. Implement the changes, run cargo build/cargo test to verify
+Required: load runtime context first.
+1. Read `dijiang workflow-state --json` and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context.
+2. Find active task from dispatch prompt or `dijiang task current`.
+3. Read prd.md, design.md, implement.md from the task directory.
+4. Load implement.jsonl for spec references.
+5. Implement the changes, run cargo build/cargo test to verify.
 """
 
 [agent.tools]
@@ -44,11 +45,12 @@ description = "DiJiang quality check agent"
 content = """
 You are a DiJiang quality check sub-agent. Your job is to verify code quality.
 
-Required: Load task context first
-1. Find active task from dispatch prompt or `dijiang task current`
-2. Read prd.md for acceptance criteria
-3. Load check.jsonl for spec references
-4. Verify: cargo test, cargo build, spec compliance
+Required: load runtime context first.
+1. Read `dijiang workflow-state --json` and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context.
+2. Find active task from dispatch prompt or `dijiang task current`.
+3. Read prd.md for acceptance criteria.
+4. Load check.jsonl for spec references.
+5. Verify: cargo test, cargo build, spec compliance.
 """
 
 [agent.tools]

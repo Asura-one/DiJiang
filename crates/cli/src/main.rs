@@ -98,6 +98,14 @@ enum Commands {
         #[arg(long, default_value = "UserPromptSubmit")]
         hook_event: String,
     },
+    /// 按 skill 名称读取共享 body registry 中的目标 skill 正文（执行期 lazy fetch 通路）
+    SkillBody {
+        /// skill name, e.g. dj-tdd
+        name: String,
+        /// 输出 JSON payload
+        #[arg(long)]
+        json: bool,
+    },
     /// 将 Trellis 项目迁移到 DiJiang
     Migrate,
     /// Agent 通道管理
@@ -131,6 +139,12 @@ enum Commands {
         /// 合并任务分支到主分支并清理 worktree；只在 --commit 后允许
         #[arg(long)]
         integrate: bool,
+        /// 显式批准高风险的 finish-work integration / push
+        #[arg(long)]
+        approve_integrate: bool,
+        /// 显式批准高风险的 finish-work cleanup（worktree remove / branch delete）
+        #[arg(long)]
+        approve_cleanup: bool,
         /// 集成目标主分支
         #[arg(long, default_value = "main")]
         main_branch: String,
@@ -445,6 +459,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Skills { sync } => cmd_skills(sync),
         Commands::Migrate => cmd_migrate(),
         Commands::WorkflowState { json, hook_event } => cmd_workflow_state(json, &hook_event),
+        Commands::SkillBody { name, json } => cmd_skill_body(&name, json),
         Commands::Channel { command } => match command {
             ChannelCommands::Spawn { agent, task, dir } => {
                 cmd_channel_spawn(&agent, task.as_deref(), dir.as_deref())
@@ -484,6 +499,8 @@ fn main() -> anyhow::Result<()> {
             commit_message,
             push,
             integrate,
+            approve_integrate,
+            approve_cleanup,
             main_branch,
             remote,
             allow_dirty,
@@ -496,6 +513,8 @@ fn main() -> anyhow::Result<()> {
             commit_message: commit_message.as_deref(),
             push,
             integrate,
+            approve_integrate,
+            approve_cleanup,
             main_branch: &main_branch,
             remote: &remote,
             allow_dirty,
@@ -600,6 +619,8 @@ struct FinishWorkOptions<'a> {
     commit_message: Option<&'a str>,
     push: bool,
     integrate: bool,
+    approve_integrate: bool,
+    approve_cleanup: bool,
     main_branch: &'a str,
     remote: &'a str,
     allow_dirty: bool,
@@ -954,7 +975,32 @@ fn perform_finish_commit(
 fn perform_finish_integration(
     project_root: &Path,
     options: FinishWorkOptions<'_>,
-) -> anyhow::Result<()> {
+    approved: bool,
+    ) -> anyhow::Result<()> {
+    let decision = dijiang_task::evaluate_capability(
+        dijiang_task::WorkflowCapsule::Finish,
+        dijiang_task::CapabilityTarget::FinishIntegrate,
+        approved,
+    );
+    if options.integrate && matches!(decision.action, dijiang_task::CapabilityAction::Block) {
+        return Err(anyhow::anyhow!(
+            "finish-work integration blocked: {}; nextAction: {}",
+            decision.reason, decision.next_action
+        ));
+    }
+    if options.push {
+        let push_decision = dijiang_task::evaluate_capability(
+            dijiang_task::WorkflowCapsule::Finish,
+            dijiang_task::CapabilityTarget::FinishPush,
+            approved,
+        );
+        if matches!(push_decision.action, dijiang_task::CapabilityAction::Block) {
+            return Err(anyhow::anyhow!(
+                "finish-work push blocked: {}; nextAction: {}",
+                push_decision.reason, push_decision.next_action
+            ));
+        }
+    }
     let branch = git_current_branch(project_root)?;
     if branch.is_empty() {
         return Err(anyhow::anyhow!(
@@ -973,6 +1019,17 @@ fn perform_finish_integration(
 
     if options.integrate {
         let main_worktree = git_main_worktree(project_root, options.main_branch)?;
+        let cleanup_decision = dijiang_task::evaluate_capability(
+            dijiang_task::WorkflowCapsule::Finish,
+            dijiang_task::CapabilityTarget::FinishCleanup,
+            options.approve_cleanup,
+        );
+        if matches!(cleanup_decision.action, dijiang_task::CapabilityAction::Block) {
+            return Err(anyhow::anyhow!(
+                "finish-work cleanup blocked: {}; nextAction: {}",
+                cleanup_decision.reason, cleanup_decision.next_action
+            ));
+        }
         let project_root_string = project_root.display().to_string();
         run_git(&main_worktree, &["merge", "--no-ff", &branch])?;
         if options.push {
@@ -1092,7 +1149,7 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     };
 
     if options.push || options.integrate {
-        perform_finish_integration(&project_root, options)?;
+        perform_finish_integration(&project_root, options, options.approve_integrate)?;
     }
 
     if !options.commit {
@@ -1152,6 +1209,31 @@ fn cmd_workflow_state(json: bool, hook_event: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn cmd_skill_body(name: &str, json: bool) -> anyhow::Result<()> {
+    let mut cache = dijiang_task::SkillBodyCache::default();
+    let body = cache
+        .body(name)
+        .ok_or_else(|| anyhow::anyhow!("unknown skill body: {name}"))?;
+    let summary = dijiang_task::manifest_by_name(name)
+        .map(|manifest| manifest.summary)
+        .unwrap_or("target skill body not registered");
+    if json {
+        let payload = serde_json::json!({
+            "name": name,
+            "summary": summary,
+            "body": body,
+        });
+        println!("{}", serde_json::to_string(&payload)?);
+    } else {
+        println!(
+            "<dijiang-target-skill name=\"{}\">\nsummary: {}\n\n{}\n</dijiang-target-skill>",
+            name, summary, body
+        );
+    }
+    Ok(())
+}
+
+
 #[derive(Debug, Clone)]
 struct DispatchRoute {
     task_type: &'static str,
@@ -1164,10 +1246,7 @@ struct DispatchRoute {
 
 #[derive(Debug, Clone)]
 struct WorktreeDecision {
-    branch: String,
-    path: PathBuf,
-    created: bool,
-    note: Option<String>,
+    readiness: dijiang_task::WorktreeReadiness,
 }
 
 #[derive(Debug, Clone)]
@@ -1649,27 +1728,36 @@ fn ensure_task_worktree(
     tasks_dir: &Path,
     task: &mut TaskRecord,
     route: &DispatchRoute,
+    current_location: &Path,
+    current_worktree_root: Option<&Path>,
+    main_worktree_root: Option<&Path>,
 ) -> anyhow::Result<Option<WorktreeDecision>> {
     if !route_requires_worktree(route) {
         return Ok(None);
     }
 
-    if let (Some(branch), Some(path)) = (&task.branch, &task.worktree_path) {
-        return Ok(Some(WorktreeDecision {
-            branch: branch.clone(),
-            path: PathBuf::from(path),
-            created: false,
-            note: None,
-        }));
+    let input = dijiang_task::GitGateInput {
+        current_location: current_location.to_path_buf(),
+        current_worktree_root: current_worktree_root.map(Path::to_path_buf),
+        main_worktree_root: main_worktree_root.map(Path::to_path_buf),
+        route_requires_worktree: true,
+    };
+    let readiness = dijiang_task::evaluate_worktree_readiness(task, &input);
+
+    if readiness.state == dijiang_task::GitGateState::Ready || !readiness.needs_provision {
+        return Ok(Some(WorktreeDecision { readiness }));
     }
 
     if !git_has_head(project_root)? {
         return Ok(Some(WorktreeDecision {
-            branch: String::new(),
-            path: PathBuf::new(),
-            created: false,
-            note: Some(
-                "当前 git 仓库还没有提交，无法创建任务 worktree；请先建立基线提交。".to_string(),
+            readiness: dijiang_task::worktree_readiness(
+                task,
+                dijiang_task::GitGateState::Blocked,
+                current_location,
+                false,
+                Some(
+                    "当前 git 仓库还没有提交，无法创建任务 worktree；请先建立基线提交。".to_string(),
+                ),
             ),
         }));
     }
@@ -1684,17 +1772,66 @@ fn ensure_task_worktree(
         &["worktree", "add", &path_string, "-b", &branch, &base_branch],
     )?;
 
-    task.branch = Some(branch.clone());
+    task.branch = Some(branch);
     task.base_branch = Some(base_branch);
     task.worktree_path = Some(path_string);
     store::save_task(tasks_dir, task)?;
 
     Ok(Some(WorktreeDecision {
-        branch,
-        path,
-        created: true,
-        note: None,
+        readiness: dijiang_task::worktree_readiness(
+            task,
+            dijiang_task::GitGateState::Provisioned,
+            current_location,
+            true,
+            None,
+        ),
     }))
+}
+
+fn dispatch_skill_manifests_text(capsule: dijiang_task::WorkflowCapsule) -> String {
+    let manifests = dijiang_task::manifests_for_capsule(capsule);
+    if manifests.is_empty() {
+        return "<dijiang-skill-manifests>\nnone\n</dijiang-skill-manifests>".to_string();
+    }
+
+    let lines = manifests
+        .into_iter()
+        .map(|manifest| {
+            format!(
+                "- {} | {} | phases={} | risk={}",
+                manifest.name,
+                manifest.summary,
+                manifest.phases.join(","),
+                manifest.risk
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    format!("<dijiang-skill-manifests>\n{}\n</dijiang-skill-manifests>", lines)
+}
+
+fn dispatch_target_skill_bodies(
+    capsule: dijiang_task::WorkflowCapsule,
+    primary_skill: &str,
+    recommended_path: &str,
+    ) -> String {
+    let selected = dijiang_task::select_skill_bodies(capsule, primary_skill, recommended_path);
+    if selected.is_empty() {
+        return String::new();
+    }
+    let mut cache = dijiang_task::SkillBodyCache::default();
+    dijiang_task::render_selected_skill_bodies(&selected, &mut cache)
+}
+
+fn dispatch_runtime_skill_context(dispatch: &DispatchDecision) -> String {
+    let manifests = dispatch_skill_manifests_text(dispatch.decision.capsule.clone());
+    let targets = dispatch_target_skill_bodies(
+        dispatch.decision.capsule,
+        dispatch.route.skill,
+        dispatch.route.recommended_path,
+    );
+    format!("{}\n{}", manifests, targets)
 }
 
 fn dispatch_context(
@@ -1703,34 +1840,42 @@ fn dispatch_context(
     dispatch: &DispatchDecision,
     state_context: &str,
     worktree: Option<&WorktreeDecision>,
-) -> String {
+    ) -> String {
     let route = &dispatch.route;
     let decision = &dispatch.decision;
     let worktree_line = match worktree {
-        Some(decision) if decision.created => format!(
-            "Git 工作流：已创建任务 worktree `{}`，分支 `{}`。\n下一步：切换到该 worktree，读取 `.dijiang/tasks/{task_name}/task.json`，然后按 {skill} 执行。",
-            decision.path.display(),
-            decision.branch,
-            skill = route.skill,
-        ),
-        Some(decision) if !decision.branch.is_empty() => format!(
-            "Git 工作流：复用任务 worktree `{}`，分支 `{}`。\n下一步：切换到该 worktree，读取 `.dijiang/tasks/{task_name}/task.json`，然后按 {skill} 执行。",
-            decision.path.display(),
-            decision.branch,
-            skill = route.skill,
-        ),
-        Some(decision) => format!(
-            "Git 工作流：未创建 worktree，原因：{}\n下一步：先处理 Git 基线，再按 {skill} 执行。",
-            decision.note.as_deref().unwrap_or("未知"),
-            skill = route.skill,
-        ),
+        Some(decision) => match decision.readiness.state {
+            dijiang_task::GitGateState::Provisioned => format!(
+                "Git 工作流：Git Gate=provisioned；已创建任务 worktree `{}`，分支 `{}`。\n下一步：切换到该 worktree，读取 `.dijiang/tasks/{task_name}/task.json`，然后按 {skill} 执行。",
+                decision.readiness.worktree_path.as_deref().unwrap_or("unknown"),
+                decision.readiness.branch.as_deref().unwrap_or("unknown"),
+                skill = route.skill,
+            ),
+            dijiang_task::GitGateState::Ready => format!(
+                "Git 工作流：Git Gate=ready；任务 worktree 已就绪 `{}`，分支 `{}`。\n下一步：在该 worktree 中读取 `.dijiang/tasks/{task_name}/task.json`，然后按 {skill} 执行。",
+                decision.readiness.worktree_path.as_deref().unwrap_or("unknown"),
+                decision.readiness.branch.as_deref().unwrap_or("unknown"),
+                skill = route.skill,
+            ),
+            dijiang_task::GitGateState::Blocked if decision.readiness.needs_provision => format!(
+                "Git 工作流：Git Gate=blocked；当前还没有可用的任务 worktree。原因：{}\n下一步：先完成 Git 基线或创建 task worktree，再按 {skill} 执行。",
+                decision.readiness.message,
+                skill = route.skill,
+            ),
+            dijiang_task::GitGateState::Blocked => format!(
+                "Git 工作流：Git Gate=blocked；任务 worktree 已记录，但当前 runtime 尚未进入正确位置。原因：{}\n下一步：切换到记录的 task worktree 后，再按 {skill} 执行。",
+                decision.readiness.message,
+                skill = route.skill,
+            ),
+        },
         None => format!(
             "Git 工作流：当前路线不需要立即创建代码 worktree。\n下一步：读取 `.dijiang/tasks/{task_name}/task.json`，然后按 {skill} 执行。",
             skill = route.skill,
         ),
     };
+    let skill_context = dispatch_runtime_skill_context(dispatch);
     format!(
-        "<dijiang-dispatch>\n任务：{task_name}\n标题：{title}\n任务类型：{task_type}\n主要意图：{primary_intent}\n路线：{skill}\n推荐路径：{recommended_path}\naction：{action}\nreason：{reason}\nnextAction：{next_action}\n{worktree_line}\n</dijiang-dispatch>\n{state_context}",
+        "<dijiang-dispatch>\n任务：{task_name}\n标题：{title}\n任务类型：{task_type}\n主要意图：{primary_intent}\n路线：{skill}\n推荐路径：{recommended_path}\naction：{action}\nreason：{reason}\nnextAction：{next_action}\n{worktree_line}\n</dijiang-dispatch>\n{skill_context}\n{state_context}",
         task_type = route.task_type,
         primary_intent = route.primary_intent,
         skill = route.skill,
@@ -1761,7 +1906,18 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
             };
             let dispatch = apply_route_gate(&task.status, base_route, Some(prompt));
             let project_root = dijiang_dir.parent().unwrap_or(&dijiang_dir);
-            let worktree = ensure_task_worktree(project_root, &tasks_dir, &mut task, &dispatch.route)?;
+            let cwd = std::env::current_dir()?;
+            let current_worktree_root = git_worktree_root(&cwd)?;
+            let main_worktree_root = git_main_worktree(project_root, "main").ok();
+            let worktree = ensure_task_worktree(
+                project_root,
+                &tasks_dir,
+                &mut task,
+                &dispatch.route,
+                &cwd,
+                current_worktree_root.as_deref(),
+                main_worktree_root.as_deref(),
+            )?;
             let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
             let context = dispatch_context(
                 &active,
@@ -1780,7 +1936,8 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
                         "action": dispatch.decision.action.as_str(),
                         "reason": dispatch.decision.reason,
                         "nextAction": dispatch.decision.next_action
-                    }
+                    },
+                    "gitGate": worktree.as_ref().map(|decision| &decision.readiness)
                 });
                 println!("{}", serde_json::to_string(&payload)?);
             } else {
@@ -1828,7 +1985,18 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
     store::save_task(&tasks_dir, &task)?;
     store::write_active_task(&dijiang_dir, &task_name)?;
     let project_root = dijiang_dir.parent().unwrap_or(&dijiang_dir);
-    let worktree = ensure_task_worktree(project_root, &tasks_dir, &mut task, &dispatch.route)?;
+    let cwd = std::env::current_dir()?;
+    let current_worktree_root = git_worktree_root(&cwd)?;
+    let main_worktree_root = git_main_worktree(project_root, "main").ok();
+    let worktree = ensure_task_worktree(
+        project_root,
+        &tasks_dir,
+        &mut task,
+        &dispatch.route,
+        &cwd,
+        current_worktree_root.as_deref(),
+        main_worktree_root.as_deref(),
+    )?;
 
     let state = dijiang_task::workflow_state::build(&dijiang_dir)?;
     let context = dispatch_context(
@@ -1848,7 +2016,8 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
                 "action": "allow",
                 "reason": "new tasks keep the classifier-selected route until an active task exists",
                 "nextAction": "continue with the requested skill for the new task"
-            }
+            },
+            "gitGate": worktree.as_ref().map(|decision| &decision.readiness)
         });
         println!("{}", serde_json::to_string(&payload)?);
     } else {
@@ -3589,7 +3758,10 @@ fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_route_gate, dispatch_route, dispatch_route_for_active_task};
+    use super::{
+        apply_route_gate, dispatch_context, dispatch_route, dispatch_route_for_active_task,
+        dispatch_runtime_skill_context,
+    };
     use dijiang_task::store;
     use dijiang_task::types::TaskStatus;
 
@@ -3728,7 +3900,6 @@ mod tests {
         assert_eq!(route.skill, "dj-hunt");
         assert_eq!(route.status, TaskStatus::InProgress);
     }
-}
 
     #[test]
     fn test_route_gate_redirects_planning_implement_to_grill() {
@@ -3756,3 +3927,47 @@ mod tests {
         assert_eq!(dispatch.route.skill, "dijiang-start");
         assert_eq!(dispatch.decision.action.as_str(), "block");
     }
+
+    #[test]
+    fn test_dispatch_runtime_skill_context_exposes_manifests_and_target_body() {
+        let route = dispatch_route("补测试");
+        let dispatch = apply_route_gate(&TaskStatus::InProgress, route, Some("补测试"));
+
+        let context = dispatch_runtime_skill_context(&dispatch);
+
+        assert!(context.contains("<dijiang-skill-manifests>"));
+        assert!(context.contains("dj-implement | 功能实现与局部代码变更"));
+        assert!(context.contains(&format!(
+            "<dijiang-target-skill role=\"primary\" name=\"{}\">",
+            dispatch.route.skill
+        )));
+        assert!(context.contains("summary: "));
+        if dispatch.route.recommended_path.contains("-> dj-check") {
+            assert!(context.contains("<dijiang-target-skill role=\"next\" name=\"dj-check\">"));
+        }
+    }
+
+
+
+    #[test]
+    fn test_dispatch_context_keeps_header_and_adds_target_skill_body() {
+        let route = dispatch_route("新增一个导出按钮");
+        let dispatch = apply_route_gate(&TaskStatus::Planning, route, Some("新增一个导出按钮"));
+
+        let context = dispatch_context(
+            "task-1",
+            "Task 1",
+            &dispatch,
+            "<dijiang-workflow-state>state</dijiang-workflow-state>",
+            None,
+        );
+
+        assert!(context.contains("<dijiang-dispatch>"));
+        assert!(context.contains("action：redirect"));
+        assert!(context.contains("路线：dj-grill"));
+        assert!(context.contains("<dijiang-skill-manifests>"));
+        assert!(context.contains("dj-grill | 需求对齐、范围澄清、问题收敛"));
+        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">") );
+        assert!(context.contains("<dijiang-workflow-state>state</dijiang-workflow-state>"));
+    }
+}

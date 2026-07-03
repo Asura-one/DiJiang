@@ -4,7 +4,9 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::route_gate::{summarize_route_gate};
+use crate::git_gate::summarize_git_gate;
+use crate::route_gate::summarize_route_gate;
+use crate::skill_manifest::manifests_for_capsule;
 use crate::store::{self, SessionIdentity, TaskError};
 use crate::types::{TaskRecord, TaskStatus};
 
@@ -18,6 +20,8 @@ pub struct WorkflowState {
     pub memory: WorkflowMemory,
     pub peers: Vec<WorkflowPeerSession>,
     pub route_gate: Option<WorkflowRouteGate>,
+    pub git_gate: Option<WorkflowGitGate>,
+    pub skill_manifests: Vec<WorkflowSkillManifest>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -82,6 +86,25 @@ pub struct WorkflowRouteGate {
     pub default_skill: String,
     pub blocked_skills: Vec<String>,
     pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowGitGate {
+    pub state: String,
+    pub branch: Option<String>,
+    pub base_branch: Option<String>,
+    pub worktree_path: Option<String>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowSkillManifest {
+    pub name: String,
+    pub summary: String,
+    pub phases: Vec<String>,
+    pub risk: String,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -154,10 +177,32 @@ impl WorkflowState {
             .as_ref()
             .map(format_route_gate)
             .unwrap_or_default();
+        let git_gate_line = self
+            .git_gate
+            .as_ref()
+            .map(format_git_gate)
+            .unwrap_or_default();
+        let skill_manifest_line = format_skill_manifests(&self.skill_manifests);
+        let target_skill_line = format_target_skill_bodies(
+            self.route_gate.as_ref(),
+            &self.skill_manifests,
+            self.route_gate
+                .as_ref()
+                .map(|route_gate| route_gate.default_skill.as_str())
+                .unwrap_or_default(),
+        );
 
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
-            task.id, task.title, task.status, task.task_path, self.guidance, route_gate_line
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+            task.id,
+            task.title,
+            task.status,
+            task.task_path,
+            self.guidance,
+            route_gate_line,
+            git_gate_line,
+            skill_manifest_line,
+            target_skill_line,
         )
     }
 }
@@ -204,12 +249,16 @@ pub fn build_for_session(
             memory,
             peers,
             route_gate: None,
+            git_gate: None,
+            skill_manifests: vec![],
         });
     };
 
     let guidance = status_guidance(&task.status).to_string();
     let active_task = Some(workflow_task(dijiang_dir, &task));
     let route_gate = Some(workflow_route_gate(&task.status));
+    let git_gate = Some(workflow_git_gate(dijiang_dir.parent().unwrap_or(dijiang_dir), &task));
+    let skill_manifests = workflow_skill_manifests(&task.status);
     Ok(WorkflowState {
         session,
         active_task,
@@ -218,6 +267,8 @@ pub fn build_for_session(
         memory,
         peers,
         route_gate,
+        git_gate,
+        skill_manifests,
     })
 }
 
@@ -282,6 +333,28 @@ fn record_runtime_injection(
             "blocked_skills": gate.blocked_skills,
         })
     });
+    let git_gate_event = active_task.map(|task| {
+        let gate = workflow_git_gate(dijiang_dir.parent().unwrap_or(dijiang_dir), task);
+        serde_json::json!({
+            "state": gate.state,
+            "branch": gate.branch,
+            "base_branch": gate.base_branch,
+            "worktree_path": gate.worktree_path,
+            "note": gate.note,
+        })
+    });
+    let skill_manifests_event = active_task.map(|task| {
+        workflow_skill_manifests(&task.status)
+            .into_iter()
+            .map(|manifest| {
+                serde_json::json!({
+                    "name": manifest.name,
+                    "risk": manifest.risk,
+                    "phases": manifest.phases,
+                })
+            })
+            .collect::<Vec<_>>()
+    });
     let event = serde_json::json!({
         "event": "workflow_state_injected",
         "session_key": identity.key(),
@@ -290,6 +363,8 @@ fn record_runtime_injection(
         "active_task": current_active_task,
         "active_task_detail": active_task_event,
         "route_gate": route_gate_event,
+        "git_gate": git_gate_event,
+        "skill_manifests": skill_manifests_event,
         "previous_active_task": previous_active_task,
         "active_task_changed": active_task_changed,
         "at": last_seen_at,
@@ -555,6 +630,85 @@ fn format_route_gate(route_gate: &WorkflowRouteGate) -> String {
     )
 }
 
+fn workflow_git_gate(project_root: &Path, task: &TaskRecord) -> WorkflowGitGate {
+    let summary = summarize_git_gate(task, project_root);
+    WorkflowGitGate {
+        state: summary.state.as_str().to_string(),
+        branch: summary.branch,
+        base_branch: summary.base_branch,
+        worktree_path: summary.worktree_path,
+        note: summary.note,
+    }
+}
+
+fn workflow_skill_manifests(status: &TaskStatus) -> Vec<WorkflowSkillManifest> {
+    let capsule = summarize_route_gate(status).capsule;
+    manifests_for_capsule(capsule)
+        .into_iter()
+        .map(|entry| WorkflowSkillManifest {
+            name: entry.name.to_string(),
+            summary: entry.summary.to_string(),
+            phases: entry.phases.iter().map(|phase| (*phase).to_string()).collect(),
+            risk: entry.risk.to_string(),
+        })
+        .collect()
+}
+
+fn format_target_skill_bodies(
+    route_gate: Option<&WorkflowRouteGate>,
+    _skill_manifests: &[WorkflowSkillManifest],
+    primary_skill: &str,
+    ) -> String {
+    let Some(route_gate) = route_gate else {
+        return String::new();
+    };
+    let selected = crate::skill_manifest::select_skill_bodies(
+        match route_gate.capsule.as_str() {
+            "align" => crate::route_gate::WorkflowCapsule::Align,
+            "implement" => crate::route_gate::WorkflowCapsule::Implement,
+            "check" => crate::route_gate::WorkflowCapsule::Check,
+            "finish" => crate::route_gate::WorkflowCapsule::Finish,
+            "resume" => crate::route_gate::WorkflowCapsule::Resume,
+            _ => crate::route_gate::WorkflowCapsule::Idle,
+        },
+        primary_skill,
+        primary_skill,
+    );
+    if selected.is_empty() {
+        return String::new();
+    }
+    let mut cache = crate::skill_manifest::SkillBodyCache::default();
+    let rendered = crate::skill_manifest::render_selected_skill_bodies(&selected, &mut cache);
+    if rendered.is_empty() {
+        return String::new();
+    }
+    rendered
+}
+
+fn format_git_gate(git_gate: &WorkflowGitGate) -> String {
+    format!(
+        "Git Gate：state={}；branch={}；baseBranch={}；worktreePath={}；note={}",
+        git_gate.state,
+        git_gate.branch.as_deref().unwrap_or("none"),
+        git_gate.base_branch.as_deref().unwrap_or("none"),
+        git_gate.worktree_path.as_deref().unwrap_or("none"),
+        git_gate.note,
+    )
+}
+
+fn format_skill_manifests(skill_manifests: &[WorkflowSkillManifest]) -> String {
+    if skill_manifests.is_empty() {
+        return "Skill Manifests：none".to_string();
+    }
+
+    let entries = skill_manifests
+        .iter()
+        .map(|manifest| format!("{}({}; risk={})", manifest.name, manifest.summary, manifest.risk))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("Skill Manifests：{}", entries)
+}
+
 fn status_guidance(status: &TaskStatus) -> &'static str {
     match status {
         TaskStatus::Planning => {
@@ -652,9 +806,12 @@ mod tests {
         assert!(context_a.contains("标题：Task A"));
         assert!(context_a.contains("Route Gate：capsule=implement"));
         assert!(context_a.contains("default_skill=dj-implement"));
-        assert!(context_a.contains(
-            "会话日志：.dijiang/workspace/tester/sessions/dijiang_window-a.jsonl"
-        ));
+        assert!(context_a.contains("Git Gate：state=ready"));
+        assert!(context_a.contains("worktreePath=none"));
+        assert!(context_a.contains("Skill Manifests："));
+        assert!(context_a.contains("dj-implement("));
+        assert!(context_a.contains("dj-tdd("));
+        assert!(context_a.contains("<dijiang-target-skill role=\"primary\" name=\"dj-implement\">"));
         assert!(context_b.contains("会话：dijiang_window-b（dijiang）"));
         assert!(context_b.contains("活跃任务：task-b"));
         assert!(context_b.contains("标题：Task B"));
@@ -670,6 +827,7 @@ mod tests {
         assert!(log.contains("dijiang_window-a"));
         assert!(log.contains("dijiang_window-b"));
         assert!(log.contains("route_gate"));
+        assert!(log.contains("skill_manifests"));
 
         let journal_a = std::fs::read_to_string(
             dijiang_dir.join("workspace/tester/sessions/dijiang_window-a.jsonl"),
@@ -741,6 +899,10 @@ mod tests {
             .additional_context();
         assert!(context.contains("Route Gate：capsule=align"));
         assert!(context.contains("default_skill=dj-grill"));
+        assert!(context.contains("Git Gate：state=ready"));
+        assert!(context.contains("Skill Manifests：dj-grill"));
+        assert!(context.contains("dj-output"));
+        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">"));
     }
 
     #[test]
@@ -767,6 +929,9 @@ mod tests {
             .additional_context();
         assert!(context.contains("Route Gate：capsule=resume"));
         assert!(context.contains("default_skill=dijiang-continue"));
+        assert!(context.contains("Git Gate：state=ready"));
+        assert!(context.contains("Skill Manifests：dijiang-continue"));
+        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dijiang-continue\">"));
     }
 
     #[test]
@@ -793,5 +958,8 @@ mod tests {
             .additional_context();
         assert!(context.contains("Route Gate：capsule=idle"));
         assert!(context.contains("default_skill=dijiang-start"));
+        assert!(context.contains("Git Gate：state=ready"));
+        assert!(context.contains("Skill Manifests：dijiang-start"));
+        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dijiang-start\">"));
     }
 }

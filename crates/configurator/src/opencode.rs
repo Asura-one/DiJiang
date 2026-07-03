@@ -39,6 +39,7 @@ You are already the `dijiang-implement` sub-agent. Do the implementation work di
 ## Context
 
 Before implementing, read:
+- `dijiang workflow-state --json` — Runtime route context, `Skill Manifests`, and `<dijiang-target-skill ...>`
 - `.dijiang/workflow.md` — Project workflow
 - `.dijiang/spec/` — Development guidelines
 - Task `prd.md` — Requirements document
@@ -47,11 +48,12 @@ Before implementing, read:
 
 ## Core Responsibilities
 
-1. **Understand specs** — Read relevant spec files in `.dijiang/spec/`
-2. **Understand task artifacts** — Read prd.md, design.md, implement.md
-3. **Implement features** — Write code following specs and task artifacts
-4. **Self-check** — Run `cargo build` / `cargo test` to verify
-5. **Report results**
+1. **Understand runtime route context** — Treat injected target-skill context as the primary runtime routing source
+2. **Understand specs** — Read relevant spec files in `.dijiang/spec/`
+3. **Understand task artifacts** — Read prd.md, design.md, implement.md
+4. **Implement features** — Write code following specs and task artifacts
+5. **Self-check** — Run `cargo build` / `cargo test` to verify
+6. **Report results**
 
 ## Forbidden Operations
 
@@ -99,10 +101,11 @@ You are already the `dijiang-check` sub-agent. Do the review and fixes directly.
 
 ## Core Responsibilities
 
-1. **Get code changes** — Use `git diff` to get uncommitted code
-2. **Review against specs** — Check changes against prd.md and spec files
-3. **Self-fix** — Fix issues yourself, not just report them
-4. **Run verification** — `cargo build` / `cargo test`
+1. **Understand runtime route context** — Treat injected target-skill context as the primary runtime routing source
+2. **Get code changes** — Use `git diff` to get uncommitted code
+3. **Review against specs** — Check changes against prd.md and spec files
+4. **Self-fix** — Fix issues yourself, not just report them
+5. **Run verification** — `cargo build` / `cargo test`
 
 ## Workflow
 
@@ -113,7 +116,7 @@ git diff
 ```
 
 ### Step 2: Check Against Specs
-Read task prd.md, design.md, implement.md, and specs in `.dijiang/spec/`.
+Read `dijiang workflow-state --json` first, then read task prd.md, design.md, implement.md, and specs in `.dijiang/spec/`.
 
 ### Step 3: Self-Fix
 Fix issues directly, then re-run verification.
