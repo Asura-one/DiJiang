@@ -1,4 +1,5 @@
 pub mod capability_gate;
+pub mod doc_sync;
 pub mod git_gate;
 pub mod route_gate;
 pub mod skill_manifest;
