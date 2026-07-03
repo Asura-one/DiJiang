@@ -37,9 +37,9 @@ Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
 
 ## CLI Commands
 
-- `dijiang status` — Project overview
-- `dijiang task list` — All tasks
-- `dijiang task current` — Active task
+- `dijiang status` — 项目概览
+- `dijiang task list` — 所有任务
+- `dijiang task current` — 当前任务
 - `dijiang start <name>` — Start task
 - `cargo build -p dijiang-cli` — Build CLI
 - `cargo test` — Run all tests
