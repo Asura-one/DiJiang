@@ -427,7 +427,6 @@ fn test_e2e_dispatch_vague_feature_routes_to_grill() {
     assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
     assert!(out.contains("状态：planning"), "dispatch output: {out}");
 }
-
 #[test]
 fn test_e2e_dispatch_specific_feature_routes_to_implement() {
     let (_tmp, project_dir) = init_project();
@@ -439,8 +438,51 @@ fn test_e2e_dispatch_specific_feature_routes_to_implement() {
     .unwrap();
 
     assert!(out.contains("路线：dj-implement"), "dispatch output: {out}");
+    assert!(out.contains("action：allow"), "dispatch output: {out}");
+    assert!(out.contains("nextAction：continue with the requested skill for the new task"), "dispatch output: {out}");
     assert!(out.contains("Git 工作流：已创建任务 worktree"), "dispatch output: {out}");
     assert!(out.contains("状态：in_progress"), "dispatch output: {out}");
+}
+
+#[test]
+fn test_e2e_dispatch_redirects_planning_implement_to_grill_for_active_task() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(&["start", "route-gate", "Route Gate"], &project_dir).unwrap();
+    let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
+
+    assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
+    assert!(out.contains("action：redirect"), "dispatch output: {out}");
+    assert!(out.contains("reason：planning tasks are hard-gated to alignment before implementation-oriented work"), "dispatch output: {out}");
+    assert!(out.contains("nextAction：continue with dj-grill to produce a confirmed requirement summary"), "dispatch output: {out}");
+    assert!(out.contains("Git 工作流：当前路线不需要立即创建代码 worktree。"), "dispatch output: {out}");
+}
+
+#[test]
+fn test_e2e_dispatch_paused_task_redirects_to_continue() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(&["start", "paused-task", "Paused Task"], &project_dir).unwrap();
+    dijang(&["task", "status", "paused-task", "paused"], &project_dir).unwrap();
+    let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
+
+    assert!(out.contains("路线：dijiang-continue"), "dispatch output: {out}");
+    assert!(out.contains("action：redirect"), "dispatch output: {out}");
+    assert!(out.contains("nextAction：continue with dijiang-continue, then re-evaluate the next skill"), "dispatch output: {out}");
+}
+
+#[test]
+fn test_e2e_dispatch_archived_task_blocks_until_restart() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(&["start", "archived-task", "Archived Task"], &project_dir).unwrap();
+    dijang(&["task", "status", "archived-task", "archived"], &project_dir).unwrap();
+    let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
+
+    assert!(out.contains("路线：dijiang-start"), "dispatch output: {out}");
+    assert!(out.contains("action：block"), "dispatch output: {out}");
+    assert!(out.contains("reason：archived tasks are closed and must be explicitly restarted before more work"), "dispatch output: {out}");
+    assert!(out.contains("nextAction：run dijiang start <task> or create a new task before continuing"), "dispatch output: {out}");
 }
 #[test]
 fn test_e2e_start_keeps_new_task_in_planning_for_dispatch() {

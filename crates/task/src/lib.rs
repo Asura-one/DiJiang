@@ -1,7 +1,12 @@
+pub mod route_gate;
 pub mod store;
 pub mod types;
 pub mod workflow_state;
 
+pub use route_gate::{
+    evaluate_route, summarize_route_gate, RouteAction, RouteDecision, RouteGateSummary,
+    RouteIntent, WorkflowCapsule,
+};
 pub use types::{TASK_RECORD_FIELD_ORDER, TaskRecord, TaskStatus};
 
 #[cfg(test)]

@@ -4,6 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::route_gate::{summarize_route_gate};
 use crate::store::{self, SessionIdentity, TaskError};
 use crate::types::{TaskRecord, TaskStatus};
 
@@ -16,6 +17,7 @@ pub struct WorkflowState {
     pub runtime: WorkflowRuntime,
     pub memory: WorkflowMemory,
     pub peers: Vec<WorkflowPeerSession>,
+    pub route_gate: Option<WorkflowRouteGate>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -72,6 +74,16 @@ pub struct WorkflowPeerSession {
     pub closed_task: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowRouteGate {
+    pub capsule: String,
+    pub allowed_skills: Vec<String>,
+    pub default_skill: String,
+    pub blocked_skills: Vec<String>,
+    pub note: String,
+}
+
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 struct RuntimeSessionRecord {
@@ -83,6 +95,7 @@ struct RuntimeSessionRecord {
     last_seen_at: String,
     closed_task: Option<String>,
 }
+
 enum ActiveTaskState {
     Present(TaskRecord),
     Missing(String),
@@ -136,9 +149,15 @@ impl WorkflowState {
             );
         };
 
+        let route_gate_line = self
+            .route_gate
+            .as_ref()
+            .map(format_route_gate)
+            .unwrap_or_default();
+
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
-            task.id, task.title, task.status, task.task_path, self.guidance
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+            task.id, task.title, task.status, task.task_path, self.guidance, route_gate_line
         )
     }
 }
@@ -156,13 +175,12 @@ pub fn build_for_session(
         source: identity.source().to_string(),
     });
     let active_task_state = match store::read_active_task_for_session(dijiang_dir, identity)? {
-        Some(active_task_name) => {
-            match store::load_task(&dijiang_dir.join("tasks"), &active_task_name) {
-                Ok(task) => ActiveTaskState::Present(task),
-                Err(TaskError::NotFound(_)) => ActiveTaskState::Missing(active_task_name),
-                Err(error) => return Err(error),
-            }
-        }
+        Some(active_task_name) => match store::load_task(&dijiang_dir.join("tasks"), &active_task_name)
+        {
+            Ok(task) => ActiveTaskState::Present(task),
+            Err(TaskError::NotFound(_)) => ActiveTaskState::Missing(active_task_name),
+            Err(error) => return Err(error),
+        },
         None => ActiveTaskState::None,
     };
     let task = active_task_state.task();
@@ -185,11 +203,13 @@ pub fn build_for_session(
             runtime,
             memory,
             peers,
+            route_gate: None,
         });
     };
 
     let guidance = status_guidance(&task.status).to_string();
     let active_task = Some(workflow_task(dijiang_dir, &task));
+    let route_gate = Some(workflow_route_gate(&task.status));
     Ok(WorkflowState {
         session,
         active_task,
@@ -197,6 +217,7 @@ pub fn build_for_session(
         runtime,
         memory,
         peers,
+        route_gate,
     })
 }
 
@@ -252,6 +273,15 @@ fn record_runtime_injection(
             "task_path": relative_path(dijiang_dir, &dijiang_dir.join("tasks").join(&task.name)),
         })
     });
+    let route_gate_event = active_task.map(|task| {
+        let gate = workflow_route_gate(&task.status);
+        serde_json::json!({
+            "capsule": gate.capsule,
+            "default_skill": gate.default_skill,
+            "allowed_skills": gate.allowed_skills,
+            "blocked_skills": gate.blocked_skills,
+        })
+    });
     let event = serde_json::json!({
         "event": "workflow_state_injected",
         "session_key": identity.key(),
@@ -259,6 +289,7 @@ fn record_runtime_injection(
         "injection_count": record.injection_count,
         "active_task": current_active_task,
         "active_task_detail": active_task_event,
+        "route_gate": route_gate_event,
         "previous_active_task": previous_active_task,
         "active_task_changed": active_task_changed,
         "at": last_seen_at,
@@ -286,10 +317,7 @@ fn append_session_journal(
     event: &serde_json::Value,
 ) -> Result<std::path::PathBuf, TaskError> {
     let developer = read_developer(dijiang_dir);
-    let sessions_dir = dijiang_dir
-        .join("workspace")
-        .join(developer)
-        .join("sessions");
+    let sessions_dir = dijiang_dir.join("workspace").join(developer).join("sessions");
     fs::create_dir_all(&sessions_dir)?;
     let journal_path = sessions_dir.join(format!("{}.jsonl", identity.key()));
     let mut journal = fs::OpenOptions::new()
@@ -301,10 +329,7 @@ fn append_session_journal(
 }
 
 fn load_recent_memory(dijiang_dir: &Path, journal_path: &str, limit: usize) -> WorkflowMemory {
-    let path = dijiang_dir
-        .parent()
-        .unwrap_or(dijiang_dir)
-        .join(journal_path);
+    let path = dijiang_dir.parent().unwrap_or(dijiang_dir).join(journal_path);
     let Ok(content) = fs::read_to_string(path) else {
         return WorkflowMemory {
             summary: "当前窗口没有上一轮会话记忆。".to_string(),
@@ -465,6 +490,7 @@ fn format_peer_sessions(peers: &[WorkflowPeerSession]) -> String {
         .join("\n");
     format!("其他活跃窗口：{}\n{}", peers.len(), sessions)
 }
+
 fn read_developer(dijiang_dir: &Path) -> String {
     let config_path = dijiang_dir.join("config.toml");
     let Ok(config_str) = fs::read_to_string(config_path) else {
@@ -497,6 +523,36 @@ fn workflow_task(dijiang_dir: &Path, task: &TaskRecord) -> WorkflowTask {
         status: task.status.as_str().to_string(),
         task_path,
     }
+}
+
+fn workflow_route_gate(status: &TaskStatus) -> WorkflowRouteGate {
+    let summary = summarize_route_gate(status);
+    WorkflowRouteGate {
+        capsule: summary.capsule.as_str().to_string(),
+        allowed_skills: summary
+            .allowed_skills
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        default_skill: summary.default_skill.to_string(),
+        blocked_skills: summary
+            .blocked_skills
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        note: summary.note,
+    }
+}
+
+fn format_route_gate(route_gate: &WorkflowRouteGate) -> String {
+    format!(
+        "Route Gate：capsule={}；default_skill={}；allowed={}；blocked={}；note={}",
+        route_gate.capsule,
+        route_gate.default_skill,
+        route_gate.allowed_skills.join(", "),
+        route_gate.blocked_skills.join(", "),
+        route_gate.note,
+    )
 }
 
 fn status_guidance(status: &TaskStatus) -> &'static str {
@@ -594,6 +650,8 @@ mod tests {
         assert!(context_a.contains("活跃任务是否变化：true"));
         assert!(context_a.contains("活跃任务：task-a"));
         assert!(context_a.contains("标题：Task A"));
+        assert!(context_a.contains("Route Gate：capsule=implement"));
+        assert!(context_a.contains("default_skill=dj-implement"));
         assert!(context_a.contains(
             "会话日志：.dijiang/workspace/tester/sessions/dijiang_window-a.jsonl"
         ));
@@ -611,6 +669,7 @@ mod tests {
         assert!(log.contains("workflow_state_injected"));
         assert!(log.contains("dijiang_window-a"));
         assert!(log.contains("dijiang_window-b"));
+        assert!(log.contains("route_gate"));
 
         let journal_a = std::fs::read_to_string(
             dijiang_dir.join("workspace/tester/sessions/dijiang_window-a.jsonl"),
@@ -656,5 +715,83 @@ mod tests {
         let log = std::fs::read_to_string(dijiang_dir.join(".runtime/workflow-state.log")).unwrap();
         assert!(log.contains("workflow_state_injected"));
         assert!(log.contains("\"active_task\":null"));
+    }
+
+    #[test]
+    fn planning_state_exposes_align_capsule() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(&dijiang_dir).unwrap();
+        std::fs::write(
+            dijiang_dir.join("config.toml"),
+            "[project]\ndeveloper = \"tester\"\n",
+        )
+        .unwrap();
+        let tasks_dir = dijiang_dir.join("tasks");
+        std::fs::create_dir_all(&tasks_dir).unwrap();
+
+        let mut planning = task("align-task", "Align Task");
+        planning.status = TaskStatus::Planning;
+        store::save_task(&tasks_dir, &planning).unwrap();
+        let window = store::SessionIdentity::new("dijiang", "align-window").unwrap();
+        store::write_active_task_for_session(&dijiang_dir, "align-task", Some(&window)).unwrap();
+
+        let context = build_for_session(&dijiang_dir, Some(&window))
+            .unwrap()
+            .additional_context();
+        assert!(context.contains("Route Gate：capsule=align"));
+        assert!(context.contains("default_skill=dj-grill"));
+    }
+
+    #[test]
+    fn paused_state_exposes_continue_route() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(&dijiang_dir).unwrap();
+        std::fs::write(
+            dijiang_dir.join("config.toml"),
+            "[project]\ndeveloper = \"tester\"\n",
+        )
+        .unwrap();
+        let tasks_dir = dijiang_dir.join("tasks");
+        std::fs::create_dir_all(&tasks_dir).unwrap();
+
+        let mut paused = task("paused-task", "Paused Task");
+        paused.status = TaskStatus::Paused;
+        store::save_task(&tasks_dir, &paused).unwrap();
+        let window = store::SessionIdentity::new("dijiang", "paused-window").unwrap();
+        store::write_active_task_for_session(&dijiang_dir, "paused-task", Some(&window)).unwrap();
+
+        let context = build_for_session(&dijiang_dir, Some(&window))
+            .unwrap()
+            .additional_context();
+        assert!(context.contains("Route Gate：capsule=resume"));
+        assert!(context.contains("default_skill=dijiang-continue"));
+    }
+
+    #[test]
+    fn archived_state_exposes_restart_requirement() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(&dijiang_dir).unwrap();
+        std::fs::write(
+            dijiang_dir.join("config.toml"),
+            "[project]\ndeveloper = \"tester\"\n",
+        )
+        .unwrap();
+        let tasks_dir = dijiang_dir.join("tasks");
+        std::fs::create_dir_all(&tasks_dir).unwrap();
+
+        let mut archived = task("archived-task", "Archived Task");
+        archived.status = TaskStatus::Archived;
+        store::save_task(&tasks_dir, &archived).unwrap();
+        let window = store::SessionIdentity::new("dijiang", "archived-window").unwrap();
+        store::write_active_task_for_session(&dijiang_dir, "archived-task", Some(&window)).unwrap();
+
+        let context = build_for_session(&dijiang_dir, Some(&window))
+            .unwrap()
+            .additional_context();
+        assert!(context.contains("Route Gate：capsule=idle"));
+        assert!(context.contains("default_skill=dijiang-start"));
     }
 }
