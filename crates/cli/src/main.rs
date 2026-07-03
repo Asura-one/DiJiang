@@ -1952,11 +1952,19 @@ fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str) -> 
     let task_name = unique_task_name(&tasks_dir, &base);
     let title = title_from_prompt(prompt);
     let mut task = store::create_task(&task_name, &title);
+    let route_status = route.status.clone();
+    let decision_capsule = match route_status {
+        TaskStatus::Planning => dijiang_task::WorkflowCapsule::Align,
+        TaskStatus::InProgress => dijiang_task::WorkflowCapsule::Implement,
+        TaskStatus::Completed => dijiang_task::WorkflowCapsule::Finish,
+        TaskStatus::Archived => dijiang_task::WorkflowCapsule::Idle,
+        TaskStatus::Paused => dijiang_task::WorkflowCapsule::Resume,
+    };
     let dispatch = DispatchDecision {
         route,
         decision: dijiang_task::RouteDecision {
-            task_status: TaskStatus::Planning,
-            capsule: dijiang_task::WorkflowCapsule::Align,
+            task_status: route_status,
+            capsule: decision_capsule,
             requested_intent: dijiang_task::RouteIntent::Unknown,
             requested_skill: Some(prompt.to_string()),
             resolved_skill: "new-task-route",
