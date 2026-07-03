@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 type ToolResultEvent = {
   toolName?: string;
@@ -6,6 +6,15 @@ type ToolResultEvent = {
   content?: unknown;
   details?: unknown;
   isError?: boolean;
+};
+
+type WorkflowStatePayload = {
+  activeTaskId?: string;
+  activeTaskTitle?: string;
+  activeTaskStatus?: string;
+  capsule?: string;
+  gitGateState?: string;
+  guidance?: string;
 };
 
 function errorContext(message: string): string {
@@ -86,6 +95,87 @@ async function hasDirtyDiff(pi: ExtensionAPI): Promise<boolean> {
   }
 }
 
+async function getWorkflowState(pi: ExtensionAPI): Promise<WorkflowStatePayload | null> {
+  try {
+    const result = await pi.exec("dijiang", ["workflow-state", "--json"]);
+    const payload = JSON.parse(result.stdout?.trim() || "{}");
+    const context = typeof payload.additionalContext === "string" ? payload.additionalContext : "";
+    if (!context) {
+      return null;
+    }
+    const pick = (label: string): string | undefined => {
+      const match = context.match(new RegExp(`^${label}：(.+)$`, "m"));
+      return match?.[1]?.trim();
+    };
+    const routeGate = pick("Route Gate");
+    const gitGate = pick("Git Gate");
+    const capsuleMatch = routeGate?.match(/capsule=([^；]+)/);
+    const gitStateMatch = gitGate?.match(/state=([^；]+)/);
+    return {
+      activeTaskId: pick("活跃任务"),
+      activeTaskTitle: pick("标题"),
+      activeTaskStatus: pick("状态"),
+      capsule: capsuleMatch?.[1]?.trim(),
+      gitGateState: gitStateMatch?.[1]?.trim(),
+      guidance: pick("指引"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function refreshStatusBar(ctx: { ui: ExtensionContext["ui"] }, pi: ExtensionAPI) {
+  try {
+    const state = await getWorkflowState(pi);
+    if (!state) {
+      ctx.ui.setStatus("dijiang-task", undefined);
+      ctx.ui.setStatus("dijiang-capsule", undefined);
+      return;
+    }
+    const title = state.activeTaskTitle || state.activeTaskId || "(none)";
+    const capsule = state.capsule || "?";
+    ctx.ui.setStatus("dijiang-task", `${title} [${capsule}]`);
+    ctx.ui.setStatus("dijiang-capsule", `${capsule}`);
+  } catch {
+    // footer status is best-effort
+  }
+}
+
+async function refreshWidget(ctx: { ui: ExtensionContext["ui"] }, pi: ExtensionAPI) {
+  try {
+    const state = await getWorkflowState(pi);
+    if (!state) {
+      ctx.ui.setWidget("dijiang", undefined);
+      return;
+    }
+    const title = state.activeTaskTitle || state.activeTaskId || "无活跃任务";
+    const capsule = state.capsule || "?";
+    const gate = state.gitGateState || "-";
+    const status = state.activeTaskStatus || "none";
+    ctx.ui.setWidget("dijiang", [
+      `任务: ${title}  |  状态: ${status}  |  Capsule: ${capsule}  |  Gate: ${gate}`
+    ]);
+  } catch {
+    // widget is best-effort
+  }
+}
+
+async function refreshWorkflowUi(
+  ctx: { ui: ExtensionContext["ui"] },
+  pi: ExtensionAPI,
+  eventName: string,
+  prompt?: string,
+  forceDispatch = false,
+ ) {
+  if (forceDispatch && prompt?.trim() && !prompt.trim().startsWith("/")) {
+    await dispatchContext(pi, eventName, prompt);
+  } else {
+    await injectWorkflowState(pi, eventName);
+  }
+  await refreshWidget(ctx, pi);
+  await refreshStatusBar(ctx, pi);
+}
+
 async function dispatchContext(pi: ExtensionAPI, eventName: string, prompt: string): Promise<string | undefined> {
   try {
     const result = await pi.exec("dijiang", [
@@ -132,6 +222,23 @@ export default function (pi: ExtensionAPI) {
   let lastHuntInjection = "";
   let lastDocsInjection = "";
 
+  pi.registerCommand("dijiang", {
+    description: "Show DiJiang task status, phase, and capsule info",
+    handler: async (_args, ctx) => {
+      const state = await getWorkflowState(pi);
+      if (!state) {
+        ctx.ui.notify("DiJiang: 未检测到工作流状态", "warning");
+        return;
+      }
+      const title = state.activeTaskTitle || state.activeTaskId || "(none)";
+      const capsule = state.capsule || "?";
+      const gate = state.gitGateState || "-";
+      await refreshWidget(ctx, pi);
+      await refreshStatusBar(ctx, pi);
+      ctx.ui.notify(`任务: ${title} | Capsule: ${capsule} | Gate: ${gate}`, "info");
+    },
+  });
+
   async function maybeDispatchFromPrompt(eventName: string, prompt?: string) {
     const text = prompt?.trim();
     if (!text || text.startsWith("/")) {
@@ -152,11 +259,13 @@ export default function (pi: ExtensionAPI) {
     };
   }
 
-  pi.on("before_agent_start", async (event) => {
+  pi.on("before_agent_start", async (event, ctx) => {
+    await refreshWorkflowUi(ctx, pi, "before_agent_start", event.prompt, true);
     return maybeDispatchFromPrompt("before_agent_start", event.prompt);
   });
 
-  pi.on("user_prompt_submit", async (event) => {
+  pi.on("user_prompt_submit", async (event, ctx) => {
+    await refreshWorkflowUi(ctx, pi, "user_prompt_submit", event.prompt, true);
     return maybeDispatchFromPrompt("user_prompt_submit", event.prompt);
   });
 
@@ -172,12 +281,14 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  pi.on("tool_result", async (event) => {
+  pi.on("tool_result", async (event, ctx) => {
     const ev = event as ToolResultEvent;
     const command = ev.input?.command ?? "";
     if (ev.toolName !== "bash" || !command) {
       return;
     }
+
+    await refreshWorkflowUi(ctx, pi, "tool_result");
 
     if (failedToolResult(ev)) {
       const key = `${contextKey(event)}:${command}:hunt`;
@@ -223,11 +334,11 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  pi.on("session_start", async () => {
-    await injectWorkflowState(pi, "session_start");
+  pi.on("session_start", async (_event, ctx) => {
+    await refreshWorkflowUi(ctx, pi, "session_start");
   });
 
-  pi.on("session_shutdown", async () => {
-    await injectWorkflowState(pi, "session_shutdown");
+  pi.on("session_shutdown", async (_event, ctx) => {
+    await refreshWorkflowUi(ctx, pi, "session_shutdown");
   });
 }
