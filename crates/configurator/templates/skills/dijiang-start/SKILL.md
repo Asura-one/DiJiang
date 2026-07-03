@@ -47,6 +47,8 @@ dijiang workflow-state --json
 ```bash
 test -d .dijiang/spec && find .dijiang/spec -maxdepth 2 -type f | sort
 test -f .dijiang/spec/index.md && cat .dijiang/spec/index.md
+# Check for stale specs (spec changes since last recorded)
+dijiang spec-sync check 2>/dev/null || true
 ```
 
 输出：路由或实现前需要加载的适用 spec 文件。

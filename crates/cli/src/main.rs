@@ -155,6 +155,11 @@ enum Commands {
         #[arg(long)]
         allow_dirty: bool,
     },
+    /// 同步 spec 文件 checksums：检查是否有 specs 发生变化
+    SpecSync {
+        #[command(subcommand)]
+        command: SpecSyncCommands,
+    },
     /// 更新当前项目的 dj-* 技能和代理
     Update {
         /// 强制更新所有文件
@@ -178,6 +183,14 @@ enum DocSyncCommands {
         #[arg(long, default_value = "main")]
         base: String,
     },
+}
+
+#[derive(Subcommand)]
+enum SpecSyncCommands {
+    /// 检查当前 spec 文件是否与已记录的 checksums 不同
+    Check,
+    /// 记录当前 spec 文件 checksums 到 `.dijiang/.runtime/`
+    Record,
 }
 
 #[derive(Subcommand)]
@@ -537,6 +550,10 @@ fn main() -> anyhow::Result<()> {
         Commands::DocSync { command } => match command {
             DocSyncCommands::Check { base } => cmd_doc_sync_check(base),
         },
+        Commands::SpecSync { command } => match command {
+            SpecSyncCommands::Check => cmd_spec_sync_check(),
+            SpecSyncCommands::Record => cmd_spec_sync_record(),
+        },
         Commands::Update { force, from_github } => cmd_update(force, from_github),
     }
 }
@@ -561,6 +578,45 @@ fn cmd_doc_sync_check(base: String) -> anyhow::Result<()> {
     let output = dijiang_task::doc_sync::format_report(&report, &impacts);
     print!("{output}");
 
+    Ok(())
+}
+
+fn cmd_spec_sync_check() -> anyhow::Result<()> {
+    let dijiang_dir = require_dijiang_dir()?;
+    let diff = dijiang_task::spec_sync::check_spec_changes(&dijiang_dir)?;
+    if !diff.has_changes() {
+        println!("  所有 spec 文件与已记录 checksum 一致，无变化。");
+        return Ok(());
+    }
+    if !diff.new.is_empty() {
+        println!(" 新增 specs:");
+        for p in &diff.new {
+            println!("    + {p}");
+        }
+    }
+    if !diff.changed.is_empty() {
+        println!(" 已更改 specs:");
+        for p in &diff.changed {
+            println!("    ~ {p}");
+        }
+    }
+    if !diff.deleted.is_empty() {
+        println!(" 已删除 specs:");
+        for p in &diff.deleted {
+            println!("    - {p}");
+        }
+    }
+    println!();
+    println!("  提示: 运行 `dijiang spec-sync record` 更新 checksum 记录。");
+    Ok(())
+}
+
+fn cmd_spec_sync_record() -> anyhow::Result<()> {
+    let dijiang_dir = require_dijiang_dir()?;
+    let checksums = dijiang_task::spec_sync::compute_spec_checksums(&dijiang_dir);
+    let count = checksums.len();
+    dijiang_task::spec_sync::write_stored_checksums(&dijiang_dir, &checksums)?;
+    println!("  已记录 {count} 个 spec 文件的 checksums。");
     Ok(())
 }
 
