@@ -549,14 +549,14 @@ mod tests {
         let dijiang_dir = dir.path().join(".trellis");
         fs::create_dir(&dijiang_dir).unwrap();
 
-        write_active_task(&dijiang_dir, "fallback-task").unwrap();
+        write_active_task_for_session(&dijiang_dir, "fallback-task", None).unwrap();
 
         // Remove sessions dir to simulate Trellis-only write
         let sessions_dir = dijiang_dir.join(".runtime").join("sessions");
         fs::remove_dir_all(sessions_dir).unwrap();
 
         // Should still read from active_task.txt
-        let active = read_active_task(&dijiang_dir).unwrap();
+        let active = read_active_task_for_session(&dijiang_dir, None).unwrap();
         assert_eq!(active, Some("fallback-task".to_string()));
     }
 }

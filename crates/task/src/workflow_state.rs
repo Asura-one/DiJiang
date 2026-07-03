@@ -85,6 +85,7 @@ pub struct WorkflowRouteGate {
     pub allowed_skills: Vec<String>,
     pub default_skill: String,
     pub blocked_skills: Vec<String>,
+    pub recommended_path: String,
     pub note: String,
 }
 
@@ -190,6 +191,10 @@ impl WorkflowState {
                 .as_ref()
                 .map(|route_gate| route_gate.default_skill.as_str())
                 .unwrap_or_default(),
+            self.route_gate
+                .as_ref()
+                .map(|route_gate| route_gate.recommended_path.as_str())
+                .unwrap_or_default(),
         );
 
         format!(
@@ -256,7 +261,8 @@ pub fn build_for_session(
 
     let guidance = status_guidance(&task.status).to_string();
     let active_task = Some(workflow_task(dijiang_dir, &task));
-    let route_gate = Some(workflow_route_gate(&task.status));
+    let recommended_path = task.meta.get("dispatch").and_then(|d| d.get("recommended_path")).and_then(|v| v.as_str()).unwrap_or("");
+    let route_gate = Some(workflow_route_gate(&task.status, &recommended_path));
     let git_gate = Some(workflow_git_gate(dijiang_dir.parent().unwrap_or(dijiang_dir), &task));
     let skill_manifests = workflow_skill_manifests(&task.status);
     Ok(WorkflowState {
@@ -325,7 +331,8 @@ fn record_runtime_injection(
         })
     });
     let route_gate_event = active_task.map(|task| {
-        let gate = workflow_route_gate(&task.status);
+        let recommended_path = task.meta.get("dispatch").and_then(|d| d.get("recommended_path")).and_then(|v| v.as_str()).unwrap_or("");
+        let gate = workflow_route_gate(&task.status, &recommended_path);
         serde_json::json!({
             "capsule": gate.capsule,
             "default_skill": gate.default_skill,
@@ -600,7 +607,7 @@ fn workflow_task(dijiang_dir: &Path, task: &TaskRecord) -> WorkflowTask {
     }
 }
 
-fn workflow_route_gate(status: &TaskStatus) -> WorkflowRouteGate {
+fn workflow_route_gate(status: &TaskStatus, recommended_path: &str) -> WorkflowRouteGate {
     let summary = summarize_route_gate(status);
     WorkflowRouteGate {
         capsule: summary.capsule.as_str().to_string(),
@@ -615,15 +622,17 @@ fn workflow_route_gate(status: &TaskStatus) -> WorkflowRouteGate {
             .into_iter()
             .map(str::to_string)
             .collect(),
+        recommended_path: recommended_path.to_string(),
         note: summary.note,
     }
 }
 
 fn format_route_gate(route_gate: &WorkflowRouteGate) -> String {
     format!(
-        "Route Gate：capsule={}；default_skill={}；allowed={}；blocked={}；note={}",
+        "Route Gate：capsule={}；default_skill={}；recommended_path={}；allowed={}；blocked={}；note={}",
         route_gate.capsule,
         route_gate.default_skill,
+        route_gate.recommended_path,
         route_gate.allowed_skills.join(", "),
         route_gate.blocked_skills.join(", "),
         route_gate.note,
@@ -658,7 +667,8 @@ fn format_target_skill_bodies(
     route_gate: Option<&WorkflowRouteGate>,
     _skill_manifests: &[WorkflowSkillManifest],
     primary_skill: &str,
-    ) -> String {
+    recommended_path: &str,
+) -> String {
     let Some(route_gate) = route_gate else {
         return String::new();
     };
@@ -672,7 +682,7 @@ fn format_target_skill_bodies(
             _ => crate::route_gate::WorkflowCapsule::Idle,
         },
         primary_skill,
-        primary_skill,
+        recommended_path,
     );
     if selected.is_empty() {
         return String::new();
