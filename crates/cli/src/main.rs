@@ -789,6 +789,20 @@ fn git_current_branch(project_root: &Path) -> anyhow::Result<String> {
     run_git(project_root, &["branch", "--show-current"])
 }
 
+fn recover_finish_task_from_branch(
+    tasks_dir: &Path,
+    branch: &str,
+) -> Option<(String, TaskRecord)> {
+    let branch = branch.trim();
+    if branch.is_empty() {
+        return None;
+    }
+    let tasks = store::list_tasks(tasks_dir).ok()?;
+    tasks.into_iter()
+        .find(|task| task.branch.as_deref() == Some(branch) || task.name == branch)
+        .map(|task| (task.name.clone(), task))
+}
+
 fn git_common_dir(project_root: &Path) -> anyhow::Result<PathBuf> {
     let path = run_git(project_root, &["rev-parse", "--git-common-dir"])?;
     let path = PathBuf::from(path);
@@ -1254,29 +1268,52 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
             .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?
     };
     let tasks_dir = dijiang_dir.join("tasks");
-    let active_task = if uses_local_dijiang_state {
-        store::read_active_task(&dijiang_dir)?
-    } else {
-        None
-    };
-    let task_before_archive = match active_task.as_deref() {
+    let active_task = store::read_active_task(&dijiang_dir)?;
+    let current_branch = git_current_branch(&project_root).ok();
+    let worktree_hint = project_root
+        .file_name()
+        .and_then(|value| value.to_str())
+        .map(str::to_string);
+    let resolved_active_task = match active_task.as_deref() {
         Some(active_task) => match store::load_task(&tasks_dir, active_task) {
-            Ok(task) => Some(task),
+            Ok(task) => Some((active_task.to_string(), task)),
             Err(store::TaskError::NotFound(_)) => {
-                anyhow::bail!(
-                    "finish-work 的 active task 指向 `{active_task}`，但 `.dijiang/tasks/{active_task}/task.json` 不存在。这通常表示 task state 已陈旧或 task artifact 被清理。请用 `dijiang task current` / `dijiang task list` 检查状态；若当前工作仍需归档，请重新 `dijiang start <name>`，否则清理 stale active task 后再继续。"
-                );
+                let recovered = current_branch
+                    .as_deref()
+                    .and_then(|branch| recover_finish_task_from_branch(&tasks_dir, branch))
+                    .or_else(|| {
+                        worktree_hint
+                            .as_deref()
+                            .and_then(|hint| recover_finish_task_from_branch(&tasks_dir, hint))
+                    });
+                if recovered.is_none() {
+                    anyhow::bail!(
+                        "finish-work 的 active task 指向 `{active_task}`，但 `.dijiang/tasks/{active_task}/task.json` 不存在。这通常表示 task state 已陈旧或 task artifact 被清理。请用 `dijiang task current` / `dijiang task list` 检查状态；若当前工作仍需归档，请重新 `dijiang start <name>`，否则清理 stale active task 后再继续。"
+                    );
+                }
+                recovered
             }
             Err(error) => return Err(error.into()),
         },
-        None => None,
+        None => current_branch
+            .as_deref()
+            .and_then(|branch| recover_finish_task_from_branch(&tasks_dir, branch))
+            .or_else(|| {
+                worktree_hint
+                    .as_deref()
+                    .and_then(|hint| recover_finish_task_from_branch(&tasks_dir, hint))
+            }),
     };
+    let task_before_archive = resolved_active_task.as_ref().map(|(_, task)| task.clone());
     let (verification, docs_sync) =
         ensure_finish_preconditions(&project_root, task_before_archive.as_ref(), options)?;
     let version_update = update_workspace_version(&project_root, options.version_impact)?;
     let developer = read_developer(&dijiang_dir)?;
     let (session_key, source) = current_session_key();
-    let task_label = active_task.as_deref().unwrap_or("no-active-task");
+    let task_label = resolved_active_task
+        .as_ref()
+        .map(|(name, _)| name.as_str())
+        .unwrap_or("no-active-task");
     let journal = append_finish_journal(
         &dijiang_dir,
         &developer,
@@ -1286,12 +1323,12 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         options.allow_dirty,
     )?;
 
-    let archive_status = if let Some(active_task) = active_task.as_deref() {
-        let task = store::archive_task(&tasks_dir, active_task)?;
+    let archive_status = if let Some((active_task_name, _)) = resolved_active_task.as_ref() {
+        let task = store::archive_task(&tasks_dir, active_task_name)?;
         store::clear_active_task(&dijiang_dir)?;
         format!(
             "archived task `{}` (status: {}), journal: {}",
-            active_task,
+            active_task_name,
             task.status.as_str(),
             journal.display()
         )
@@ -1355,8 +1392,8 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         project_memory.append_session_closure(&memory_closure)?;
     }
 
-    if let Some(active_task) = active_task.as_deref() {
-        println!("✓ 已完成任务 '{active_task}'");
+    if let Some((active_task_name, _)) = resolved_active_task.as_ref() {
+        println!("✓ 已完成任务 '{active_task_name}'");
     } else {
         println!("✓ 已完成工作（无 active task，已跳过任务归档）");
     }
@@ -1383,7 +1420,7 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         memory_closure_path.display()
     );
     println!("  Session 已关闭：{}", session_journal.display());
-    if active_task.is_some() {
+    if resolved_active_task.is_some() {
         println!("  当前 session 的 active task 已清理");
     } else {
         println!("  当前 session 没有 active task 需要清理");

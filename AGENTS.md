@@ -84,6 +84,7 @@ This project uses DiJiang for task management and workflow.
 | 技术债评估 | `dj-debt` |
 | 代码库健康报告 | `dj-health` |
 | Pattern 研究 | `dj-pattern` |
+| 推理增强 / 系统透镜 | `dj-reason` |
 | 最小聚焦改动 | `dj-ponytail` |
 | Prototype | `dj-prototype` |
 | UI design | `dj-design` |

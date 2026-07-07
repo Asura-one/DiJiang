@@ -97,17 +97,20 @@ pub fn evaluate_route(
     let requested_skill = requested_skill.map(str::to_string);
     match task_status {
         TaskStatus::Planning => match requested_intent {
-            RouteIntent::Align => decision(
-                task_status.clone(),
-                WorkflowCapsule::Align,
-                requested_intent,
-                requested_skill,
-                "dj-grill",
-                RouteAction::Allow,
-                "planning tasks must align before implementation",
-                "continue with dj-grill to confirm scope and acceptance",
-                false,
-            ),
+            RouteIntent::Align => {
+                let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
+                decision(
+                    task_status.clone(),
+                    WorkflowCapsule::Align,
+                    requested_intent,
+                    requested_skill,
+                    resolved,
+                    RouteAction::Allow,
+                    "planning tasks must align before implementation",
+                    "continue with dj-grill to confirm scope and acceptance",
+                    false,
+                )
+            },
             RouteIntent::Document => decision(
                 task_status.clone(),
                 WorkflowCapsule::Align,
@@ -191,17 +194,20 @@ pub fn evaluate_route(
                 "run dj-check first, then finish-work once validation is complete",
                 false,
             ),
-            RouteIntent::Align => decision(
-                task_status.clone(),
-                WorkflowCapsule::Align,
-                requested_intent,
-                requested_skill,
-                "dj-grill",
-                RouteAction::Allow,
-                "in_progress tasks may re-open alignment when scope changes",
-                "continue with dj-grill to refresh scope and assumptions",
-                false,
-            ),
+            RouteIntent::Align => {
+                let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
+                decision(
+                    task_status.clone(),
+                    WorkflowCapsule::Align,
+                    requested_intent,
+                    requested_skill,
+                    resolved,
+                    RouteAction::Allow,
+                    "in_progress tasks may re-open alignment when scope changes",
+                    "continue with dj-grill to refresh scope and assumptions",
+                    false,
+                )
+            },
             RouteIntent::Implement | RouteIntent::Unknown | RouteIntent::Resume => {
                 let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-implement");
                 decision(
@@ -251,17 +257,20 @@ pub fn evaluate_route(
                 "continue with dj-output and finalize task artifacts",
                 false,
             ),
-            RouteIntent::Align => decision(
-                task_status.clone(),
-                WorkflowCapsule::Align,
-                requested_intent,
-                requested_skill,
-                "dj-grill",
-                RouteAction::Allow,
-                "completed tasks may re-open alignment to decide whether follow-up work belongs here",
-                "continue with dj-grill to decide whether to restart or split follow-up work",
-                false,
-            ),
+            RouteIntent::Align => {
+                let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
+                decision(
+                    task_status.clone(),
+                    WorkflowCapsule::Align,
+                    requested_intent,
+                    requested_skill,
+                    resolved,
+                    RouteAction::Allow,
+                    "completed tasks may re-open alignment to decide whether follow-up work belongs here",
+                    "continue with dj-grill to decide whether to restart or split follow-up work",
+                    false,
+                )
+            },
             RouteIntent::Implement
             | RouteIntent::Debug
             | RouteIntent::Resume
@@ -319,21 +328,21 @@ pub fn summarize_route_gate(task_status: &TaskStatus) -> RouteGateSummary {
     match task_status {
         TaskStatus::Planning => RouteGateSummary {
             capsule: WorkflowCapsule::Align,
-            allowed_skills: vec!["dj-grill", "dj-output"],
+            allowed_skills: vec!["dj-grill", "dj-output", "dj-reason"],
             default_skill: "dj-grill",
             blocked_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check"],
             note: "planning tasks are intentionally narrow: align first, then produce task artifacts if needed. This follows the Zleap-style runtime gate idea where the harness limits the visible next action instead of relying on prompt self-discipline.".to_string(),
         },
         TaskStatus::InProgress => RouteGateSummary {
             capsule: WorkflowCapsule::Implement,
-            allowed_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dj-output", "dj-grill"],
+            allowed_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dj-output", "dj-grill", "dj-reason"],
             default_skill: "dj-implement",
             blocked_skills: vec!["dijiang-finish-work"],
             note: "in_progress tasks stay in the implementation lane, but finish-work remains gated behind verification.".to_string(),
         },
         TaskStatus::Completed => RouteGateSummary {
             capsule: WorkflowCapsule::Finish,
-            allowed_skills: vec!["dijiang-finish-work", "dj-check", "dj-output", "dj-grill"],
+            allowed_skills: vec!["dijiang-finish-work", "dj-check", "dj-output", "dj-grill", "dj-reason"],
             default_skill: "dijiang-finish-work",
             blocked_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt"],
             note: "completed tasks may finish or document, but implementation requests must re-open alignment first.".to_string(),
@@ -342,14 +351,14 @@ pub fn summarize_route_gate(task_status: &TaskStatus) -> RouteGateSummary {
             capsule: WorkflowCapsule::Idle,
             allowed_skills: vec!["dijiang-start"],
             default_skill: "dijiang-start",
-            blocked_skills: vec!["dj-grill", "dj-output", "dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dijiang-finish-work"],
+            blocked_skills: vec!["dj-grill", "dj-output", "dj-reason", "dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dijiang-finish-work"],
             note: "archived tasks are closed; the harness blocks further work until the task is explicitly restarted.".to_string(),
         },
         TaskStatus::Paused => RouteGateSummary {
             capsule: WorkflowCapsule::Resume,
             allowed_skills: vec!["dijiang-continue"],
             default_skill: "dijiang-continue",
-            blocked_skills: vec!["dj-grill", "dj-output", "dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dijiang-finish-work"],
+            blocked_skills: vec!["dj-grill", "dj-output", "dj-reason", "dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dijiang-finish-work"],
             note: "paused tasks restore context first, then route again once the session has been recovered.".to_string(),
         },
     }
@@ -364,6 +373,7 @@ fn requested_skill_name(skill: Option<&str>) -> Option<&'static str> {
         Some("dj-check") => Some("dj-check"),
         Some("dj-output") => Some("dj-output"),
         Some("dj-grill") => Some("dj-grill"),
+        Some("dj-reason") => Some("dj-reason"),
         Some("dijiang-finish-work") => Some("dijiang-finish-work"),
         Some("dijiang-continue") => Some("dijiang-continue"),
         _ => None,
@@ -400,7 +410,11 @@ mod tests {
 
     #[test]
     fn planning_implement_redirects_to_grill() {
-        let decision = evaluate_route(&TaskStatus::Planning, RouteIntent::Implement, Some("dj-implement"));
+        let decision = evaluate_route(
+            &TaskStatus::Planning,
+            RouteIntent::Implement,
+            Some("dj-implement"),
+        );
         assert_eq!(decision.action, RouteAction::Redirect);
         assert_eq!(decision.resolved_skill, "dj-grill");
         assert_eq!(decision.capsule, WorkflowCapsule::Align);
@@ -410,36 +424,63 @@ mod tests {
     }
 
     #[test]
+    fn planning_reason_is_allowed() {
+        let decision = evaluate_route(&TaskStatus::Planning, RouteIntent::Align, Some("dj-reason"));
+        assert_eq!(decision.action, RouteAction::Allow);
+        assert_eq!(decision.resolved_skill, "dj-reason");
+        assert_eq!(decision.capsule, WorkflowCapsule::Align);
+    }
+    #[test]
     fn planning_script_redirects_to_grill() {
-        let decision = evaluate_route(&TaskStatus::Planning, RouteIntent::Implement, Some("dj-script"));
+        let decision = evaluate_route(
+            &TaskStatus::Planning,
+            RouteIntent::Implement,
+            Some("dj-script"),
+        );
         assert_eq!(decision.action, RouteAction::Redirect);
         assert_eq!(decision.resolved_skill, "dj-grill");
     }
 
     #[test]
     fn planning_output_is_allowed() {
-        let decision = evaluate_route(&TaskStatus::Planning, RouteIntent::Document, Some("dj-output"));
+        let decision = evaluate_route(
+            &TaskStatus::Planning,
+            RouteIntent::Document,
+            Some("dj-output"),
+        );
         assert_eq!(decision.action, RouteAction::Allow);
         assert_eq!(decision.resolved_skill, "dj-output");
     }
 
     #[test]
     fn planning_finish_is_blocked() {
-        let decision = evaluate_route(&TaskStatus::Planning, RouteIntent::Finish, Some("dijiang-finish-work"));
+        let decision = evaluate_route(
+            &TaskStatus::Planning,
+            RouteIntent::Finish,
+            Some("dijiang-finish-work"),
+        );
         assert_eq!(decision.action, RouteAction::Block);
         assert_eq!(decision.resolved_skill, "dj-grill");
     }
 
     #[test]
     fn in_progress_implement_is_allowed() {
-        let decision = evaluate_route(&TaskStatus::InProgress, RouteIntent::Implement, Some("dj-implement"));
+        let decision = evaluate_route(
+            &TaskStatus::InProgress,
+            RouteIntent::Implement,
+            Some("dj-implement"),
+        );
         assert_eq!(decision.action, RouteAction::Allow);
         assert_eq!(decision.resolved_skill, "dj-implement");
     }
 
     #[test]
     fn in_progress_finish_redirects_to_check() {
-        let decision = evaluate_route(&TaskStatus::InProgress, RouteIntent::Finish, Some("dijiang-finish-work"));
+        let decision = evaluate_route(
+            &TaskStatus::InProgress,
+            RouteIntent::Finish,
+            Some("dijiang-finish-work"),
+        );
         assert_eq!(decision.action, RouteAction::Redirect);
         assert_eq!(decision.resolved_skill, "dj-check");
         assert_eq!(decision.capsule, WorkflowCapsule::Check);
@@ -447,21 +488,33 @@ mod tests {
 
     #[test]
     fn completed_finish_is_allowed() {
-        let decision = evaluate_route(&TaskStatus::Completed, RouteIntent::Finish, Some("dijiang-finish-work"));
+        let decision = evaluate_route(
+            &TaskStatus::Completed,
+            RouteIntent::Finish,
+            Some("dijiang-finish-work"),
+        );
         assert_eq!(decision.action, RouteAction::Allow);
         assert_eq!(decision.resolved_skill, "dijiang-finish-work");
     }
 
     #[test]
     fn completed_implement_redirects_to_grill() {
-        let decision = evaluate_route(&TaskStatus::Completed, RouteIntent::Implement, Some("dj-implement"));
+        let decision = evaluate_route(
+            &TaskStatus::Completed,
+            RouteIntent::Implement,
+            Some("dj-implement"),
+        );
         assert_eq!(decision.action, RouteAction::Redirect);
         assert_eq!(decision.resolved_skill, "dj-grill");
     }
 
     #[test]
     fn archived_blocks_everything() {
-        let decision = evaluate_route(&TaskStatus::Archived, RouteIntent::Implement, Some("dj-implement"));
+        let decision = evaluate_route(
+            &TaskStatus::Archived,
+            RouteIntent::Implement,
+            Some("dj-implement"),
+        );
         assert_eq!(decision.action, RouteAction::Block);
         assert_eq!(decision.resolved_skill, "dijiang-start");
         assert_eq!(decision.capsule, WorkflowCapsule::Idle);
@@ -469,14 +522,22 @@ mod tests {
 
     #[test]
     fn paused_implement_redirects_to_continue() {
-        let decision = evaluate_route(&TaskStatus::Paused, RouteIntent::Implement, Some("dj-implement"));
+        let decision = evaluate_route(
+            &TaskStatus::Paused,
+            RouteIntent::Implement,
+            Some("dj-implement"),
+        );
         assert_eq!(decision.action, RouteAction::Redirect);
         assert_eq!(decision.resolved_skill, "dijiang-continue");
     }
 
     #[test]
     fn paused_resume_is_allowed() {
-        let decision = evaluate_route(&TaskStatus::Paused, RouteIntent::Resume, Some("dijiang-continue"));
+        let decision = evaluate_route(
+            &TaskStatus::Paused,
+            RouteIntent::Resume,
+            Some("dijiang-continue"),
+        );
         assert_eq!(decision.action, RouteAction::Allow);
         assert_eq!(decision.resolved_skill, "dijiang-continue");
     }

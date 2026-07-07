@@ -813,6 +813,25 @@ fn test_e2e_finish_work_commit_from_git_worktree_without_local_dijiang() {
         .output()
         .expect("git worktree add");
     assert!(!worktree_dir.join(".dijiang").exists());
+    dijang(
+        &["start", "finish-work-external", "Finish Work External"],
+        &project_dir,
+    )
+    .unwrap();
+    let task_json = project_dir.join(".dijiang/tasks/finish-work-external/task.json");
+    let mut task = std::fs::read_to_string(&task_json).expect("task json exists");
+    task = task.replace(
+        "\"branch\": null",
+        "\"branch\": \"finish-work-external\"",
+    );
+    task = task.replace(
+        "\"worktreePath\": null",
+        &format!(
+            "\"worktreePath\": \"{}\"",
+            worktree_dir.display()
+        ),
+    );
+    std::fs::write(&task_json, task).unwrap();
     std::fs::write(
         project_dir.join(".dijiang/active_task.txt"),
         "stale-main-worktree-task",
@@ -826,7 +845,6 @@ fn test_e2e_finish_work_commit_from_git_worktree_without_local_dijiang() {
     )
     .unwrap();
     std::fs::write(parent_dijiang.join("active_task.txt"), "stale-parent-task").unwrap();
-
     std::fs::write(worktree_dir.join("change.txt"), "changed").unwrap();
     let out = dijang(
         &[
@@ -847,12 +865,19 @@ fn test_e2e_finish_work_commit_from_git_worktree_without_local_dijiang() {
     )
     .unwrap();
 
-    assert!(out.contains("已完成工作（无 active task"), "output: {out}");
+    assert!(!out.contains("已完成工作（无 active task"), "output: {out}");
     assert!(
-        out.contains("Task archive：skipped: no active task"),
+        !out.contains("Task archive：skipped: no active task"),
         "output: {out}"
     );
+    assert!(out.contains("Task archive：archived task `"), "output: {out}");
     assert!(!out.contains("Commit：none"), "output: {out}");
+
+    let task_json = project_dir.join(".dijiang/tasks/finish-work-external/task.json");
+    let task = std::fs::read_to_string(&task_json).expect("archived task json");
+
+    let active_task_path = project_dir.join(".dijiang/active_task.txt");
+    assert!(!active_task_path.exists(), "active task pointer should be cleared");
 
     let status = Command::new("git")
         .args(["status", "--porcelain"])
@@ -1275,6 +1300,9 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(first_a.contains("会话日志：.dijiang/workspace/e2e/sessions/window-a.jsonl"));
     assert!(first_a.contains("最近记忆：当前窗口已加载 1 条最近会话事件。"));
     assert!(first_a.contains("注入 #1：活跃任务=window-a-task，上一个任务=none，变化=true"));
+    assert!(first_a.contains("Loop：goal=Window A Task"));
+    assert!(first_a.contains("progress=executing (实现与验证正在推进)") || first_a.contains("progress=aligning (需求与验收标准仍需对齐)"));
+    assert!(first_a.contains("next_skill=dj-implement") || first_a.contains("next_skill=dj-grill"));
 
     let second_a = dijang_with_env(
         &["workflow-state"],
@@ -1286,10 +1314,10 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(second_a.contains("活跃任务是否变化：false"));
     assert!(second_a.contains("最近记忆：当前窗口已加载 2 条最近会话事件。"));
     assert!(second_a.contains("注入 #1：活跃任务=window-a-task，上一个任务=none，变化=true"));
-    assert!(
-        second_a
-            .contains("注入 #2：活跃任务=window-a-task，上一个任务=window-a-task，变化=false")
-    );
+    assert!(second_a.contains("注入 #2：活跃任务=window-a-task，上一个任务=window-a-task，变化=false"));
+    assert!(second_a.contains("Loop：goal=Window A Task"));
+    assert!(second_a.contains("progress=executing (实现与验证正在推进)") || second_a.contains("progress=aligning (需求与验收标准仍需对齐)"));
+    assert!(second_a.contains("next_skill=dj-implement") || second_a.contains("next_skill=dj-grill"));
     assert!(second_a.contains("其他活跃窗口：none"));
 
     dijang_with_env(
@@ -1329,13 +1357,11 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(changed_a.contains("上一个活跃任务：window-a-task"));
     assert!(changed_a.contains("活跃任务：window-a-next"));
     assert!(changed_a.contains("最近记忆：当前窗口已加载 3 条最近会话事件。"));
-    assert!(
-        changed_a
-            .contains("注入 #3：活跃任务=window-a-next，上一个任务=window-a-task，变化=true")
-    );
+    assert!(changed_a.contains("注入 #3：活跃任务=window-a-next，上一个任务=window-a-task，变化=true"));
+    assert!(changed_a.contains("Loop：goal=Window A Next"));
+    assert!(changed_a.contains("progress=executing (实现与验证正在推进)") || changed_a.contains("progress=aligning (需求与验收标准仍需对齐)"));
     assert!(changed_a.contains("其他活跃窗口：1"));
     assert!(changed_a.contains("window-b (dijiang) 任务=window-b-task 状态=active 注入=1"));
-
     let session_a = std::fs::read_to_string(
         project_dir
             .join(".dijiang")
@@ -1357,6 +1383,7 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(log.contains("workflow_state_injected"));
     assert!(log.contains("window-a"));
     assert!(log.contains("window-b"));
+    assert!(log.contains("\"loop_state\""));
 
     let journal_a = std::fs::read_to_string(
         project_dir
@@ -1371,6 +1398,7 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     assert!(journal_a.contains("window-a-task"));
     assert!(journal_a.contains("window-a-next"));
     assert!(journal_a.contains("\"active_task_changed\":true"));
+    assert!(journal_a.contains("\"loop_state\""));
 
     let journal_b = std::fs::read_to_string(
         project_dir
@@ -1383,6 +1411,36 @@ fn test_e2e_workflow_state_records_multi_turn_session_changes() {
     .unwrap();
     assert_eq!(journal_b.lines().count(), 1);
     assert!(journal_b.contains("window-b-task"));
+}
+
+#[test]
+fn test_e2e_workflow_state_json_exposes_loop_runtime() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang_with_env(
+        &["start", "loop-task", "Loop Task"],
+        &project_dir,
+        &[
+            ("DIJIANG_CONTEXT_ID", "loop-json"),
+            ("DIJIANG_SESSION_ID", "loop-json"),
+        ],
+    )
+    .unwrap();
+
+    let payload = dijang_with_env(
+        &["workflow-state", "--json", "--hook-event", "UserPromptSubmit"],
+        &project_dir,
+        &[
+            ("DIJIANG_CONTEXT_ID", "loop-json"),
+            ("DIJIANG_SESSION_ID", "loop-json"),
+        ],
+    )
+    .unwrap();
+
+    assert!(payload.contains("\"hookEventName\":\"UserPromptSubmit\""), "payload: {payload}");
+    assert!(payload.contains("Loop：goal=Loop Task；mode=align；progress=aligning (需求与验收标准仍需对齐)"), "payload: {payload}");
+    assert!(payload.contains("next_skill=dj-grill"), "payload: {payload}");
+    assert!(payload.contains("retry=attempt=1; max=unbounded; remaining=unknown; can_retry=true; last_failure=none"), "payload: {payload}");
 }
 
 #[test]

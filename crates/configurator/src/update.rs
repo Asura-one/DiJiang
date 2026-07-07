@@ -205,6 +205,7 @@ fn managed_files_for_platforms(platforms: &[PlatformKind]) -> Vec<ManagedFile> {
                 managed(".pi/settings.json"),
                 managed(".pi/prompts/dijiang-start.md"),
                 managed(".pi/prompts/dijiang-finish-work.md"),
+                managed(".pi/prompts/dijiang-reason.md"),
                 managed(".pi/extensions/dijiang/index.ts"),
                 protected(".pi/agents/dijiang-implement.md"),
                 protected(".pi/agents/dijiang-check.md"),

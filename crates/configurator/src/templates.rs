@@ -176,6 +176,10 @@ mod tests {
         let content = render("skills/dijiang-start/SKILL.md", &[]).unwrap();
         assert!(content.contains("dj-dispatch"));
         assert!(content.contains("交接给 dj-dispatch"));
+
+        let reason = render("skills/dj-reason/SKILL.md", &[]).unwrap();
+        assert!(reason.contains("# Reason"));
+        assert!(reason.contains("系统透镜"));
     }
 
     #[test]

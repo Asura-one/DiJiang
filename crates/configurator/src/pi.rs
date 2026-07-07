@@ -112,6 +112,10 @@ impl PiConfigurator {
             .map_err(|e| ConfigError::Serialize(e))?;
         std::fs::write(prompts_dir.join("dijiang-finish-work.md"), finish)?;
 
+        let reason = templates::render("prompts/dijiang-reason.md", &[])
+            .map_err(|e| ConfigError::Serialize(e))?;
+        std::fs::write(prompts_dir.join("dijiang-reason.md"), reason)?;
+
         Ok(())
     }
 
@@ -284,28 +288,31 @@ mod tests {
         pi.configure(tmp.path()).unwrap();
 
         assert!(tmp.path().join(".pi").join("settings.json").exists());
-        assert!(
-            tmp.path()
-                .join(".pi")
-                .join("prompts")
-                .join("dijiang-start.md")
-                .exists()
-        );
-        assert!(
-            tmp.path()
-                .join(".pi")
-                .join("prompts")
-                .join("dijiang-finish-work.md")
-                .exists()
-        );
-        assert!(
-            tmp.path()
-                .join(".pi")
-                .join("extensions")
-                .join("dijiang")
-                .join("index.ts")
-                .exists()
-        );
+        assert!(tmp
+            .path()
+            .join(".pi")
+            .join("prompts")
+            .join("dijiang-start.md")
+            .exists());
+        assert!(tmp
+            .path()
+            .join(".pi")
+            .join("prompts")
+            .join("dijiang-finish-work.md")
+            .exists());
+        assert!(tmp
+            .path()
+            .join(".pi")
+            .join("prompts")
+            .join("dijiang-reason.md")
+            .exists());
+        assert!(tmp
+            .path()
+            .join(".pi")
+            .join("extensions")
+            .join("dijiang")
+            .join("index.ts")
+            .exists());
     }
     #[test]
     fn test_write_agents_md_new() {
