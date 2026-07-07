@@ -1224,6 +1224,9 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
     assert!(finish_out.contains("版本影响：patch"));
     assert!(finish_out.contains("版本更新：0.1.0 -> 0.1.1"));
     assert!(finish_out.contains("Commit："));
+    assert!(finish_out.contains("Task archive：archived task `commit-finish`"));
+    assert!(finish_out.contains("当前 session 的 active task 已清理"));
+    assert!(finish_out.contains("Session 已关闭："));
 
     let cargo_toml = std::fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
     assert!(cargo_toml.contains("version = \"0.1.1\""));
@@ -1231,6 +1234,25 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("(none)"), "current output: {current}");
 
+    let session_runtime = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join(".runtime")
+            .join("sessions")
+            .join("global_global.json"),
+    )
+    .unwrap();
+    assert!(session_runtime.contains("\"closed_task\": \"commit-finish\""), "session runtime: {session_runtime}");
+    assert!(session_runtime.contains("\"current_task\": null"), "session runtime: {session_runtime}");
+
+    let closures = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang")
+            .join("memory")
+            .join("sessions.jsonl"),
+    )
+    .unwrap();
+    assert!(closures.contains("commit-finish"), "closures: {closures}");
     let status = Command::new("git")
         .args(["status", "--porcelain"])
         .current_dir(&project_dir)
