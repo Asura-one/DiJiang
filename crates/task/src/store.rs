@@ -122,6 +122,10 @@ pub fn current_session_identity() -> Option<SessionIdentity> {
     None
 }
 
+fn global_session_identity() -> SessionIdentity {
+    SessionIdentity::new("global", "global").expect("literal global session key is valid")
+}
+
 fn session_path(dijiang_dir: &Path, identity: &SessionIdentity) -> PathBuf {
     dijiang_dir
         .join(".runtime")
@@ -132,7 +136,7 @@ fn session_path(dijiang_dir: &Path, identity: &SessionIdentity) -> PathBuf {
 fn read_session_task(
     dijiang_dir: &Path,
     identity: &SessionIdentity,
-) -> Result<Option<String>, TaskError> {
+ ) -> Result<Option<String>, TaskError> {
     let path = session_path(dijiang_dir, identity);
     if !path.exists() {
         return Ok(None);
@@ -152,12 +156,10 @@ pub fn read_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskError>
     read_active_task_for_session(dijiang_dir, current_session_identity().as_ref())
 }
 
-pub fn read_active_task_for_session(
-    dijiang_dir: &Path,
-    identity: Option<&SessionIdentity>,
-) -> Result<Option<String>, TaskError> {
-    if let Some(identity) = identity {
-        return read_session_task(dijiang_dir, identity);
+fn read_global_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskError> {
+    let global_identity = global_session_identity();
+    if let Some(task) = read_session_task(dijiang_dir, &global_identity)? {
+        return Ok(Some(task));
     }
 
     let path = dijiang_dir.join("active_task.txt");
@@ -170,6 +172,24 @@ pub fn read_active_task_for_session(
     }
 
     Ok(None)
+}
+
+pub fn read_active_task_for_session(
+    dijiang_dir: &Path,
+    identity: Option<&SessionIdentity>,
+) -> Result<Option<String>, TaskError> {
+    if let Some(identity) = identity {
+        if let Some(task) = read_session_task(dijiang_dir, identity)? {
+            return Ok(Some(task));
+        }
+        if let Some(task) = read_global_active_task(dijiang_dir)? {
+            write_active_task_for_session(dijiang_dir, &task, Some(identity))?;
+            return Ok(Some(task));
+        }
+        return Ok(None);
+    }
+
+    read_global_active_task(dijiang_dir)
 }
 
 /// Write the active task for the current session, using a global pointer only without session identity.
@@ -193,8 +213,7 @@ pub fn write_active_task_for_session(
     let identity = match identity {
         Some(identity) => identity,
         None => {
-            fallback_identity = SessionIdentity::new("global", "global")
-                .expect("literal global session key is valid");
+            fallback_identity = global_session_identity();
             &fallback_identity
         }
     };
@@ -211,6 +230,9 @@ pub fn write_active_task_for_session(
     session["last_seen_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
     session["session_key"] = serde_json::json!(identity.key());
     session["source"] = serde_json::json!(identity.source());
+    if session.get("closed_task").is_some() {
+        session["closed_task"] = serde_json::Value::Null;
+    }
     fs::write(path, serde_json::to_string_pretty(&session)?)?;
     fs::write(runtime_dir.join(".dijiang_owned"), "")?;
 
@@ -220,6 +242,7 @@ pub fn write_active_task_for_session(
 pub fn clear_active_task(dijiang_dir: &Path) -> Result<(), TaskError> {
     clear_active_task_for_session(dijiang_dir, current_session_identity().as_ref())
 }
+
 
 pub fn clear_active_task_for_session(
     dijiang_dir: &Path,
@@ -231,20 +254,14 @@ pub fn clear_active_task_for_session(
             fs::remove_file(path)?;
         }
     } else {
-        let path = session_path(
-            dijiang_dir,
-            &SessionIdentity::new("global", "global").expect("literal global session key is valid"),
-        );
+        let path = session_path(dijiang_dir, &global_session_identity());
         if path.exists() {
             fs::remove_file(path)?;
         }
     }
-
-    if identity.is_none() {
-        let active_path = dijiang_dir.join("active_task.txt");
-        if active_path.exists() {
-            fs::remove_file(active_path)?;
-        }
+    let active_path = dijiang_dir.join("active_task.txt");
+    if active_path.exists() {
+        fs::remove_file(active_path)?;
     }
 
     Ok(())
@@ -538,6 +555,37 @@ mod tests {
         );
         assert_eq!(
             read_active_task_for_session(&dijiang_dir, None).unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn test_active_task_falls_back_to_global_when_session_task_is_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        fs::create_dir(&dijiang_dir).unwrap();
+        fs::write(dijiang_dir.join("active_task.txt"), "fallback-task\n").unwrap();
+
+        let identity = SessionIdentity::new("codex", "window-a").unwrap();
+        let active = read_active_task_for_session(&dijiang_dir, Some(&identity)).unwrap();
+
+        assert_eq!(active, Some("fallback-task".to_string()));
+    }
+
+    #[test]
+    fn test_clear_active_task_with_session_also_clears_global_pointer() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        fs::create_dir(&dijiang_dir).unwrap();
+        fs::write(dijiang_dir.join("active_task.txt"), "fallback-task\n").unwrap();
+
+        let identity = SessionIdentity::new("codex", "window-a").unwrap();
+        write_active_task_for_session(&dijiang_dir, "task-a", Some(&identity)).unwrap();
+        clear_active_task_for_session(&dijiang_dir, Some(&identity)).unwrap();
+
+        assert!(!dijiang_dir.join("active_task.txt").exists());
+        assert_eq!(
+            read_active_task_for_session(&dijiang_dir, Some(&identity)).unwrap(),
             None
         );
     }

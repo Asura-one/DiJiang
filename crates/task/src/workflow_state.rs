@@ -17,11 +17,41 @@ pub struct WorkflowState {
     pub active_task: Option<WorkflowTask>,
     pub guidance: String,
     pub runtime: WorkflowRuntime,
+    pub loop_state: Option<WorkflowLoopState>,
     pub memory: WorkflowMemory,
     pub peers: Vec<WorkflowPeerSession>,
     pub route_gate: Option<WorkflowRouteGate>,
     pub git_gate: Option<WorkflowGitGate>,
     pub skill_manifests: Vec<WorkflowSkillManifest>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowLoopState {
+    pub goal: String,
+    pub mode: String,
+    pub progress: WorkflowLoopProgress,
+    pub stop_conditions: Vec<String>,
+    pub next_action: String,
+    pub next_skill: Option<String>,
+    pub retry: WorkflowLoopRetry,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowLoopProgress {
+    pub status: String,
+    pub signal: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowLoopRetry {
+    pub attempt: u64,
+    pub max_attempts: Option<u64>,
+    pub remaining_attempts: Option<u64>,
+    pub can_retry: bool,
+    pub last_failure: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -163,12 +193,17 @@ impl WorkflowState {
             self.runtime.log_path,
             self.runtime.journal_path
         );
+        let loop_line = self
+            .loop_state
+            .as_ref()
+            .map(format_loop_state)
+            .unwrap_or_else(|| "Loop：none".to_string());
         let memory_line = format_memory(&self.memory);
         let peers_line = format_peer_sessions(&self.peers);
 
         let Some(task) = &self.active_task else {
             return format!(
-                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
+                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{memory_line}\n{peers_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
                 self.guidance
             );
         };
@@ -198,7 +233,7 @@ impl WorkflowState {
         );
 
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
             task.id,
             task.title,
             task.status,
@@ -251,6 +286,7 @@ pub fn build_for_session(
             active_task: None,
             guidance,
             runtime,
+            loop_state: None,
             memory,
             peers,
             route_gate: None,
@@ -265,11 +301,13 @@ pub fn build_for_session(
     let route_gate = Some(workflow_route_gate(&task.status, &recommended_path));
     let git_gate = Some(workflow_git_gate(dijiang_dir.parent().unwrap_or(dijiang_dir), &task));
     let skill_manifests = workflow_skill_manifests(&task.status);
+    let loop_state = Some(workflow_loop_state(&task, recommended_path));
     Ok(WorkflowState {
         session,
         active_task,
         guidance,
         runtime,
+        loop_state,
         memory,
         peers,
         route_gate,
@@ -372,6 +410,16 @@ fn record_runtime_injection(
         "route_gate": route_gate_event,
         "git_gate": git_gate_event,
         "skill_manifests": skill_manifests_event,
+        "loop_state": active_task.map(|task| {
+            let recommended_path = task
+                .meta
+                .get("dispatch")
+                .and_then(|d| d.get("recommended_path"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            serde_json::to_value(workflow_loop_state(task, recommended_path))
+                .expect("workflow loop state serializes")
+        }),
         "previous_active_task": previous_active_task,
         "active_task_changed": active_task_changed,
         "at": last_seen_at,
@@ -462,7 +510,21 @@ fn memory_event_from_json(value: serde_json::Value) -> Option<WorkflowMemoryEven
                 .get("active_task_changed")
                 .and_then(|value| value.as_bool())
                 .unwrap_or(false);
-            format!("注入 #{count}：活跃任务={active}，上一个任务={previous}，变化={changed}")
+            let progress = value
+                .get("loop_state")
+                .and_then(|value| value.get("progress"))
+                .and_then(|value| value.get("signal"))
+                .and_then(|value| value.as_str())
+                .unwrap_or("no loop signal");
+            let next_action = value
+                .get("loop_state")
+                .and_then(|value| value.get("nextAction"))
+                .or_else(|| value.get("loop_state").and_then(|value| value.get("next_action")))
+                .and_then(|value| value.as_str())
+                .unwrap_or("no next action");
+            format!(
+                "注入 #{count}：活跃任务={active}，上一个任务={previous}，变化={changed}，进展={progress}，下一步={next_action}",
+            )
         }
         "session_closed" => {
             let task = value
@@ -719,6 +781,158 @@ fn format_skill_manifests(skill_manifests: &[WorkflowSkillManifest]) -> String {
     format!("Skill Manifests：{}", entries)
 }
 
+fn workflow_loop_state(task: &TaskRecord, recommended_path: &str) -> WorkflowLoopState {
+    let dispatch = task.meta.get("dispatch");
+    let goal = task
+        .acceptance_criteria
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            let title = task.title.trim();
+            if title.is_empty() {
+                format!("推进任务 {} 到可验证完成", task.name)
+            } else {
+                title.to_string()
+            }
+        });
+    let mode = summarize_route_gate(&task.status).capsule.as_str().to_string();
+    let attempt = dispatch
+        .and_then(|value| value.get("attempt"))
+        .and_then(|value| value.as_u64())
+        .unwrap_or(1);
+    let max_attempts = dispatch
+        .and_then(|value| value.get("max_attempts"))
+        .and_then(|value| value.as_u64());
+    let last_failure = dispatch
+        .and_then(|value| value.get("last_failure"))
+        .and_then(|value| value.as_str())
+        .map(str::to_string);
+    let progress_status = match task.status {
+        TaskStatus::Planning => "aligning",
+        TaskStatus::InProgress => "executing",
+        TaskStatus::Completed => "verified",
+        TaskStatus::Archived => "closed",
+        TaskStatus::Paused => "paused",
+    }
+    .to_string();
+    let progress_signal = match task.status {
+        TaskStatus::Planning => "需求与验收标准仍需对齐",
+        TaskStatus::InProgress => "实现与验证正在推进",
+        TaskStatus::Completed => "实现已完成，等待 finish-work 收口",
+        TaskStatus::Archived => "任务已归档，loop 已关闭",
+        TaskStatus::Paused => "任务已暂停，等待恢复",
+    }
+    .to_string();
+    let stop_conditions = match task.status {
+        TaskStatus::Planning => vec![
+            "需求、范围和验收标准已经确认".to_string(),
+            "实现入口已切换到 dj-implement 或 dj-tdd".to_string(),
+        ],
+        TaskStatus::InProgress => vec![
+            "目标行为已实现".to_string(),
+            "GREEN command 通过".to_string(),
+            "相关回归验证通过后切入 dj-check".to_string(),
+        ],
+        TaskStatus::Completed => vec![
+            "dj-check 完成并记录验证证据".to_string(),
+            "finish-work 已归档任务与会话".to_string(),
+        ],
+        TaskStatus::Archived => vec!["任务已经归档，无需继续 loop".to_string()],
+        TaskStatus::Paused => vec![
+            "恢复上下文并重新进入实现或检查路径".to_string(),
+            "确认暂停原因已解除".to_string(),
+        ],
+    };
+    let next_skill = next_skill_from_recommended_path(recommended_path)
+        .or_else(|| Some(summarize_route_gate(&task.status).default_skill.to_string()));
+    let next_action = match task.status {
+        TaskStatus::Planning => "继续对齐需求并收敛 acceptance".to_string(),
+        TaskStatus::InProgress => {
+            if let Some(skill) = next_skill.as_deref() {
+                format!("继续当前 loop，并按 {skill} 推进下一轮最小验证闭环")
+            } else {
+                "继续当前 loop，并推进下一轮最小验证闭环".to_string()
+            }
+        }
+        TaskStatus::Completed => "汇总验证证据并准备 finish-work".to_string(),
+        TaskStatus::Archived => "任务已结束，无需继续执行".to_string(),
+        TaskStatus::Paused => "恢复任务上下文后继续 loop".to_string(),
+    };
+    let remaining_attempts = max_attempts.map(|max| max.saturating_sub(attempt));
+    let can_retry = match task.status {
+        TaskStatus::Archived | TaskStatus::Completed => false,
+        _ => remaining_attempts.map(|remaining| remaining > 0).unwrap_or(true),
+    };
+
+    WorkflowLoopState {
+        goal,
+        mode,
+        progress: WorkflowLoopProgress {
+            status: progress_status,
+            signal: progress_signal,
+        },
+        stop_conditions,
+        next_action,
+        next_skill,
+        retry: WorkflowLoopRetry {
+            attempt,
+            max_attempts,
+            remaining_attempts,
+            can_retry,
+            last_failure,
+        },
+    }
+}
+
+fn next_skill_from_recommended_path(recommended_path: &str) -> Option<String> {
+    recommended_path
+        .split("->")
+        .map(str::trim)
+        .find(|segment| !segment.is_empty())
+        .and_then(|segment| segment.split_whitespace().next())
+        .map(str::to_string)
+}
+
+fn format_loop_state(loop_state: &WorkflowLoopState) -> String {
+    let stop_conditions = if loop_state.stop_conditions.is_empty() {
+        "none".to_string()
+    } else {
+        loop_state.stop_conditions.join(" | ")
+    };
+    let retry = format!(
+        "attempt={}; max={}; remaining={}; can_retry={}; last_failure={}",
+        loop_state.retry.attempt,
+        loop_state
+            .retry
+            .max_attempts
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "unbounded".to_string()),
+        loop_state
+            .retry
+            .remaining_attempts
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "unknown".to_string()),
+        loop_state.retry.can_retry,
+        loop_state
+            .retry
+            .last_failure
+            .as_deref()
+            .unwrap_or("none"),
+    );
+    format!(
+        "Loop：goal={}；mode={}；progress={} ({})；next_skill={}；next_action={}；stop_conditions={}；retry={}",
+        loop_state.goal,
+        loop_state.mode,
+        loop_state.progress.status,
+        loop_state.progress.signal,
+        loop_state.next_skill.as_deref().unwrap_or("none"),
+        loop_state.next_action,
+        stop_conditions,
+        retry,
+    )
+}
+
 fn status_guidance(status: &TaskStatus) -> &'static str {
     match status {
         TaskStatus::Planning => {
@@ -736,7 +950,6 @@ fn status_guidance(status: &TaskStatus) -> &'static str {
         TaskStatus::Paused => "当前任务已 paused。恢复前先读取任务上下文和最近 workspace journal。",
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -822,6 +1035,10 @@ mod tests {
         assert!(context_a.contains("dj-implement("));
         assert!(context_a.contains("dj-tdd("));
         assert!(context_a.contains("<dijiang-target-skill role=\"primary\" name=\"dj-implement\">"));
+        assert!(context_a.contains("Loop：goal=Task A"));
+        assert!(context_a.contains("progress=executing (实现与验证正在推进)"));
+        assert!(context_a.contains("next_skill=dj-implement"));
+        assert!(context_a.contains("retry=attempt=1; max=unbounded; remaining=unknown; can_retry=true; last_failure=none"));
         assert!(context_b.contains("会话：dijiang_window-b（dijiang）"));
         assert!(context_b.contains("活跃任务：task-b"));
         assert!(context_b.contains("标题：Task B"));
@@ -831,6 +1048,7 @@ mod tests {
             .additional_context();
         assert!(next_a.contains("注入：#2"));
         assert!(next_a.contains("活跃任务是否变化：false"));
+        assert!(next_a.contains("下一步=继续当前 loop，并按 dj-implement 推进下一轮最小验证闭环") || next_a.contains("next_action=继续当前 loop，并按 dj-implement 推进下一轮最小验证闭环"));
 
         let log = std::fs::read_to_string(dijiang_dir.join(".runtime/workflow-state.log")).unwrap();
         assert!(log.contains("workflow_state_injected"));
@@ -838,6 +1056,7 @@ mod tests {
         assert!(log.contains("dijiang_window-b"));
         assert!(log.contains("route_gate"));
         assert!(log.contains("skill_manifests"));
+        assert!(log.contains("loop_state"));
 
         let journal_a = std::fs::read_to_string(
             dijiang_dir.join("workspace/tester/sessions/dijiang_window-a.jsonl"),
@@ -847,6 +1066,7 @@ mod tests {
         assert!(journal_a.contains("workflow_state_injected"));
         assert!(journal_a.contains("\"title\":\"Task A\""));
         assert!(journal_a.contains("\"injection_count\":2"));
+        assert!(journal_a.contains("\"loop_state\""));
     }
 
     #[test]
@@ -913,6 +1133,9 @@ mod tests {
         assert!(context.contains("Skill Manifests：dj-grill"));
         assert!(context.contains("dj-output"));
         assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">"));
+        assert!(context.contains("Loop：goal=Align Task"));
+        assert!(context.contains("progress=aligning (需求与验收标准仍需对齐)"));
+        assert!(context.contains("next_skill=dj-grill"));
     }
 
     #[test]

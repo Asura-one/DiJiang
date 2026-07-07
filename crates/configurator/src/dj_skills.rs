@@ -20,6 +20,7 @@ const DJ_SKILL_NAMES: &[&str] = &[
     "dj-pattern",
     "dj-ponytail",
     "dj-prototype",
+    "dj-reason",
     "dj-review",
     "dj-script",
     "dj-tdd",
@@ -89,6 +90,10 @@ fn embedded_skills() -> Vec<(&'static str, &'static str)> {
         (
             "dj-prototype",
             include_str!("../templates/skills/dj-prototype/SKILL.md"),
+        ),
+        (
+            "dj-reason",
+            include_str!("../templates/skills/dj-reason/SKILL.md"),
         ),
         (
             "dj-review",

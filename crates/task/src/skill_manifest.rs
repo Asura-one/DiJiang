@@ -86,6 +86,13 @@ const SKILL_MANIFESTS: &[SkillManifestEntry] = &[
         body: include_str!("../../configurator/templates/skills/dj-check/SKILL.md"),
     },
     SkillManifestEntry {
+        name: "dj-reason",
+        summary: "推理增强、系统透镜和复杂判断校准",
+        phases: &["align", "implement", "check", "finish"],
+        risk: "low",
+        body: include_str!("../../configurator/templates/skills/dj-reason/SKILL.md"),
+    },
+    SkillManifestEntry {
         name: "dj-review",
         summary: "轻量只读审查",
         phases: &["check"],
@@ -125,7 +132,10 @@ pub fn manifests_for_capsule(capsule: WorkflowCapsule) -> Vec<SkillManifestEntry
 }
 
 pub fn manifest_by_name(name: &str) -> Option<SkillManifestEntry> {
-    SKILL_MANIFESTS.iter().find(|entry| entry.name == name).cloned()
+    SKILL_MANIFESTS
+        .iter()
+        .find(|entry| entry.name == name)
+        .cloned()
 }
 
 pub fn skill_body_by_name(name: &str) -> Option<&'static str> {
@@ -149,7 +159,8 @@ pub fn select_skill_bodies(
         summary: primary.summary,
     });
 
-    if primary.risk == "high" || matches!(capsule, WorkflowCapsule::Resume | WorkflowCapsule::Idle) {
+    if primary.risk == "high" || matches!(capsule, WorkflowCapsule::Resume | WorkflowCapsule::Idle)
+    {
         return selected;
     }
 
@@ -166,7 +177,11 @@ pub fn select_skill_bodies(
         if !matches!(capsule, WorkflowCapsule::Align | WorkflowCapsule::Implement) {
             return selected;
         }
-        for branch in candidate.split('/').map(str::trim).filter(|s| !s.is_empty()) {
+        for branch in candidate
+            .split('/')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
             if branch == primary_skill {
                 continue;
             }
@@ -182,7 +197,10 @@ pub fn select_skill_bodies(
         return selected;
     }
 
-    if !matches!(capsule, WorkflowCapsule::Implement | WorkflowCapsule::Check | WorkflowCapsule::Finish) {
+    if !matches!(
+        capsule,
+        WorkflowCapsule::Implement | WorkflowCapsule::Check | WorkflowCapsule::Finish
+    ) {
         return selected;
     }
 
@@ -215,7 +233,10 @@ pub fn select_skill_bodies(
     selected
 }
 
-pub fn render_selected_skill_bodies(selected: &[SelectedSkillBody], cache: &mut SkillBodyCache) -> String {
+pub fn render_selected_skill_bodies(
+    selected: &[SelectedSkillBody],
+    cache: &mut SkillBodyCache,
+) -> String {
     if selected.is_empty() {
         return String::new();
     }
@@ -258,12 +279,21 @@ mod tests {
         assert_eq!(manifest.name, "dj-grill");
         assert_eq!(manifest.risk, "low");
         assert!(manifest.phases.contains(&"align"));
+
+        let reason = manifest_by_name("dj-reason").expect("reason manifest");
+        assert_eq!(reason.name, "dj-reason");
+        assert_eq!(reason.risk, "low");
+        assert!(reason.phases.contains(&"align"));
     }
 
     #[test]
     fn skill_body_lookup_returns_embedded_body() {
         let body = skill_body_by_name("dj-tdd").expect("body");
         assert!(body.contains("# TDD") || body.contains("TDD"));
+
+        let reason = skill_body_by_name("dj-reason").expect("reason body");
+        assert!(reason.contains("# Reason"));
+        assert!(reason.contains("系统透镜"));
     }
 
     #[test]
@@ -271,12 +301,14 @@ mod tests {
         let manifests = manifests_for_capsule(WorkflowCapsule::Align);
         assert!(manifests.iter().any(|entry| entry.name == "dj-grill"));
         assert!(manifests.iter().any(|entry| entry.name == "dj-output"));
+        assert!(manifests.iter().any(|entry| entry.name == "dj-reason"));
         assert!(!manifests.iter().any(|entry| entry.name == "dj-check"));
     }
 
     #[test]
     fn select_skill_bodies_adds_next_skill_for_linear_path() {
-        let selected = select_skill_bodies(WorkflowCapsule::Implement, "dj-tdd", "dj-tdd -> dj-check");
+        let selected =
+            select_skill_bodies(WorkflowCapsule::Implement, "dj-tdd", "dj-tdd -> dj-check");
         assert_eq!(selected.len(), 2);
         assert_eq!(selected[0].role, "primary");
         assert_eq!(selected[0].name, "dj-tdd");
@@ -337,7 +369,8 @@ mod tests {
 
     #[test]
     fn render_selected_skill_bodies_uses_lazy_cache() {
-        let selected = select_skill_bodies(WorkflowCapsule::Implement, "dj-tdd", "dj-tdd -> dj-check");
+        let selected =
+            select_skill_bodies(WorkflowCapsule::Implement, "dj-tdd", "dj-tdd -> dj-check");
         let mut cache = SkillBodyCache::default();
         let rendered = render_selected_skill_bodies(&selected, &mut cache);
         assert!(rendered.contains("role=\"primary\" name=\"dj-tdd\""));

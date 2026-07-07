@@ -92,6 +92,7 @@ DiJiang 现在已经把一部分 workflow 规则从 skill 文本提升到了 run
 | Analysis reports | `dj-debt` | 技术债追踪 |
 | Analysis reports | `dj-health` | codebase / agent 配置健康检查 |
 | Analysis reports | `dj-pattern` | 模式研究、重复抽象机会分析 |
+| Reasoning lens | `dj-reason` | 复杂判断、系统透镜和认知校准 |
 | Style overlays | `dj-ponytail` | 极简、YAGNI、最小改动约束 |
 | Style overlays | `dj-karpathy` | 长代码讨论和 LLM 编码纪律 |
 | Implementation | `dj-design` | UI/UX 主导的设计实现 |
