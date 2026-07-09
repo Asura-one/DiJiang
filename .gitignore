@@ -8,3 +8,5 @@ target/
 .cursor/
 .opencode/
 Cargo.lock
+referens/
+.workbuddy/

@@ -305,14 +305,30 @@ enum MemCommands {
         #[arg(long, default_value = "5")]
         select: usize,
     },
-    /// 记录策略事件（成功/失败）
+    /// 记录策略到实验记录并更新策略统计
     Record {
         #[arg(long)]
         tactic: String,
         #[arg(long)]
-        outcome: String, // success or failure
+        outcome: String,
         #[arg(long)]
         context: String,
+    },
+    /// 根据关键词召回项目记忆（findings/learnings/patterns）
+    Recall {
+        #[arg(long)]
+        query: String,
+        #[arg(long, default_value = "5")]
+        limit: usize,
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// 重建倒排索引（FTS 替代方案，为 recall 加速）
+    Index,
+    /// 清理 N 天之前的过期记忆
+    Prune {
+        #[arg(long, default_value = "90")]
+        days: u64,
     },
     /// 添加模式/标准操作流程
     Pattern {
@@ -482,6 +498,15 @@ fn main() -> anyhow::Result<()> {
         Commands::Mem {
             command: MemCommands::Finetune,
         } => cmd_mem_finetune(),
+        Commands::Mem {
+            command: MemCommands::Recall { query, limit, project },
+        } => cmd_mem_recall(query, limit, project),
+        Commands::Mem {
+            command: MemCommands::Index,
+        } => cmd_mem_index(),
+        Commands::Mem {
+            command: MemCommands::Prune { days },
+        } => cmd_mem_prune(days),
         Commands::Template { command } => match command {
             TemplateCommands::List => cmd_template_list(),
             TemplateCommands::Pull { source } => cmd_template_pull(&source),
@@ -1387,7 +1412,12 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         docs_sync: docs_sync.clone(),
         version_impact: options.version_impact.to_string(),
         status: "completed".to_string(),
-        confidence: "verified".to_string(),
+        confidence: "medium".to_string(),
+        outcome: None,
+        next_tactic: None,
+        next_pattern: None,
+        loop_signal: None,
+        attempts: vec![],
     };
     if options.commit {
         project_memory.append_session_closure(&memory_closure)?;
@@ -1423,7 +1453,16 @@ fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         println!("✓ 已完成工作（无 active task，已跳过任务归档）");
     }
     println!("  验证：{verification}");
-    println!("  文档/spec 同步：{docs_sync}");
+    println!("  版本更新：{}", options.version_impact);
+    
+    // 记忆晋升建议：提醒用户沉淀本次经验
+    if let Ok(mem) = current_project_memory(&dijiang_dir) {
+        if let Ok(findings) = mem.load_findings() {
+            if !findings.is_empty() {
+                println!("  💡 提示：本次 session 产生心得。运行 `dijiang mem recall --query \"<关键词>\"` 回顾，或 `dijiang mem findings --finding \"<经验>\"` 存入项目记忆。");
+            }
+        }
+    }
     println!("  版本影响：{}", options.version_impact);
     println!(
         "  版本更新：{}",
@@ -3570,6 +3609,8 @@ fn cmd_mem_findings(finding: &str) -> anyhow::Result<()> {
         content: finding.to_string(),
         session_id: Some(session_key),
         project: Some(project),
+        tags: vec![],
+        scope: dijiang_mem::MemoryScope::Project,
     };
     mem.append_finding(&record)?;
     println!(
@@ -3591,6 +3632,8 @@ fn cmd_mem_learn(lesson: &str) -> anyhow::Result<()> {
         content: lesson.to_string(),
         session_id: Some(session_key),
         project: Some(project),
+        tags: vec![],
+        scope: dijiang_mem::MemoryScope::Project,
     };
     mem.append_learning(&record)?;
     println!(
@@ -3725,6 +3768,12 @@ fn cmd_mem_pattern(name: &str, description: &str) -> anyhow::Result<()> {
         tags: vec![],
         created_at: chrono::Local::now().to_rfc3339(),
         project: None,
+        cadence: None,
+        risk: None,
+        token_cost: None,
+        week_one_mode: None,
+        human_gates: vec![],
+        phases: vec![],
     };
     mem.add_pattern(&pattern)?;
     println!("  Added pattern: {}", name);
@@ -3756,8 +3805,8 @@ fn cmd_mem_stats() -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::store::find_dijiang_dir(&cwd);
     let (findings, learnings, corrections, sessions, patterns) =
-        if let Some(dijiang_dir) = dijiang_dir {
-            let project_mem = dijiang_mem::ProjectMemory::from_dijiang_dir(&dijiang_dir)?;
+        if let Some(dijiang_dir) = dijiang_dir.as_ref() {
+            let project_mem = dijiang_mem::ProjectMemory::from_dijiang_dir(dijiang_dir)?;
             (
                 project_mem.load_findings()?.len(),
                 project_mem.load_learnings()?.len(),
@@ -3775,6 +3824,28 @@ fn cmd_mem_stats() -> anyhow::Result<()> {
     println!("    Learnings: {}", learnings);
     println!("    Corrections: {}", corrections);
     println!("    Patterns: {}", patterns);
+    println!("    Global tactics: {} (avg win rate: {:.1}%)", tactics.len(), avg_win_rate * 100.0);
+
+    // Collect tag distribution from findings
+    if let Some(dijiang_dir) = dijiang_dir.as_ref() {
+        if let Ok(project_mem) = dijiang_mem::ProjectMemory::from_dijiang_dir(&dijiang_dir) {
+            if let Ok(all_findings) = project_mem.load_findings() {
+                let mut tag_counts: std::collections::BTreeMap<String, usize> =
+                    std::collections::BTreeMap::new();
+                for f in &all_findings {
+                    for tag in &f.tags {
+                        *tag_counts.entry(tag.clone()).or_insert(0) += 1;
+                    }
+                }
+                if !tag_counts.is_empty() {
+                    println!("\n    Tags distribution:");
+                    for (tag, count) in &tag_counts {
+                        println!("      {}: {}", tag, count);
+                    }
+                }
+            }
+        }
+    }
     println!("    Tactics: {}", tactics.len());
     println!("    Avg win rate: {:.2}", avg_win_rate);
     Ok(())
@@ -3906,6 +3977,62 @@ fn cmd_mem_finetune() -> anyhow::Result<()> {
     global_mem.save_stats(&stats)?;
 
     println!("  Fine-tune complete.");
+    Ok(())
+}
+
+/// Recall project memories by keyword search.
+fn cmd_mem_recall(query: String, limit: usize, project: Option<String>) -> anyhow::Result<()> {
+    let mem = if let Some(ref p) = project {
+        let path = std::path::Path::new(p);
+        if !path.join(".dijiang").exists() {
+            anyhow::bail!("指定路径没有 .dijiang/ 目录: {p}");
+        }
+        let dijiang_dir = crate::store::find_dijiang_dir(path)
+            .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录"))?;
+        current_project_memory(&dijiang_dir)?
+    } else {
+        let cwd = std::env::current_dir()?;
+        let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+            .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+        current_project_memory(&dijiang_dir)?
+    };
+    let results = mem.recall(&query, limit)?;
+    if results.is_empty() {
+        println!("  No matching memories found.");
+    } else {
+        println!("  Found {} result(s):\n", results.len());
+        for (i, r) in results.iter().enumerate() {
+            let pct = (r.score * 100.0) as u8;
+            println!("  [{}.] [{}] ({pct}%)", i + 1, r.source);
+            println!("       {}", r.content);
+            println!();
+        }
+    }
+    Ok(())
+}
+
+
+/// Prune old memory entries.
+fn cmd_mem_prune(days: u64) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+    let mem = current_project_memory(&dijiang_dir)?;
+    let report = mem.prune(days)?;
+    println!("  ✅ Pruned entries older than {days} days.");
+    println!("     Findings kept: {}", report.findings_before);
+    println!("     Learnings kept: {}", report.learnings_before);
+    Ok(())
+}
+
+/// Rebuild the search index from project memory.
+fn cmd_mem_index() -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dijiang_dir = crate::store::find_dijiang_dir(&cwd)
+        .ok_or_else(|| anyhow::anyhow!("No .dijiang/ found. Run `dijiang init` first."))?;
+    let mem = current_project_memory(&dijiang_dir)?;
+    mem.build_index()?;
+    println!("  ✅ Search index rebuilt.");
     Ok(())
 }
 

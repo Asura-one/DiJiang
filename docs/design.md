@@ -218,3 +218,22 @@ summary: ...
 | 4Ud            | Pi Extension 优先               | 自动时机，UI 同步，去重         | 扩展层维护成本              |
 | KeL            | 路由上下文注入                  | 减少 agent 主动查寻，节省 token | 注入信息可能滞后于 CLI 状态 |
 | Dhe            | 子 Agent 职责分离               | prompt 空间节省，职责清晰       | 跨 agent 协调复杂度         |
+
+## 8. MCP Server 架构（2026-07-08 新增）
+
+新增 `crates/mcp-server/` 作为独立的 MCP（Model Context Protocol）服务器实现。
+
+**设计决策**：
+
+- **协议**：JSON-RPC 2.0 over stdio，零外部 MCP SDK 依赖
+- **资源**：暴露 4 个 resources — `dijiang://workflow-state`、`dijiang://patterns`、`dijiang://tactics`、`dijiang://audit`
+- **工具**：提供 5 个 tools — `list_patterns`、`get_pattern`、`recommend_pattern`、`estimate_cost`、`run_audit`
+- **架构**：事件循环读取 stdin 的 JSON-RPC 请求，`DiJiangMcpHandler` 分发到 `dijiang-task` 和 `dijiang-mem` 的领域逻辑
+- **启动方式**：`dijiang mcp` 命令作为 CLI 入口
+
+**与 workflow_state 注入式对比**：
+
+| 模式 | 适用场景 | 优点 |
+|------|---------|------|
+| workflow_state 全量注入 | 高优先级上下文（task status, loop signal, gate state） | 零延迟，Agent 无需额外查询 |
+| MCP 按需查询 | 低优先级信息（pattern docs, cost estimates, full registry） | 节省 prompt token，避免上下文膨胀 |

@@ -5,9 +5,10 @@ members = [
     "crates/task",
     "crates/mem",
     "crates/configurator",
+    "crates/mcp-server",
 ]
 [workspace.package]
-version = "0.6.3"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 
@@ -20,7 +21,7 @@ chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 dirs = "6"
 async-trait = "0.1"
-tokio = { version = "1" }
+tokio = { version = "1", features = ["rt", "macros"] }
 rust-embed = "8"
 dialoguer = "0.11"
 indicatif = "0.17"

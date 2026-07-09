@@ -171,7 +171,9 @@ dijiang mem findings --finding "..."         # 追加项目发现
 dijiang mem learn --lesson "..."             # 记录项目学习
 dijiang mem archive                          # 归档当前会话
 dijiang mem tactic --name N --description D  # 添加全局策略
-dijiang mem record --tactic T --outcome success --context C
+dijiang mem record --tactic T --outcome success --context C    # 记录策略事件
+dijiang mem pattern --name N --description D [--cadence]        # 添加带元数据的工作流模式
+dijiang mem recommend --use-case "watch CI" [--registry]        # 根据用例关键词推荐模式
 ```
 
 ### template / skills / channel
@@ -184,6 +186,9 @@ dijiang skills --sync
 dijiang workflow-state --json
 dijiang channel spawn <agent>
 dijiang channel list
+dijiang audit [--suggest] [--badge]          # 循环就绪评分（0-100，L0-L3 等级）
+dijiang cost [--pattern] [--level L1/L2/L3]  # 估算模式每日 token 开销
+dijiang mcp                                  # 启动 MCP 服务器 (JSON-RPC 2.0 over stdio)
 ```
 
 ## 兼容性

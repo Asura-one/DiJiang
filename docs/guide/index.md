@@ -308,6 +308,13 @@ dijiang update
 
 **现象**：`dijiang mem findings` 不生效。
 
+**新增命令（Phase 2/3）**：
+- `dijiang audit [--suggest] [--badge]` — 审计项目自动化成熟度（Loop Readiness Score，0–100 分，L0–L3 等级）
+- `dijiang cost [--pattern <名称>] [--level L1/L2/L3]` — 估算模式每日 token 开销
+- `dijiang mcp` — 启动 MCP server over stdio（暴露 workflow_state/patterns/tactics/audit 为 resources 和 tools）
+- `dijiang mem pattern --name <名称> --description <描述> [--cadence] [--risk] [--phases]` — 添加带元数据的 workflow 模式
+- `dijiang mem recommend --use-case "watch CI" [--registry]` — 根据用例关键词推荐模式
+
 **检查步骤**：
 1. `dijiang mem list` — 确认平台 session 是否正确加载
 2. `dijiang status` — 确认 `.dijiang/` 存在且配置正确
