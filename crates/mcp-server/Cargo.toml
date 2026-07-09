@@ -1,0 +1,12 @@
+[package]
+name = "dijiang-mcp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dijiang-task = { path = "../task" }
+dijiang-mem = { path = "../mem" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
