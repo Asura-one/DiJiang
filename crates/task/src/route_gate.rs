@@ -98,7 +98,8 @@ pub fn evaluate_route(
     match task_status {
         TaskStatus::Planning => match requested_intent {
             RouteIntent::Align => {
-                let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
+                let resolved =
+                    requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
                 decision(
                     task_status.clone(),
                     WorkflowCapsule::Align,
@@ -110,7 +111,7 @@ pub fn evaluate_route(
                     "continue with dj-grill to confirm scope and acceptance",
                     false,
                 )
-            },
+            }
             RouteIntent::Document => decision(
                 task_status.clone(),
                 WorkflowCapsule::Align,
@@ -195,7 +196,8 @@ pub fn evaluate_route(
                 false,
             ),
             RouteIntent::Align => {
-                let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
+                let resolved =
+                    requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
                 decision(
                     task_status.clone(),
                     WorkflowCapsule::Align,
@@ -207,9 +209,10 @@ pub fn evaluate_route(
                     "continue with dj-grill to refresh scope and assumptions",
                     false,
                 )
-            },
+            }
             RouteIntent::Implement | RouteIntent::Unknown | RouteIntent::Resume => {
-                let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-implement");
+                let resolved =
+                    requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-implement");
                 decision(
                     task_status.clone(),
                     WorkflowCapsule::Implement,
@@ -258,7 +261,8 @@ pub fn evaluate_route(
                 false,
             ),
             RouteIntent::Align => {
-                let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
+                let resolved =
+                    requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
                 decision(
                     task_status.clone(),
                     WorkflowCapsule::Align,
@@ -270,7 +274,7 @@ pub fn evaluate_route(
                     "continue with dj-grill to decide whether to restart or split follow-up work",
                     false,
                 )
-            },
+            }
             RouteIntent::Implement
             | RouteIntent::Debug
             | RouteIntent::Resume

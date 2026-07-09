@@ -581,14 +581,16 @@ version = "0.1.0"
             report.conflicts.is_empty(),
             "unexpected conflicts: {report:?}"
         );
-        assert!(tmp
-            .path()
-            .join(".codex/hooks/inject-workflow-state.py")
-            .exists());
-        assert!(tmp
-            .path()
-            .join(".cursor/hooks/inject-workflow-state.py")
-            .exists());
+        assert!(
+            tmp.path()
+                .join(".codex/hooks/inject-workflow-state.py")
+                .exists()
+        );
+        assert!(
+            tmp.path()
+                .join(".cursor/hooks/inject-workflow-state.py")
+                .exists()
+        );
         let config = fs::read_to_string(tmp.path().join(".dijiang/config.toml")).unwrap();
         assert!(config.contains("codex"));
         assert!(config.contains("cursor"));

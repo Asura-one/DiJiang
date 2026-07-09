@@ -140,8 +140,9 @@ pub fn evaluate_worktree_readiness(task: &TaskRecord, input: &GitGateInput) -> W
             current_worktree_root,
             expected_worktree_root,
             location_kind: location_kind.as_str().to_string(),
-            message: "task worktree metadata is incomplete; branch and worktreePath must both exist"
-                .to_string(),
+            message:
+                "task worktree metadata is incomplete; branch and worktreePath must both exist"
+                    .to_string(),
             fix_applied: false,
             needs_provision: false,
         };
@@ -264,7 +265,10 @@ pub fn worktree_readiness(
     }
 }
 
-fn classify_location(input: &GitGateInput, expected_worktree_path: Option<&str>) -> GitRuntimeLocation {
+fn classify_location(
+    input: &GitGateInput,
+    expected_worktree_path: Option<&str>,
+) -> GitRuntimeLocation {
     let Some(current_root) = input.current_worktree_root.as_ref() else {
         return GitRuntimeLocation::Unknown;
     };

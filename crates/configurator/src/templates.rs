@@ -80,11 +80,7 @@ fn render_if_blocks(template: &str, vars: &[(&str, &str)]) -> String {
         } else {
             // Truthy check
             let met = !actual_value.is_empty();
-            if negated {
-                !met
-            } else {
-                met
-            }
+            if negated { !met } else { met }
         };
 
         let replacement = if condition_met {

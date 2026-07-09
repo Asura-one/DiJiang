@@ -288,31 +288,35 @@ mod tests {
         pi.configure(tmp.path()).unwrap();
 
         assert!(tmp.path().join(".pi").join("settings.json").exists());
-        assert!(tmp
-            .path()
-            .join(".pi")
-            .join("prompts")
-            .join("dijiang-start.md")
-            .exists());
-        assert!(tmp
-            .path()
-            .join(".pi")
-            .join("prompts")
-            .join("dijiang-finish-work.md")
-            .exists());
-        assert!(tmp
-            .path()
-            .join(".pi")
-            .join("prompts")
-            .join("dijiang-reason.md")
-            .exists());
-        assert!(tmp
-            .path()
-            .join(".pi")
-            .join("extensions")
-            .join("dijiang")
-            .join("index.ts")
-            .exists());
+        assert!(
+            tmp.path()
+                .join(".pi")
+                .join("prompts")
+                .join("dijiang-start.md")
+                .exists()
+        );
+        assert!(
+            tmp.path()
+                .join(".pi")
+                .join("prompts")
+                .join("dijiang-finish-work.md")
+                .exists()
+        );
+        assert!(
+            tmp.path()
+                .join(".pi")
+                .join("prompts")
+                .join("dijiang-reason.md")
+                .exists()
+        );
+        assert!(
+            tmp.path()
+                .join(".pi")
+                .join("extensions")
+                .join("dijiang")
+                .join("index.ts")
+                .exists()
+        );
     }
     #[test]
     fn test_write_agents_md_new() {
