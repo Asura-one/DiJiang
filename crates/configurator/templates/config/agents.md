@@ -96,19 +96,52 @@ This project uses DiJiang for task management and workflow.
 
 ## Workflow 路由
 
+### 任务复杂度分流
+
+收到新任务时，按复杂度判断执行路径：
+
+| 级别 | 判断标准 | 路径 |
+|------|---------|------|
+| **S 级** | 一句话能说清，影响 <3 文件，无架构改动 | 直接实施 → 验证 |
+| **M 级** | 范围明确需确认，3-10 文件 | `dj-grill`（≤3 轮）→ 实现 |
+| **L 级** | 新功能/架构改动，>10 文件，需求不确定 | `dj-grill` → 文档 → 实现 → `dj-check` |
+
+`dj-dispatch` 负责按此模型自动分类并路由。
+
+### 规范任务状态路由
+
 1. Session 开始时读取本文件和 `.dijiang/workflow.md`。
 2. 用 `dijiang task current` 检查 active task。
 3. 存在时读取 task artifacts：`task.json`、`prd.md`、`design.md`、`implement.md`。
 4. 读取 `.dijiang/spec/` 中相关 spec 文件。
 5. 按规范任务状态路由：
    - none → `dijiang start <name>` 或 `dj-dispatch`
-   - `planning` → `dj-grill`，可选 `dj-output`
+   - `planning` → `dj-grill`，可选 `dj-output`，然后 `dj-prd` → `dj-split`
    - `in_progress` → implementation skill，然后 `dj-check`
    - `completed` → `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>`
    - `archived` → 只读，除非用 `dijiang start <task>` 重启
    - `paused` → `dijiang-continue`，然后回到 `planning` 或 `in_progress`
 
 `review` 不是规范任务状态。质量验证使用 `dj-check`。
+
+### 失败回退
+
+- 判断不了级别 → 偏保守选高一级（S→M，M→L）
+- `dj-grill` 问太多轮 → 压缩问题，用推荐答案填充未决项
+- `dj-implement` 遇到 PRD 不清 → 回到 `dj-grill` 补充对齐
+- `dj-check` 发现功能缺失 → 回到 `dj-implement` 补充
+- 文档和代码对不上 → 以代码为准，文档标注"待确认"
+
+## 子代理
+
+DiJiang 通过 `dijiang channel` 管理子代理。使用规则：
+
+- **并行场景**：安装+验证、测试+类型检查、多个独立任务
+- **长时任务**：阻塞操作由独立 worker 执行
+- **隔离环境**：高风险变更或检查需要隔离
+- 子代理输出须验证后才能采信
+- 子代理报告的操作结果（文件写入、HTTP 请求等）须通过读取目标状态确认
+- 子代理无法自主提问——涉及需用户决策的歧义由父代理处理
 
 ## 范围纪律
 

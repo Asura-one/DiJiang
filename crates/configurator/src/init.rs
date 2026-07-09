@@ -145,9 +145,44 @@ pub(crate) fn write_dijiang_infrastructure(
         std::fs::create_dir_all(dijiang_dir.join("workspace").join(dev))?;
     }
 
-    // spec/ — coding guidelines (placeholder; preserve under Merge)
+    // spec/ — coding guidelines with Chinese-first templates
     if !report.has_spec_dir {
-        std::fs::create_dir_all(dijiang_dir.join("spec"))?;
+        let spec_root = dijiang_dir.join("spec");
+        std::fs::create_dir_all(&spec_root)?;
+        // Populate spec directory from embedded Chinese templates
+        let spec_templates: &[(&str, &str)] = &[
+            ("guides/index.md", "spec/guides/index.md"),
+            ("guides/verification-loop-guide.md", "spec/guides/verification-loop-guide.md"),
+            ("guides/cross-layer-thinking-guide.md", "spec/guides/cross-layer-thinking-guide.md"),
+            ("guides/code-reuse-thinking-guide.md", "spec/guides/code-reuse-thinking-guide.md"),
+            ("guides/memory-lifecycle-guide.md", "spec/guides/memory-lifecycle-guide.md"),
+            ("guides/tool-preferences.md", "spec/guides/tool-preferences.md"),
+            ("backend/index.md", "spec/backend/index.md"),
+            ("backend/quality-guidelines.md", "spec/backend/quality-guidelines.md"),
+            ("backend/error-handling.md", "spec/backend/error-handling.md"),
+            ("backend/logging-guidelines.md", "spec/backend/logging-guidelines.md"),
+            ("backend/directory-structure.md", "spec/backend/directory-structure.md"),
+            ("backend/database-guidelines.md", "spec/backend/database-guidelines.md"),
+            ("frontend/index.md", "spec/frontend/index.md"),
+            ("frontend/quality-guidelines.md", "spec/frontend/quality-guidelines.md"),
+            ("frontend/type-safety.md", "spec/frontend/type-safety.md"),
+            ("frontend/state-management.md", "spec/frontend/state-management.md"),
+            ("frontend/component-guidelines.md", "spec/frontend/component-guidelines.md"),
+            ("frontend/directory-structure.md", "spec/frontend/directory-structure.md"),
+            ("frontend/hook-guidelines.md", "spec/frontend/hook-guidelines.md"),
+            ("meta/index.md", "spec/meta/index.md"),
+            ("meta/adr.md", "spec/meta/adr.md"),
+            ("meta/contributing.md", "spec/meta/contributing.md"),
+        ];
+        for (rel_path, tmpl_name) in spec_templates {
+            let content = templates::render(tmpl_name, &[])
+                .map_err(crate::ConfigError::Serialize)?;
+            let file_path = spec_root.join(rel_path);
+            if let Some(parent) = file_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(file_path, content)?;
+        }
     }
 
     // workflow.md — from embedded template (block-insert under Merge)
