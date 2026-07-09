@@ -4,11 +4,16 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::circuit_breaker::{
+    BreakerDecision, CircuitBreakerConfig, Ledger, PruneConfig, check_circuit_breaker,
+    error_signature, prune_ledger,
+};
 use crate::git_gate::summarize_git_gate;
 use crate::route_gate::summarize_route_gate;
 use crate::skill_manifest::manifests_for_capsule;
 use crate::store::{self, SessionIdentity, TaskError};
 use crate::types::{TaskRecord, TaskStatus};
+use dijiang_mem::{GlobalMemory, ProjectMemory};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,6 +28,8 @@ pub struct WorkflowState {
     pub route_gate: Option<WorkflowRouteGate>,
     pub git_gate: Option<WorkflowGitGate>,
     pub skill_manifests: Vec<WorkflowSkillManifest>,
+    pub learned_memory: WorkflowLearnedMemory,
+    pub circuit_breaker_status: Option<BreakerDecision>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -34,6 +41,8 @@ pub struct WorkflowLoopState {
     pub stop_conditions: Vec<String>,
     pub next_action: String,
     pub next_skill: Option<String>,
+    pub agent_focus: String,
+    pub memory_writeback: WorkflowMemoryWriteback,
     pub retry: WorkflowLoopRetry,
 }
 
@@ -52,6 +61,14 @@ pub struct WorkflowLoopRetry {
     pub remaining_attempts: Option<u64>,
     pub can_retry: bool,
     pub last_failure: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowMemoryWriteback {
+    pub outcome: String,
+    pub next_tactic: String,
+    pub next_pattern: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -97,6 +114,51 @@ pub struct WorkflowMemoryEvent {
     pub at: Option<String>,
 }
 
+/// Learned strategies read back from the memory store (tactics + patterns).
+///
+/// This is the read-back half of the learning loop: `mem evolve` promotes
+/// loop writeback into tactics/patterns, and this surface injects them back
+/// into the agent's context so the next loop can act on prior learnings
+/// instead of only writing them down.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowLearnedMemory {
+    pub summary: String,
+    pub tactics: Vec<WorkflowLearnedTactic>,
+    pub patterns: Vec<WorkflowLearnedPattern>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowLearnedTactic {
+    pub name: String,
+    pub description: String,
+    pub win_rate: f64,
+    pub source: String,
+    pub last_used: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowLearnedPattern {
+    pub name: String,
+    pub description: String,
+    pub steps: Vec<String>,
+    pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cadence: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub week_one_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_cost: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub human_gates: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub phases: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowPeerSession {
@@ -136,6 +198,25 @@ pub struct WorkflowSkillManifest {
     pub summary: String,
     pub phases: Vec<String>,
     pub risk: String,
+}
+
+struct WorkflowTaskContext<'a> {
+    task: &'a TaskRecord,
+    effective_status: TaskStatus,
+    recommended_path: &'a str,
+}
+
+struct DispatchMeta<'a> {
+    task_type: Option<&'a str>,
+    primary_intent: Option<&'a str>,
+    skill: Option<&'a str>,
+    recommended_path: Option<&'a str>,
+    action: Option<&'a str>,
+    reason: Option<&'a str>,
+    next_action: Option<&'a str>,
+    attempt: Option<u64>,
+    max_attempts: Option<u64>,
+    last_failure: Option<&'a str>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -200,10 +281,16 @@ impl WorkflowState {
             .unwrap_or_else(|| "Loop：none".to_string());
         let memory_line = format_memory(&self.memory);
         let peers_line = format_peer_sessions(&self.peers);
+        let learned_line = format_learned_memory(&self.learned_memory);
+        let breaker_line = self
+            .circuit_breaker_status
+            .as_ref()
+            .map(|d| format!("Circuit Breaker：{}", d))
+            .unwrap_or_else(|| "Circuit Breaker：none".to_string());
 
         let Some(task) = &self.active_task else {
             return format!(
-                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{memory_line}\n{peers_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
+                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
                 self.guidance
             );
         };
@@ -233,7 +320,7 @@ impl WorkflowState {
         );
 
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
             task.id,
             task.title,
             task.status,
@@ -260,18 +347,21 @@ pub fn build_for_session(
         source: identity.source().to_string(),
     });
     let active_task_state = match store::read_active_task_for_session(dijiang_dir, identity)? {
-        Some(active_task_name) => match store::load_task(&dijiang_dir.join("tasks"), &active_task_name)
-        {
-            Ok(task) => ActiveTaskState::Present(task),
-            Err(TaskError::NotFound(_)) => ActiveTaskState::Missing(active_task_name),
-            Err(error) => return Err(error),
-        },
+        Some(active_task_name) => {
+            match store::load_task(&dijiang_dir.join("tasks"), &active_task_name) {
+                Ok(task) => ActiveTaskState::Present(task),
+                Err(TaskError::NotFound(_)) => ActiveTaskState::Missing(active_task_name),
+                Err(error) => return Err(error),
+            }
+        }
         None => ActiveTaskState::None,
     };
     let task = active_task_state.task();
     let runtime = record_runtime_injection(dijiang_dir, identity, task)?;
     let memory = load_recent_memory(dijiang_dir, &runtime.journal_path, 5);
     let peers = load_peer_sessions(dijiang_dir, identity, 8)?;
+    let learned_memory = load_learned_memory(dijiang_dir);
+    let circuit_breaker_status = load_circuit_breaker_status(dijiang_dir);
 
     let Some(task) = task else {
         let guidance = match active_task_state.missing_name() {
@@ -292,16 +382,22 @@ pub fn build_for_session(
             route_gate: None,
             git_gate: None,
             skill_manifests: vec![],
+            learned_memory,
+            circuit_breaker_status,
         });
     };
 
+    let project_root = dijiang_dir.parent().unwrap_or(dijiang_dir);
     let guidance = status_guidance(&task.status).to_string();
-    let active_task = Some(workflow_task(dijiang_dir, &task));
-    let recommended_path = task.meta.get("dispatch").and_then(|d| d.get("recommended_path")).and_then(|v| v.as_str()).unwrap_or("");
-    let route_gate = Some(workflow_route_gate(&task.status, &recommended_path));
-    let git_gate = Some(workflow_git_gate(dijiang_dir.parent().unwrap_or(dijiang_dir), &task));
-    let skill_manifests = workflow_skill_manifests(&task.status);
-    let loop_state = Some(workflow_loop_state(&task, recommended_path));
+    let task_context = workflow_task_context(&task);
+    let active_task = Some(workflow_task(dijiang_dir, task_context.task));
+    let route_gate = Some(workflow_route_gate(
+        task_context.recommended_path,
+        &task_context,
+    ));
+    let git_gate = Some(workflow_git_gate(project_root, task_context.task));
+    let skill_manifests = workflow_skill_manifests(&task_context);
+    let loop_state = Some(workflow_loop_state(&task_context));
     Ok(WorkflowState {
         session,
         active_task,
@@ -313,6 +409,8 @@ pub fn build_for_session(
         route_gate,
         git_gate,
         skill_manifests,
+        learned_memory,
+        circuit_breaker_status,
     })
 }
 
@@ -369,8 +467,8 @@ fn record_runtime_injection(
         })
     });
     let route_gate_event = active_task.map(|task| {
-        let recommended_path = task.meta.get("dispatch").and_then(|d| d.get("recommended_path")).and_then(|v| v.as_str()).unwrap_or("");
-        let gate = workflow_route_gate(&task.status, &recommended_path);
+        let task_context = workflow_task_context(task);
+        let gate = workflow_route_gate(task_context.recommended_path, &task_context);
         serde_json::json!({
             "capsule": gate.capsule,
             "default_skill": gate.default_skill,
@@ -389,7 +487,8 @@ fn record_runtime_injection(
         })
     });
     let skill_manifests_event = active_task.map(|task| {
-        workflow_skill_manifests(&task.status)
+        let task_context = workflow_task_context(task);
+        workflow_skill_manifests(&task_context)
             .into_iter()
             .map(|manifest| {
                 serde_json::json!({
@@ -411,13 +510,8 @@ fn record_runtime_injection(
         "git_gate": git_gate_event,
         "skill_manifests": skill_manifests_event,
         "loop_state": active_task.map(|task| {
-            let recommended_path = task
-                .meta
-                .get("dispatch")
-                .and_then(|d| d.get("recommended_path"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            serde_json::to_value(workflow_loop_state(task, recommended_path))
+            let task_context = workflow_task_context(task);
+            serde_json::to_value(workflow_loop_state(&task_context))
                 .expect("workflow loop state serializes")
         }),
         "previous_active_task": previous_active_task,
@@ -447,7 +541,10 @@ fn append_session_journal(
     event: &serde_json::Value,
 ) -> Result<std::path::PathBuf, TaskError> {
     let developer = read_developer(dijiang_dir);
-    let sessions_dir = dijiang_dir.join("workspace").join(developer).join("sessions");
+    let sessions_dir = dijiang_dir
+        .join("workspace")
+        .join(developer)
+        .join("sessions");
     fs::create_dir_all(&sessions_dir)?;
     let journal_path = sessions_dir.join(format!("{}.jsonl", identity.key()));
     let mut journal = fs::OpenOptions::new()
@@ -459,7 +556,10 @@ fn append_session_journal(
 }
 
 fn load_recent_memory(dijiang_dir: &Path, journal_path: &str, limit: usize) -> WorkflowMemory {
-    let path = dijiang_dir.parent().unwrap_or(dijiang_dir).join(journal_path);
+    let path = dijiang_dir
+        .parent()
+        .unwrap_or(dijiang_dir)
+        .join(journal_path);
     let Ok(content) = fs::read_to_string(path) else {
         return WorkflowMemory {
             summary: "当前窗口没有上一轮会话记忆。".to_string(),
@@ -519,7 +619,11 @@ fn memory_event_from_json(value: serde_json::Value) -> Option<WorkflowMemoryEven
             let next_action = value
                 .get("loop_state")
                 .and_then(|value| value.get("nextAction"))
-                .or_else(|| value.get("loop_state").and_then(|value| value.get("next_action")))
+                .or_else(|| {
+                    value
+                        .get("loop_state")
+                        .and_then(|value| value.get("next_action"))
+                })
                 .and_then(|value| value.as_str())
                 .unwrap_or("no next action");
             format!(
@@ -548,16 +652,200 @@ fn format_memory(memory: &WorkflowMemory) -> String {
         return format!("最近记忆：{}", memory.summary);
     }
 
-    let events = memory
-        .events
-        .iter()
-        .map(|event| match &event.at {
+    // Fold consecutive events with identical detail text into a single
+    // line with a repeat count, keeping the context bounded.
+    let mut folded_events: Vec<String> = Vec::new();
+    let mut repeat_count: usize = 0;
+    let mut last_detail: Option<String> = None;
+
+    for event in &memory.events {
+        let detail_line = match &event.at {
             Some(at) => format!("- [{}] {}", at, event.detail),
             None => format!("- {}", event.detail),
+        };
+        // Normalize detail for dedup comparison (strip timestamps from
+        // injection counts to avoid false uniqueness)
+        let normalized = event.detail.replace("注入 #", "注入 #");
+
+        if let Some(last) = &last_detail {
+            if normalized == *last {
+                repeat_count += 1;
+                continue;
+            } else {
+                if repeat_count > 0 {
+                    if let Some(entry) = folded_events.last_mut() {
+                        *entry = format!("{} (×{})", entry, repeat_count + 1);
+                    }
+                }
+                folded_events.push(detail_line.clone());
+                last_detail = Some(normalized);
+                repeat_count = 0;
+            }
+        } else {
+            folded_events.push(detail_line.clone());
+            last_detail = Some(normalized);
+            repeat_count = 0;
+        }
+    }
+    // Flush last entry
+    if repeat_count > 0 {
+        if let Some(entry) = folded_events.last_mut() {
+            *entry = format!("{} (×{})", entry, repeat_count + 1);
+        }
+    }
+
+    format!("最近记忆：{}\n{}", memory.summary, folded_events.join("\n"))
+}
+
+/// Best-effort read-back of learned tactics (global) and patterns (project).
+///
+/// Reads from the global tactic store (`~/.dijiang/memory/tactics.json`) and
+/// the project pattern store (`.dijiang/memory/patterns.jsonl`). Any read
+/// failure degrades to an empty list with an explanatory summary rather than
+/// failing the whole workflow-state build — the agent still gets a usable
+/// context even when memory is unavailable.
+fn load_learned_memory(dijiang_dir: &Path) -> WorkflowLearnedMemory {
+    let global_mem = GlobalMemory::new();
+    let project_mem = ProjectMemory::from_dijiang_dir(dijiang_dir);
+    load_learned_memory_from(project_mem.as_ref().ok(), global_mem.as_ref().ok())
+}
+
+/// Best-effort load of circuit breaker status from the attempt ledger.
+///
+/// Reads `.dijiang/.runtime/ledger.json` if it exists, checks the breaker
+/// with default config, and returns the decision. If the ledger file doesn't
+/// exist or can't be parsed, returns `None` — the loop has no recorded
+/// attempts to evaluate, so the breaker stays in "none" state.
+fn load_circuit_breaker_status(dijiang_dir: &Path) -> Option<BreakerDecision> {
+    let ledger_path = dijiang_dir.join(".runtime").join("ledger.json");
+    if !ledger_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(&ledger_path).ok()?;
+    let ledger: Ledger = serde_json::from_str(&content).ok()?;
+    if ledger.attempts.is_empty() {
+        return None;
+    }
+    let config = CircuitBreakerConfig::default();
+    Some(check_circuit_breaker(&ledger, &config))
+}
+
+/// Testable core: read back from explicit memory handles so unit tests can
+/// inject isolated stores without touching the real HOME.
+fn load_learned_memory_from(
+    project_mem: Option<&ProjectMemory>,
+    global_mem: Option<&GlobalMemory>,
+) -> WorkflowLearnedMemory {
+    const TACTIC_LIMIT: usize = 5;
+    const PATTERN_LIMIT: usize = 5;
+
+    let tactics = global_mem
+        .and_then(|global| global.load_tactics().ok())
+        .map(|mut loaded| {
+            loaded.sort_by(|left, right| {
+                right
+                    .win_rate()
+                    .partial_cmp(&left.win_rate())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            loaded.truncate(TACTIC_LIMIT);
+            loaded
+                .into_iter()
+                .map(|tactic| {
+                    let win_rate = tactic.win_rate();
+                    WorkflowLearnedTactic {
+                        name: tactic.name,
+                        description: tactic.description,
+                        win_rate,
+                        source: tactic.source,
+                        last_used: tactic.last_used,
+                    }
+                })
+                .collect::<Vec<_>>()
         })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("最近记忆：{}\n{}", memory.summary, events)
+        .unwrap_or_default();
+
+    let patterns = project_mem
+        .and_then(|project| project.recent_patterns(PATTERN_LIMIT).ok())
+        .map(|loaded| {
+            loaded
+                .into_iter()
+                .map(|pattern| WorkflowLearnedPattern {
+                    name: pattern.name,
+                    description: pattern.description,
+                    steps: pattern.steps,
+                    tags: pattern.tags,
+                    cadence: pattern.cadence,
+                    risk: pattern.risk,
+                    week_one_mode: pattern.week_one_mode,
+                    token_cost: pattern.token_cost,
+                    human_gates: pattern.human_gates,
+                    phases: pattern.phases,
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let summary = if tactics.is_empty() && patterns.is_empty() {
+        "暂无可读回的历史 tactic / pattern。".to_string()
+    } else {
+        format!(
+            "已读回 {} 条 tactic / {} 条 pattern；当前 loop 应参考这些历史沉淀的策略。",
+            tactics.len(),
+            patterns.len()
+        )
+    };
+
+    WorkflowLearnedMemory {
+        summary,
+        tactics,
+        patterns,
+    }
+}
+
+fn format_learned_memory(learned: &WorkflowLearnedMemory) -> String {
+    if learned.tactics.is_empty() && learned.patterns.is_empty() {
+        return format!("Learned Memory (read-back)：{}", learned.summary);
+    }
+
+    let mut lines = vec![format!("Learned Memory (read-back)：{}", learned.summary)];
+    for tactic in &learned.tactics {
+        lines.push(format!(
+            "- tactic: {} (win={:.2}, source={}) — {}",
+            tactic.name, tactic.win_rate, tactic.source, tactic.description
+        ));
+    }
+    for pattern in &learned.patterns {
+        let meta = pattern.tags.join(",");
+        let extra = {
+            let mut parts = Vec::new();
+            if let Some(c) = &pattern.cadence {
+                parts.push(format!("cadence={}", c));
+            }
+            if let Some(r) = &pattern.risk {
+                parts.push(format!("risk={}", r));
+            }
+            if let Some(m) = &pattern.week_one_mode {
+                parts.push(format!("mode={}", m));
+            }
+            if let Some(t) = &pattern.token_cost {
+                parts.push(format!("cost={}", t));
+            }
+            if !pattern.phases.is_empty() {
+                parts.push(format!("phases={}", pattern.phases.join(",")));
+            }
+            if parts.is_empty() {
+                String::new()
+            } else {
+                format!(" [{}]", parts.join(", "))
+            }
+        };
+        lines.push(format!(
+            "- pattern: {} [{}]{} — {}",
+            pattern.name, meta, extra, pattern.description
+        ));
+    }
+    lines.join("\n")
 }
 
 fn load_peer_sessions(
@@ -669,8 +957,64 @@ fn workflow_task(dijiang_dir: &Path, task: &TaskRecord) -> WorkflowTask {
     }
 }
 
-fn workflow_route_gate(status: &TaskStatus, recommended_path: &str) -> WorkflowRouteGate {
-    let summary = summarize_route_gate(status);
+fn infer_post_restart_status(status: &TaskStatus) -> TaskStatus {
+    match status {
+        TaskStatus::Archived => TaskStatus::Planning,
+        TaskStatus::Paused => TaskStatus::InProgress,
+        other => other.clone(),
+    }
+}
+
+fn workflow_task_context(task: &TaskRecord) -> WorkflowTaskContext<'_> {
+    let dispatch = dispatch_meta(task);
+    WorkflowTaskContext {
+        task,
+        effective_status: infer_post_restart_status(&task.status),
+        recommended_path: dispatch.recommended_path.unwrap_or(""),
+    }
+}
+
+fn dispatch_meta(task: &TaskRecord) -> DispatchMeta<'_> {
+    let dispatch = task.meta.get("dispatch");
+    DispatchMeta {
+        task_type: dispatch
+            .and_then(|value| value.get("task_type"))
+            .and_then(|value| value.as_str()),
+        primary_intent: dispatch
+            .and_then(|value| value.get("primary_intent"))
+            .and_then(|value| value.as_str()),
+        skill: dispatch
+            .and_then(|value| value.get("skill"))
+            .and_then(|value| value.as_str()),
+        recommended_path: dispatch
+            .and_then(|value| value.get("recommended_path"))
+            .and_then(|value| value.as_str()),
+        action: dispatch
+            .and_then(|value| value.get("action"))
+            .and_then(|value| value.as_str()),
+        reason: dispatch
+            .and_then(|value| value.get("reason"))
+            .and_then(|value| value.as_str()),
+        next_action: dispatch
+            .and_then(|value| value.get("next_action"))
+            .and_then(|value| value.as_str()),
+        attempt: dispatch
+            .and_then(|value| value.get("attempt"))
+            .and_then(|value| value.as_u64()),
+        max_attempts: dispatch
+            .and_then(|value| value.get("max_attempts"))
+            .and_then(|value| value.as_u64()),
+        last_failure: dispatch
+            .and_then(|value| value.get("last_failure"))
+            .and_then(|value| value.as_str()),
+    }
+}
+
+fn workflow_route_gate(
+    recommended_path: &str,
+    task_context: &WorkflowTaskContext<'_>,
+) -> WorkflowRouteGate {
+    let summary = summarize_route_gate(&task_context.effective_status);
     WorkflowRouteGate {
         capsule: summary.capsule.as_str().to_string(),
         allowed_skills: summary
@@ -712,14 +1056,18 @@ fn workflow_git_gate(project_root: &Path, task: &TaskRecord) -> WorkflowGitGate 
     }
 }
 
-fn workflow_skill_manifests(status: &TaskStatus) -> Vec<WorkflowSkillManifest> {
-    let capsule = summarize_route_gate(status).capsule;
+fn workflow_skill_manifests(task_context: &WorkflowTaskContext<'_>) -> Vec<WorkflowSkillManifest> {
+    let capsule = summarize_route_gate(&task_context.effective_status).capsule;
     manifests_for_capsule(capsule)
         .into_iter()
         .map(|entry| WorkflowSkillManifest {
             name: entry.name.to_string(),
             summary: entry.summary.to_string(),
-            phases: entry.phases.iter().map(|phase| (*phase).to_string()).collect(),
+            phases: entry
+                .phases
+                .iter()
+                .map(|phase| (*phase).to_string())
+                .collect(),
             risk: entry.risk.to_string(),
         })
         .collect()
@@ -775,14 +1123,20 @@ fn format_skill_manifests(skill_manifests: &[WorkflowSkillManifest]) -> String {
 
     let entries = skill_manifests
         .iter()
-        .map(|manifest| format!("{}({}; risk={})", manifest.name, manifest.summary, manifest.risk))
+        .map(|manifest| {
+            format!(
+                "{}({}; risk={})",
+                manifest.name, manifest.summary, manifest.risk
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ");
     format!("Skill Manifests：{}", entries)
 }
 
-fn workflow_loop_state(task: &TaskRecord, recommended_path: &str) -> WorkflowLoopState {
-    let dispatch = task.meta.get("dispatch");
+fn workflow_loop_state(task_context: &WorkflowTaskContext<'_>) -> WorkflowLoopState {
+    let task = task_context.task;
+    let dispatch = dispatch_meta(task);
     let goal = task
         .acceptance_criteria
         .as_deref()
@@ -796,32 +1150,32 @@ fn workflow_loop_state(task: &TaskRecord, recommended_path: &str) -> WorkflowLoo
                 title.to_string()
             }
         });
-    let mode = summarize_route_gate(&task.status).capsule.as_str().to_string();
-    let attempt = dispatch
-        .and_then(|value| value.get("attempt"))
-        .and_then(|value| value.as_u64())
-        .unwrap_or(1);
-    let max_attempts = dispatch
-        .and_then(|value| value.get("max_attempts"))
-        .and_then(|value| value.as_u64());
-    let last_failure = dispatch
-        .and_then(|value| value.get("last_failure"))
-        .and_then(|value| value.as_str())
-        .map(str::to_string);
+    let mode = summarize_route_gate(&task_context.effective_status)
+        .capsule
+        .as_str()
+        .to_string();
+    let attempt = dispatch.attempt.unwrap_or(1);
+    let max_attempts = dispatch.max_attempts;
+    let last_failure = dispatch.last_failure.map(str::to_string);
     let progress_status = match task.status {
         TaskStatus::Planning => "aligning",
         TaskStatus::InProgress => "executing",
         TaskStatus::Completed => "verified",
-        TaskStatus::Archived => "closed",
-        TaskStatus::Paused => "paused",
+        TaskStatus::Archived | TaskStatus::Paused => match &task_context.effective_status {
+            TaskStatus::Planning => "ready_to_restart",
+            TaskStatus::InProgress => "ready_to_resume",
+            TaskStatus::Completed => "verified",
+            TaskStatus::Archived => "closed",
+            TaskStatus::Paused => "paused",
+        },
     }
     .to_string();
     let progress_signal = match task.status {
         TaskStatus::Planning => "需求与验收标准仍需对齐",
         TaskStatus::InProgress => "实现与验证正在推进",
         TaskStatus::Completed => "实现已完成，等待 finish-work 收口",
-        TaskStatus::Archived => "任务已归档，loop 已关闭",
-        TaskStatus::Paused => "任务已暂停，等待恢复",
+        TaskStatus::Archived => "任务已归档；若 restart，将从 planning 重新进入 workflow",
+        TaskStatus::Paused => "任务已暂停；若 continue，将回到 in_progress workflow",
     }
     .to_string();
     let stop_conditions = match task.status {
@@ -838,14 +1192,23 @@ fn workflow_loop_state(task: &TaskRecord, recommended_path: &str) -> WorkflowLoo
             "dj-check 完成并记录验证证据".to_string(),
             "finish-work 已归档任务与会话".to_string(),
         ],
-        TaskStatus::Archived => vec!["任务已经归档，无需继续 loop".to_string()],
+        TaskStatus::Archived => vec![
+            "如需继续，先 restart 任务并重新进入 planning 路径".to_string(),
+            "确认归档前结论仍然有效，避免在旧上下文上直接实现".to_string(),
+        ],
         TaskStatus::Paused => vec![
             "恢复上下文并重新进入实现或检查路径".to_string(),
             "确认暂停原因已解除".to_string(),
         ],
     };
-    let next_skill = next_skill_from_recommended_path(recommended_path)
-        .or_else(|| Some(summarize_route_gate(&task.status).default_skill.to_string()));
+    let next_skill =
+        next_skill_from_recommended_path(task_context.recommended_path).or_else(|| {
+            Some(
+                summarize_route_gate(&task_context.effective_status)
+                    .default_skill
+                    .to_string(),
+            )
+        });
     let next_action = match task.status {
         TaskStatus::Planning => "继续对齐需求并收敛 acceptance".to_string(),
         TaskStatus::InProgress => {
@@ -856,13 +1219,18 @@ fn workflow_loop_state(task: &TaskRecord, recommended_path: &str) -> WorkflowLoo
             }
         }
         TaskStatus::Completed => "汇总验证证据并准备 finish-work".to_string(),
-        TaskStatus::Archived => "任务已结束，无需继续执行".to_string(),
+        TaskStatus::Archived => "若要继续，先 restart 任务并按 planning 路径重新对齐".to_string(),
         TaskStatus::Paused => "恢复任务上下文后继续 loop".to_string(),
     };
+    let agent_focus = agent_focus(task, &dispatch, task_context, next_skill.as_deref());
+    let memory_writeback =
+        workflow_memory_writeback(task, &dispatch, task_context, next_skill.as_deref());
     let remaining_attempts = max_attempts.map(|max| max.saturating_sub(attempt));
     let can_retry = match task.status {
-        TaskStatus::Archived | TaskStatus::Completed => false,
-        _ => remaining_attempts.map(|remaining| remaining > 0).unwrap_or(true),
+        TaskStatus::Completed => false,
+        _ => remaining_attempts
+            .map(|remaining| remaining > 0)
+            .unwrap_or(true),
     };
 
     WorkflowLoopState {
@@ -875,6 +1243,8 @@ fn workflow_loop_state(task: &TaskRecord, recommended_path: &str) -> WorkflowLoo
         stop_conditions,
         next_action,
         next_skill,
+        agent_focus,
+        memory_writeback,
         retry: WorkflowLoopRetry {
             attempt,
             max_attempts,
@@ -882,6 +1252,71 @@ fn workflow_loop_state(task: &TaskRecord, recommended_path: &str) -> WorkflowLoo
             can_retry,
             last_failure,
         },
+    }
+}
+
+fn agent_focus(
+    task: &TaskRecord,
+    dispatch: &DispatchMeta<'_>,
+    task_context: &WorkflowTaskContext<'_>,
+    next_skill: Option<&str>,
+) -> String {
+    let task_type = dispatch.task_type.unwrap_or("未分类任务");
+    let intent = dispatch.primary_intent.unwrap_or("推进当前目标");
+    let route_action = dispatch.action.unwrap_or("allow");
+    let route_reason = dispatch.reason.unwrap_or("无额外路由说明");
+    let dispatch_next = dispatch.next_action.unwrap_or("继续当前闭环");
+    let recommended = dispatch
+        .recommended_path
+        .unwrap_or(task_context.recommended_path);
+    let route_skill = dispatch.skill.or(next_skill).unwrap_or("none");
+    let target = task
+        .acceptance_criteria
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(task.title.as_str());
+    format!(
+        "任务类型={task_type}；意图={intent}；目标={target}；当前推荐 skill={route_skill}；recommended_path={recommended}；route_action={route_action}；route_reason={route_reason}；dispatch_next={dispatch_next}",
+    )
+}
+
+fn workflow_memory_writeback(
+    task: &TaskRecord,
+    dispatch: &DispatchMeta<'_>,
+    task_context: &WorkflowTaskContext<'_>,
+    next_skill: Option<&str>,
+) -> WorkflowMemoryWriteback {
+    let outcome = match task.status {
+        TaskStatus::Planning => "alignment_pending",
+        TaskStatus::InProgress => {
+            if task_context.effective_status == TaskStatus::Completed {
+                "ready_for_finish"
+            } else {
+                "execution_in_progress"
+            }
+        }
+        TaskStatus::Completed => "verified_waiting_finish",
+        TaskStatus::Archived => "archived_restart_required",
+        TaskStatus::Paused => "paused_resume_required",
+    }
+    .to_string();
+    let next_tactic = format!(
+        "{} | {}",
+        dispatch.skill.or(next_skill).unwrap_or("none"),
+        dispatch.next_action.unwrap_or("continue current loop")
+    );
+    let next_pattern = format!(
+        "{} | {}",
+        dispatch
+            .recommended_path
+            .unwrap_or(task_context.recommended_path),
+        dispatch.reason.unwrap_or("follow route gate")
+    );
+
+    WorkflowMemoryWriteback {
+        outcome,
+        next_tactic,
+        next_pattern,
     }
 }
 
@@ -914,20 +1349,20 @@ fn format_loop_state(loop_state: &WorkflowLoopState) -> String {
             .map(|value| value.to_string())
             .unwrap_or_else(|| "unknown".to_string()),
         loop_state.retry.can_retry,
-        loop_state
-            .retry
-            .last_failure
-            .as_deref()
-            .unwrap_or("none"),
+        loop_state.retry.last_failure.as_deref().unwrap_or("none"),
     );
     format!(
-        "Loop：goal={}；mode={}；progress={} ({})；next_skill={}；next_action={}；stop_conditions={}；retry={}",
+        "Loop：goal={}；mode={}；progress={} ({})；next_skill={}；next_action={}；agent_focus={}；memory_writeback=outcome:{}|next_tactic:{}|next_pattern:{}；stop_conditions={}；retry={}",
         loop_state.goal,
         loop_state.mode,
         loop_state.progress.status,
         loop_state.progress.signal,
         loop_state.next_skill.as_deref().unwrap_or("none"),
         loop_state.next_action,
+        loop_state.agent_focus,
+        loop_state.memory_writeback.outcome,
+        loop_state.memory_writeback.next_tactic,
+        loop_state.memory_writeback.next_pattern,
         stop_conditions,
         retry,
     )
@@ -1034,11 +1469,17 @@ mod tests {
         assert!(context_a.contains("Skill Manifests："));
         assert!(context_a.contains("dj-implement("));
         assert!(context_a.contains("dj-tdd("));
-        assert!(context_a.contains("<dijiang-target-skill role=\"primary\" name=\"dj-implement\">"));
+        assert!(
+            context_a.contains("<dijiang-target-skill role=\"primary\" name=\"dj-implement\">")
+        );
         assert!(context_a.contains("Loop：goal=Task A"));
         assert!(context_a.contains("progress=executing (实现与验证正在推进)"));
         assert!(context_a.contains("next_skill=dj-implement"));
-        assert!(context_a.contains("retry=attempt=1; max=unbounded; remaining=unknown; can_retry=true; last_failure=none"));
+        assert!(context_a.contains("agent_focus=任务类型=未分类任务"));
+        assert!(context_a.contains("memory_writeback=outcome:execution_in_progress|next_tactic:dj-implement | continue current loop|next_pattern: | follow route gate"));
+        assert!(context_a.contains(
+            "retry=attempt=1; max=unbounded; remaining=unknown; can_retry=true; last_failure=none"
+        ));
         assert!(context_b.contains("会话：dijiang_window-b（dijiang）"));
         assert!(context_b.contains("活跃任务：task-b"));
         assert!(context_b.contains("标题：Task B"));
@@ -1048,7 +1489,12 @@ mod tests {
             .additional_context();
         assert!(next_a.contains("注入：#2"));
         assert!(next_a.contains("活跃任务是否变化：false"));
-        assert!(next_a.contains("下一步=继续当前 loop，并按 dj-implement 推进下一轮最小验证闭环") || next_a.contains("next_action=继续当前 loop，并按 dj-implement 推进下一轮最小验证闭环"));
+        assert!(
+            next_a.contains("下一步=继续当前 loop，并按 dj-implement 推进下一轮最小验证闭环")
+                || next_a.contains(
+                    "next_action=继续当前 loop，并按 dj-implement 推进下一轮最小验证闭环"
+                )
+        );
 
         let log = std::fs::read_to_string(dijiang_dir.join(".runtime/workflow-state.log")).unwrap();
         assert!(log.contains("workflow_state_injected"));
@@ -1136,6 +1582,7 @@ mod tests {
         assert!(context.contains("Loop：goal=Align Task"));
         assert!(context.contains("progress=aligning (需求与验收标准仍需对齐)"));
         assert!(context.contains("next_skill=dj-grill"));
+        assert!(context.contains("agent_focus=任务类型=未分类任务"));
     }
 
     #[test]
@@ -1160,11 +1607,11 @@ mod tests {
         let context = build_for_session(&dijiang_dir, Some(&window))
             .unwrap()
             .additional_context();
-        assert!(context.contains("Route Gate：capsule=resume"));
-        assert!(context.contains("default_skill=dijiang-continue"));
+        assert!(context.contains("Route Gate：capsule=implement"));
+        assert!(context.contains("default_skill=dj-implement"));
         assert!(context.contains("Git Gate：state=ready"));
-        assert!(context.contains("Skill Manifests：dijiang-continue"));
-        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dijiang-continue\">"));
+        assert!(context.contains("Skill Manifests："));
+        assert!(context.contains("Loop：goal=Paused Task"));
     }
 
     #[test]
@@ -1189,10 +1636,130 @@ mod tests {
         let context = build_for_session(&dijiang_dir, Some(&window))
             .unwrap()
             .additional_context();
-        assert!(context.contains("Route Gate：capsule=idle"));
-        assert!(context.contains("default_skill=dijiang-start"));
+        assert!(context.contains("Route Gate：capsule=align"));
+        assert!(context.contains("default_skill=dj-grill"));
         assert!(context.contains("Git Gate：state=ready"));
-        assert!(context.contains("Skill Manifests：dijiang-start"));
-        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dijiang-start\">"));
+        assert!(context.contains("Skill Manifests：dj-grill"));
+        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">"));
+        assert!(context.contains("progress=ready_to_restart"));
+        assert!(context.contains("先 restart 任务并按 planning 路径重新对齐"));
+    }
+
+    #[test]
+    fn read_back_surfaces_learned_tactics_and_patterns() {
+        let global_dir = tempfile::tempdir().unwrap();
+        let project_mem_dir = tempfile::tempdir().unwrap();
+
+        let global_mem = GlobalMemory::new_at(global_dir.path()).unwrap();
+        global_mem
+            .add_tactic(
+                "read-back-tactic",
+                "tactic promoted by mem evolve",
+                "mem_evolve_writeback",
+            )
+            .unwrap();
+
+        let project_mem = ProjectMemory::new_at(project_mem_dir.path()).unwrap();
+        project_mem
+            .add_pattern(&dijiang_mem::Pattern {
+                name: "loop-read-back-pattern".to_string(),
+                description: "pattern promoted by mem evolve".to_string(),
+                steps: vec!["verify then archive".to_string()],
+                tags: vec!["loop-writeback".to_string()],
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+                project: Some("test".to_string()),
+                cadence: None,
+                risk: None,
+                week_one_mode: None,
+                token_cost: None,
+                human_gates: vec![],
+                phases: vec![],
+            })
+            .unwrap();
+
+        let learned = load_learned_memory_from(Some(&project_mem), Some(&global_mem));
+        assert!(
+            learned
+                .tactics
+                .iter()
+                .any(|tactic| tactic.name == "read-back-tactic"),
+            "tactics: {:?}",
+            learned.tactics
+        );
+        assert!(
+            learned
+                .patterns
+                .iter()
+                .any(|pattern| pattern.name == "loop-read-back-pattern"),
+            "patterns: {:?}",
+            learned.patterns
+        );
+
+        let rendered = format_learned_memory(&learned);
+        assert!(rendered.contains("Learned Memory (read-back)：已读回 1 条 tactic / 1 条 pattern"));
+        assert!(rendered.contains("- tactic: read-back-tactic"));
+        assert!(rendered.contains("- pattern: loop-read-back-pattern [loop-writeback]"));
+    }
+
+    #[test]
+    fn read_back_is_empty_when_memory_unavailable() {
+        let learned = load_learned_memory_from(None, None);
+        assert!(learned.tactics.is_empty());
+        assert!(learned.patterns.is_empty());
+        assert!(learned.summary.contains("暂无可读回"));
+
+        let rendered = format_learned_memory(&learned);
+        assert!(rendered.contains("Learned Memory (read-back)：暂无可读回"));
+    }
+
+    #[test]
+    fn build_for_session_surfaces_project_patterns_in_read_back() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(&dijiang_dir).unwrap();
+        std::fs::write(
+            dijiang_dir.join("config.toml"),
+            "[project]\ndeveloper = \"tester\"\n",
+        )
+        .unwrap();
+        let tasks_dir = dijiang_dir.join("tasks");
+        std::fs::create_dir_all(&tasks_dir).unwrap();
+
+        // Seed the project memory store with a promoted pattern.
+        let project_mem = ProjectMemory::from_dijiang_dir(&dijiang_dir).unwrap();
+        project_mem
+            .add_pattern(&dijiang_mem::Pattern {
+                name: "loop-verified-and-archived".to_string(),
+                description: "pattern promoted back by session loop".to_string(),
+                steps: vec![],
+                tags: vec!["loop-writeback".to_string()],
+                created_at: "2026-06-01T00:00:00Z".to_string(),
+                project: Some("test".to_string()),
+                cadence: None,
+                risk: None,
+                week_one_mode: None,
+                token_cost: None,
+                human_gates: vec![],
+                phases: vec![],
+            })
+            .unwrap();
+
+        store::save_task(&tasks_dir, &task("read-back-task", "Read Back Task")).unwrap();
+        let window = store::SessionIdentity::new("dijiang", "read-back-window").unwrap();
+        store::write_active_task_for_session(&dijiang_dir, "read-back-task", Some(&window))
+            .unwrap();
+
+        let context = build_for_session(&dijiang_dir, Some(&window))
+            .unwrap()
+            .additional_context();
+
+        assert!(
+            context.contains("Learned Memory (read-back)："),
+            "context should surface read-back section: {context}"
+        );
+        assert!(
+            context.contains("loop-verified-and-archived"),
+            "context should read back the project pattern: {context}"
+        );
     }
 }

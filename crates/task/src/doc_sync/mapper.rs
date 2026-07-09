@@ -121,12 +121,7 @@ pub fn map_changes_to_docs(report: &DiffReport) -> Vec<DocImpact> {
             .collect();
         let files_str = files.join(", ");
         let api_reason = format!("{count} 个 API 变更（{files_str}）");
-        add(
-            DocType::Api,
-            ImpactKind::NeedsUpdate,
-            0.9,
-            &api_reason,
-        );
+        add(DocType::Api, ImpactKind::NeedsUpdate, 0.9, &api_reason);
     }
 
     // --- Rule 2: Commit messages → Changelog ---
@@ -202,25 +197,13 @@ pub fn map_changes_to_docs(report: &DiffReport) -> Vec<DocImpact> {
 
     // --- Rule 7: Dependency changes → Design doc ---
     if !report.dep_changes.is_empty() {
-        let deps: Vec<&str> = report
-            .dep_changes
-            .iter()
-            .map(|d| d.name.as_str())
-            .collect();
+        let deps: Vec<&str> = report.dep_changes.iter().map(|d| d.name.as_str()).collect();
         let dep_reason = format!("依赖变更（{}），可能影响技术设计", deps.join(", "));
-        add(
-            DocType::Design,
-            ImpactKind::NeedsReview,
-            0.5,
-            &dep_reason,
-        );
+        add(DocType::Design, ImpactKind::NeedsReview, 0.5, &dep_reason);
     }
 
     // --- Rule 9: Docs/ directory changes → Design notes ---
-    let has_doc_changes = report
-        .changed_files
-        .iter()
-        .any(|f| f.starts_with("docs/"));
+    let has_doc_changes = report.changed_files.iter().any(|f| f.starts_with("docs/"));
     if has_doc_changes {
         add(
             DocType::DesignNotes,
@@ -247,20 +230,16 @@ mod tests {
                 "src/modules/mod.rs".into(),
                 "Cargo.toml".into(),
             ],
-            pub_api_changes: vec![
-                super::super::PubApiChange {
-                    file: "src/lib.rs".into(),
-                    name: "UserService".into(),
-                    kind: super::super::ApiItemKind::Struct,
-                    change: ChangeKind::Added,
-                },
-            ],
-            module_changes: vec![
-                ModuleChange {
-                    path: "src/modules".into(),
-                    kind: ChangeKind::Added,
-                },
-            ],
+            pub_api_changes: vec![super::super::PubApiChange {
+                file: "src/lib.rs".into(),
+                name: "UserService".into(),
+                kind: super::super::ApiItemKind::Struct,
+                change: ChangeKind::Added,
+            }],
+            module_changes: vec![ModuleChange {
+                path: "src/modules".into(),
+                kind: ChangeKind::Added,
+            }],
             dep_changes: vec![],
             commit_summaries: vec![
                 "feat: add UserService struct".into(),

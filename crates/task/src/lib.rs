@@ -1,4 +1,5 @@
 pub mod capability_gate;
+pub mod circuit_breaker;
 pub mod doc_sync;
 pub mod git_gate;
 pub mod route_gate;
@@ -9,17 +10,25 @@ pub mod types;
 pub mod workflow_state;
 
 pub use capability_gate::{
-    evaluate_capability, CapabilityAction, CapabilityDecision, CapabilityTarget,
+    CapabilityAction, CapabilityDecision, CapabilityTarget, evaluate_capability,
+};
+pub use circuit_breaker::{
+    Attempt, AttemptOutcome, BreakerDecision, BreakerTrigger, CircuitBreakerConfig, Ledger,
+    PruneConfig, build_context_injection, check_circuit_breaker, error_signature, prune_ledger,
+    summarize_attempts,
 };
 pub use git_gate::{
-    evaluate_worktree_readiness, GitGateInput, GitGateState, GitGateSummary, GitRuntimeLocation,
-    WorktreeReadiness, summarize_git_gate, worktree_readiness,
+    GitGateInput, GitGateState, GitGateSummary, GitRuntimeLocation, WorktreeReadiness,
+    evaluate_worktree_readiness, summarize_git_gate, worktree_readiness,
 };
 pub use route_gate::{
-    evaluate_route, summarize_route_gate, RouteAction, RouteDecision, RouteGateSummary,
-    RouteIntent, WorkflowCapsule,
+    RouteAction, RouteDecision, RouteGateSummary, RouteIntent, WorkflowCapsule, evaluate_route,
+    summarize_route_gate,
 };
-pub use skill_manifest::{manifest_by_name, manifests_for_capsule, render_selected_skill_bodies, select_skill_bodies, skill_body_by_name, SelectedSkillBody, SkillBodyCache, SkillManifestEntry};
+pub use skill_manifest::{
+    SelectedSkillBody, SkillBodyCache, SkillManifestEntry, manifest_by_name, manifests_for_capsule,
+    render_selected_skill_bodies, select_skill_bodies, skill_body_by_name,
+};
 pub use types::{TASK_RECORD_FIELD_ORDER, TaskRecord, TaskStatus};
 
 #[cfg(test)]

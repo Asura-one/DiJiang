@@ -61,8 +61,11 @@ pub fn evaluate_capability(
                     capsule,
                     target,
                     action: CapabilityAction::Block,
-                    reason: "finish-work integration is high-risk and requires explicit approval".to_string(),
-                    next_action: "re-run with --approve-integrate once merge/worktree cleanup is intended".to_string(),
+                    reason: "finish-work integration is high-risk and requires explicit approval"
+                        .to_string(),
+                    next_action:
+                        "re-run with --approve-integrate once merge/worktree cleanup is intended"
+                            .to_string(),
                 }
             }
         }
@@ -80,8 +83,11 @@ pub fn evaluate_capability(
                     capsule,
                     target,
                     action: CapabilityAction::Block,
-                    reason: "finish-work push is high-risk and requires explicit approval".to_string(),
-                    next_action: "re-run with --approve-integrate once pushing the task branch is intended".to_string(),
+                    reason: "finish-work push is high-risk and requires explicit approval"
+                        .to_string(),
+                    next_action:
+                        "re-run with --approve-integrate once pushing the task branch is intended"
+                            .to_string(),
                 }
             }
         }
@@ -99,8 +105,11 @@ pub fn evaluate_capability(
                     capsule,
                     target,
                     action: CapabilityAction::Block,
-                    reason: "finish-work cleanup is high-risk and requires explicit approval".to_string(),
-                    next_action: "re-run with --approve-cleanup once deleting worktree/branch is intended".to_string(),
+                    reason: "finish-work cleanup is high-risk and requires explicit approval"
+                        .to_string(),
+                    next_action:
+                        "re-run with --approve-cleanup once deleting worktree/branch is intended"
+                            .to_string(),
                 }
             }
         }
@@ -135,11 +144,8 @@ mod tests {
 
     #[test]
     fn push_requires_explicit_approval() {
-        let decision = evaluate_capability(
-            WorkflowCapsule::Finish,
-            CapabilityTarget::FinishPush,
-            false,
-        );
+        let decision =
+            evaluate_capability(WorkflowCapsule::Finish, CapabilityTarget::FinishPush, false);
         assert_eq!(decision.action, CapabilityAction::Block);
         assert!(decision.reason.contains("push is high-risk"));
     }

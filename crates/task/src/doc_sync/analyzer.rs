@@ -155,7 +155,9 @@ impl DiffAnalyzer {
             return None;
         }
 
-        let keywords = ["fn ", "struct ", "trait ", "enum ", "mod ", "type ", "const "];
+        let keywords = [
+            "fn ", "struct ", "trait ", "enum ", "mod ", "type ", "const ",
+        ];
         for kw in &keywords {
             if let Some(rest) = trimmed.strip_prefix("pub ") {
                 if let Some(name_start) = rest.strip_prefix(kw) {
@@ -283,13 +285,13 @@ mod tests {
         // Init git repo with explicit main branch
         std::process::Command::new("git")
             .args([
-"-C",
-&root.to_string_lossy(),
-"init",
-"--initial-branch=main",
-])
-.output()
-    .expect("git init");
+                "-C",
+                &root.to_string_lossy(),
+                "init",
+                "--initial-branch=main",
+            ])
+            .output()
+            .expect("git init");
 
         std::process::Command::new("git")
             .args([
@@ -303,13 +305,7 @@ mod tests {
             .expect("git config email");
 
         std::process::Command::new("git")
-            .args([
-                "-C",
-                &root.to_string_lossy(),
-                "config",
-                "user.name",
-                "Test",
-            ])
+            .args(["-C", &root.to_string_lossy(), "config", "user.name", "Test"])
             .output()
             .expect("git config name");
 
@@ -364,10 +360,7 @@ mod tests {
 
     #[test]
     fn detect_module_changes_mod_rs() {
-        let files = vec![
-            "src/main.rs".to_string(),
-            "src/modules/mod.rs".to_string(),
-        ];
+        let files = vec!["src/main.rs".to_string(), "src/modules/mod.rs".to_string()];
         let changes = DiffAnalyzer::detect_module_changes(&files);
         assert!(
             changes.iter().any(|m| m.path == "src/modules"),
@@ -377,10 +370,7 @@ mod tests {
 
     #[test]
     fn detect_module_changes_top_level_dir() {
-        let files = vec![
-            "src/main.rs".to_string(),
-            "tests/test_a.rs".to_string(),
-        ];
+        let files = vec!["src/main.rs".to_string(), "tests/test_a.rs".to_string()];
         let changes = DiffAnalyzer::detect_module_changes(&files);
         assert!(
             changes.iter().any(|m| m.path == "src"),

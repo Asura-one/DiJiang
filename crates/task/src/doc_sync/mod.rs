@@ -104,10 +104,7 @@ pub fn format_report(report: &DiffReport, impacts: &[DocImpact]) -> String {
     }
 
     // Changed files summary
-    out.push_str(&format!(
-        "  涉及 {} 个文件变更",
-        report.changed_files.len()
-    ));
+    out.push_str(&format!("  涉及 {} 个文件变更", report.changed_files.len()));
     if !report.pub_api_changes.is_empty() {
         out.push_str(&format!(
             "，其中 {} 个 pub API 变更",

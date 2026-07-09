@@ -264,11 +264,13 @@ impl ProjectMemory {
     }
 
     pub fn append_finding(&self, finding: &Finding) -> Result<()> {
-        self.append_jsonl("findings.jsonl", finding)
+        self.append_jsonl("findings.jsonl", finding)?;
+        self.append_to_index("findings", &finding.content, &finding.timestamp)
     }
 
     pub fn append_learning(&self, learning: &Learning) -> Result<()> {
-        self.append_jsonl("learnings.jsonl", learning)
+        self.append_jsonl("learnings.jsonl", learning)?;
+        self.append_to_index("learnings", &learning.content, &learning.timestamp)
     }
 
     pub fn append_correction(&self, correction: &Correction) -> Result<()> {
@@ -290,10 +292,253 @@ impl ProjectMemory {
     // ─── L4: Procedural Memory ────────────────────────────────
 
     pub fn add_pattern(&self, pattern: &Pattern) -> Result<()> {
-        self.append_jsonl("patterns.jsonl", pattern)
+        self.append_jsonl("patterns.jsonl", pattern)?;
+        let text = format!("{} {} {:?}", pattern.name, pattern.description, pattern.tags);
+        self.append_to_index("patterns", &text, &pattern.created_at)
     }
 
     pub fn load_patterns(&self) -> Result<Vec<Pattern>> {
         self.load_jsonl("patterns.jsonl")
     }
+
+    pub fn recent_patterns(&self, limit: usize) -> Result<Vec<Pattern>> {
+        let mut patterns = self.load_patterns()?;
+        patterns.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        patterns.truncate(limit);
+        Ok(patterns)
+    }
+
+    /// Remove entries older than `days` from findings, learnings, and corrections.
+    pub fn prune(&self, days: u64) -> Result<PruneReport> {
+        let cutoff = chrono::Local::now() - chrono::Duration::days(days as i64);
+        let cutoff_str = cutoff.to_rfc3339();
+        let mut report = PruneReport::default();
+
+        // Prune findings
+        let all: Vec<Finding> = self.load_findings()?;
+        let keep: Vec<Finding> = all.into_iter().filter(|f| f.timestamp >= cutoff_str).collect();
+        report.findings_before = keep.len();
+        let _ = std::fs::remove_file(self.root.join("findings.jsonl"));
+
+        for f in &keep { self.append_finding(f)?; }
+
+        // Prune learnings
+        let all_l: Vec<Learning> = self.load_learnings()?;
+        let keep_l: Vec<Learning> = all_l.into_iter().filter(|l| l.timestamp >= cutoff_str).collect();
+        report.learnings_before = keep_l.len();
+        let _ = std::fs::remove_file(self.root.join("learnings.jsonl"));
+        for l in &keep_l { self.append_learning(l)?; }
+
+        // Rebuild index
+        let _ = self.build_index();
+        Ok(report)
+    }
+
+    /// Recall: search findings, learnings, patterns for keyword matches.
+    /// Returns scored results sorted by relevance (keyword hit count with time decay).
+    pub fn recall(&self, query: &str, limit: usize) -> Result<Vec<ScoredMemory>> {
+        // Try index first
+        if let Ok(results) = self.search_index(query, limit) {
+            if !results.is_empty() {
+                return Ok(results);
+            }
+        }
+        // Fall back to linear scan
+        let results = self.recall_linear(query, limit)?;
+        Ok(results)
+    }
+
+    // ─── Inverted Index ─────────────────────────────────────
+
+    /// Append a single entry to the search index (incremental update).
+    fn append_to_index(&self, source: &str, content: &str, timestamp: &str) -> Result<()> {
+        for token in tokenize(content) {
+            self.append_jsonl("index.jsonl", &IndexEntry {
+                term: token,
+                source: source.into(),
+                content: content.into(),
+                timestamp: timestamp.into(),
+                line: 0,
+            })?;
+        }
+        Ok(())
+    }
+
+    /// Path to the search index file.
+    fn index_path(&self) -> PathBuf {
+        self.root.join("index.jsonl")
+    }
+
+    /// Build the inverted search index from all memory sources.
+    pub fn build_index(&self) -> Result<()> {
+        // Remove old index file
+        let path = self.index_path();
+        let _ = std::fs::remove_file(&path);
+
+        let findings = self.load_findings()?;
+        for f in &findings {
+            for token in tokenize(&f.content) {
+                self.append_jsonl("index.jsonl", &IndexEntry {
+                    term: token,
+                    source: "findings".into(),
+                    content: f.content.clone(),
+                    timestamp: f.timestamp.clone(),
+                    line: 0,
+                })?;
+            }
+        }
+        for l in self.load_learnings()? {
+            for token in tokenize(&l.content) {
+                self.append_jsonl("index.jsonl", &IndexEntry {
+                    term: token,
+                    source: "learnings".into(),
+                    content: l.content.clone(),
+                    timestamp: l.timestamp.clone(),
+                    line: 0,
+                })?;
+            }
+        }
+        for p in self.load_patterns()? {
+            let text = format!("{} {} {:?}", p.name, p.description, p.tags);
+            for token in tokenize(&text) {
+                self.append_jsonl("index.jsonl", &IndexEntry {
+                    term: token,
+                    source: "patterns".into(),
+                    content: format!("{}: {}", p.name, p.description),
+                    timestamp: p.created_at.clone(),
+                    line: 0,
+                })?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Search the inverted index for a query.
+    pub fn search_index(&self, query: &str, limit: usize) -> Result<Vec<ScoredMemory>> {
+        let path = self.index_path();
+        if !path.exists() {
+            return Ok(vec![]);
+        }
+
+        let entries: Vec<IndexEntry> = self.load_jsonl("index.jsonl")?;
+        let q = query.to_lowercase();
+        let terms: Vec<&str> = q.split_whitespace().collect();
+        if terms.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let now = chrono::Local::now().timestamp();
+        let mut results: Vec<ScoredMemory> = Vec::new();
+        let mut seen: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+
+        for entry in &entries {
+            let hits: usize = terms.iter().filter(|&&t| entry.term.contains(t)).count();
+            if hits == 0 { continue; }
+            let key = (entry.source.clone(), entry.content.clone());
+            if seen.contains(&key) { continue; }
+            seen.insert(key.clone());
+
+            let age_days = (now - parse_timestamp(&entry.timestamp)) as f64 / 86400.0;
+            let time_decay = (-age_days * 0.01).exp();
+            let score = (hits as f64) * time_decay;
+
+            results.push(ScoredMemory {
+                source: entry.source.clone(),
+                content: entry.content.clone(),
+                score,
+                timestamp: entry.timestamp.clone(),
+            });
+        }
+
+        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.truncate(limit);
+        Ok(results)
+    }
+
+    /// Linear scan recall (original implementation, used as fallback).
+    fn recall_linear(&self, query: &str, limit: usize) -> Result<Vec<ScoredMemory>> {
+        let q = query.to_lowercase();
+        let terms: Vec<&str> = q.split_whitespace().collect();
+        if terms.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut results: Vec<ScoredMemory> = Vec::new();
+        let now = chrono::Local::now().timestamp();
+
+        // Search findings
+        for f in self.load_findings()? {
+            let t = f.content.to_lowercase();
+            let hits: usize = terms.iter().filter(|&&term| t.contains(term)).count();
+            if hits > 0 {
+                let age_days = (now - parse_timestamp(&f.timestamp)) as f64 / 86400.0;
+                let time_decay = (-age_days * 0.01).exp(); // ~50% decay after 70 days
+                let score = (hits as f64 / terms.len() as f64) * time_decay;
+                results.push(ScoredMemory {
+                    source: "findings".into(),
+                    content: f.content,
+                    score,
+                    timestamp: f.timestamp,
+                });
+            }
+        }
+
+        // Search learnings
+        for l in self.load_learnings()? {
+            let t = l.content.to_lowercase();
+            let hits: usize = terms.iter().filter(|&&term| t.contains(term)).count();
+            if hits > 0 {
+                let age_days = (now - parse_timestamp(&l.timestamp)) as f64 / 86400.0;
+                let time_decay = (-age_days * 0.01).exp();
+                let score = (hits as f64 / terms.len() as f64) * time_decay;
+                results.push(ScoredMemory {
+                    source: "learnings".into(),
+                    content: l.content,
+                    score,
+                    timestamp: l.timestamp,
+                });
+            }
+        }
+
+        // Search patterns
+        for p in self.load_patterns()? {
+            let t = format!("{} {} {:?}", p.name, p.description, p.tags).to_lowercase();
+            let hits: usize = terms.iter().filter(|&&term| t.contains(term)).count();
+            if hits > 0 {
+                let age_days = (now - parse_timestamp(&p.created_at)) as f64 / 86400.0;
+                let time_decay = (-age_days * 0.01).exp();
+                let score = (hits as f64 / terms.len() as f64) * time_decay;
+                results.push(ScoredMemory {
+                    source: "patterns".into(),
+                    content: format!("{}: {}", p.name, p.description),
+                    score,
+                    timestamp: p.created_at,
+                });
+            }
+        }
+
+        // Sort by score descending, take top N
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        results.truncate(limit);
+        Ok(results)
+    }
+}
+
+fn parse_timestamp(ts: &str) -> i64 {
+    chrono::DateTime::parse_from_rfc3339(ts)
+        .map(|dt| dt.timestamp())
+        .unwrap_or(0)
+}
+
+/// Tokenize text into lowercase terms, splitting on non-alphanumeric characters.
+fn tokenize(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|t| t.len() >= 2)
+        .map(|t| t.to_string())
+        .collect()
 }

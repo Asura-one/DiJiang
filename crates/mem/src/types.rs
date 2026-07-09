@@ -86,6 +86,24 @@ pub enum MemError {
 
 // ─── L2: Episodic Memory ───────────────────────────────────────────
 
+/// Scope of a memory entry — controls visibility and promotion.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryScope {
+    /// Visible only within the current project (default).
+    Project,
+    /// Suitable for promotion to global memory.
+    Global,
+    /// Sensitive — never promoted, never cross-project.
+    Sensitive,
+}
+
+impl Default for MemoryScope {
+    fn default() -> Self {
+        MemoryScope::Project
+    }
+}
+
 /// A finding recorded during a session.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Finding {
@@ -93,6 +111,10 @@ pub struct Finding {
     pub content: String,
     pub session_id: Option<String>,
     pub project: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub scope: MemoryScope,
 }
 
 /// A session closure written when work finishes successfully.
@@ -108,6 +130,43 @@ pub struct SessionClosure {
     pub version_impact: String,
     pub status: String,
     pub confidence: String,
+    pub outcome: Option<String>,
+    pub next_tactic: Option<String>,
+    pub next_pattern: Option<String>,
+    pub loop_signal: Option<String>,
+    /// Attempt ledger from circuit breaker tracking.
+    /// Empty by default for backward compatibility with older closures.
+    #[serde(default)]
+    pub attempts: Vec<AttemptEntry>,
+}
+
+/// A single attempt recorded in the session closure ledger.
+///
+/// This is the L2 episodic record of what was tried during a loop,
+/// enabling `mem evolve` to consume precise iteration data instead
+/// of relying on the 50-char finding truncation method.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttemptEntry {
+    /// Iteration number (1-based).
+    pub iteration: u64,
+    /// What action was attempted.
+    pub action: String,
+    /// Outcome of this attempt.
+    pub outcome: AttemptOutcome,
+    /// Error message (if failure).
+    #[serde(default)]
+    pub error: Option<String>,
+    /// Tokens consumed (if tracked).
+    #[serde(default)]
+    pub tokens_used: Option<u64>,
+}
+
+/// Outcome of a single attempt in the session ledger.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum AttemptOutcome {
+    Success,
+    Failure,
+    Noop,
 }
 
 /// A user correction that should change future agent behavior.
@@ -133,6 +192,10 @@ pub struct Learning {
     pub content: String,
     pub session_id: Option<String>,
     pub project: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub scope: MemoryScope,
 }
 
 // ─── L3: Semantic Memory (Tactics) ─────────────────────────────────
@@ -207,6 +270,24 @@ pub struct Pattern {
     pub tags: Vec<String>,
     pub created_at: String,
     pub project: Option<String>, // None = global
+    /// How often this pattern runs (e.g. "1d", "15m", "6h")
+    #[serde(default)]
+    pub cadence: Option<String>,
+    /// Risk level: "low", "medium", "high"
+    #[serde(default)]
+    pub risk: Option<String>,
+    /// Week-1 rollout mode: "L1", "L2"
+    #[serde(default)]
+    pub week_one_mode: Option<String>,
+    /// Estimated token cost: "low", "medium", "high"
+    #[serde(default)]
+    pub token_cost: Option<String>,
+    /// Scenarios requiring human approval
+    #[serde(default)]
+    pub human_gates: Vec<String>,
+    /// Phases in this pattern: discover, triage, fix, verify, notify
+    #[serde(default)]
+    pub phases: Vec<String>,
 }
 
 // ─── L5: Meta Memory ──────────────────────────────────────────────
@@ -241,4 +322,36 @@ pub struct Baseline {
     pub total_tests: u64,
     pub regressions: u64,
     pub timestamp: String,
+}
+
+/// A scored memory result from recall.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScoredMemory {
+    pub source: String,       // "findings" / "learnings" / "patterns"
+    pub content: String,
+    pub score: f64,
+    pub timestamp: String,
+}
+
+/// An entry in the inverted search index.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexEntry {
+    pub term: String,
+    pub source: String,
+    pub content: String,
+    pub timestamp: String,
+    pub line: usize,
+}
+
+/// The inverted index structure stored as JSON.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SearchIndex {
+    pub entries: Vec<IndexEntry>,
+}
+
+/// Report from a prune operation.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PruneReport {
+    pub findings_before: usize,
+    pub learnings_before: usize,
 }

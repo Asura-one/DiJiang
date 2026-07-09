@@ -136,7 +136,7 @@ fn session_path(dijiang_dir: &Path, identity: &SessionIdentity) -> PathBuf {
 fn read_session_task(
     dijiang_dir: &Path,
     identity: &SessionIdentity,
- ) -> Result<Option<String>, TaskError> {
+) -> Result<Option<String>, TaskError> {
     let path = session_path(dijiang_dir, identity);
     if !path.exists() {
         return Ok(None);
@@ -242,7 +242,6 @@ pub fn write_active_task_for_session(
 pub fn clear_active_task(dijiang_dir: &Path) -> Result<(), TaskError> {
     clear_active_task_for_session(dijiang_dir, current_session_identity().as_ref())
 }
-
 
 pub fn clear_active_task_for_session(
     dijiang_dir: &Path,
