@@ -95,7 +95,7 @@ dijiang dispatch "<user request>" --json --hook-event session:start
 当前任务: <name or none>
 Workflow 阶段: <planning|in_progress|completed|paused|none>
 已加载 specs: <paths or none>
-路线: <dj-skill>
+路线: <dj-meta>
 下一动作: <one sentence>
 ```
 

@@ -96,7 +96,7 @@ dijiang mem list
 已加载产物: <paths>
 缺失产物: <paths or none>
 脏改状态: <summary>
-路线: <dj-skill>
+路线: <dj-meta>
 下一动作: <one sentence>
 ```
 
