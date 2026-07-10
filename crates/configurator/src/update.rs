@@ -79,9 +79,47 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     }
     crate::write_project_skills(temp.path(), options.force)
         .map_err(|e| ConfigError::Serialize(e.to_string()))?;
+
+    // Override embedded skills and per-skill references with filesystem template sources
+    // if the project has a crates/configurator/templates/ directory.
+    let templates_skills_dir = cwd.join("crates/configurator/templates/skills");
+    if templates_skills_dir.exists() {
+        copy_template_skills(&templates_skills_dir, temp.path())?;
+    }
+
+    // Sync shared references (templates/references/) if available
+    let templates_references_dir = cwd.join("crates/configurator/templates/references");
+    if templates_references_dir.exists() {
+        let dst_references = temp.path().join(".dijiang/references");
+        fs::create_dir_all(&dst_references)?;
+        copy_dir_contents(&templates_references_dir, &dst_references)?;
+    }
+
+    // Sync spec guides and meta (templates/spec/) if available
+    let templates_spec_dir = cwd.join("crates/configurator/templates/spec");
+    if templates_spec_dir.exists() {
+        let dst_spec = temp.path().join(".dijiang/spec");
+        fs::create_dir_all(&dst_spec)?;
+        copy_dir_contents(&templates_spec_dir, &dst_spec)?;
+    }
+
     let mut managed_files = managed_files_for_platforms(&platforms);
-    managed_files.extend(skill_files());
-    managed_files.extend(project_skill_files());
+    // Enumerate ALL files under .pi/skills/ in the temp dir (SKILL.md + references)
+    // instead of using a static list, so new template files are picked up automatically.
+    let pi_skills_dir = temp.path().join(".pi/skills");
+    if pi_skills_dir.exists() {
+        collect_managed_files(&pi_skills_dir, ".pi/skills", &mut managed_files);
+    }
+    // Enumerate ALL files under .dijiang/references/ in the temp dir
+    let dijiang_references = temp.path().join(".dijiang/references");
+    if dijiang_references.exists() {
+        collect_managed_files(&dijiang_references, ".dijiang/references", &mut managed_files);
+    }
+    // Enumerate ALL files under .dijiang/spec/ in the temp dir
+    let dijiang_spec = temp.path().join(".dijiang/spec");
+    if dijiang_spec.exists() {
+        collect_managed_files(&dijiang_spec, ".dijiang/spec", &mut managed_files);
+    }
     managed_files.push(ManagedFile {
         path: "AGENTS.md".to_string(),
         policy: UpdatePolicy::Managed,
@@ -106,6 +144,10 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
         }
         apply_managed_file(cwd, &managed, &src, &mut hashes, &mut report, options.force)?;
     }
+    // Remove stale files from fully managed directories (.pi/skills/, .dijiang/references/)
+    // that exist in the project dir but no longer in the template source.
+    // .dijiang/spec/ is excluded because it also holds local-only files not tracked in templates.
+    remove_stale_files(cwd, temp.path(), &[".pi/skills", ".dijiang/references"], &mut report)?;
 
     let config_updated =
         update_config(cwd, &platforms, config.as_ref(), &mut hashes, options.force)?;
@@ -246,19 +288,6 @@ fn managed_files_for_platforms(platforms: &[PlatformKind]) -> Vec<ManagedFile> {
     files
 }
 
-fn skill_files() -> Vec<ManagedFile> {
-    crate::dj_skills::list_skill_names()
-        .iter()
-        .map(|name| protected(&format!(".pi/skills/{name}/SKILL.md")))
-        .collect()
-}
-
-fn project_skill_files() -> Vec<ManagedFile> {
-    ["dijiang-start", "dijiang-continue", "dijiang-finish-work"]
-        .iter()
-        .map(|name| protected(&format!(".pi/skills/{name}/SKILL.md")))
-        .collect()
-}
 
 fn managed(path: &str) -> ManagedFile {
     ManagedFile {
@@ -464,7 +493,7 @@ impl Drop for GeneratedProject {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.path);
     }
-}
+    }
 
 fn chrono_like_timestamp() -> u128 {
     std::time::SystemTime::now()
@@ -473,7 +502,170 @@ fn chrono_like_timestamp() -> u128 {
         .unwrap_or(0)
 }
 
-#[cfg(test)]
+/// embedded versions. Also copies per-skill reference files (e.g. references/*.md).
+fn copy_template_skills(src: &Path, temp_dir: &Path) -> Result<(), ConfigError> {
+    let dst_base = temp_dir.join(".pi/skills");
+    for entry in fs::read_dir(src).map_err(|e| {
+        ConfigError::Serialize(format!("failed to read template skills dir: {e}"))
+    })? {
+        let entry = entry.map_err(|e| {
+            ConfigError::Serialize(format!("failed to read entry in template skills dir: {e}"))
+        })?;
+        let skill_name = entry.file_name();
+        let skill_name = skill_name.to_string_lossy();
+        if skill_name.starts_with('.') { continue; }
+        let src_dir = entry.path();
+        if !src_dir.is_dir() { continue; }
+        let dst_dir = dst_base.join(&*skill_name);
+        copy_dir_contents(&src_dir, &dst_dir)?;
+    }
+    Ok(())
+}
+
+/// Recursively copy all files from src_dir to dst_dir, preserving relative paths.
+fn copy_dir_contents(src_dir: &Path, dst_dir: &Path) -> Result<(), ConfigError> {
+    fs::create_dir_all(dst_dir).map_err(|e| {
+        ConfigError::Serialize(format!("failed to create dir {}: {e}", dst_dir.display()))
+    })?;
+    for entry in fs::read_dir(src_dir).map_err(|e| {
+        ConfigError::Serialize(format!("failed to read dir {}: {e}", src_dir.display()))
+    })? {
+        let entry = entry.map_err(|e| {
+            ConfigError::Serialize(format!("failed to read entry in {}: {e}", src_dir.display()))
+        })?;
+        let file_type = entry.file_type().map_err(|e| {
+            ConfigError::Serialize(format!("failed to get file type: {e}"))
+        })?;
+        if file_type.is_dir() {
+            let sub_src = entry.path();
+            let sub_name = entry.file_name();
+            let sub_dst = dst_dir.join(&sub_name);
+            copy_dir_contents(&sub_src, &sub_dst)?;
+        } else if file_type.is_file() {
+            let src_file = entry.path();
+            let dst_file = dst_dir.join(entry.file_name());
+            fs::copy(&src_file, &dst_file).map_err(|e| {
+                ConfigError::Serialize(format!(
+                    "failed to copy {} -> {}: {e}",
+                    src_file.display(),
+                    dst_file.display()
+                ))
+            })?;
+        }
+    }
+    Ok(())
+}
+
+/// Walk a directory tree and add every file as a HashProtected ManagedFile,
+/// using the given prefix (e.g. ".pi/skills") for the managed path.
+fn collect_managed_files(dir: &Path, prefix: &str, managed_files: &mut Vec<ManagedFile>) {
+    collect_managed_files_inner(dir, prefix, "", managed_files);
+}
+
+fn collect_managed_files_inner(
+    dir: &Path,
+    prefix: &str,
+    subpath: &str,
+    managed_files: &mut Vec<ManagedFile>,
+) {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if name_str.starts_with('.') && name_str != ".gitkeep" { continue; }
+        let relative = if subpath.is_empty() {
+            name_str.to_string()
+        } else {
+            format!("{subpath}/{name_str}")
+        };
+        if file_type.is_dir() {
+            collect_managed_files_inner(&entry.path(), prefix, &relative, managed_files);
+        } else if file_type.is_file() {
+            managed_files.push(ManagedFile {
+                path: format!("{prefix}/{relative}"),
+                policy: UpdatePolicy::HashProtected,
+            });
+        }
+    }
+}
+
+/// Remove files from managed subdirectories in the project dir that no longer exist
+/// in the temp dir. This implements delete-sync for fully-managed directories.
+fn remove_stale_files(
+    project_dir: &Path,
+    temp_dir: &Path,
+    managed_roots: &[&str],
+    report: &mut UpdateReport,
+) -> Result<(), ConfigError> {
+    for root in managed_roots {
+        let project_root = project_dir.join(root);
+        let temp_root = temp_dir.join(root);
+        if !project_root.exists() || !temp_root.exists() {
+            continue;
+        }
+        let relative_from = if root.starts_with('.') { root } else { root };
+        remove_stale_inner(&project_root, &temp_root, relative_from, report)?;
+    }
+    Ok(())
+}
+
+/// Recursively walk `dir` and remove files/subdirs that don't exist in `reference_dir`.
+fn remove_stale_inner(
+    dir: &Path,
+    reference_dir: &Path,
+    prefix: &str,
+    report: &mut UpdateReport,
+) -> Result<(), ConfigError> {
+    let entries: Vec<_> = fs::read_dir(dir)
+        .map_err(|e| ConfigError::Serialize(format!("failed to read stale dir {dir:?}: {e}")))?
+        .filter_map(|e| e.ok())
+        .collect();
+    for entry in entries {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if name_str.starts_with('.') && name_str != ".gitkeep" { continue; }
+        let file_type = entry.file_type().map_err(|e| {
+            ConfigError::Serialize(format!("failed to get file type: {e}"))
+        })?;
+        let ref_path = reference_dir.join(&name);
+        if !ref_path.exists() {
+            // Delete: file/subdir exists in project but not in reference
+            let full_path = entry.path();
+            let relative = format!("{prefix}/{name_str}");
+            if file_type.is_dir() {
+                fs::remove_dir_all(&full_path).map_err(|e| {
+                    ConfigError::Serialize(format!("failed to remove stale dir {relative}: {e}"))
+                })?;
+            } else {
+                fs::remove_file(&full_path).map_err(|e| {
+                    ConfigError::Serialize(format!("failed to remove stale file {relative}: {e}"))
+                })?;
+            }
+            report.removed.push(relative);
+        } else if file_type.is_dir() {
+            // Recurse into subdirectories that still exist
+            remove_stale_inner(&entry.path(), &ref_path, &format!("{prefix}/{name_str}"), report)?;
+        }
+    }
+    // Clean up now-empty direcories in the project dir
+    let remaining: Vec<_> = fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .collect();
+    if remaining.is_empty() {
+        let _ = fs::remove_dir(dir);
+    }
+    Ok(())
+}
+
 mod tests {
     use super::*;
 
