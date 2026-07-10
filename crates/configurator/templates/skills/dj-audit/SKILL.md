@@ -6,6 +6,17 @@ description: >
   触发词：审计、扫一下、过度工程、安全扫描、audit、代码大检查。
 ---
 
+参考规范：`.dijiang/references/decision-ladder.md`（扫描时评估代码必要性）。
+
+## Outcome Contract
+
+| 项目 | 内容 |
+|---|---|
+| **Outcome** | 全仓扫描报告（过度工程 + 安全扫描）|
+| **Done when** | 全部 git 文件扫描完成，报告输出 |
+| **Evidence** | 扫描日志、grep 结果 |
+| **Output** | 结构化审计报告（可删除内容列表 + 安全发现 + 每项理由） |
+
 # Audit: 全仓扫描
 
 扫描代码库的过度工程和安全问题。只报告，不修改。
@@ -53,3 +64,20 @@ description: >
 - 只检查已追踪的文件（git tracked）
 - 不检查第三方依赖
 - 对 false positive 标注为"疑似"而非"确认"
+
+参考规范：`.dijiang/references/anti-patterns.md`（跨技能行为约束）。
+
+## Hard Rules
+
+1. 只检查 git tracked 文件，不碰第三方依赖
+2. 过度工程信号和安全隐患分两个阶段独立扫描
+3. false positive 必须标注"疑似"，不能标"确认"
+4. 每项发现必须包含：文件位置、类型、严重度、描述、建议
+
+## Gotchas
+
+| Gotcha | 后果 | 预防 |
+|---|---|---|
+| 把第三方依赖也扫进去 | 报告噪音太大 | 排除 vendor/node_modules |
+| 报了问题不给建议方向 | 用户不知道怎么做 | 每项发现给修复方向 |
+| 过度工程和安全一起扫 | 报告混杂，难以决策 | 分两个阶段独立扫描 |

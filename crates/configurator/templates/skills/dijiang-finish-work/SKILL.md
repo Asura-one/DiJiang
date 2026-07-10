@@ -135,15 +135,25 @@ gate 必须说明记忆决策和原因。 成功的 `dijiang finish-work` 默认
 
 ### 6. 提交已审查范围
 
-只有范围已审查后，才使用 CLI 自动化：
+只有范围已审查后，才使用 CLI 自动化。
 
+提交前先执行 `git diff --stat HEAD` 和 `git diff HEAD`（或已审查文件的 diff）获取变更事实；commit message **必须基于变更事实总结**，描述实际修改了什么、为什么修改，而非笼统一句话。
+**所有 commit message 使用中文编写**，遵循 Conventional Commits 格式 `<类型>(<范围>): 中文描述`。类型参见 Angular Convention（feat/fix/refactor/docs/test/chore 等），范围指模块或目录名。
 ```bash
+# 先生成基于事实的 commit message
+CHANGES=$(git diff --stat HEAD | tail -1)
+# 参考 diff 内容编写描述，例如：
+# feat(dj-finish-work): commit message 规则全面更新
+#   - 基于 git diff --stat 和变更内容的事实总结
+#   - 全中文编写 Conventional Commits 格式
+#   - 不堆文件名，描述行为变化
+
 dijiang finish-work \
   --verification "RED/Repro evidence: <...>; GREEN command: <...>; Regression scope: <...>; Exception: <none or reason>; commands: <...>" \
   --docs-sync "<updated docs/spec or none: reason>" \
   --version-impact <major|minor|patch|none> \
   --commit \
-  --commit-message "<类型>(<范围>): <中文改动描述>"
+  --commit-message "<类型>(<范围>): 中文描述"
 ```
 
 `--commit` 使用 `git add --all` 暂存当前已审查 diff，写入 finish journal，提交结果 diff，并打印 commit hash。只有存在 active task 时才归档任务；没有 active task 时跳过任务归档和 active-task 清理。不要将 `--allow-dirty` 与 `--commit` 一起使用。

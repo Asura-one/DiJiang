@@ -6,6 +6,17 @@ description: >
   触发词：脚本、script、工具、utility、自动化、写个命令、CLI、批量处理。
 ---
 
+参考规范：`.dijiang/references/decision-ladder.md`（写脚本前的决策阶梯）。
+
+## Outcome Contract
+
+| 项目 | 内容 |
+|---|---|
+| **Outcome** | 可运行的脚本/工具 |
+| **Done when** | 脚本通过运行验证，输出符合预期 |
+| **Evidence** | 脚本文件 + 运行结果输出 |
+| **Output** | 脚本文件 + 使用说明（一次性脚本除外） |
+
 # Script: 脚本和工具编写
 
 写脚本和工具。与 `dj-implement` 的区别：脚本不进入主应用代码库，单独存放执行。
@@ -47,4 +58,21 @@ description: >
 | 一次性脚本写 help/日志/错误码 | 写完就跑，不留痕迹 |
 | 脚本放 repo 根目录 | 放 scripts/ 目录 |
 | 删除文件直接 rm | 先 `--dry-run` 确认目标 |
-| 用 implement 的 TDD 流程写脚本 | 脚本验证一次就行 |
+| 删除文件直接 rm | 先 `--dry-run` 确认目标 |
+
+参考规范：`.dijiang/references/anti-patterns.md`（跨技能行为约束）。
+
+## Hard Rules
+
+1. 有破坏性操作的脚本必须加 `--dry-run` 或 `--confirm`
+2. 一次性脚本不写 help/日志/错误处理
+3. 要维护的工具放 `scripts/` 目录
+4. 选择最直接的语言——Shell > Python > JS，选最快的
+
+## Gotchas
+
+| Gotcha | 后果 | 预防 |
+|---|---|---|
+| 一次性脚本写 help 和日志 | 花时间在不必要的事情上 | 一次性脚本写完就跑 |
+| 脚本放 repo 根目录 | 污染仓库根 | 放 scripts/ |
+| 用 TDD 节奏写一次性工具 | 过度工程 | 跑一次验证就行 |

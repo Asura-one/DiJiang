@@ -7,6 +7,15 @@ description: >
   触发词：review、审查、检查代码、审一下、code review、帮我看一下代码。
 ---
 
+## Outcome Contract
+
+| 项目 | 内容 |
+|---|---|
+| **Outcome** | 两个维度（spec 匹配度 + 代码质量）的审查汇总报告 |
+| **Done when** | 两个子 agent 都完成审查并汇总 |
+| **Evidence** | 审查日志、问题列表 |
+| **Output** | 结构化审查报告（问题列表 + 严重度 + 所属维度） |
+
 # Review: 并行代码审查
 
 使用 `delegate_task` 并行执行两个维度的审查，最后汇总。两个子 agent 独立运行，互不污染上下文。
@@ -83,4 +92,22 @@ git log --oneline -5
 | 串行审查两个维度 | 用 delegate_task 并行执行 |
 | 改人家的代码 | 只报告问题 |
 | 引入自己的风格偏好 | 按项目现有模式判断 |
-| 只报问题不给建议 | 指出问题 + 建议方向 |
+参考规范：`.dijiang/references/anti-patterns.md`（跨技能行为约束）。
+
+## Hard Rules
+
+1. 不修改代码——只报告审查结果
+2. 不深度架构评审——那是 dj-pattern 的职责范围
+3. 两个维度的子 agent 并行执行，互不引用
+4. 每个问题必须标注严重度：严重/中等/建议
+
+## Gotchas
+
+| Gotcha | 后果 | 预防 |
+|---|---|---|
+| 串行审查两个维度 | 时间翻倍 | 用 delegate_task 并行 |
+| 改人家的代码 | 行为越界 | 只报告问题清单 |
+| 引入自己的风格偏好 | 主观审查 | 按项目现有模式判断 |
+| 只报问题不给建议 | reviewer 没有价值 | 问题 + 建议方向 |
+
+参考规范：`.dijiang/references/intensity-levels.md`（强度等级：支持 lite/full/ultra）。

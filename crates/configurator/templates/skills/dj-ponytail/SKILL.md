@@ -8,6 +8,17 @@ description: >
   触发词：ponytail、极简、最小、少写、偷懒、简单。
 ---
 
+参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）。
+
+## Outcome Contract
+
+| 项目 | 内容 |
+|---|---|
+| **Outcome** | 完成任务所需的最小代码量 |
+| **Done when** | 代码通过基础验证 + 每行代码都有直接任务贡献 |
+| **Evidence** | diff 统计（行数、文件数）、每行贡献检查 |
+| **Output** | 最小变更的代码 diff |
+
 # Ponytail: 极简编码模式
 
 叠加在其他技能之上。在任何步骤中发现代码超出"完成任务所需的最小量"时，主动停下来问：「这行代码对当前任务有直接贡献吗？」
@@ -43,3 +54,22 @@ description: >
 | 为"未来"加通用性 | 只为现在写，未来重构不贵 |
 | 为一行重复建抽象 | 三行重复还好，别管它 |
 | 极简 = 不安全 | 安全底线不能省 |
+
+参考规范：`.dijiang/references/anti-patterns.md`（跨技能行为约束）。
+
+## Hard Rules
+
+1. 极简 ≠ 不安全——输入校验、路径遍历防护、敏感信息不硬编码必须做
+2. 每行代码必须直接服务于当前任务
+3. 能 copy-paste 不抽函数；能 inline 不建文件
+4. 安全底线在任何强度模式下都不能跳过
+
+## Gotchas
+
+| Gotcha | 后果 | 预防 |
+|---|---|---|
+| 为"未来"加通用性 | 生产了大量死代码 | 只为现在写，未来重构不贵 |
+| 为一行重复建抽象 | 抽象比重复更难改 | 三行重复还好，别管它 |
+| 极简当借口绕过安全 | 安全漏洞 | 安全底线不能省 |
+
+参考规范：`.dijiang/references/intensity-levels.md`（强度等级：支持 lite/full/ultra）、`.dijiang/references/output-markers.md`（输出标记）。

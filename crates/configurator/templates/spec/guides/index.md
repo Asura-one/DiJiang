@@ -25,6 +25,7 @@
 | [跨层思考指南](./cross-layer-thinking-guide.md) | 思考跨层数据流 | 涉及多个层的功能 |
 | [验证循环指南](./verification-loop-guide.md) | 将目标转化为通过/失败证据 | 实现前、调试、审查或 AI 防错时 |
 | [记忆生命周期指南](./memory-lifecycle-guide.md) | 控制哪些内容成为持久化记忆 | 编写 findings、lessons、handoffs 或长期 Agent 行为时 |
+| [工具偏好](./tool-preferences.md) | 包管理器选择与搜索策略 | 需要安装工具或搜索代码时 |
 
 ---
 

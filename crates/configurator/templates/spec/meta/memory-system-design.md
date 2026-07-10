@@ -67,5 +67,5 @@ Hermes 全局 memory / skill / ADR
 ## 关联
 
 - 相关技能：`diang mem findings/learn/correction/tactic/backup`
-- 相关规范：`.dijiang/spec/meta/memory-lifecycle-guide.md`
+- 相关规范：`.dijiang/spec/guides/memory-lifecycle-guide.md`
 - 设计决策：ADR 001（skill 精简）、ADR 003（Phase 3 改进）

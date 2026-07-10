@@ -1061,12 +1061,45 @@ fn ensure_finish_preconditions(
     ))
 }
 
-fn default_commit_message(task_name: &str, summary: Option<&str>) -> String {
-    let summary = summary
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(task_name);
-    format!("{summary}")
+fn default_commit_message(
+    project_root: &Path,
+    task_name: &str,
+    summary: Option<&str>,
+) -> String {
+    // 基于实际 diff 统计生成 commit message，确保基于变更事实
+    let diff_stat = std::process::Command::new("git")
+.args(["diff", "--cached", "--stat"])
+.current_dir(project_root)
+.output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if s.is_empty() { None } else { Some(s) }
+        });
+
+    if let Some(stats) = diff_stat {
+        let last_line = stats.lines().last().unwrap_or("").to_string();
+        let summary = summary
+.map(str::trim)
+.filter(|value| !value.is_empty())
+.unwrap_or(task_name);
+        // 重构英文 git stat 为中文描述
+        let chinese_stat = last_line
+            .replace(" files changed", " 个文件变更")
+            .replace(" file changed", " 个文件变更")
+            .replace(" insertions(+)", " 处新增")
+            .replace(" insertion(+)", " 处新增")
+            .replace(" deletions(-)", " 处删除")
+            .replace(" deletion(-)", " 处删除");
+        format!("{}: {}", summary, chinese_stat)
+    } else {
+        let default = summary
+.map(str::trim)
+.filter(|value| !value.is_empty())
+.unwrap_or(task_name);
+        format!("{}", default)
+    }
 }
 
 fn current_session_key() -> (String, String) {
@@ -1248,7 +1281,7 @@ fn perform_finish_commit(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
-        .unwrap_or_else(|| default_commit_message(task_name, summary));
+        .unwrap_or_else(|| default_commit_message(project_root, task_name, summary));
     run_git(project_root, &["commit", "-m", &commit_message])?;
     let commit = run_git(project_root, &["rev-parse", "--short", "HEAD"])?;
     Ok(Some(commit))

@@ -6,6 +6,17 @@ description: >
   触发词：实现、写代码、implement、开始做、按计划做、开发。
 ---
 
+参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）、`.dijiang/references/code-task-contract.md`（代码任务合约）。
+
+## Outcome Contract
+
+| 项目 | 内容 |
+|---|---|
+| **Outcome** | 按计划完成的特性代码 + 通过验证 |
+| **Done when** | 代码实现完成 + 测试验证通过 + regression 确认 |
+| **Evidence** | git diff、测试结果、regression 检查日志 |
+| **Output** | 实现完成报告 + 代码变更 diff |
+
 # Implement: 实现代码
 
 按 PRD / 设计文档 / issue 描述实现。不提交、不 push、不 merge——这些由 `dijiang-finish-work` 处理。
@@ -74,3 +85,26 @@ Exception: <none or justified gap>
 | 顺手改无关代码、引入新依赖 | 只做任务范围内的事 |
 | 跑完测试有失败不管 | 修好新失败再交接 |
 | 验证没跑却写"通过" | 写 `not run` + 原因 |
+
+参考规范：`.dijiang/references/anti-patterns.md`（跨技能行为约束）、`.dijiang/references/durable-context-preflight.md`（记忆预检）。
+
+## Hard Rules
+
+1. 必须在 worktree 中实现，不在 main 上直接改
+2. 每轮改动只能解决一个关注点
+3. 改代码前先查历史发现（`dijiang mem recall`）
+4. 实现完成后必须通过 dj-check 质量门禁
+5. 不改未读过的代码
+
+## Gotchas
+
+| Gotcha | 后果 | 预防 |
+|---|---|---|
+| 不在 worktree 中改 | main 被污染 | 先 create worktree |
+| 一次改太多文件 | 回滚困难和冲突 | 一次一个关注点 |
+| 不改就交 | 测试不过、有警告 | 实现后跑 dj-check |
+| 顺手改不相关代码 | reviewer 看不懂变动 | 只做任务指定的事 |
+
+当任务需要从 spec 拆分为可执行单元时，参考 `references/ticket-decomposition.md` 的垂直切片方法。
+
+参考规范：`.dijiang/references/output-markers.md`（输出标记）。
