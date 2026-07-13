@@ -151,30 +151,14 @@ async function refreshWidget(ctx: { ui: ExtensionContext["ui"] }, pi: ExtensionA
     const title = state.activeTaskTitle || state.activeTaskId || "无活跃任务";
     const capsule = state.capsule || "?";
     const gate = state.gitGateState || "-";
-    const status = state.activeTaskStatus || "none";
     ctx.ui.setWidget("dijiang", [
-      `任务: ${title}  |  状态: ${status}  |  Capsule: ${capsule}  |  Gate: ${gate}`
+      `任务: ${title}  |  Capsule: ${capsule}  |  Gate: ${gate}`
     ]);
   } catch {
     // widget is best-effort
   }
 }
 
-async function refreshWorkflowUi(
-  ctx: { ui: ExtensionContext["ui"] },
-  pi: ExtensionAPI,
-  eventName: string,
-  prompt?: string,
-  forceDispatch = false,
- ) {
-  if (forceDispatch && prompt?.trim() && !prompt.trim().startsWith("/")) {
-    await dispatchContext(pi, eventName, prompt);
-  } else {
-    await injectWorkflowState(pi, eventName);
-  }
-  await refreshWidget(ctx, pi);
-  await refreshStatusBar(ctx, pi);
-}
 
 async function dispatchContext(pi: ExtensionAPI, eventName: string, prompt: string): Promise<string | undefined> {
   try {
@@ -259,13 +243,11 @@ export default function (pi: ExtensionAPI) {
     };
   }
 
-  pi.on("before_agent_start", async (event, ctx) => {
-    await refreshWorkflowUi(ctx, pi, "before_agent_start", event.prompt, true);
+  pi.on("before_agent_start", async (event) => {
     return maybeDispatchFromPrompt("before_agent_start", event.prompt);
   });
 
-  pi.on("user_prompt_submit", async (event, ctx) => {
-    await refreshWorkflowUi(ctx, pi, "user_prompt_submit", event.prompt, true);
+  pi.on("user_prompt_submit", async (event) => {
     return maybeDispatchFromPrompt("user_prompt_submit", event.prompt);
   });
 
@@ -281,14 +263,13 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  pi.on("tool_result", async (event, ctx) => {
+  pi.on("tool_result", async (event) => {
     const ev = event as ToolResultEvent;
     const command = ev.input?.command ?? "";
     if (ev.toolName !== "bash" || !command) {
       return;
     }
 
-    await refreshWorkflowUi(ctx, pi, "tool_result");
 
     if (failedToolResult(ev)) {
       const key = `${contextKey(event)}:${command}:hunt`;
@@ -334,11 +315,11 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  pi.on("session_start", async (_event, ctx) => {
-    await refreshWorkflowUi(ctx, pi, "session_start");
+  pi.on("session_start", async () => {
+    await injectWorkflowState(pi, "session_start");
   });
 
-  pi.on("session_shutdown", async (_event, ctx) => {
-    await refreshWorkflowUi(ctx, pi, "session_shutdown");
+  pi.on("session_shutdown", async () => {
+    await injectWorkflowState(pi, "session_shutdown");
   });
 }
