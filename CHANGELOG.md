@@ -1,5 +1,37 @@
 # 变更日志
 
+## [0.10.0] — 2026-07-11
+
+### 新增
+
+- P0: Python 脚本辅助层（.dijiang/scripts/ — task.py, get_context.py, add_session.py, common/{paths,types,io,config,tasks}）
+- P0: workflow-state 面包屑（6 个 [workflow-state:...] 标签嵌入 workflow.md）
+- P1: JSONL 上下文清单（common/context.py — seed/add/list/validate-context）
+- P1: 任务层级（add-subtask/tree — parent/children/subtasks 关系）
+- P1: 会话身份识别（common/session.py — 检测 6 平台: pi/claude/cursor/codex/hermes/terminal）
+- P2: 可互换 workflow 模板（standard + tdd 模板，common/workflow_templates.py）
+- P2: Agent 定义文件（agents/implement.md + check.md — YAML frontmatter, 上下文加载顺序）
+- P2: Spec 注册表同步（common/spec_sync.py — hash 漂移检测, registry.jsonl）
+- P3: 跨会话记忆（common/memory.py — 按 keyword/task/date/platform/event 检索 session 日志）
+- P3: 安全提交模式（safe_commit.py — 分阶段 add/commit, auto-commit 配置控制）
+
+### 变更
+
+- Rust CLI main.rs 拆分为 `commands/` 模块（4402→800 行，15 个命令模块）
+- 代码规范：从 Trellis 吸收 10 个关键亮点，落地 P0-P3
+
+## [0.9.0] — 2026-07-08
+
+### 变更
+
+- Python 脚本导入路径（运行从 .dijiang/scripts/）
+- Spec 注册表初始结构和 scansory 流程
+
+### 新增
+
+- .dijiang/scripts/ 模块初始化
+- 版本号从 0.6.2 → 0.9.0
+
 ## [0.6.2] — 2026-07-03
 
 ### 新增
