@@ -36,6 +36,7 @@ echo "测试目录：$(pwd)"
   - 类型：`feat`（新功能）、`fix`（修复）、`refactor`（重构）、`docs`（文档）、`test`（测试）、`chore`（杂项）等
   - 范围：受影响的模块或目录名
   - 描述：一句话概括实际变更，不超过 72 字
+- **自动校验**：`dijiang finish-work --commit` 提交前会检查 message 是否含中文字符，不含则拒绝；同时 `.git/hooks/commit-msg` 做 git 层面兜底
 - 一个功能改完、验证通过后，由 `dijiang-finish-work` 统一提交
 - 不在实现中途 commit
 - 不把文件名堆进 commit message

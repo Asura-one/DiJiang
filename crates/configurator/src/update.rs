@@ -160,6 +160,9 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
 
     save_hashes(&dijiang_dir, &hashes)?;
 
+    // Install/refresh git commit-msg hook from template
+    install_git_hook(cwd)?;
+
     let new_version = env!("CARGO_PKG_VERSION").to_string();
     let old_version = config.as_ref().map(|c| c.dijiang_version.clone());
     report.old_version = old_version;
@@ -663,6 +666,52 @@ fn remove_stale_inner(
     if remaining.is_empty() {
         let _ = fs::remove_dir(dir);
     }
+    Ok(())
+}
+
+/// 安装 git commit-msg hook，确保所有 commit message 含中文字符
+fn install_git_hook(project_root: &Path) -> Result<(), ConfigError> {
+    let hook_path = project_root.join(".git/hooks/commit-msg");
+    let template_path = project_root.join("crates/configurator/templates/.git/hooks/commit-msg");
+
+    // 如果模板文件不存在，跳过安装
+    if !template_path.exists() {
+        return Ok(());
+    }
+
+    let template_content = fs::read_to_string(&template_path)
+        .map_err(|e| ConfigError::Serialize(format!("读取 hook 模板失败: {e}")))?;
+
+    // 读取现有 hook 文件（如果存在）
+    let existing_content = fs::read_to_string(&hook_path).ok();
+
+    // 如果内容相同，不写入
+    if existing_content.as_deref() == Some(&template_content) {
+        return Ok(());
+    }
+
+    // 确保 .git/hooks 目录存在
+    if let Some(parent) = hook_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| ConfigError::Serialize(format!("创建 .git/hooks 目录失败: {e}")))?;
+    }
+
+    fs::write(&hook_path, &template_content)
+        .map_err(|e| ConfigError::Serialize(format!("写入 hook 文件失败: {e}")))?;
+
+    // 设置可执行权限
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = hook_path.metadata()
+            .map_err(|e| ConfigError::Serialize(format!("读取 hook 权限失败: {e}")))?
+            .permissions();
+        perms.set_mode(perms.mode() | 0o111);
+        fs::set_permissions(&hook_path, perms)
+            .map_err(|e| ConfigError::Serialize(format!("设置 hook 可执行权限失败: {e}")))?;
+    }
+
+    println!("  ✓ 已安装/更新 git hook: {}", hook_path.display());
     Ok(())
 }
 

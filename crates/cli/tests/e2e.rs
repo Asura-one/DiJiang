@@ -800,7 +800,7 @@ fn test_e2e_finish_work_commit_without_active_task_skips_archive() {
             "none",
             "--commit",
             "--commit-message",
-            "test: standalone finish",
+            "test(cli): 测试独立 finish 功能",
         ],
         &project_dir,
     )
@@ -826,7 +826,7 @@ fn test_e2e_finish_work_commit_without_active_task_skips_archive() {
         .output()
         .expect("git log");
     assert!(
-        String::from_utf8_lossy(&log.stdout).contains("test: standalone finish"),
+        String::from_utf8_lossy(&log.stdout).contains("test(cli): 测试独立 finish 功能"),
         "log: {}",
         String::from_utf8_lossy(&log.stdout)
     );
@@ -900,7 +900,7 @@ fn test_e2e_finish_work_commit_from_git_worktree_without_local_dijiang() {
             "none",
             "--commit",
             "--commit-message",
-            "test: external worktree finish",
+            "test(cli): 测试外部 worktree finish 功能",
         ],
         &worktree_dir,
     )
@@ -939,7 +939,7 @@ fn test_e2e_finish_work_commit_from_git_worktree_without_local_dijiang() {
         .output()
         .expect("git log");
     assert!(
-        String::from_utf8_lossy(&log.stdout).contains("test: external worktree finish"),
+        String::from_utf8_lossy(&log.stdout).contains("test(cli): 测试外部 worktree finish 功能"),
         "log: {}",
         String::from_utf8_lossy(&log.stdout)
     );
@@ -1144,7 +1144,7 @@ fn test_e2e_finish_work_blocks_integrate_without_approval() {
             "none",
             "--commit",
             "--commit-message",
-            "test: integrate blocked",
+            "test(cli): 测试 integrate 被阻断",
             "--integrate",
         ],
         &project_dir,
@@ -1174,7 +1174,7 @@ fn test_e2e_finish_work_blocks_push_without_approval() {
             "none",
             "--commit",
             "--commit-message",
-            "test: push blocked",
+            "test(cli): 测试 push 被阻断",
             "--push",
         ],
         &project_dir,
@@ -1231,7 +1231,7 @@ fn test_e2e_finish_work_blocks_cleanup_without_approval() {
             "none",
             "--commit",
             "--commit-message",
-            "test: cleanup blocked",
+            "test(cli): 测试 cleanup 被阻断",
             "--integrate",
             "--approve-integrate",
         ],
@@ -1267,7 +1267,7 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
             "patch",
             "--commit",
             "--commit-message",
-            "test: finish work commit",
+            "test(cli): 测试 finish work 提交",
         ],
         &project_dir,
     )
@@ -1326,7 +1326,7 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
         .output()
         .expect("git log");
     assert!(
-        String::from_utf8_lossy(&log.stdout).contains("test: finish work commit"),
+        String::from_utf8_lossy(&log.stdout).contains("test(cli): 测试 finish work 提交"),
         "log: {}",
         String::from_utf8_lossy(&log.stdout)
     );

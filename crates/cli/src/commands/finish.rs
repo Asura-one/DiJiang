@@ -183,6 +183,18 @@ fn append_session_closure(
     Ok(journal)
 }
 
+/// 检查字符串是否包含中文（CJK 统一表意文字）
+fn has_chinese(text: &str) -> bool {
+    text.chars().any(|c| {
+        matches!(c,
+            '\u{4e00}'..='\u{9fff}' |
+            '\u{3400}'..='\u{4dbf}' |
+            '\u{f900}'..='\u{faff}' |
+            '\u{2f800}'..='\u{2fa1f}'
+        )
+    })
+}
+
 fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<&str>) -> String {
     let diff_stat = std::process::Command::new("git")
         .args(["diff", "--cached", "--stat"])
@@ -391,6 +403,11 @@ fn perform_finish_commit(project_root: &Path, task_name: &str, summary: Option<&
     let commit_message = message.map(str::trim).filter(|v| !v.is_empty())
         .map(str::to_string)
         .unwrap_or_else(|| default_commit_message(project_root, task_name, summary));
+    if !has_chinese(&commit_message) {
+        anyhow::bail!("commit message 不含中文字符，已拒绝：{}
+
+所有 commit message 必须使用中文编写，描述实际变更内容。", commit_message);
+    }
     run_git(project_root, &["commit", "-m", &commit_message])?;
     let commit = run_git(project_root, &["rev-parse", "--short", "HEAD"])?;
     Ok(Some(commit))
@@ -512,4 +529,47 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         println!("  当前 session 没有 active task 需要清理");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_has_chinese_with_pure_english() {
+        assert!(!has_chinese("test: this is an english message"));
+        assert!(!has_chinese("fix: update skill name"));
+        assert!(!has_chinese("chore: sync code"));
+    }
+
+    #[test]
+    fn test_has_chinese_with_pure_chinese() {
+        assert!(has_chinese("feat(test): 测试中文 commit message"));
+        assert!(has_chinese("fix(cli): 修复登录 session 过期问题"));
+        assert!(has_chinese("全部是中文"));
+    }
+
+    #[test]
+    fn test_has_chinese_with_mixed() {
+        assert!(has_chinese("fix(test): 修复 bug with english"));
+        assert!(has_chinese("feat(cli): 添加 utf-8 support"));
+    }
+
+    #[test]
+    fn test_has_chinese_with_empty_and_special() {
+        assert!(!has_chinese(""));
+        assert!(!has_chinese("12345"));
+        assert!(!has_chinese("!@#$%"));
+        assert!(!has_chinese("test: "));
+    }
+
+    #[test]
+    fn test_has_chinese_with_english_only_commit() {
+        // 这是历史上出现过的真实英文 commit
+        assert!(!has_chinese("task-20260703155147"));
+        assert!(!has_chinese("fix(extension): live refresh status bar and widget on session events"));
+        // 这也是历史上出现过的真实英文 commit（不含中文）
+        assert!(!has_chinese("task-20260703155147"));
+        assert!(!has_chinese("fix(extension): live refresh status bar and widget on session events"));
+    }
 }

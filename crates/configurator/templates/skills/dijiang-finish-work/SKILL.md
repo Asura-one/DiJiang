@@ -139,6 +139,11 @@ gate 必须说明记忆决策和原因。 成功的 `dijiang finish-work` 默认
 
 提交前先执行 `git diff --stat HEAD` 和 `git diff HEAD`（或已审查文件的 diff）获取变更事实；commit message **必须基于变更事实总结**，描述实际修改了什么、为什么修改，而非笼统一句话。
 **所有 commit message 使用中文编写**，遵循 Conventional Commits 格式 `<类型>(<范围>): 中文描述`。类型参见 Angular Convention（feat/fix/refactor/docs/test/chore 等），范围指模块或目录名。
+
+> ⚠️ 自动校验：`dijiang finish-work` 现在会在提交前检查 commit message 是否含中文字符，
+> 不含则拒绝提交。同时 `.git/hooks/commit-msg` 钩子会在 git 层面做双重防护。
+> 无需手动检查语言 — 不合规时 CLI 会给出明确的拒绝提示和原因。
+
 ```bash
 # 先生成基于事实的 commit message
 CHANGES=$(git diff --stat HEAD | tail -1)
