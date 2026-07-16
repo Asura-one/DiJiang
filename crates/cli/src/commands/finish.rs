@@ -749,6 +749,25 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         store::clear_active_task(&dijiang_dir)?;
         format!("archived task `{}` (status: {}), journal: {}", target.task_name, task.status.as_str(), journal.display())
     } else { "skipped: no active task".to_string() };
+
+    // Auto-archive orphan planning tasks that were created but never started.
+    // These are tasks in planning state with no started_at —
+    // they were abandoned when another task became active.
+    let orphan_archived = if resolved_target.is_some() {
+        if let Ok(all_tasks) = store::list_tasks(&tasks_dir) {
+            let mut count = 0usize;
+            for task in &all_tasks {
+                if task.status == TaskStatus::Planning
+                    && task.started_at.is_none()
+                    && Some(&task.name) != resolved_target.as_ref().map(|t| &t.task_name)
+                {
+                    store::archive_task(&tasks_dir, &task.name)?;
+                    count += 1;
+                }
+            }
+            count
+        } else { 0 }
+    } else { 0 };
     let session_journal = append_session_closure(&dijiang_dir, &developer, &session_key, &source, task_label, options.summary, &verification, options.allow_dirty)?;
     let project_memory = dijiang_mem::ProjectMemory::from_dijiang_dir(&dijiang_dir)?;
     let memory_closure = dijiang_mem::SessionClosure {
@@ -788,8 +807,9 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     println!("  Push：{}", if options.push { "done" } else { "skipped" });
     println!("  Integration：{}", if options.integrate { "done" } else { "skipped" });
     println!("  Task archive：{archive_status}");
-    let memory_closure_path = project_memory.root().join("sessions.jsonl");
-    println!("  Memory closure：written ({})", memory_closure_path.display());
+    if orphan_archived > 0 {
+        println!("  Orphan tasks archived：{orphan_archived}（从未开始的 planning 任务）");
+    }
     println!("  Session 已关闭：{}", session_journal.display());
     if resolved_target.is_some() {
         println!("  当前 session 的 active task 已清理");
