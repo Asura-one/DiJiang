@@ -272,14 +272,47 @@ fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<
         else if lower.contains("docs") || lower.contains("文档") { "docs" }
         else if lower.contains("refactor") || lower.contains("重构") { "refactor" }
         else if lower.contains("test") || lower.contains("测试") { "test" }
-        else if lower.contains("chore") { "chore" }
+        else if lower.contains("perf") || lower.contains("性能") || lower.contains("优化") { "perf" }
+        else if lower.contains("ci") || lower.starts_with("ci") { "ci" }
+        else if lower.contains("style") || lower.starts_with("style") { "style" }
+        else if lower.contains("chore") || lower.starts_with("chore") || lower.contains("配置") { "chore" }
         else { "refactor" }
-    } else if !added.is_empty() && total == added.len() {
-        "feat"
-    } else if modified.iter().all(|f| f.ends_with(".md")) {
-        "docs"
     } else {
-        "refactor"
+        // Pure file-based detection without user summary
+        let is_test = |f: &&str| {
+            f.contains("/tests/") || f.starts_with("tests/")
+                || f.ends_with("_test.rs") || f.ends_with("_test.go")
+                || f.ends_with(".spec.js") || f.ends_with(".spec.ts")
+        };
+        let is_doc = |f: &&str| f.ends_with(".md") || f.starts_with("docs/") || f.contains("/docs/");
+        let is_ci = |f: &&str| {
+            f.contains("/.github/") || f.contains("/.gitlab/") || f.starts_with(".github/")
+                || f.ends_with("Dockerfile") || f.ends_with("Jenkinsfile")
+        };
+        let is_config = |f: &&str| {
+            f.ends_with(".toml") || f.ends_with(".lock") || f.ends_with(".env")
+                || f.ends_with(".editorconfig") || f.ends_with(".gitignore")
+        };
+
+        let all_files: Vec<&str> = added.iter()
+.map(|s| s.as_str())
+.chain(modified.iter().map(|s| s.as_str()))
+.chain(deleted.iter().map(|s| s.as_str()))
+.collect();
+        // Test changes
+        if all_files.iter().all(|f| is_test(f)) {
+            "test"
+        } else if all_files.iter().all(|f| is_doc(f)) {
+            "docs"
+        } else if all_files.iter().all(|f| is_ci(f)) {
+            "ci"
+        } else if all_files.iter().all(|f| is_config(f)) {
+            "chore"
+        } else if !added.is_empty() && total == added.len() {
+            "feat"
+        } else {
+            "refactor"
+        }
     };
 
     // === 确定 scope (最常见的 crate/模块前缀) ===
@@ -297,11 +330,8 @@ fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<
         generate_description(task_name, &added, &modified, &deleted)
     };
 
-    // === 标题行: type(scope): description ===
-    let title = match scope {
-        Some(s) => format!("{}({}): {}", change_type, s, description),
-        None => format!("{}: {}", change_type, description),
-    };
+    // === 标题行 ===
+    let title = format!("{}: {}", change_type, description);
 
     // === 正文：按目录分组 + 统计行 ===
     let body = build_body(&added, &modified, &deleted, &diff_stat, &numstat);
@@ -310,26 +340,54 @@ fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<
 }
 
 fn detect_scope(files: &[&str]) -> Option<String> {
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    for path in files {
-        // 跳过 DiJiang/Pi 内部文件 — 它们是任务管理痕迹，不参与 scope
-        if path.starts_with(".dijiang/") || path.starts_with(".pi/") {
-            continue;
-        }
+    // 只考虑"真正"的文件：跳过内部文件和根级配置文件
+    let significant: Vec<&str> = files.iter()
+.filter(|f| !f.starts_with(".dijiang/") && !f.starts_with(".pi/"))
+.filter(|f| {
+            let name = f.split('/').last().unwrap_or("");
+            !matches!(name, "Cargo.toml" | "Cargo.lock" | "package.json" | "package-lock.json"
+)
+        })
+.copied()
+.collect();
+
+    if significant.is_empty() { return None; }
+
+    // 统计 crate 级目录（优先）和顶层目录频率
+    let mut top_counts: HashMap<&str, usize> = HashMap::new();
+    let mut crate_counts: HashMap<String, usize> = HashMap::new();
+
+    for path in &significant {
         let parts: Vec<&str> = path.split('/').collect();
-        if parts.len() < 2 {
-            continue; // 根目录文件不贡献 scope
+        if parts.len() < 2 { continue; }
+
+        // 收集顶层目录
+        *top_counts.entry(parts[0]).or_insert(0) += 1;
+
+        // crates/PKG/... → 使用 PKG 作为 scope
+        if parts[0] == "crates" && parts.len() >= 3 {
+            *crate_counts.entry(parts[1].to_string()).or_insert(0) += 1;
         }
-        let key = if parts[0] == "crates" && parts.len() >= 2 {
-            parts[1].to_string() // crate 名
-        } else {
-            parts[0].to_string() // 顶层目录
-        };
-        *counts.entry(key).or_insert(0) += 1;
+        // packages/NAME/... → 使用 NAME
+        if parts[0] == "packages" && parts.len() >= 3 {
+            *crate_counts.entry(parts[1].to_string()).or_insert(0) += 1;
+        }
     }
-    counts.into_iter()
+
+    let n = significant.len();
+
+    // 优先使用 crate 名（当 crate 级目录有明确多数时）
+    if let Some((scope, count)) = crate_counts.into_iter().max_by_key(|(_, c)| *c) {
+        if count * 2 >= n {
+            return Some(scope);
+        }
+    }
+
+    // 回退到顶层目录（需要超过 50% 才能确定 scope）
+    top_counts.into_iter()
+.filter(|(_, count)| *count * 2 > n)  // 严格 >50%
 .max_by_key(|(_, count)| *count)
-.map(|(dir, _)| dir)
+.map(|(dir, _)| dir.to_string())
 }
 
 fn generate_description(_task_name: &str, added: &[String], modified: &[String], deleted: &[String]) -> String {
@@ -378,10 +436,27 @@ fn build_body(
     added: &[String],
     modified: &[String],
     deleted: &[String],
-    diff_stat: &Option<String>,
+    _diff_stat: &Option<String>,
     numstat: &Option<HashMap<String, (usize, usize)>>,
 ) -> String {
     let is_internal = |s: &&str| s.starts_with(".dijiang/") || s.starts_with(".pi/");
+
+    let fmt_stats = |path: &&str| -> String {
+        numstat.as_ref()
+.and_then(|ns| ns.get(*path))
+.map(|(add, del)| {
+            if *del > 0 && *add > 0 {
+                format!("（+{} 行，-{} 行）", add, del)
+            } else if *del > 0 {
+                format!("（-{} 行）", del)
+            } else {
+                format!("（+{} 行）", add)
+            }
+        })
+.unwrap_or_default()
+    };
+
+    let mut body = String::new();
 
     let filtered_added: Vec<&str> = added.iter().map(|s| s.as_str()).filter(|s| !is_internal(s)).collect();
     let filtered_modified: Vec<&str> = modified.iter().map(|s| s.as_str()).filter(|s| !is_internal(s)).collect();
@@ -392,39 +467,24 @@ fn build_body(
         return String::new();
     }
 
-    let fmt_stats = |path: &&str| -> String {
-        numstat.as_ref()
-.and_then(|ns| ns.get(*path))
-.map(|(add, del)| {
-            if *del > 0 && *add > 0 {
-                format!(" (+{} 行, -{} 行)", add, del)
-            } else if *del > 0 {
-                format!(" (-{} 行)", del)
-            } else {
-                format!(" (+{} 行)", add)
-            }
-        })
-.unwrap_or_default()
-    };
-
-    let mut body = String::new();
     body.push_str(&format!("变更 {} 个文件：\n\n", total));
 
-    let fmt_files = |files: &[&str], action: &str| -> String {
-        let items: Vec<String> = files.iter()
-.map(|p| format!("{}{}", p, fmt_stats(p)))
-.collect();
-        format!("- {}: {}\n", action, items.join("，"))
+    let push_files = |body: &mut String, files: &[&str], prefix: &str| {
+        for path in files {
+            body.push_str(&format!("- {} {}{}\n", prefix, path, fmt_stats(path)));
+        }
     };
 
     if !filtered_added.is_empty() {
-        body.push_str(&fmt_files(&filtered_added, "新增"));
+        push_files(&mut body, &filtered_added, "新增");
     }
     if !filtered_modified.is_empty() {
-        body.push_str(&fmt_files(&filtered_modified, "修改"));
+        if !filtered_added.is_empty() { body.push('\n'); }
+        push_files(&mut body, &filtered_modified, "修改");
     }
     if !filtered_deleted.is_empty() {
-        body.push_str(&fmt_files(&filtered_deleted, "删除"));
+        if !filtered_added.is_empty() || !filtered_modified.is_empty() { body.push('\n'); }
+        push_files(&mut body, &filtered_deleted, "删除");
     }
 
     body.trim().to_string()
