@@ -78,6 +78,7 @@ DiJiang 是一个 **AI 编码 Skill 集合**，核心理念：
 | **辅助** | dj-ponytail | 极简编码 |
 | | dj-write | 文字润色 |
 | | dj-design | UI 设计 |
+| | dj-absorb | 吸收融合 |
 | | dj-prototype | 废品验证 |
 | | dj-script | 脚本编写 |
 | | dj-audit | 全仓审计 |

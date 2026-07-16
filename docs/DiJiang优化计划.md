@@ -389,7 +389,7 @@
 |-------------|----------------|----------|----------------|
 | none | dispatch | `dijiang start <name>` 或 `dj-dispatch` | 创建/选择任务，判断任务级别与主路径 |
 | `planning` | align | `dj-grill`，必要时 `dj-output` | `prd.md`，复杂任务补 `design.md` / `implement.md` |
-| `in_progress` | implement | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-script` / `dj-design` | 代码、测试、验证记录，准备进入质量闸门 |
+| `in_progress` | implement | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-script` / `dj-design` / `dj-absorb` | 代码、测试、验证记录，准备进入质量闸门 |
 | `in_progress` | check | `dj-check` | diff、功能完整性、安全性、回归影响通过检查 |
 | `completed` | finish | `dijiang finish-work --verification ...` | journal、session closure、active task 清理、归档 |
 | `archived` | closed | 只读；如需继续则重新 `dijiang start <task>` | 不继续在旧任务上工作 |
@@ -404,7 +404,7 @@
 | Routing | `dj-dispatch` | 只负责分类与路由，不直接实现 |
 | Alignment | `dj-grill` | 需求澄清和范围对齐，不写代码 |
 | Planning docs | `dj-output` | PRD、design、implement、spec 与代码一致性 |
-| Implementation | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-prototype`、`dj-script`、`dj-design` | 允许改代码；按任务类型选择 primary skill |
+| Implementation | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-prototype`、`dj-script`、`dj-design`、`dj-absorb` | 允许改代码；按任务类型选择 primary skill |
 | Quality gate | `dj-check` | 改动完成前的唯一质量闸门 |
 | Analysis reports | `dj-audit`、`dj-debt`、`dj-health`、`dj-pattern` | 产出报告或建议；除明确要求外不作为交付闸门 |
 | Style overlays | `dj-ponytail`、`dj-karpathy` | 作为约束叠加到实现路径，不单独代表 workflow 阶段 |

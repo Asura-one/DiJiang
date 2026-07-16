@@ -182,6 +182,7 @@ DiJiang 有两层 skill：`dj-*` skill（原子工作能力）和 `dijiang-*` sk
 │   ├── dj-design/SKILL.md
 │   ├── dj-prototype/SKILL.md
 │   ├── dj-audit/SKILL.md
+│   ├── dj-absorb/SKILL.md
 │   ├── dj-debt/SKILL.md
 │   ├── dj-health/SKILL.md
 │   ├── dj-pattern/SKILL.md

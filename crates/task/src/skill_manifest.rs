@@ -79,6 +79,13 @@ const SKILL_MANIFESTS: &[SkillManifestEntry] = &[
         body: include_str!("../../configurator/templates/skills/dj-design/SKILL.md"),
     },
     SkillManifestEntry {
+        name: "dj-absorb",
+        summary: "有选择地从外部目标中吸收融合设计模式、交互或视觉元素到自有项目中",
+        phases: &["implement"],
+        risk: "medium",
+        body: include_str!("../../configurator/templates/skills/dj-absorb/SKILL.md"),
+    },
+    SkillManifestEntry {
         name: "dj-check",
         summary: "质量门禁、验证 diff、回归审查",
         phases: &["check", "finish"],

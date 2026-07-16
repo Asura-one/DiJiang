@@ -189,6 +189,7 @@ summary: ...
 | 子 agent          | 加载的 skill 清单                                          |
 | ----------------- | ---------------------------------------------------------- |
 | dijiang-check     | dj-check, dj-audit, dj-debt, dj-health                     |
+| dijiang-implement | dj-implement, dj-tdd, dj-prototype, dj-ponytail, dj-script, dj-absorb |
 | dijiang-implement | dj-implement, dj-tdd, dj-prototype, dj-ponytail, dj-script |
 | dijiang-research  | dj-hunt, dj-dispatch, dj-pattern                           |
 

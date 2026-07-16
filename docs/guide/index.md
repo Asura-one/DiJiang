@@ -23,6 +23,9 @@
 │   └── 健康报告 → dj-health
 ├── 设计 / UI
 │   └── dj-design
+├── 吸收融合
+│   └── dj-absorb
+│   └── dj-design
 ├── 原型验证
 │   └── dj-prototype
 ├── 脚本 / 工具编写
