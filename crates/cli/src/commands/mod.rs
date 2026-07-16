@@ -13,8 +13,8 @@ pub mod dispatch;
 pub mod finish;
 pub mod mem;
 pub mod channel;
-
-pub use status::cmd_status;
+pub mod bench;
+pub mod bucket;
 pub use start::cmd_start;
 pub use init::cmd_init;
 pub use task::*;
@@ -29,3 +29,5 @@ pub use dispatch::cmd_dispatch;
 pub use finish::cmd_finish_work;
 pub use mem::*;
 pub use channel::*;
+pub use bench::*;
+pub use bucket::*;

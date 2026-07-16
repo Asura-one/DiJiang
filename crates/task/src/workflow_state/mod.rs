@@ -18,6 +18,8 @@ use dijiang_mem::{GlobalMemory, ProjectMemory};
 mod types;
 pub use types::*;
 
+mod tag_parser;
+
 
 pub fn build(dijiang_dir: &Path) -> Result<WorkflowState, TaskError> {
     build_for_session(dijiang_dir, store::current_session_identity().as_ref())
@@ -47,7 +49,7 @@ pub fn build_for_session(
     let peers = load_peer_sessions(dijiang_dir, identity, 8)?;
     let learned_memory = load_learned_memory(dijiang_dir);
     let circuit_breaker_status = load_circuit_breaker_status(dijiang_dir);
-
+    let workflow_tags = load_workflow_tags(dijiang_dir);
     let Some(task) = task else {
         let guidance = match active_task_state.missing_name() {
             Some(missing) => format!(
@@ -67,6 +69,7 @@ pub fn build_for_session(
             route_gate: None,
             git_gate: None,
             skill_manifests: vec![],
+            workflow_tags,
             learned_memory,
             circuit_breaker_status,
         });
@@ -94,6 +97,7 @@ pub fn build_for_session(
         route_gate,
         git_gate,
         skill_manifests,
+        workflow_tags,
         learned_memory,
         circuit_breaker_status,
     })
@@ -413,6 +417,17 @@ fn load_circuit_breaker_status(dijiang_dir: &Path) -> Option<BreakerDecision> {
     }
     let config = CircuitBreakerConfig::default();
     Some(check_circuit_breaker(&ledger, &config))
+}
+
+/// Load workflow-state tag blocks from `.dijiang/workflow.md`.
+///
+/// Reads `[workflow-state:TAG]...[/workflow-state:TAG]` blocks from the
+/// workflow markdown file. Returns an empty map (graceful degradation) when
+/// the file is missing or unparseable — the caller falls back to hardcoded
+/// guidance.
+fn load_workflow_tags(dijiang_dir: &Path) -> WorkflowTagMap {
+    let workflow_path = dijiang_dir.join("workflow.md");
+    tag_parser::parse_workflow_tags(&workflow_path)
 }
 
 /// Testable core: read back from explicit memory handles so unit tests can
@@ -1114,6 +1129,7 @@ mod tests {
             review_status: None,
             review_comments: None,
             tags: None,
+            hooks: None,
         }
     }
 

@@ -179,6 +179,26 @@ enum Commands {
         #[command(subcommand)]
         command: DocSyncCommands,
     },
+    /// 管理技能桶分类
+    Bucket {
+        #[command(subcommand)]
+        command: BucketCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum BucketCommands {
+    /// 列出所有桶和每个桶中的技能
+    List {
+        /// 过滤：只显示指定桶的技能
+        #[arg(long)]
+        bucket: Option<String>,
+        /// 显示技能所属桶（按技能名搜索）
+        #[arg(long)]
+        skill: Option<String>,
+    },
+    /// 显示桶统计信息
+    Stats,
 }
 
 #[derive(Subcommand)]
@@ -397,6 +417,109 @@ enum TaskCommands {
         #[arg(long, default_value = "30")]
         days: u64,
     },
+    /// Link a child task under a parent (creates parent/child hierarchy)
+    Link {
+        /// Parent task name (slug)
+        parent: String,
+        /// Child task name (slug)
+        child: String,
+    },
+    /// Unlink a child task from its parent
+    Unlink {
+        /// Child task name (slug) to unlink
+        child: String,
+    },
+    /// Display task hierarchy as a tree
+    Tree,
+    /// Manage context manifest (JSONL) for spec-precise delivery
+    Context {
+        #[command(subcommand)]
+        command: ContextCommands,
+    },
+    /// Manage lifecycle hooks for a task
+    Hook {
+        #[command(subcommand)]
+        command: HookCommands,
+    },
+    /// Run benchmark scenarios to measure code quality
+    Bench {
+        #[command(subcommand)]
+        command: BenchCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum ContextCommands {
+    /// Add a spec file to the context manifest
+    Add {
+        /// Path to the spec file (relative to project root)
+        file: String,
+        /// Which sub-agent this is for: implement|check
+        #[arg(long, default_value = "implement")]
+        action: String,
+        /// Why this spec is needed
+        #[arg(long)]
+        reason: String,
+    },
+    /// List entries in the context manifest
+    List {
+        /// Filter by action: implement|check (default: all)
+        #[arg(long)]
+        action: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum HookCommands {
+    /// Show hooks for a task
+    Show {
+        /// Task name (slug)
+        task: String,
+        /// Filter by event (optional)
+        #[arg(long)]
+        event: Option<String>,
+    },
+    /// Append a hook command for a specific event
+    Append {
+        /// Task name (slug)
+        task: String,
+        /// Event: on_create|on_start|on_finish|on_archive|on_complete
+        event: String,
+        /// Shell command to run
+        command: String,
+    },
+    /// Delete a hook by event and index
+    Delete {
+        /// Task name (slug)
+        task: String,
+        /// Event
+        event: String,
+        /// Index of the hook to remove (0-based)
+        index: usize,
+    },
+    /// Run hooks for a specific event
+    Run {
+        /// Task name (slug)
+        task: String,
+        /// Event: on_create|on_start|on_finish|on_archive|on_complete
+        event: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum BenchCommands {
+    /// List available benchmark scenarios
+    List,
+    /// Run a benchmark scenario (or --all)
+    Run {
+        /// Scenario name to run
+        scenario: Option<String>,
+        /// Run all benchmark scenarios
+        #[arg(long)]
+        all: bool,
+    },
+    /// Show latest benchmark run status
+    Status,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -433,6 +556,38 @@ fn main() -> anyhow::Result<()> {
             TaskCommands::Status { name, status } => commands::task::cmd_task_status(&name, &status),
             TaskCommands::Archive { name } => commands::task::cmd_task_archive(&name),
             TaskCommands::Prune { days } => commands::task::cmd_task_prune(days),
+            TaskCommands::Link { parent, child } => commands::task::cmd_task_link(&parent, &child),
+            TaskCommands::Unlink { child } => commands::task::cmd_task_unlink(&child),
+            TaskCommands::Tree => commands::task::cmd_task_tree(),
+            TaskCommands::Context { command } => match command {
+                ContextCommands::Add { file, action, reason } => {
+                    commands::task::cmd_task_context_add(&file, &action, &reason)
+                }
+                ContextCommands::List { action } => {
+                    commands::task::cmd_task_context_list(action.as_deref())
+                }
+            },
+            TaskCommands::Hook { command } => match command {
+                HookCommands::Show { task, event } => {
+                    commands::task::cmd_task_hook_list(&task, event.as_deref())
+                }
+                HookCommands::Append { task, event, command: cmd } => {
+                    commands::task::cmd_task_hook_add(&task, &event, &cmd)
+                }
+                HookCommands::Delete { task, event, index } => {
+                    commands::task::cmd_task_hook_remove(&task, &event, index)
+                }
+                HookCommands::Run { task, event } => {
+                    commands::task::cmd_task_hook_run(&task, &event)
+                }
+            },
+            TaskCommands::Bench { command } => match command {
+                BenchCommands::List => commands::bench::cmd_bench_list(),
+                BenchCommands::Run { scenario, all } => {
+                    commands::bench::cmd_bench_run(scenario.as_deref(), all)
+                }
+                BenchCommands::Status => commands::bench::cmd_bench_status(),
+            },
         },
         Commands::Mem {
             command: MemCommands::List,
@@ -588,6 +743,12 @@ fn main() -> anyhow::Result<()> {
             SpecSyncCommands::Record => commands::spec_sync::cmd_spec_sync_record(),
         },
         Commands::Update { force, from_github } => commands::update::cmd_update(force, from_github),
+        Commands::Bucket { command } => match command {
+            BucketCommands::List { bucket, skill } => {
+                commands::bucket::cmd_bucket_list(bucket.as_deref(), skill.as_deref())
+            }
+            BucketCommands::Stats => commands::bucket::cmd_bucket_stats(),
+        },
     }
 }
 #[cfg(test)]

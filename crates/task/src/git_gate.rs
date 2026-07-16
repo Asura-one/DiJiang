@@ -370,6 +370,7 @@ mod tests {
             review_status: None,
             review_comments: None,
             tags: None,
+            hooks: None,
         }
     }
 

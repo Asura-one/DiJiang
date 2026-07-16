@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
+use std::collections::HashMap;
 /// Task status values matching Trellis format.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -177,4 +177,6 @@ pub struct TaskRecord {
     pub review_comments: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tags: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hooks: Option<HashMap<String, Vec<String>>>,
 }

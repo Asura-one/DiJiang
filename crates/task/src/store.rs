@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::types::{TaskRecord, TaskStatus};
-
+use serde::{Deserialize, Serialize};
 /// Error type for task operations.
 #[derive(Debug, thiserror::Error)]
 pub enum TaskError {
@@ -385,6 +387,56 @@ pub fn prune_tasks(tasks_dir: &Path, older_than_days: u64) -> Result<usize, Task
     Ok(pruned)
 }
 
+// ── Task hierarchy (parent/child) ────────────────────────────────
+
+/// Link a child task under a parent task. Updates both task.json records:
+/// sets `parent` on the child and appends the child's id to the parent's `children` list.
+pub fn link_tasks(
+    tasks_dir: &Path,
+    parent_name: &str,
+    child_name: &str,
+) -> Result<(), TaskError> {
+    let mut parent = load_task(tasks_dir, parent_name)?;
+    let mut child = load_task(tasks_dir, child_name)?;
+
+    if parent_name == child_name {
+        return Err(TaskError::InvalidStatus("parent and child must be different tasks".into()));
+    }
+
+    // Set parent on child
+    child.parent = Some(parent.id.clone());
+    if !parent.children.contains(&child.id) {
+        parent.children.push(child.id.clone());
+    }
+
+    save_task(tasks_dir, &parent)?;
+    save_task(tasks_dir, &child)?;
+    Ok(())
+}
+
+/// Unlink a child from its parent. Clears the child's `parent` field and
+/// removes the child's id from the parent's `children` list.
+pub fn unlink_task(
+    tasks_dir: &Path,
+    child_name: &str,
+) -> Result<(), TaskError> {
+    let mut child = load_task(tasks_dir, child_name)?;
+    let parent_id = match child.parent.take() {
+        Some(id) => id,
+        None => return Ok(()),
+    };
+
+    // Find the parent task by id
+    let tasks = list_tasks(tasks_dir)?;
+    if let Some(parent_task) = tasks.iter().find(|t| t.id == parent_id).map(|t| t.name.clone()) {
+        let mut parent = load_task(tasks_dir, &parent_task)?;
+        parent.children.retain(|c| c != &child.id);
+        save_task(tasks_dir, &parent)?;
+    }
+
+    save_task(tasks_dir, &child)?;
+    Ok(())
+}
 /// Create a new task record with default values.
 pub fn create_task(name: &str, title: &str) -> TaskRecord {
     let now = chrono::Utc::now();
@@ -431,9 +483,126 @@ pub fn create_task(name: &str, title: &str) -> TaskRecord {
         review_status: None,
         review_comments: None,
         tags: None,
+        hooks: None,
     }
 }
 
+// ── Context manifest (JSONL) ────────────────────────────────────────
+
+/// A single entry in a context context manifest JSONL file.
+/// Each entry tells a sub-agent which spec file to load and why.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextEntry {
+    /// Which sub-agent this entry is for: "implement" or "check"
+    pub action: String,
+    /// Path to the spec file (relative to project root)
+    pub file: String,
+    /// Why this spec is needed for this task
+    pub reason: String,
+}
+
+/// Path to the context manifest file for a given action.
+fn context_manifest_path(tasks_dir: &Path, task_name: &str, action: &str) -> PathBuf {
+    tasks_dir.join(task_name).join(format!("{action}.jsonl"))
+}
+
+/// Add a context entry to a task's JSONL manifest.
+/// Creates the file if it doesn't exist.
+pub fn add_context_entry(
+    tasks_dir: &Path,
+    task_name: &str,
+    entry: &ContextEntry,
+) -> Result<(), TaskError> {
+    let path = context_manifest_path(tasks_dir, task_name, &entry.action);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let line = serde_json::to_string(entry)? + "\n";
+    fs::OpenOptions::new()
+.append(true)
+.create(true)
+.open(&path)?
+.write_all(line.as_bytes())?;
+    Ok(())
+}
+
+/// List context entries from a task's JSONL manifest.
+pub fn list_context_entries(
+    tasks_dir: &Path,
+    task_name: &str,
+    action: &str,
+) -> Result<Vec<ContextEntry>, TaskError> {
+    let path = context_manifest_path(tasks_dir, task_name, action);
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let content = fs::read_to_string(&path)?;
+    let entries: Vec<ContextEntry> = content
+.lines()
+.filter(|l| !l.trim().is_empty())
+.filter_map(|l| serde_json::from_str(l).ok())
+.collect();
+    Ok(entries)
+}
+
+// ── Lifecycle Hooks ────────────────────────────────────────────────
+
+/// Get hooks for a task by name. Returns None if no hooks are configured.
+pub fn get_task_hooks(
+    tasks_dir: &Path,
+    task_name: &str,
+) -> Result<Option<HashMap<String, Vec<String>>>, TaskError> {
+    let task = load_task(tasks_dir, task_name)?;
+    Ok(task.hooks)
+}
+
+/// Set hooks for a task. The existing hooks are replaced entirely.
+pub fn set_task_hooks(
+    tasks_dir: &Path,
+    task_name: &str,
+    hooks: HashMap<String, Vec<String>>,
+) -> Result<(), TaskError> {
+    let mut task = load_task(tasks_dir, task_name)?;
+    task.hooks = Some(hooks);
+    save_task(tasks_dir, &task)
+}
+
+/// Run hooks for a given event on a task. Each hook command is executed
+/// via the shell (sh -c). Non-zero exit codes are logged to stderr but
+/// do not abort remaining hooks or return an error.
+pub fn run_task_hooks(
+    tasks_dir: &Path,
+    task_name: &str,
+    event: &str,
+) -> Result<(), TaskError> {
+    let hooks = match get_task_hooks(tasks_dir, task_name)? {
+        Some(h) => h,
+        None => return Ok(()),
+    };
+    let cmds = match hooks.get(event) {
+        Some(c) => c.clone(),
+        None => return Ok(()),
+    };
+    for cmd in &cmds {
+        eprintln!("⚡ Hook [{}] {}: {}", task_name, event, cmd);
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(cmd)
+            .output();
+        match output {
+            Ok(out) => {
+                if !out.status.success() {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    eprintln!("⚠ Hook failed [{}]: {}", task_name, stderr.trim());
+                }
+            }
+            Err(e) => {
+                eprintln!("⚠ Hook error [{}]: {}", task_name, e);
+            }
+        }
+    }
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use super::*;

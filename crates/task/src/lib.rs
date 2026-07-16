@@ -1,3 +1,5 @@
+pub mod benchmarks;
+pub mod buckets;
 pub mod capability_gate;
 pub mod circuit_breaker;
 pub mod doc_sync;
@@ -8,7 +10,6 @@ pub mod spec_sync;
 pub mod store;
 pub mod types;
 pub mod workflow_state;
-
 pub use capability_gate::{
     CapabilityAction, CapabilityDecision, CapabilityTarget, evaluate_capability,
 };
@@ -30,8 +31,24 @@ pub use skill_manifest::{
     render_selected_skill_bodies, select_skill_bodies, skill_body_by_name,
 };
 pub use types::{TASK_RECORD_FIELD_ORDER, TaskRecord, TaskStatus};
+pub use benchmarks::{
+    BenchmarkResult,
+    CheckResult,
+    list_scenarios as list_benchmark_scenarios,
+    find_scenario as find_benchmark_scenario,
+    run_scenario as run_benchmark_scenario,
+};
+pub use buckets::{
+    BucketCategory,
+    BucketConfig,
+    find_bucket_for_skill,
+    get_bucket_info,
+    list_bucket_names,
+    list_skills_by_bucket,
+    get_default_buckets,
+    bucket_statistics,
+};
 
-#[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::Value;
@@ -81,6 +98,7 @@ mod tests {
             review_status: None,
             review_comments: None,
             tags: None,
+            hooks: None,
         };
         let json = serde_json::to_string(&record).expect("serialize");
         let value: Value = serde_json::from_str(&json).expect("parse");

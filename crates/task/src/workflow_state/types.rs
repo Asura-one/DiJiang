@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::circuit_breaker::BreakerDecision;
+pub use crate::circuit_breaker::BreakerDecision;
 use crate::types::{TaskRecord, TaskStatus};
+pub use crate::workflow_state::tag_parser::WorkflowTagMap;
 
 // ── Core types ───────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ pub struct WorkflowState {
     pub route_gate: Option<WorkflowRouteGate>,
     pub git_gate: Option<WorkflowGitGate>,
     pub skill_manifests: Vec<WorkflowSkillManifest>,
+    pub workflow_tags: WorkflowTagMap,
     pub learned_memory: WorkflowLearnedMemory,
     pub circuit_breaker_status: Option<BreakerDecision>,
 }
@@ -282,9 +284,25 @@ impl WorkflowState {
             .map(|d| format!("Circuit Breaker：{}", d))
             .unwrap_or_else(|| "Circuit Breaker：none".to_string());
 
+        let tag_line = match &self.active_task {
+            Some(task) => {
+                let status = &task.status;
+                match crate::workflow_state::tag_parser::tag_for_status(&self.workflow_tags, status) {
+                    Some(text) => format!("Workflow 标签 [{}]:\n{}", status, text),
+                    None => format!("Workflow 标签 [{}]: （无）", status),
+                }
+            }
+            None => {
+                match crate::workflow_state::tag_parser::tag_for_status(&self.workflow_tags, "no_task") {
+                    Some(text) => format!("Workflow 标签 [no_task]:\n{}", text),
+                    None => String::new(),
+                }
+            }
+        };
+
         let Some(task) = &self.active_task else {
             return format!(
-                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
+                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n{tag_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
                 self.guidance
             );
         };
@@ -304,17 +322,17 @@ impl WorkflowState {
             self.route_gate.as_ref(),
             &self.skill_manifests,
             self.route_gate
-                .as_ref()
-                .map(|route_gate| route_gate.default_skill.as_str())
-                .unwrap_or_default(),
+.as_ref()
+.map(|route_gate| route_gate.default_skill.as_str())
+.unwrap_or_default(),
             self.route_gate
-                .as_ref()
-                .map(|route_gate| route_gate.recommended_path.as_str())
-                .unwrap_or_default(),
+.as_ref()
+.map(|route_gate| route_gate.recommended_path.as_str())
+.unwrap_or_default(),
         );
 
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n{tag_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
             task.id,
             task.title,
             task.status,
