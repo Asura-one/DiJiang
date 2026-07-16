@@ -288,7 +288,7 @@ fn test_e2e_update_force_reports_duplicate_skill_dirs_without_blocking() {
 
     let out = dijang(&["update", "--force"], &project_dir).unwrap();
     assert!(
-        out.contains("removed   .pi/skills/dj-dj-hunt"),
+        out.contains(".pi/skills/dj-dj-hunt"),
         "force update should remove duplicate skill dir: {out}"
     );
     assert!(
@@ -316,7 +316,7 @@ fn test_e2e_update_force_refreshes_global_skill_cache() {
     )
     .unwrap();
     assert!(
-        out.contains("updated   .pi/skills/dj-audit/SKILL.md"),
+        out.contains(".pi/skills/dj-audit/SKILL.md"),
         "force update should refresh project skill from embedded template: {out}"
     );
 

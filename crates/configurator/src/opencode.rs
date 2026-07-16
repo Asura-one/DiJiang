@@ -271,8 +271,6 @@ impl Configurator for OpenCodeConfigurator {
             agents_dir.join("dijiang-check.md"),
             Self::check_agent_content(),
         )?;
-        eprintln!("  ├── .opencode/agents/dijiang-implement.md");
-        eprintln!("  ├── .opencode/agents/dijiang-check.md");
 
         // ── plugins/ ──
         let plugins_dir = opencode_dir.join("plugins");
@@ -281,7 +279,6 @@ impl Configurator for OpenCodeConfigurator {
             plugins_dir.join("session-start.js"),
             Self::session_start_plugin_content(),
         )?;
-        eprintln!("  ├── .opencode/plugins/session-start.js");
 
         // ── lib/ ──
         let lib_dir = opencode_dir.join("lib");
@@ -294,15 +291,12 @@ impl Configurator for OpenCodeConfigurator {
             lib_dir.join("session-utils.js"),
             Self::session_utils_content(),
         )?;
-        eprintln!("  ├── .opencode/lib/dijiang-context.js");
-        eprintln!("  ├── .opencode/lib/session-utils.js");
 
         // ── package.json ──
         fs::write(
             opencode_dir.join("package.json"),
             Self::package_json_content(),
         )?;
-        eprintln!("  ├── .opencode/package.json");
 
         Ok(())
     }

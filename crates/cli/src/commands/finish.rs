@@ -4,6 +4,7 @@ use dijiang_task::types::{TaskRecord, TaskStatus};
 use std::path::{Path, PathBuf};
 use std::io::Write;
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy)]
 pub struct FinishWorkOptions<'a> {
@@ -196,6 +197,22 @@ fn has_chinese(text: &str) -> bool {
 }
 
 fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<&str>) -> String {
+    let user_summary = summary.and_then(|s| {
+        let t = s.trim();
+        if t.is_empty() { None } else { Some(t.to_string()) }
+    });
+
+    let name_status = std::process::Command::new("git")
+        .args(["diff", "--cached", "--name-status"])
+        .current_dir(project_root)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if s.is_empty() { None } else { Some(s) }
+        });
+
     let diff_stat = std::process::Command::new("git")
         .args(["diff", "--cached", "--stat"])
         .current_dir(project_root)
@@ -206,20 +223,211 @@ fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<
             let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
             if s.is_empty() { None } else { Some(s) }
         });
-    if let Some(stats) = diff_stat {
-        let last_line = stats.lines().last().unwrap_or("").to_string();
-        let summary = summary.map(str::trim).filter(|v| !v.is_empty()).unwrap_or(task_name);
-        let chinese_stat = last_line
-            .replace(" files changed", " 个文件变更")
-            .replace(" file changed", " 个文件变更")
-            .replace(" insertions(+)", " 处新增")
-            .replace(" insertion(+)", " 处新增")
-            .replace(" deletions(-)", " 处删除")
-            .replace(" deletion(-)", " 处删除");
-        format!("{}: {}", summary, chinese_stat)
-    } else {
-        summary.map(str::trim).filter(|v| !v.is_empty()).unwrap_or(task_name).to_string()
+    let numstat = std::process::Command::new("git")
+.args(["diff", "--cached", "--numstat"])
+.current_dir(project_root)
+.output()
+.ok()
+.filter(|o| o.status.success())
+.map(|o| {
+        let s = String::from_utf8_lossy(&o.stdout).to_string();
+        let mut map: HashMap<String, (usize, usize)> = HashMap::new();
+        for line in s.lines() {
+            if line.trim().is_empty() { continue; }
+            let parts: Vec<&str> = line.split('\t').collect();
+            if parts.len() == 3 {
+                let added: usize = parts[0].parse().unwrap_or(0);
+                let deleted: usize = parts[1].parse().unwrap_or(0);
+                map.insert(parts[2].trim().to_string(), (added, deleted));
+            }
+        }
+        map
+    });
+
+    let (mut added, mut modified, mut deleted) = (Vec::new(), Vec::new(), Vec::new());
+    if let Some(ns) = &name_status {
+        for line in ns.lines() {
+            if line.trim().is_empty() { continue; }
+            if let Some((status, path)) = line.split_once('\t') {
+                let path = path.trim();
+                match status.chars().next() {
+                    Some('A') => added.push(path.to_string()),
+                    Some('D') => deleted.push(path.to_string()),
+                    _ => modified.push(path.to_string()),
+                }
+            }
+        }
     }
+
+    let total = added.len() + modified.len() + deleted.len();
+    if total == 0 {
+        return user_summary.unwrap_or_else(|| task_name.to_string());
+    }
+
+    // === 确定 type (Conventional Commits) ===
+    let change_type = if let Some(s) = &user_summary {
+        let lower = s.to_lowercase();
+        if lower.contains("修复") || lower.contains("fix") { "fix" }
+        else if lower.contains("feat") || lower.contains("新增") || lower.contains("添加") { "feat" }
+        else if lower.contains("docs") || lower.contains("文档") { "docs" }
+        else if lower.contains("refactor") || lower.contains("重构") { "refactor" }
+        else if lower.contains("test") || lower.contains("测试") { "test" }
+        else if lower.contains("chore") { "chore" }
+        else { "refactor" }
+    } else if !added.is_empty() && total == added.len() {
+        "feat"
+    } else if modified.iter().all(|f| f.ends_with(".md")) {
+        "docs"
+    } else {
+        "refactor"
+    };
+
+    // === 确定 scope (最常见的 crate/模块前缀) ===
+    let all_files: Vec<&str> = added.iter()
+        .chain(modified.iter())
+        .chain(deleted.iter())
+        .map(|s| s.as_str())
+        .collect();
+    let scope = detect_scope(&all_files);
+
+    // === 描述 ===
+    let description = if let Some(s) = user_summary {
+        s
+    } else {
+        generate_description(task_name, &added, &modified, &deleted)
+    };
+
+    // === 标题行: type(scope): description ===
+    let title = match scope {
+        Some(s) => format!("{}({}): {}", change_type, s, description),
+        None => format!("{}: {}", change_type, description),
+    };
+
+    // === 正文：按目录分组 + 统计行 ===
+    let body = build_body(&added, &modified, &deleted, &diff_stat, &numstat);
+
+    format!("{}\n\n{}", title, body)
+}
+
+fn detect_scope(files: &[&str]) -> Option<String> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for path in files {
+        // 跳过 DiJiang/Pi 内部文件 — 它们是任务管理痕迹，不参与 scope
+        if path.starts_with(".dijiang/") || path.starts_with(".pi/") {
+            continue;
+        }
+        let parts: Vec<&str> = path.split('/').collect();
+        if parts.len() < 2 {
+            continue; // 根目录文件不贡献 scope
+        }
+        let key = if parts[0] == "crates" && parts.len() >= 2 {
+            parts[1].to_string() // crate 名
+        } else {
+            parts[0].to_string() // 顶层目录
+        };
+        *counts.entry(key).or_insert(0) += 1;
+    }
+    counts.into_iter()
+.max_by_key(|(_, count)| *count)
+.map(|(dir, _)| dir)
+}
+
+fn generate_description(_task_name: &str, added: &[String], modified: &[String], deleted: &[String]) -> String {
+    let total = added.len() + modified.len() + deleted.len();
+    if total == 0 {
+        return _task_name.to_string();
+    }
+
+    let is_internal = |s: &str| s.starts_with(".dijiang/") || s.starts_with(".pi/");
+
+    let fmt_paths = |files: &[String], max: usize| -> Option<String> {
+        let real: Vec<&str> = files.iter()
+.filter(|f| !is_internal(f.as_str()))
+.map(|s| s.as_str())
+.collect();
+        if real.is_empty() { return None; }
+        let shown: Vec<&str> = real.iter().take(max).map(|s| *s).collect();
+        let joined = shown.join("、");
+        let suffix = if real.len() > max { format!(" 等 {} 个", real.len()) } else { String::new() };
+        Some(format!("{}{}", joined, suffix))
+    };
+
+    let mut parts = Vec::new();
+    if !added.is_empty() {
+        if let Some(paths) = fmt_paths(added, 3) {
+            parts.push(format!("添加 {}", paths));
+        }
+    }
+    if !modified.is_empty() {
+        if let Some(paths) = fmt_paths(modified, 3) {
+            parts.push(format!("修改 {}", paths));
+        }
+    }
+    if !deleted.is_empty() {
+        if let Some(paths) = fmt_paths(deleted, 3) {
+            parts.push(format!("删除 {}", paths));
+        }
+    }
+    if parts.is_empty() {
+        return _task_name.to_string();
+    }
+    parts.join("，")
+}
+
+fn build_body(
+    added: &[String],
+    modified: &[String],
+    deleted: &[String],
+    diff_stat: &Option<String>,
+    numstat: &Option<HashMap<String, (usize, usize)>>,
+) -> String {
+    let is_internal = |s: &&str| s.starts_with(".dijiang/") || s.starts_with(".pi/");
+
+    let filtered_added: Vec<&str> = added.iter().map(|s| s.as_str()).filter(|s| !is_internal(s)).collect();
+    let filtered_modified: Vec<&str> = modified.iter().map(|s| s.as_str()).filter(|s| !is_internal(s)).collect();
+    let filtered_deleted: Vec<&str> = deleted.iter().map(|s| s.as_str()).filter(|s| !is_internal(s)).collect();
+
+    let total = filtered_added.len() + filtered_modified.len() + filtered_deleted.len();
+    if total == 0 {
+        return String::new();
+    }
+
+    let fmt_stats = |path: &&str| -> String {
+        numstat.as_ref()
+.and_then(|ns| ns.get(*path))
+.map(|(add, del)| {
+            if *del > 0 && *add > 0 {
+                format!(" (+{} 行, -{} 行)", add, del)
+            } else if *del > 0 {
+                format!(" (-{} 行)", del)
+            } else {
+                format!(" (+{} 行)", add)
+            }
+        })
+.unwrap_or_default()
+    };
+
+    let mut body = String::new();
+    body.push_str(&format!("变更 {} 个文件：\n\n", total));
+
+    let fmt_files = |files: &[&str], action: &str| -> String {
+        let items: Vec<String> = files.iter()
+.map(|p| format!("{}{}", p, fmt_stats(p)))
+.collect();
+        format!("- {}: {}\n", action, items.join("，"))
+    };
+
+    if !filtered_added.is_empty() {
+        body.push_str(&fmt_files(&filtered_added, "新增"));
+    }
+    if !filtered_modified.is_empty() {
+        body.push_str(&fmt_files(&filtered_modified, "修改"));
+    }
+    if !filtered_deleted.is_empty() {
+        body.push_str(&fmt_files(&filtered_deleted, "删除"));
+    }
+
+    body.trim().to_string()
 }
 
 fn bump_semver(version: &str, impact: &str) -> anyhow::Result<String> {

@@ -171,7 +171,6 @@ impl Configurator for ClaudeConfigurator {
         // Write CLAUDE.md
         let claude_md = cwd.join("CLAUDE.md");
         fs::write(&claude_md, Self::claude_md_content(&project_name))?;
-        eprintln!("  ├── CLAUDE.md");
 
         // Write .claude/settings.json
         let claude_dir = cwd.join(".claude");
@@ -215,8 +214,6 @@ impl Configurator for ClaudeConfigurator {
 "#;
         let settings_path = claude_dir.join("settings.json");
         fs::write(&settings_path, settings)?;
-        eprintln!("  ├── .claude/settings.json");
-
         let hooks_dir = claude_dir.join("hooks");
         fs::create_dir_all(&hooks_dir)?;
         let hook_path = hooks_dir.join("inject-workflow-state.py");
@@ -228,8 +225,6 @@ impl Configurator for ClaudeConfigurator {
             permissions.set_mode(0o755);
             fs::set_permissions(&hook_path, permissions)?;
         }
-        eprintln!("  ├── .claude/hooks/inject-workflow-state.py");
-
         Ok(())
     }
 

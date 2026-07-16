@@ -1,5 +1,3 @@
-use crate::util::require_dijiang_dir;
-
 pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let _dijiang_dir = dijiang_task::store::find_dijiang_dir(&cwd)
@@ -52,12 +50,20 @@ pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
     let report = dijiang_configurator::update_project(&cwd, dijiang_configurator::UpdateOptions { force })?;
 
     let old_version = report.old_version.as_deref().unwrap_or("unknown");
-    println!("  DiJiang 版本: {old_version} -> {}", report.new_version);
+    let version_changed = report.old_version.as_deref() != Some(&report.new_version);
 
-    if report.old_version.as_deref() != Some(&report.new_version) {
+    if version_changed {
+        println!("  DiJiang 版本: {old_version} → {}", report.new_version);
+    } else {
+        println!("  DiJiang 版本: {} · 当前已是最新", report.new_version);
+    }
+    println!();
+
+    // 变更日志
+    if version_changed {
         let changelog = dijiang_configurator::changelog_between(old_version, &report.new_version);
         if !changelog.is_empty() {
-            println!("\n  ── 变更日志 ──");
+            println!("  ── 变更日志 {} ──", report.new_version);
             for line in changelog.lines() {
                 println!("  {line}");
             }
@@ -65,26 +71,65 @@ pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
         }
     }
 
-    for path in &report.updated {
-        println!("  updated   {path}");
-    }
-    for path in &report.unchanged {
-        println!("  unchanged {path}");
-    }
-    for path in &report.removed {
-        println!("  removed   {path}");
-    }
-    for warning in &report.warnings {
-        println!("  warning   {warning}");
-    }
-    for path in &report.conflicts {
-        println!("  conflict  {path}");
+    // 只显示有变动的文件，略过未变更的
+    if !report.updated.is_empty() {
+        println!("  ── 更新 ({} 文件) ──", report.updated.len());
+        for path in &report.updated {
+            println!("    {path}");
+        }
+        println!();
     }
 
-    println!();
-    println!("  更新完成: {} 个文件已更新, {} 个已是最新, {} 个已删除, {} 个冲突, {} 个警告",
-        report.updated.len(), report.unchanged.len(), report.removed.len(),
-        report.conflicts.len(), report.warnings.len());
+    if !report.removed.is_empty() {
+        println!("  ── 删除 ({} 文件) ──", report.removed.len());
+        for path in &report.removed {
+            println!("    {path}");
+        }
+        println!();
+    }
+
+    if !report.conflicts.is_empty() {
+        println!("  ── 冲突 ({} 文件) ──", report.conflicts.len());
+        for path in &report.conflicts {
+            println!("    {path}");
+        }
+        println!();
+    }
+
+    if !report.warnings.is_empty() {
+        println!("  ── 警告 ({} 条) ──", report.warnings.len());
+        for warning in &report.warnings {
+            println!("    {warning}");
+        }
+        println!();
+    }
+
+    // 概要
+    let has_changes = !report.updated.is_empty()
+        || !report.removed.is_empty()
+        || !report.conflicts.is_empty()
+        || !report.warnings.is_empty();
+
+    if has_changes {
+        let mut summary = Vec::new();
+        if !report.updated.is_empty() {
+            summary.push(format!("{} 更新", report.updated.len()));
+        }
+        if !report.removed.is_empty() {
+            summary.push(format!("{} 删除", report.removed.len()));
+        }
+        if !report.conflicts.is_empty() {
+            summary.push(format!("{} 冲突", report.conflicts.len()));
+        }
+        if !report.warnings.is_empty() {
+            summary.push(format!("{} 警告", report.warnings.len()));
+        }
+        println!("  更新完成: {} ({} 个已是最新)",
+            summary.join(", "),
+            report.unchanged.len());
+    } else {
+        println!("  所有文件已是最新 ({} 个文件)", report.unchanged.len());
+    }
 
     if !report.is_clean() {
         anyhow::bail!(

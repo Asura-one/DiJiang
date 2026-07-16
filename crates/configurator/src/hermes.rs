@@ -108,12 +108,9 @@ impl Configurator for HermesConfigurator {
             agents_dir.join("dijiang-check.md"),
             Self::check_agent_content(),
         )?;
-        eprintln!("  ├── .hermes/agents/dijiang-implement.md");
-        eprintln!("  ├── .hermes/agents/dijiang-check.md");
 
         // ── hooks.json ──
         fs::write(hermes_dir.join("hooks.json"), Self::hooks_content())?;
-        eprintln!("  ├── .hermes/hooks.json");
 
         Ok(())
     }

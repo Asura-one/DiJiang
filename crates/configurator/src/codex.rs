@@ -199,8 +199,6 @@ impl Configurator for CodexConfigurator {
             agents_dir.join("dijiang-check.toml"),
             Self::check_agent_content(),
         )?;
-        eprintln!("  ├── .codex/agents/dijiang-implement.toml");
-        eprintln!("  ├── .codex/agents/dijiang-check.toml");
 
         // ── hooks/ ──
         let hooks_dir = codex_dir.join("hooks");
@@ -214,15 +212,12 @@ impl Configurator for CodexConfigurator {
             permissions.set_mode(0o755);
             fs::set_permissions(&hook_path, permissions)?;
         }
-        eprintln!("  ├── .codex/hooks/inject-workflow-state.py");
 
         // ── hooks.json ──
         fs::write(codex_dir.join("hooks.json"), Self::hooks_json_content())?;
-        eprintln!("  ├── .codex/hooks.json");
 
         // ── config.toml ──
         fs::write(codex_dir.join("config.toml"), Self::config_toml_content())?;
-        eprintln!("  ├── .codex/config.toml");
 
         Ok(())
     }

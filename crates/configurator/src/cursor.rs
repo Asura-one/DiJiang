@@ -193,9 +193,6 @@ impl Configurator for CursorConfigurator {
             fs::set_permissions(&hook_path, permissions)?;
         }
 
-        eprintln!("  ├── .cursor/rules/dijiang.mdc");
-        eprintln!("  ├── .cursor/hooks.json");
-        eprintln!("  ├── .cursor/hooks/inject-workflow-state.py");
 
         Ok(())
     }
