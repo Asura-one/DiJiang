@@ -5,6 +5,9 @@ description: >
   Use when the user wants to build features or fix bugs test-first,
   mentions TDD, test-driven, red-green-refactor, or vertical slice.
   触发词：TDD、测试驱动、红绿重构、先写测试。
+dispatch_intent: >
+  测试驱动开发：红绿重构循环，一次一个垂直切片。
+when_to_use: TDD、测试驱动、红绿重构、先写测试
 ---
 
 参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）、`.dijiang/references/code-task-contract.md`（代码任务合约）。

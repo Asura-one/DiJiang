@@ -5,6 +5,9 @@ description: >
   Use when the user needs to create project docs, update docs after code changes,
   write PRD, design doc, or architecture decision record.
   触发词：写文档、PRD、设计文档、做文档、输出文档、记录决策。
+dispatch_intent: >
+  创建和维护项目文档（PRD、设计文档等），并确保文档与代码双向对齐。
+when_to_use: 写文档、PRD、设计文档、做文档、输出文档、记录决策
 ---
 
 ## Outcome Contract

@@ -6,6 +6,9 @@ description: >
   Use when the user says "ponytail", "be lazy", "minimal", "keep it simple",
   "don't over-engineer", or you detect unnecessary complexity creeping in.
   触发词：ponytail、极简、最小、少写、偷懒、简单。
+dispatch_intent: >
+  极简编码模式：仅提供最少代码量纪律，不驱动实现策略。
+when_to_use: ponytail、极简、最小、少写、偷懒、简单
 ---
 
 参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）。
@@ -29,6 +32,20 @@ description: >
 2. 枚举完成任务的所有可行路径，选代码量最少的
 3. 能 copy-paste 就不抽函数；能写 inline 就不建文件；能用 stdlib 就不加依赖
 4. 发 PR / 交付前再读一遍代码：每多一行，就有一个理由
+
+## 决策阶梯
+
+在写代码前逐层自检，通过即停：
+
+1. **YAGNI** — 这行代码真的需要吗？
+2. **复用现有** — 项目里已经有现成的了吗？
+3. **标准库/stdlib** — 语言标准库能解决吗？
+4. **原生特性** — 语言本身的特性够用吗？
+5. **已有依赖** — 现有依赖提供需要的能力吗？
+6. **一行代码** — 一行能搞定吗？
+7. **最小代码** — 写最少能工作的代码
+
+参考规范：`.dijiang/references/decision-ladder.md`（完整决策阶梯）。
 
 ## 模式
 

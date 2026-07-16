@@ -4,6 +4,9 @@ description: >
   交付质量闸门：验证 diff 质量、功能完整性、安全性和回归风险，输出 finish-work 收口证据。
   Use when the user needs a delivery quality gate, completion verification, release-blocking check, or finish-work handoff.
   触发词：check、质量门禁、验收、验证、检查交付、finish-work 前检查。
+dispatch_intent: >
+  交付质量闸门：验证 diff 质量、功能完整性、安全性和回归风险，输出 finish-work 收口证据。
+when_to_use: check、质量门禁、验收、验证、检查交付、finish-work 前检查
 ---
 
 ## Outcome Contract

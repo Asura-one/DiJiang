@@ -1,0 +1,19 @@
+# YAGNI 合规性基准
+# 测量代码变更是否遵循"你不会需要它"原则
+name: yagni
+description: "验证代码变更不引入未要求的功能或代码"
+checks:
+  - name: no_new_files_without_reason
+    description: "变更不应创建未在任务中说明的新文件"
+    type: git_diff_new_files
+  - name: minimal_loc
+    description: "变更应尽可能少的新增代码行"
+    type: git_diff_loc
+    max_additions: 200
+    glob: "*.rs"
+  - name: no_dead_code
+    description: "不变更未使用的函数或结构体"
+    type: regex_search
+    path: "src/**/*.rs"
+    includes: ["fn [a-z].*\\{"]
+    excludes: ["fn main", "fn test_", "#[cfg(test)]"]

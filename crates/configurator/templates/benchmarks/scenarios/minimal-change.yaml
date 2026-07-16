@@ -1,0 +1,18 @@
+# 最小变更基准
+# 测量代码变更是否真正最小——不做过多的设计，只解决当前问题
+name: minimal-change
+description: "验证变更真正最小，不做不必要的前期抽象或过度设计"
+checks:
+  - name: no_premature_abstraction
+    description: "不引入不必要的抽象层"
+    type: regex_search
+    path: "*.rs"
+    includes: ["trait ", "impl [a-z]"]
+    excludes: ["derive"]
+  - name: single_responsibility
+    description: "变更应聚焦单一职责"
+    type: git_diff_files
+    max_files: 15
+  - name: no_test_for_trivial
+    description: "琐碎变更不需要测试（非平凡才需要）"
+    type: trivial_check

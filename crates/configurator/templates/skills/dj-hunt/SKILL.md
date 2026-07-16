@@ -5,6 +5,9 @@ description: >
   Use when the user reports errors, crashes, regressions, failing tests,
   or unexpected behavior changes — anything that needs root cause investigation.
   触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。
+dispatch_intent: >
+  系统化排查 bug：先定位根因，再修复。尤其擅长回归和'以前好现在坏'的情况。
+when_to_use: 修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查
 ---
 
 参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）、`.dijiang/references/code-task-contract.md`（代码任务合约）。

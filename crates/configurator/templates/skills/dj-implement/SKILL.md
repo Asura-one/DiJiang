@@ -4,6 +4,9 @@ description: >
   按计划实现特性代码，遵守 git 安全工作流。
   Use when the user wants to implement a feature, fix, or change based on a plan or issue.
   触发词：实现、写代码、implement、开始做、按计划做、开发。
+dispatch_intent: >
+  按计划实现特性代码：PRD/设计文档 → worktree → 实现 → 验证 → 收尾。
+when_to_use: 实现、写代码、implement、开始做、按计划做、开发
 ---
 
 参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）、`.dijiang/references/code-task-contract.md`（代码任务合约）。
@@ -36,6 +39,21 @@ description: >
 - 遵守 **Code Task TDD Contract**：先固定行为和回归边界，再实现。
 - 固定行为边界：先写一个失败测试（RED/Repro evidence）、复现步骤或人工复核清单。
 - 确认测试环境可用，或记录不可用原因。
+
+### 1.5 决策阶梯门禁
+
+编码前先走 **Ponytail 7-rung 决策阶梯**（`.dijiang/references/decision-ladder.md`），逐层自检：
+
+1. **YAGNI** — 这行代码真的需要吗？
+2. **复用现有** — 项目里已经有现成的了吗？
+3. **标准库** — 语言 stdlib 能解决吗？
+4. **原生特性** — 语言本身的特性够用吗？
+5. **已有依赖** — 已有依赖提供需要的能力吗？
+6. **一行代码** — 一行能搞定吗？
+7. **最小代码** — 写最少能工作的代码
+
+通过一层就不进下一层。跳过任意层需要注释说明原因。
+如果需求明确适合极简路径，可叠加 `dj-ponytail` 加强纪律。
 
 ### 2. 实现
 
