@@ -3,6 +3,7 @@
 | 关键词 | 路由 |
 |---|---|
 | 实现/写代码/做功能 | dj-implement / dj-tdd |
+| 复刻/仿站/对标/clone | dj-remix |
 | 出错了/不工作/报错 | dj-hunt |
 | 审查/看看代码 | dj-review |
 | 检查/验收 | dj-check |

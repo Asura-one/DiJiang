@@ -72,7 +72,8 @@ Phase 4 已开始最小闭环：当前先覆盖 `finish-work --integrate`、`fin
 |----------|--------|----------|
 | 路由 | `dj-dispatch` | 分类和路由；不直接实现 |
 | 对齐 | `dj-grill` | 需求对齐；不写代码 |
-| 规划文档 | `dj-output` | PRD/design/implementation 文档和代码文档对齐 |
+| 实现 | `dj-implement`, `dj-tdd`, `dj-hunt`, `dj-prototype`, `dj-script`, `dj-design` | 写代码或调查根因
+| 复刻 | `dj-remix` | 系统化复刻站点/App并做差异化改造 |
 | 实现 | `dj-implement`, `dj-tdd`, `dj-hunt`, `dj-prototype`, `dj-script`, `dj-design` | 写代码或调查根因 |
 | 质量门禁 | `dj-check` | 验证 diff 质量、完整性、安全性和回归 |
 | 审查视角 | `dj-review` | 轻量只读 review；不运行测试、不改代码、不替代 `dj-check` |

@@ -12,7 +12,7 @@ use rust_embed::RustEmbed;
 #[include = "*.toml"]
 #[include = "*.yml"]
 #[include = "*.yaml"]
-struct TemplateAssets;
+pub(crate) struct TemplateAssets;
 
 /// Simple variable substitution: replaces `{{key}}` with `value`.
 fn substitute(template: &str, vars: &[(&str, &str)]) -> String {
