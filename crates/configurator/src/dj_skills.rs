@@ -3,129 +3,31 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-/// All dj-* skill names managed by DiJiang.
-const DJ_SKILL_NAMES: &[&str] = &[
-    "dj-audit",
-    "dj-check",
-    "dj-debt",
-    "dj-design",
-    "dj-dispatch",
-    "dj-grill",
-    "dj-handoff",
-    "dj-health",
-    "dj-hunt",
-    "dj-implement",
-    "dj-karpathy",
-    "dj-output",
-    "dj-pattern",
-    "dj-ponytail",
-    "dj-prototype",
-    "dj-reason",
-    "dj-review",
-    "dj-script",
-    "dj-tdd",
-    "dj-write",
-];
+use crate::templates::TemplateAssets;
 
-/// Embedded skill content. Each entry is (skill_name, SKILL.md content).
-/// These are populated at compile time via include_str!.
-fn embedded_skills() -> Vec<(&'static str, &'static str)> {
-    vec![
-        (
-            "dj-audit",
-            include_str!("../templates/skills/dj-audit/SKILL.md"),
-        ),
-        (
-            "dj-check",
-            include_str!("../templates/skills/dj-check/SKILL.md"),
-        ),
-        (
-            "dj-debt",
-            include_str!("../templates/skills/dj-debt/SKILL.md"),
-        ),
-        (
-            "dj-design",
-            include_str!("../templates/skills/dj-design/SKILL.md"),
-        ),
-        (
-            "dj-dispatch",
-            include_str!("../templates/skills/dj-dispatch/SKILL.md"),
-        ),
-        (
-            "dj-grill",
-            include_str!("../templates/skills/dj-grill/SKILL.md"),
-        ),
-        (
-            "dj-handoff",
-            include_str!("../templates/skills/dj-handoff/SKILL.md"),
-        ),
-        (
-            "dj-health",
-            include_str!("../templates/skills/dj-health/SKILL.md"),
-        ),
-        (
-            "dj-hunt",
-            include_str!("../templates/skills/dj-hunt/SKILL.md"),
-        ),
-        (
-            "dj-implement",
-            include_str!("../templates/skills/dj-implement/SKILL.md"),
-        ),
-        (
-            "dj-karpathy",
-            include_str!("../templates/skills/dj-karpathy/SKILL.md"),
-        ),
-        (
-            "dj-output",
-            include_str!("../templates/skills/dj-output/SKILL.md"),
-        ),
-        (
-            "dj-pattern",
-            include_str!("../templates/skills/dj-pattern/SKILL.md"),
-        ),
-        (
-            "dj-ponytail",
-            include_str!("../templates/skills/dj-ponytail/SKILL.md"),
-        ),
-        (
-            "dj-prototype",
-            include_str!("../templates/skills/dj-prototype/SKILL.md"),
-        ),
-        (
-            "dj-reason",
-            include_str!("../templates/skills/dj-reason/SKILL.md"),
-        ),
-        (
-            "dj-review",
-            include_str!("../templates/skills/dj-review/SKILL.md"),
-        ),
-        (
-            "dj-script",
-            include_str!("../templates/skills/dj-script/SKILL.md"),
-        ),
-        (
-            "dj-tdd",
-            include_str!("../templates/skills/dj-tdd/SKILL.md"),
-        ),
-        (
-            "dj-write",
-            include_str!("../templates/skills/dj-write/SKILL.md"),
-        ),
-    ]
+/// List all dj-* skill names by scanning the embedded templates directory.
+/// Only matches top-level SKILL.md files under `skills/<name>/SKILL.md`.
+pub fn list_skill_names() -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for path in TemplateAssets::iter() {
+        let path = path.as_ref();
+        if let Some(name) = path
+            .strip_prefix("skills/")
+            .and_then(|p| p.strip_suffix("/SKILL.md"))
+        {
+            if !name.contains('/') {
+                names.push(name.to_string());
+            }
+        }
+    }
+    names.sort();
+    names
 }
 
 /// Return the global skill template directory: `~/.dijiang/skills/`.
 fn global_skills_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("cannot determine home directory")?;
     Ok(home.join(".dijiang").join("skills"))
-}
-
-/// Get embedded skill content by name.
-pub fn get_skill_content(name: &str) -> Option<&'static str> {
-    embedded_skills()
-        .into_iter()
-        .find(|(n, _)| *n == name)
-        .map(|(_, content)| content)
 }
 
 /// Ensure the global skill template directory exists and is populated
@@ -139,10 +41,25 @@ pub fn ensure_global_skills(force: bool) -> Result<PathBuf> {
 
     fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
 
-    for (name, content) in embedded_skills() {
-        let skill_dir = dir.join(name);
-        fs::create_dir_all(&skill_dir)?;
-        fs::write(skill_dir.join("SKILL.md"), content)?;
+    // Discover and copy all skills from the embedded template directory.
+    // Each skill is under `skills/<name>/SKILL.md` in the templates.
+    for path in TemplateAssets::iter() {
+        let path = path.as_ref();
+        if let Some(name) = path
+            .strip_prefix("skills/")
+            .and_then(|p| p.strip_suffix("/SKILL.md"))
+        {
+            if name.contains('/') {
+                continue; // Skip files inside references/ subdirectories
+            }
+            let asset = TemplateAssets::get(path)
+                .expect("Embedded skill SKILL.md should exist after iter() returned it");
+            let content = std::str::from_utf8(asset.data.as_ref())
+                .context("Skill SKILL.md is not valid UTF-8")?;
+            let skill_dir = dir.join(name);
+            fs::create_dir_all(&skill_dir)?;
+            fs::write(skill_dir.join("SKILL.md"), content)?;
+        }
     }
 
     Ok(dir)
@@ -156,28 +73,38 @@ pub fn write_project_skills(project_dir: &Path, force: bool) -> Result<usize> {
     let pi_skills = project_dir.join(".pi").join("skills");
 
     let mut written = 0usize;
-    for name in DJ_SKILL_NAMES {
-        let src = global_dir.join(name).join("SKILL.md");
-        if !src.exists() {
-            continue;
+
+    if global_dir.exists() {
+        for entry in fs::read_dir(&global_dir)? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy().to_string();
+            if !entry.file_type()?.is_dir() || name_str.starts_with('.') {
+                continue;
+            }
+            let src = entry.path().join("SKILL.md");
+            if !src.exists() {
+                continue;
+            }
+            let dst_dir = pi_skills.join(&name_str);
+            let dst = dst_dir.join("SKILL.md");
+
+            if dst.exists() && !force {
+                continue;
+            }
+
+            fs::create_dir_all(&dst_dir)?;
+            fs::copy(&src, &dst)?;
+            written += 1;
         }
-
-        let dst_dir = pi_skills.join(name);
-        let dst = dst_dir.join("SKILL.md");
-
-        if dst.exists() && !force {
-            continue;
-        }
-
-        fs::create_dir_all(&dst_dir)?;
-        fs::copy(&src, &dst)?;
-        written += 1;
     }
 
     Ok(written)
 }
 
-/// List all managed dj-* skill names.
-pub fn list_skill_names() -> &'static [&'static str] {
-    DJ_SKILL_NAMES
+pub fn get_skill_content(name: &str) -> Option<String> {
+    let asset_path = format!("skills/{name}/SKILL.md");
+    let asset = TemplateAssets::get(&asset_path)?;
+    let content = std::str::from_utf8(asset.data.as_ref()).ok()?;
+    Some(content.to_string())
 }

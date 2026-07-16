@@ -44,6 +44,7 @@ description: >
 | 用户说的话 | 路由到 |
 |---|---|
 | "实现/写代码/做功能/加个接口" | `dj-implement` 或 `dj-tdd` |
+| "复刻/仿站/对标/clone" | `dj-remix` |
 | "原型/验证一下/探一下" | `dj-prototype` |
 | "极简/少写/简单点" | `dj-ponytail` + 对应的技能 |
 | "写个脚本/做个小工具" | `dj-script` |

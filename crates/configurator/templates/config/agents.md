@@ -88,6 +88,7 @@ This project uses DiJiang for task management and workflow.
 | 最小聚焦改动 | `dj-ponytail` |
 | Prototype | `dj-prototype` |
 | UI design | `dj-design` |
+| 网站/App 复刻 / 仿站 / 站点再造 | `dj-remix` |
 | Script / tool | `dj-script` |
 | 写作润色 | `dj-write` |
 | 长篇代码讨论 | `dj-karpathy` |
