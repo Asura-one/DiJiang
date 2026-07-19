@@ -65,6 +65,13 @@ const SKILL_MANIFESTS: &[SkillManifestEntry] = &[
         body: include_str!("../../configurator/templates/skills/dj-hunt/SKILL.md"),
     },
     SkillManifestEntry {
+        name: "dj-health",
+        summary: "综合代码库健康检查：构建、测试、Git、依赖、lint、agent 配置",
+        phases: &["align", "check", "finish"],
+        risk: "low",
+        body: include_str!("../../configurator/templates/skills/dj-health/SKILL.md"),
+    },
+    SkillManifestEntry {
         name: "dj-script",
         summary: "脚本或工具实现",
         phases: &["implement"],
@@ -77,6 +84,13 @@ const SKILL_MANIFESTS: &[SkillManifestEntry] = &[
         phases: &["implement"],
         risk: "medium",
         body: include_str!("../../configurator/templates/skills/dj-design/SKILL.md"),
+    },
+    SkillManifestEntry {
+        name: "dj-debt",
+        summary: "技术债评估与追踪：多源聚合 ponytail/TODO/依赖/死代码债务",
+        phases: &["align", "check", "finish"],
+        risk: "low",
+        body: include_str!("../../configurator/templates/skills/dj-debt/SKILL.md"),
     },
     SkillManifestEntry {
         name: "dj-absorb",
@@ -93,6 +107,13 @@ const SKILL_MANIFESTS: &[SkillManifestEntry] = &[
         body: include_str!("../../configurator/templates/skills/dj-check/SKILL.md"),
     },
     SkillManifestEntry {
+        name: "dj-channel",
+        summary: "多 agent 协作通道：生成、监控和管理 AI agent 通道",
+        phases: &["align", "implement", "check", "finish"],
+        risk: "low",
+        body: include_str!("../../configurator/templates/skills/dj-channel/SKILL.md"),
+    },
+    SkillManifestEntry {
         name: "dj-reason",
         summary: "推理增强、系统透镜和复杂判断校准",
         phases: &["align", "implement", "check", "finish"],
@@ -100,11 +121,39 @@ const SKILL_MANIFESTS: &[SkillManifestEntry] = &[
         body: include_str!("../../configurator/templates/skills/dj-reason/SKILL.md"),
     },
     SkillManifestEntry {
+        name: "dj-research",
+        summary: "技术调研与信息收集",
+        phases: &["align", "implement", "finish"],
+        risk: "low",
+        body: include_str!("../../configurator/templates/skills/dj-research/SKILL.md"),
+    },
+    SkillManifestEntry {
+        name: "dj-spec-bootstrap",
+        summary: "扫描 crates 目录并为每个 crate 生成初始 spec 文件",
+        phases: &["align"],
+        risk: "low",
+        body: include_str!("../../configurator/templates/skills/dj-spec-bootstrap/SKILL.md"),
+    },
+    SkillManifestEntry {
+        name: "dj-session-insight",
+        summary: "跨会话记忆检索：通过 dijiaang mem recall 检索历史对话、findings 和 learnings",
+        phases: &["align", "implement", "check", "finish"],
+        risk: "low",
+        body: include_str!("../../configurator/templates/skills/dj-session-insight/SKILL.md"),
+    },
+    SkillManifestEntry {
         name: "dj-review",
         summary: "轻量只读审查",
         phases: &["check"],
         risk: "low",
         body: include_str!("../../configurator/templates/skills/dj-review/SKILL.md"),
+    },
+    SkillManifestEntry {
+        name: "dj-meta",
+        summary: "DiJiang 架构自省、技能创建指南和系统理解",
+        phases: &["align", "implement", "check", "finish"],
+        risk: "low",
+        body: include_str!("../../configurator/templates/skills/dj-meta/SKILL.md"),
     },
     SkillManifestEntry {
         name: "dijiang-continue",

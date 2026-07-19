@@ -41,7 +41,7 @@ SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考
 
 每个技能都应明确：
 - 上游产出是什么（dialogue / PRD / issue / code diff）
-- 下游谁接手（`dj-prd` / `dj-split` / `dj-implement` / `dj-check` / `dijiang-finish-work`）
+- 下游谁接手（`dj-output` / `dj-split` / `dj-implement` / `dj-check` / `dijiang-finish-work`）
 
 ## 创建新技能的模板
 

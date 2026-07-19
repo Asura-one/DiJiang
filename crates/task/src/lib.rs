@@ -1,13 +1,27 @@
+pub mod agent_manifest;
 pub mod benchmarks;
 pub mod buckets;
 pub mod capability_gate;
+pub mod config;
+pub mod context;
 pub mod circuit_breaker;
 pub mod doc_sync;
+pub mod developer;
 pub mod git_gate;
+pub mod hooks;
 pub mod route_gate;
 pub mod skill_manifest;
 pub mod spec_sync;
 pub mod store;
+pub use agent_manifest::{
+    AgentManifestEntry, agent_by_name, agent_body_by_name, all_agent_names, resolve_agent,
+};
+pub use store::{
+    ContextEntry, activate_new_task, apply_completion_gate, apply_readiness_gate,
+    read_active_task_for_session, scaffold_task_docs, write_active_task_for_session,
+    add_checklist_item, set_checklist_item, remove_checklist_item, get_checklist,
+    is_checklist_complete,
+};
 pub mod types;
 pub mod workflow_state;
 pub use capability_gate::{
@@ -23,7 +37,7 @@ pub use git_gate::{
     evaluate_worktree_readiness, summarize_git_gate, worktree_readiness,
 };
 pub use route_gate::{
-    RouteAction, RouteDecision, RouteGateSummary, RouteIntent, WorkflowCapsule, evaluate_route,
+    RouteAction, RouteDecision, RouteGateSummary, RouteIntent, TaskComplexity, WorkflowCapsule, evaluate_route,
     summarize_route_gate,
 };
 pub use skill_manifest::{
@@ -31,6 +45,10 @@ pub use skill_manifest::{
     render_selected_skill_bodies, select_skill_bodies, skill_body_by_name,
 };
 pub use types::{TASK_RECORD_FIELD_ORDER, TaskRecord, TaskStatus};
+pub use config::{
+    Config, ProjectConfig, HooksSection, load_config, read_developer, read_project_name,
+    read_project_version, read_hooks_config,
+};
 pub use benchmarks::{
     BenchmarkResult,
     CheckResult,
@@ -82,6 +100,7 @@ mod tests {
             children: vec!["children".into()],
             parent: Some("parent".to_string()),
             related_files: vec!["relatedFiles".into()],
+            depends_on: None,
             notes: "notes".to_string(),
             meta: serde_json::json!({}),
             // DiJiang extension fields (skip_serializing_if = None -> omitted)

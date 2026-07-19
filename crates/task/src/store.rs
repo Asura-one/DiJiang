@@ -4,6 +4,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use crate::route_gate::{RouteAction, RouteDecision, WorkflowCapsule};
 use crate::types::{TaskRecord, TaskStatus};
 use serde::{Deserialize, Serialize};
 /// Error type for task operations.
@@ -245,6 +246,76 @@ pub fn clear_active_task(dijiang_dir: &Path) -> Result<(), TaskError> {
     clear_active_task_for_session(dijiang_dir, current_session_identity().as_ref())
 }
 
+/// Save a task and set it as the active task.
+/// Convenience wrapper around `save_task + write_active_task`.
+pub fn activate_new_task(dijiang_dir: &Path, task: &TaskRecord) -> Result<(), TaskError> {
+    let tasks_dir = dijiang_dir.join("tasks");
+    save_task(&tasks_dir, task)?;
+    write_active_task(dijiang_dir, &task.name)?;
+    if let Err(e) = update_workspace_index(dijiang_dir, task) {
+        eprintln!("Warning: failed to update workspace index: {}", e);
+    }
+    Ok(())
+}
+
+fn update_workspace_index(dijiang_dir: &Path, task: &TaskRecord) -> Result<(), TaskError> {
+    let index_path = dijiang_dir.join("workspace").join("index.md");
+    if !index_path.exists() {
+        return Ok(());
+    }
+    let content = fs::read_to_string(&index_path)?;
+
+    // Update Active Developers table
+    let dev_name = if task.creator.is_empty() { "none" } else { &task.creator };
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+    let dev_row = format!("| {} | {} | - | - |\n", dev_name, today);
+
+    let mut new_content = String::new();
+    let mut dev_updated = false;
+
+    for line in content.lines() {
+        if !dev_updated && line.starts_with("| (none yet)") {
+            new_content.push_str(&dev_row);
+            dev_updated = true;
+            continue;
+        }
+        if !dev_updated && line.starts_with("| ") && line.contains("|") && !line.contains("---") && !line.contains("Developer") {
+            new_content.push_str(&dev_row);
+            dev_updated = true;
+            continue;
+        }
+        new_content.push_str(line);
+        new_content.push('\n');
+    }
+
+    // Append Task History section if not present
+    if !new_content.contains("## Task History") {
+        new_content.push_str("\n## Task History\n\n");
+        new_content.push_str("| Date Created | Task | Title | Status | Creator |\n");
+        new_content.push_str("|---|---|---|---|---|\n");
+    }
+
+    // Append task entry
+    let entry = format!("| {} | `{}` | {} | {} | {} |\n",
+        task.created_at, task.name, task.title, task.status.as_str(), dev_name);
+
+    if let Some(pos) = new_content.rfind("## Task History") {
+        let after_header = &new_content[pos..];
+        if let Some(table_end) = after_header.find("\n## ") {
+            let insert_at = pos + table_end;
+            new_content.insert_str(insert_at, &entry);
+        } else {
+            new_content.push_str(&entry);
+        }
+    } else {
+        new_content.push_str(&entry);
+    }
+
+    fs::write(&index_path, new_content)?;
+    Ok(())
+}
+
 pub fn clear_active_task_for_session(
     dijiang_dir: &Path,
     identity: Option<&SessionIdentity>,
@@ -286,6 +357,7 @@ pub fn save_task(tasks_dir: &Path, task: &TaskRecord) -> Result<(), TaskError> {
     let path = task_dir.join("task.json");
     let content = serde_json::to_string_pretty(task)?;
     fs::write(&path, content)?;
+    scaffold_task_docs(tasks_dir, &task.name, &task.title)?;
     Ok(())
 }
 
@@ -467,6 +539,7 @@ pub fn create_task(name: &str, title: &str) -> TaskRecord {
         children: Vec::new(),
         parent: None,
         related_files: Vec::new(),
+        depends_on: None,
         // ── Metadata ──
         notes: String::new(),
         meta: serde_json::Value::Null,
@@ -487,63 +560,48 @@ pub fn create_task(name: &str, title: &str) -> TaskRecord {
     }
 }
 
-// ── Context manifest (JSONL) ────────────────────────────────────────
+// ── Task document scaffolding ────────────────────────────────────
 
-/// A single entry in a context context manifest JSONL file.
-/// Each entry tells a sub-agent which spec file to load and why.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContextEntry {
-    /// Which sub-agent this entry is for: "implement" or "check"
-    pub action: String,
-    /// Path to the spec file (relative to project root)
-    pub file: String,
-    /// Why this spec is needed for this task
-    pub reason: String,
-}
+const PRD_TEMPLATE: &str = "# {title}\n\n## Goal\n\nTBD.\n\n## Requirements\n\n- TBD\n\n## Acceptance Criteria\n\n- [ ] TBD\n\n## Notes\n\n- Keep `prd.md` focused on requirements, constraints, and acceptance criteria.\n";
 
-/// Path to the context manifest file for a given action.
-fn context_manifest_path(tasks_dir: &Path, task_name: &str, action: &str) -> PathBuf {
-    tasks_dir.join(task_name).join(format!("{action}.jsonl"))
-}
+const DESIGN_TEMPLATE: &str = "# {title} — Technical Design\n\n## Background\n\n<why this design is needed>\n\n## Solution\n\n<design decisions and trade-offs>\n\n## Impact Scope\n\n<affected modules/interfaces/data models>\n";
 
-/// Add a context entry to a task's JSONL manifest.
-/// Creates the file if it doesn't exist.
-pub fn add_context_entry(
-    tasks_dir: &Path,
-    task_name: &str,
-    entry: &ContextEntry,
-) -> Result<(), TaskError> {
-    let path = context_manifest_path(tasks_dir, task_name, &entry.action);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
+const IMPLEMENT_TEMPLATE: &str = "# {title} — Implementation Plan\n\n## Steps\n\n- [ ] TBD\n\n## Verification\n\n- [ ] TBD\n";
+
+/// Create scaffolding documentation (prd.md, design.md, implement.md)
+/// for a task, if they don't already exist.
+pub fn scaffold_task_docs(tasks_dir: &Path, task_name: &str, title: &str) -> Result<(), TaskError> {
+    let task_dir = tasks_dir.join(task_name);
+    fs::create_dir_all(&task_dir)?;
+
+    let research_dir = task_dir.join("research");
+    fs::create_dir_all(&research_dir)?;
+
+    let prd_path = task_dir.join("prd.md");
+    if !prd_path.exists() {
+        let content = PRD_TEMPLATE.replace("{title}", title);
+        fs::write(&prd_path, content)?;
     }
-    let line = serde_json::to_string(entry)? + "\n";
-    fs::OpenOptions::new()
-.append(true)
-.create(true)
-.open(&path)?
-.write_all(line.as_bytes())?;
+
+    let design_path = task_dir.join("design.md");
+    if !design_path.exists() {
+        let content = DESIGN_TEMPLATE.replace("{title}", title);
+        fs::write(&design_path, content)?;
+    }
+
+    let implement_path = task_dir.join("implement.md");
+    if !implement_path.exists() {
+        let content = IMPLEMENT_TEMPLATE.replace("{title}", title);
+        fs::write(&implement_path, content)?;
+    }
+
     Ok(())
 }
+// ── Context manifest (JSONL) ────────────────────────────────────────
 
-/// List context entries from a task's JSONL manifest.
-pub fn list_context_entries(
-    tasks_dir: &Path,
-    task_name: &str,
-    action: &str,
-) -> Result<Vec<ContextEntry>, TaskError> {
-    let path = context_manifest_path(tasks_dir, task_name, action);
-    if !path.exists() {
-        return Ok(vec![]);
-    }
-    let content = fs::read_to_string(&path)?;
-    let entries: Vec<ContextEntry> = content
-.lines()
-.filter(|l| !l.trim().is_empty())
-.filter_map(|l| serde_json::from_str(l).ok())
-.collect();
-    Ok(entries)
-}
+// Context manifest management moved to `crate::context`.
+// Re-exports for backward compatibility.
+pub use crate::context::{ContextEntry, add_context_entry, list_context_entries};
 
 // ── Lifecycle Hooks ────────────────────────────────────────────────
 
@@ -603,6 +661,293 @@ pub fn run_task_hooks(
     }
     Ok(())
 }
+/// Verifies that `prd.md` exists for the task and that `.dijiang/spec/` contains
+/// at least one directory before allowing implementation skills.
+/// If either check fails, redirects to the appropriate skill.
+pub fn apply_readiness_gate(
+    dijiang_dir: &Path,
+    tasks_dir: &Path,
+    task_name: &str,
+    decision: &RouteDecision,
+) -> RouteDecision {
+    if decision.action != RouteAction::Allow {
+        return decision.clone();
+    }
+    let is_implementation = matches!(
+        decision.resolved_skill,
+        "dj-implement" | "dj-script" | "dj-tdd" | "dj-hunt"
+    );
+    if !is_implementation {
+        return decision.clone();
+    }
+    // Pre-development spec gate: spec directory must exist and be non-empty
+    let spec_dir = dijiang_dir.join("spec");
+    let has_specs = if spec_dir.exists() && spec_dir.is_dir() {
+        std::fs::read_dir(&spec_dir)
+            .map(|mut it| it.any(|e| e.is_ok() && e.as_ref().unwrap().path().is_dir()))
+            .unwrap_or(false)
+    } else {
+        false
+    };
+    if !has_specs {
+        return crate::route_gate::RouteDecision {
+            task_status: decision.task_status.clone(),
+            capsule: decision.capsule,
+            requested_intent: decision.requested_intent.clone(),
+            requested_skill: decision.requested_skill.clone(),
+            resolved_skill: "dj-spec-bootstrap",
+            action: crate::route_gate::RouteAction::Redirect,
+            reason: "spec directory (.dijiang/spec/) is missing or empty -- run dj-spec-bootstrap first".to_string(),
+            next_action: "run dj-spec-bootstrap to initialize project specs".to_string(),
+            requires_alignment_artifact: true,
+            complexity: decision.complexity,
+        };
+    }
+    let task_dir = tasks_dir.join(task_name);
+    let prd_path = task_dir.join("prd.md");
+    if !prd_path.exists() {
+        // For child tasks, check if parent has a prd.md to inherit from
+        if let Ok(task) = load_task(tasks_dir, task_name) {
+            if let Some(parent_name) = &task.parent {
+                let parent_prd = tasks_dir.join(parent_name).join("prd.md");
+                if parent_prd.exists() {
+                    return decision.clone();
+                }
+            }
+        }
+    }
+    decision.clone()
+}
+
+// ── Task hierarchy (parent / children) ────────────────────────────────────
+
+/// Get the parent task record, if one exists.
+pub fn get_parent_task(
+    tasks_dir: &Path,
+    task_name: &str,
+) -> Result<Option<TaskRecord>, TaskError> {
+    let task = load_task(tasks_dir, task_name)?;
+    match task.parent {
+        Some(parent_name) => load_task(tasks_dir, &parent_name).map(Some),
+        None => Ok(None),
+    }
+}
+
+/// Get all child task records.
+pub fn get_child_tasks(
+    tasks_dir: &Path,
+    task_name: &str,
+) -> Result<Vec<TaskRecord>, TaskError> {
+    let task = load_task(tasks_dir, task_name)?;
+    task.children
+        .iter()
+        .map(|name| load_task(tasks_dir, name))
+        .collect()
+}
+
+/// Check if a task has any children.
+pub fn has_children(tasks_dir: &Path, task_name: &str) -> Result<bool, TaskError> {
+    let task = load_task(tasks_dir, task_name)?;
+    Ok(!task.children.is_empty())
+}
+
+/// Recursively collect all descendant task IDs (DFS order).
+pub fn subtree_ids(tasks_dir: &Path, task_name: &str) -> Result<Vec<String>, TaskError> {
+    let mut ids = Vec::new();
+    subtree_ids_recursive(tasks_dir, task_name, &mut ids)?;
+    Ok(ids)
+}
+
+fn subtree_ids_recursive(
+    tasks_dir: &Path,
+    task_name: &str,
+    ids: &mut Vec<String>,
+) -> Result<(), TaskError> {
+    let task = load_task(tasks_dir, task_name)?;
+    for child in &task.children {
+        ids.push(child.clone());
+        subtree_ids_recursive(tasks_dir, child, ids)?;
+    }
+    Ok(())
+}
+
+// ── Completion criteria checklist ────────────────────────────────────────────
+
+/// A single checklist item.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChecklistItem {
+    pub description: String,
+    pub met: bool,
+}
+
+/// A completion checklist for a task.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletionChecklist {
+    pub criteria: Vec<ChecklistItem>
+}
+
+impl Default for CompletionChecklist {
+    fn default() -> Self {
+        Self { criteria: Vec::new() }
+    }
+}
+
+const CHECKLIST_FILE: &str = "checklist.json";
+
+fn checklist_path(tasks_dir: &Path, task_name: &str) -> PathBuf {
+    tasks_dir.join(task_name).join(CHECKLIST_FILE)
+}
+
+/// Get the completion checklist for a task. Returns default (empty) if no checklist exists.
+pub fn get_checklist(tasks_dir: &Path, task_name: &str) -> Result<CompletionChecklist, TaskError> {
+    let path = checklist_path(tasks_dir, task_name);
+    if path.exists() {
+        let content = fs::read_to_string(&path)?;
+        serde_json::from_str(&content).map_err(TaskError::Json)
+    } else {
+        Ok(CompletionChecklist::default())
+    }
+}
+
+fn save_checklist(tasks_dir: &Path, task_name: &str, checklist: &CompletionChecklist) -> Result<(), TaskError> {
+    let path = checklist_path(tasks_dir, task_name);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let content = serde_json::to_string_pretty(checklist)?;
+    fs::write(&path, content.as_bytes())?;
+    Ok(())
+}
+
+/// Add a new checklist item (unmet by default).
+pub fn add_checklist_item(tasks_dir: &Path, task_name: &str, description: &str) -> Result<(), TaskError> {
+    let mut checklist = get_checklist(tasks_dir, task_name)?;
+    checklist.criteria.push(ChecklistItem {
+        description: description.to_string(),
+        met: false,
+    });
+    save_checklist(tasks_dir, task_name, &checklist)
+}
+
+/// Mark a checklist item as met or unmet by index.
+pub fn set_checklist_item(tasks_dir: &Path, task_name: &str, index: usize, met: bool) -> Result<(), TaskError> {
+    let mut checklist = get_checklist(tasks_dir, task_name)?;
+    if index >= checklist.criteria.len() {
+        return Err(TaskError::NotFound(format!(
+            "Checklist item at index {} not found (max: {})",
+            index,
+            checklist.criteria.len().saturating_sub(1)
+        )));
+    }
+    checklist.criteria[index].met = met;
+    save_checklist(tasks_dir, task_name, &checklist)
+}
+
+/// Remove a checklist item by index.
+pub fn remove_checklist_item(tasks_dir: &Path, task_name: &str, index: usize) -> Result<(), TaskError> {
+    let mut checklist = get_checklist(tasks_dir, task_name)?;
+    if index >= checklist.criteria.len() {
+        return Err(TaskError::NotFound(format!(
+            "Checklist item at index {} not found (max: {})",
+            index,
+            checklist.criteria.len().saturating_sub(1)
+        )));
+    }
+    checklist.criteria.remove(index);
+    save_checklist(tasks_dir, task_name, &checklist)
+}
+
+/// Check whether all checklist items are marked met (must have at least one item).
+pub fn is_checklist_complete(tasks_dir: &Path, task_name: &str) -> Result<bool, TaskError> {
+    let checklist = get_checklist(tasks_dir, task_name)?;
+    Ok(!checklist.criteria.is_empty() && checklist.criteria.iter().all(|c| c.met))
+}
+
+/// Completion gate: block Finish action if checklist is incomplete or empty.
+pub fn apply_completion_gate(
+    tasks_dir: &Path,
+    task_name: Option<&str>,
+    decision: &RouteDecision,
+) -> RouteDecision {
+    let Some(task_name) = task_name else {
+        return decision.clone();
+    };
+    if decision.capsule != WorkflowCapsule::Finish {
+        return decision.clone();
+    }
+    match is_checklist_complete(tasks_dir, task_name) {
+        Ok(true) => decision.clone(),
+        Ok(false) | Err(_) => RouteDecision {
+            task_status: decision.task_status.clone(),
+            capsule: WorkflowCapsule::Finish,
+            requested_intent: decision.requested_intent,
+            requested_skill: decision.requested_skill.clone(),
+            resolved_skill: "",
+            action: RouteAction::Block,
+            reason: format!("Task '{}' has incomplete or empty completion checklist. Add items with `dijiang task checklist add <desc>` and mark them done with `dijiang task checklist check <index>`.", task_name),
+            next_action: String::new(),
+            requires_alignment_artifact: false,
+            complexity: decision.complexity,
+        },
+    }
+}
+
+// ── Task Queue ────────────────────────────────────────────────────
+
+/// Read task queue from `.dijiang/queue.toml`.
+/// Each non-empty, non-comment line is a task name.
+pub fn read_task_queue(dijiang_dir: &Path) -> Vec<String> {
+    let queue_path = dijiang_dir.join("queue.toml");
+    let content = match std::fs::read_to_string(&queue_path) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    content
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .collect()
+}
+
+/// Write task queue to `.dijiang/queue.toml`.
+pub fn write_task_queue(dijiang_dir: &Path, queue: &[String]) -> Result<(), TaskError> {
+    let queue_path = dijiang_dir.join("queue.toml");
+    let content = queue.join("\n");
+    std::fs::write(&queue_path, content)?;
+    Ok(())
+}
+
+/// Add a task to the end of the queue. Returns `false` if already present.
+pub fn queue_add(dijiang_dir: &Path, task_name: &str) -> bool {
+    let mut queue = read_task_queue(dijiang_dir);
+    if queue.contains(&task_name.to_string()) {
+        return false;
+    }
+    queue.push(task_name.to_string());
+    write_task_queue(dijiang_dir, &queue).is_ok()
+}
+
+/// Remove a task from the queue. Returns `false` if not found.
+pub fn queue_remove(dijiang_dir: &Path, task_name: &str) -> bool {
+    let mut queue = read_task_queue(dijiang_dir);
+    let before = queue.len();
+    queue.retain(|t| t != task_name);
+    if queue.len() == before {
+        return false;
+    }
+    write_task_queue(dijiang_dir, &queue).is_ok()
+}
+
+/// Pop the first task from the queue (removes it from the queue).
+pub fn queue_pop(dijiang_dir: &Path) -> Option<String> {
+    let mut queue = read_task_queue(dijiang_dir);
+    if queue.is_empty() {
+        return None;
+    }
+    let task = queue.remove(0);
+    write_task_queue(dijiang_dir, &queue).ok()?;
+    Some(task)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -646,7 +991,6 @@ mod tests {
         save_task(&tasks_dir, &task).unwrap();
         let updated = update_status(&tasks_dir, "test-update", TaskStatus::InProgress).unwrap();
         assert_eq!(updated.status, TaskStatus::InProgress);
-        // Verify persisted
         let reloaded = load_task(&tasks_dir, "test-update").unwrap();
         assert_eq!(reloaded.status, TaskStatus::InProgress);
     }
@@ -760,18 +1104,15 @@ mod tests {
 
     #[test]
     fn test_active_task_fallback_from_primary() {
-        // When sessions path is removed, read should fall back to active_task.txt.
         let dir = tempfile::tempdir().unwrap();
         let dijiang_dir = dir.path().join(".trellis");
         fs::create_dir(&dijiang_dir).unwrap();
 
         write_active_task_for_session(&dijiang_dir, "fallback-task", None).unwrap();
 
-        // Remove sessions dir to simulate Trellis-only write
         let sessions_dir = dijiang_dir.join(".runtime").join("sessions");
         fs::remove_dir_all(sessions_dir).unwrap();
 
-        // Should still read from active_task.txt
         let active = read_active_task_for_session(&dijiang_dir, None).unwrap();
         assert_eq!(active, Some("fallback-task".to_string()));
     }

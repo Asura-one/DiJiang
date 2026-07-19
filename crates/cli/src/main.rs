@@ -184,8 +184,55 @@ enum Commands {
         #[command(subcommand)]
         command: BucketCommands,
     },
+    /// 输出上下文：当前项目/任务/git 等综合信息（供 AI agent 使用）
+    Context {
+        /// 上下文模式（status 默认，支持 git/tasks/packages/spec/all/record）
+        #[arg(long)]
+        mode: Option<commands::context::ContextMode>,
+        /// JSON 输出
+        #[arg(long)]
+        json: bool,
+    },
+    /// 执行带质量门禁的安全提交（pre-commit check → git commit）
+    Commit {
+        /// 提交信息
+        #[arg(short = 'm', long)]
+        message: Option<String>,
+        /// 跳过 cargo check 检查
+        #[arg(long)]
+        force: bool,
+        /// 预览但不执行
+        #[arg(long)]
+        dry_run: bool,
+        /// 允许空提交（工作区无变更时仍运行）
+        #[arg(long = "allow-empty")]
+        allow_empty: bool,
+    },
+    /// 添加会话条目到 journal
+    Session {
+        #[command(subcommand)]
+        command: SessionCommands,
+    },
 }
 
+#[derive(Subcommand)]
+pub enum SessionCommands {
+    /// Add a session entry to the journal
+    Add {
+        /// Session title (required)
+        #[arg(long)]
+        title: String,
+        /// Summary of the session
+        #[arg(long)]
+        summary: String,
+        /// Branch name (defaults to active task branch)
+        #[arg(long)]
+        branch: Option<String>,
+        /// Read detailed content from stdin
+        #[arg(long)]
+        stdin: bool,
+    },
+}
 #[derive(Subcommand)]
 enum BucketCommands {
     /// 列出所有桶和每个桶中的技能
@@ -398,6 +445,9 @@ enum TaskCommands {
     Start {
         /// Task name (slug, e.g. "fix-login-bug")
         name: String,
+        /// Parent task name (slug) to create this task under
+        #[arg(long)]
+        parent: Option<String>,
     },
     /// Set task status
     Status {
@@ -431,6 +481,13 @@ enum TaskCommands {
     },
     /// Display task hierarchy as a tree
     Tree,
+    /// Set the scope/description of a task
+    SetScope {
+        /// Task name (slug)
+        name: String,
+        /// Scope description (e.g. "Refactor auth module: login, logout, session")
+        scope: String,
+    },
     /// Manage context manifest (JSONL) for spec-precise delivery
     Context {
         #[command(subcommand)]
@@ -446,6 +503,120 @@ enum TaskCommands {
         #[command(subcommand)]
         command: BenchCommands,
     },
+    /// Manage completion checklist for a task
+    Checklist {
+        #[command(subcommand)]
+        command: ChecklistCommands,
+    },
+    Queue {
+        #[command(subcommand)]
+        command: QueueCommands,
+    },
+    /// Validate task structure and context files
+    Validate {
+        /// Task name (slug). Defaults to active task.
+        name: Option<String>,
+    },
+    /// Create a GitHub Pull Request from a task
+    CreatePr {
+        /// Task name (slug). Defaults to active task.
+        name: Option<String>,
+        /// PR title (defaults to task title)
+        #[arg(long)]
+        title: Option<String>,
+        /// PR body text
+        #[arg(long)]
+        body: Option<String>,
+        /// Branch name (defaults to task branch or current git branch)
+        #[arg(long)]
+        branch: Option<String>,
+        /// Base branch (defaults to task base_branch or main)
+        #[arg(long)]
+        base: Option<String>,
+        /// Dry-run: show what would be done without executing
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Set the git branch for a task
+    SetBranch {
+        /// Branch name
+        branch: String,
+        /// Task name (slug). Defaults to active task.
+        name: Option<String>,
+    },
+    /// Set the base (PR target) branch for a task
+    SetBaseBranch {
+        /// Branch name
+        branch: String,
+        /// Task name (slug). Defaults to active task.
+        name: Option<String>,
+    },
+    /// Add a dependency (another task this task depends on)
+    AddDep {
+        /// Task name (slug). Defaults to active task.
+        name: Option<String>,
+        /// Task(s) this task depends on
+        #[arg(long)]
+        depends_on: Vec<String>,
+    },
+    /// Remove a dependency
+    RemoveDep {
+        /// Task name (slug). Defaults to active task.
+        name: Option<String>,
+        /// Task(s) to remove from dependency list
+        #[arg(long)]
+        depends_on: Vec<String>,
+    },
+    /// List dependencies for a task
+    ListDeps {
+        /// Task name (slug). Defaults to active task.
+        name: Option<String>,
+    },
+}
+#[derive(Subcommand)]
+enum ChecklistCommands {
+    /// List all checklist items
+    List,
+    /// Add a new checklist criterion
+    Add {
+        /// Description of the criterion
+        description: String,
+    },
+    /// Mark a checklist item as met
+    Check {
+        /// Index of the item (0-based)
+        index: usize,
+    },
+    /// Mark a checklist item as unmet
+    Uncheck {
+        /// Index of the item (0-based)
+        index: usize,
+    },
+    /// Remove a checklist item
+    Remove {
+        /// Index of the item (0-based)
+        index: usize,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum QueueCommands {
+    /// List all queued tasks
+    List,
+    /// Add a task to the end of the queue
+    Add {
+        /// Task name (slug)
+        name: String,
+    },
+    /// Remove a task from the queue
+    Remove {
+        /// Task name (slug)
+        name: String,
+    },
+    /// Show and activate the next queued task (pops from queue)
+    Next,
+    /// Clear the entire queue
+    Clear,
 }
 
 #[derive(Subcommand)]
@@ -552,13 +723,14 @@ fn main() -> anyhow::Result<()> {
         Commands::Task { command } => match command {
             TaskCommands::List => commands::task::cmd_task_list(),
             TaskCommands::Current => commands::task::cmd_task_current(),
-            TaskCommands::Start { name } => commands::task::cmd_task_start(&name),
+            TaskCommands::Start { name, parent } => commands::task::cmd_task_start(&name, parent.as_deref()),
             TaskCommands::Status { name, status } => commands::task::cmd_task_status(&name, &status),
             TaskCommands::Archive { name } => commands::task::cmd_task_archive(&name),
             TaskCommands::Prune { days } => commands::task::cmd_task_prune(days),
             TaskCommands::Link { parent, child } => commands::task::cmd_task_link(&parent, &child),
             TaskCommands::Unlink { child } => commands::task::cmd_task_unlink(&child),
             TaskCommands::Tree => commands::task::cmd_task_tree(),
+            TaskCommands::SetScope { name, scope } => commands::task::cmd_task_set_scope(&name, &scope),
             TaskCommands::Context { command } => match command {
                 ContextCommands::Add { file, action, reason } => {
                     commands::task::cmd_task_context_add(&file, &action, &reason)
@@ -566,6 +738,30 @@ fn main() -> anyhow::Result<()> {
                 ContextCommands::List { action } => {
                     commands::task::cmd_task_context_list(action.as_deref())
                 }
+            },
+            TaskCommands::Checklist { command } => match command {
+                ChecklistCommands::List => {
+                    commands::task::cmd_task_checklist_list()
+                }
+                ChecklistCommands::Add { description } => {
+                    commands::task::cmd_task_checklist_add(&description)
+                }
+                ChecklistCommands::Check { index } => {
+                    commands::task::cmd_task_checklist_check(index)
+                }
+                ChecklistCommands::Uncheck { index } => {
+                    commands::task::cmd_task_checklist_uncheck(index)
+                }
+                ChecklistCommands::Remove { index } => {
+                    commands::task::cmd_task_checklist_remove(index)
+                }
+            },
+            TaskCommands::Queue { command } => match command {
+                QueueCommands::List => commands::task::cmd_task_queue_list(),
+                QueueCommands::Add { name } => commands::task::cmd_task_queue_add(&name),
+                QueueCommands::Remove { name } => commands::task::cmd_task_queue_remove(&name),
+                QueueCommands::Next => commands::task::cmd_task_queue_next(),
+                QueueCommands::Clear => commands::task::cmd_task_queue_clear(),
             },
             TaskCommands::Hook { command } => match command {
                 HookCommands::Show { task, event } => {
@@ -587,6 +783,32 @@ fn main() -> anyhow::Result<()> {
                     commands::bench::cmd_bench_run(scenario.as_deref(), all)
                 }
                 BenchCommands::Status => commands::bench::cmd_bench_status(),
+            },
+            TaskCommands::Validate { name } => commands::task::cmd_task_validate(name.as_deref()),
+            TaskCommands::CreatePr { name, title, body, branch, base, dry_run } => {
+                commands::task::cmd_task_create_pr(
+                    name.as_deref(),
+                    title.as_deref(),
+                    body.as_deref(),
+                    branch.as_deref(),
+                    base.as_deref(),
+                    dry_run,
+                )
+            },
+            TaskCommands::SetBranch { name, branch } => {
+                commands::task::cmd_task_set_branch(name.as_deref(), &branch)
+            },
+            TaskCommands::SetBaseBranch { name, branch } => {
+                commands::task::cmd_task_set_base_branch(name.as_deref(), &branch)
+            },
+            TaskCommands::AddDep { name, depends_on } => {
+                commands::task::cmd_task_add_dep(name.as_deref(), &depends_on)
+            },
+            TaskCommands::RemoveDep { name, depends_on } => {
+                commands::task::cmd_task_remove_dep(name.as_deref(), &depends_on)
+            },
+            TaskCommands::ListDeps { name } => {
+                commands::task::cmd_task_list_deps(name.as_deref())
             },
         },
         Commands::Mem {
@@ -749,6 +971,27 @@ fn main() -> anyhow::Result<()> {
             }
             BucketCommands::Stats => commands::bucket::cmd_bucket_stats(),
         },
+        Commands::Context { mode, json } => commands::context::cmd_context(mode, json),
+        Commands::Commit {
+            message,
+            force,
+            dry_run,
+            allow_empty,
+        } => {
+            let project_root = std::env::current_dir()?;
+            commands::commit::cmd_commit(commands::commit::CommitOptions {
+                project_root,
+                message,
+                force,
+                dry_run,
+                allow_empty,
+            })
+        }
+        Commands::Session { command } => match command {
+            SessionCommands::Add { title, summary, branch, stdin } => {
+                commands::session::cmd_session_add(&title, &summary, branch.as_deref(), stdin)
+            }
+        },
     }
 }
 #[cfg(test)]
@@ -759,6 +1002,7 @@ mod tests {
     };
     use dijiang_task::store;
     use dijiang_task::types::TaskStatus;
+    use std::path::Path;
 
     fn status_format(status: TaskStatus) -> (String, String) {
         (
@@ -899,7 +1143,7 @@ mod tests {
     #[test]
     fn test_route_gate_redirects_planning_implement_to_grill() {
         let route = dispatch_route("新增一个导出按钮");
-        let dispatch = apply_route_gate(&TaskStatus::Planning, route, Some("新增一个导出按钮"));
+        let dispatch = apply_route_gate(&TaskStatus::Planning, route, Some("新增一个导出按钮"), Path::new(""), Path::new(""), None);
 
         assert_eq!(dispatch.route.skill, "dj-grill");
         assert_eq!(dispatch.decision.action.as_str(), "redirect");
@@ -908,7 +1152,7 @@ mod tests {
     #[test]
     fn test_route_gate_routes_paused_task_to_continue() {
         let route = dispatch_route("新增一个导出按钮");
-        let dispatch = apply_route_gate(&TaskStatus::Paused, route, Some("新增一个导出按钮"));
+        let dispatch = apply_route_gate(&TaskStatus::Paused, route, Some("新增一个导出按钮"), Path::new(""), Path::new(""), None);
 
         assert_eq!(dispatch.route.skill, "dijiang-continue");
         assert_eq!(dispatch.decision.action.as_str(), "redirect");
@@ -917,7 +1161,7 @@ mod tests {
     #[test]
     fn test_route_gate_blocks_archived_task_until_restart() {
         let route = dispatch_route("新增一个导出按钮");
-        let dispatch = apply_route_gate(&TaskStatus::Archived, route, Some("新增一个导出按钮"));
+        let dispatch = apply_route_gate(&TaskStatus::Archived, route, Some("新增一个导出按钮"), Path::new(""), Path::new(""), None);
 
         assert_eq!(dispatch.route.skill, "dijiang-start");
         assert_eq!(dispatch.decision.action.as_str(), "block");
@@ -926,8 +1170,13 @@ mod tests {
     #[test]
     fn test_dispatch_runtime_skill_context_exposes_manifests_and_target_body() {
         let route = dispatch_route("补测试");
-        let dispatch = apply_route_gate(&TaskStatus::InProgress, route, Some("补测试"));
-
+        let dir = tempfile::tempdir().unwrap();
+        let tasks_dir = dir.path().join("tasks");
+        let task_name = "test-task";
+        let task_dir = tasks_dir.join(task_name);
+        std::fs::create_dir_all(&task_dir).unwrap();
+        std::fs::write(task_dir.join("prd.md"), "# test PRD").unwrap();
+        let dispatch = apply_route_gate(&TaskStatus::InProgress, route, Some("补测试"), Path::new(""), &tasks_dir, Some(task_name));
         let context = dispatch_runtime_skill_context(&dispatch);
 
         assert!(context.contains("<dijiang-skill-manifests>"));
@@ -947,7 +1196,7 @@ mod tests {
     #[test]
     fn test_dispatch_context_keeps_header_and_adds_target_skill_body() {
         let route = dispatch_route("新增一个导出按钮");
-        let dispatch = apply_route_gate(&TaskStatus::Planning, route, Some("新增一个导出按钮"));
+        let dispatch = apply_route_gate(&TaskStatus::Planning, route, Some("新增一个导出按钮"), Path::new(""), Path::new(""), None);
 
         let context = dispatch_context(
             "task-1",

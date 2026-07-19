@@ -356,6 +356,7 @@ mod tests {
             children: vec![],
             parent: None,
             related_files: vec![],
+            depends_on: None,
             notes: String::new(),
             meta: serde_json::json!({}),
             started_at: None,
