@@ -34,6 +34,7 @@ pub struct WorkflowLoopState {
     pub next_action: String,
     pub next_skill: Option<String>,
     pub agent_focus: String,
+    pub resolved_agent: Option<String>,
     pub memory_writeback: WorkflowMemoryWriteback,
     pub retry: WorkflowLoopRetry,
 }
@@ -331,8 +332,17 @@ impl WorkflowState {
 .unwrap_or_default(),
         );
 
+        let agent_line = self.loop_state
+            .as_ref()
+            .and_then(|ls| ls.resolved_agent.as_ref())
+            .and_then(|name| {
+                let body = crate::agent_manifest::agent_body_by_name(name)?;
+                Some(format!("<dijiang-agent name=\"{name}\">\n{body}\n</dijiang-agent>"))
+            })
+            .unwrap_or_default();
+
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n{tag_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n{tag_line}\n{agent_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
             task.id,
             task.title,
             task.status,
@@ -343,5 +353,6 @@ impl WorkflowState {
             skill_manifest_line,
             target_skill_line,
         )
-    }
 }
+}
+

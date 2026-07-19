@@ -38,7 +38,7 @@ dj-* 技能承担了太多角色：
 完整的开发前流水线：
 
 ```
-dj-grill ──→ dj-prd ──→ dj-split ──→ dj-implement / dj-tdd
+dj-grill ──→ dj-output ──→ dj-split ──→ dj-implement / dj-tdd
    │                        │
    ├ glossary               └ 独立可执行的任务
    │ 术语收集、更新               列表
@@ -65,7 +65,7 @@ Critical lesson: skill files and project files must follow strict boundaries.
 .dijiang/                     ← project-level
   glossary.md                   created by dj-grill on first use
   decisions/                    created by dijiaang adr on first use
-  prd/                          created by dj-prd on first use
+  prd/                          created by dj-output on first use
 ```
 
 ## Decision Tree vs Fixed Checklist

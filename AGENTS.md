@@ -117,7 +117,7 @@ This project uses DiJiang for task management and workflow.
 4. 读取 `.dijiang/spec/` 中相关 spec 文件。
 5. 按规范任务状态路由：
    - none → `dijiang start <name>` 或 `dj-dispatch`
-   - `planning` → `dj-grill`，可选 `dj-output`，然后 `dj-prd` → `dj-split`
+   - `planning` → `dj-grill`，可选 `dj-output`，然后 `dj-output` → `dj-split`
    - `in_progress` → implementation skill，然后 `dj-check`
    - `completed` → `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>`
    - `archived` → 只读，除非用 `dijiang start <task>` 重启

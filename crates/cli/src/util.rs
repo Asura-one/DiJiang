@@ -21,26 +21,12 @@ pub fn run_git(project_root: &Path, args: &[&str]) -> anyhow::Result<String> {
 }
 
 pub fn read_developer(dijiang_dir: &Path) -> anyhow::Result<String> {
-    let config_path = dijiang_dir.join("config.toml");
-    let config_str = std::fs::read_to_string(&config_path).unwrap_or_default();
-    Ok(config_str
-        .lines()
-.find(|line| line.trim_start().starts_with("developer"))
-        .and_then(|line| line.split('=').nth(1))
-        .map(|value| value.trim().trim_matches('"').to_string())
-        .filter(|value| !value.is_empty())
+    Ok(dijiang_task::config::read_developer(dijiang_dir)
         .unwrap_or_else(|| "developer".to_string()))
 }
 
 pub fn read_project_name(dijiang_dir: &Path) -> anyhow::Result<String> {
-    let config_path = dijiang_dir.join("config.toml");
-    let config_str = std::fs::read_to_string(&config_path).unwrap_or_default();
-    Ok(config_str
-        .lines()
-.find(|line| line.trim_start().starts_with("name"))
-        .and_then(|line| line.split('=').nth(1))
-        .map(|value| value.trim().trim_matches('"').to_string())
-        .filter(|value| !value.is_empty())
+    Ok(dijiang_task::config::read_project_name(dijiang_dir)
         .unwrap_or_else(|| "unknown".to_string()))
 }
 

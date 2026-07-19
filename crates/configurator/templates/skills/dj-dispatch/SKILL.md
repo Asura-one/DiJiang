@@ -37,7 +37,7 @@ description: >
 | "结构设计、放在哪、模块划分" | `dj-codebase-design` |
 | "术语、统一语言" | `dj-domain-modeling` |
 | "调研、研究、技术选型" | `dj-research` |
-| "写 PRD、产品文档、把需求写下来" | `dj-prd` |
+| "写 PRD、产品文档、把需求写下来" | `dj-output` |
 
 ### Build（实现中）
 

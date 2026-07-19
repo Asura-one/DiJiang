@@ -185,6 +185,26 @@ pub(crate) fn write_dijiang_infrastructure(
         }
     }
 
+    // agents/ — persona definitions for AI agent roles
+    let agents_root = dijiang_dir.join("agents");
+    std::fs::create_dir_all(&agents_root)?;
+    let agent_templates: &[(&str, &str)] = &[
+        ("architect.md", "agents/architect.md"),
+        ("planner.md", "agents/planner.md"),
+        ("implementer.md", "agents/implementer.md"),
+        ("checker.md", "agents/checker.md"),
+        ("researcher.md", "agents/researcher.md"),
+    ];
+    for (filename, tmpl_name) in agent_templates {
+        let file_path = agents_root.join(filename);
+        if !file_path.exists() {
+            if let Ok(content) = templates::render(tmpl_name, &[]) {
+                std::fs::write(&file_path, content)?;
+            }
+        }
+    }
+
+
     // workflow.md — from embedded template (block-insert under Merge)
     let workflow =
         templates::render("config/workflow.md", &[]).map_err(crate::ConfigError::Serialize)?;
@@ -264,6 +284,7 @@ pub fn init_project_with_platforms(
     println!("\n[OK] Initialized DiJiang project: {name}");
     println!("  ├── .dijiang/config.toml");
     println!("  ├── .dijiang/workflow.md");
+    println!("  ├── .dijiang/agents/");
     println!("  ├── .dijiang/tasks/");
     println!("  ├── .dijiang/workspace/");
     println!("  └── .dijiang/spec/");

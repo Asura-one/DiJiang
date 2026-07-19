@@ -1,4 +1,5 @@
 use crate::util::{require_dijiang_dir, run_git, read_developer, current_session_key, git_current_branch, git_worktree_root};
+use dijiang_task::hooks::{self, HookEvent};
 use dijiang_task::store;
 use dijiang_task::types::{TaskRecord, TaskStatus};
 use std::path::{Path, PathBuf};
@@ -740,12 +741,14 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let task_before_archive = resolved_target.as_ref().map(|target| &target.task);
     let (verification, docs_sync) = ensure_finish_preconditions(&project_root, task_before_archive, options)?;
     let version_update = update_workspace_version(&project_root, options.version_impact)?;
-    let developer = read_developer(&dijiang_dir)?;
+    let developer = dijiang_task::developer::resolve_developer(&dijiang_dir);
     let (session_key, source) = current_session_key();
     let task_label = resolved_target.as_ref().map(|t| t.task_name.as_str()).unwrap_or("no-active-task");
     let journal = append_finish_journal(&dijiang_dir, &developer, task_label, options.summary, &verification, options.allow_dirty)?;
     let archive_status = if let Some(target) = resolved_target.as_ref() {
         let task = store::archive_task(&tasks_dir, &target.task_name)?;
+        hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskFinish, &target.task_name);
+        hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskArchive, &target.task_name);
         store::clear_active_task(&dijiang_dir)?;
         format!("archived task `{}` (status: {}), journal: {}", target.task_name, task.status.as_str(), journal.display())
     } else { "skipped: no active task".to_string() };
@@ -816,6 +819,26 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     } else {
         println!("  当前 session 没有 active task 需要清理");
     }
+    // #16: Auto-commit workspace journal (best-effort)
+    let _ = auto_commit_journal(&project_root, task_label);
+    Ok(())
+}
+
+/// Auto-commit workspace journal changes (best-effort).
+fn auto_commit_journal(project_root: &Path, task_label: &str) -> anyhow::Result<()> {
+    let workspace_dir = project_root.join(".dijiang").join("workspace");
+    if !workspace_dir.exists() {
+        return Ok(());
+    }
+    let status = run_git(project_root, &["status", "--porcelain", ".dijiang/workspace/"]);
+    match status {
+        Ok(stdout) if stdout.trim().is_empty() => return Ok(()),
+        Err(_) => return Ok(()), // not a git repo or git not available
+        _ => {}
+    }
+    run_git(project_root, &["add", ".dijiang/workspace/"])?;
+    let msg = format!("journal: {}", task_label);
+    let _ = run_git(project_root, &["commit", "-m", &msg]);
     Ok(())
 }
 

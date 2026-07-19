@@ -146,6 +146,8 @@ pub struct TaskRecord {
     pub parent: Option<String>,
     #[serde(default)]
     pub related_files: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depends_on: Option<Vec<String>>,
     // ── Metadata ──
     #[serde(default)]
     pub notes: String,

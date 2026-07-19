@@ -1,4 +1,5 @@
 use crate::util::{require_dijiang_dir, run_git, git_current_branch, git_worktree_root, trim_required};
+use dijiang_task::hooks::{self, HookEvent};
 use dijiang_task::store;
 use dijiang_task::types::{TaskRecord, TaskStatus};
 use std::path::{Path, PathBuf};
@@ -11,6 +12,7 @@ pub struct DispatchRoute {
     pub recommended_path: &'static str,
     pub status: TaskStatus,
     pub intent: dijiang_task::RouteIntent,
+    pub complexity: dijiang_task::TaskComplexity,
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +76,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-hunt → dj-implement → dj-check",
             status: TaskStatus::InProgress,
             intent: dijiang_task::RouteIntent::Debug,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
     if has_vague_feature_intent {
@@ -84,6 +87,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-grill → dj-output/dj-implement",
             status: TaskStatus::Planning,
             intent: dijiang_task::RouteIntent::Align,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
     if has_any(&["审计", "安全", "扫描", "体检", "audit", "security"]) {
@@ -94,9 +98,21 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-audit → dj-implement → dj-check",
             status: TaskStatus::InProgress,
             intent: dijiang_task::RouteIntent::Check,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
-    if has_any(&["调研", "方案", "对比", "url", "网页", "research", "compare"]) {
+    if has_any(&["调研", "research", "资料", "技术方案对比"]) {
+        return DispatchRoute {
+            task_type: "技术调研",
+            primary_intent: "调研收集信息",
+            skill: "dj-research",
+            recommended_path: "dj-research → dj-output/dj-implement",
+            status: TaskStatus::Planning,
+            intent: dijiang_task::RouteIntent::Research,
+            complexity: dijiang_task::TaskComplexity::Complex,
+        };
+    }
+    if has_any(&["方案", "对比", "url", "网页", "compare"]) {
         return DispatchRoute {
             task_type: "调研对齐",
             primary_intent: "调研并对齐",
@@ -104,6 +120,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-grill → dj-output/dj-tdd",
             status: TaskStatus::Planning,
             intent: dijiang_task::RouteIntent::Align,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
     if has_any(&["文档", "prd", "设计文档", "润色", "document", "write"]) {
@@ -114,6 +131,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-output",
             status: TaskStatus::Planning,
             intent: dijiang_task::RouteIntent::Document,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
     if has_any(&["脚本", "工具", "自动化", "script", "cli", "tool"]) {
@@ -124,6 +142,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-script → dj-check",
             status: TaskStatus::InProgress,
             intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
     if has_any(&["ui", "页面", "样式", "布局", "组件", "design", "style"]) {
@@ -134,6 +153,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-design → dj-implement → dj-check",
             status: TaskStatus::InProgress,
             intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
     if has_any(&["测试", "tdd", "test"]) {
@@ -144,6 +164,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-tdd → dj-check",
             status: TaskStatus::InProgress,
             intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
     if has_any(&["实现", "修复", "重构", "新增", "修改", "改",
@@ -156,6 +177,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
             recommended_path: "dj-implement → dj-check",
             status: TaskStatus::InProgress,
             intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Complex,
         };
     }
     DispatchRoute {
@@ -165,6 +187,7 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
         recommended_path: "dj-grill → dj-output/dj-implement",
         status: TaskStatus::Planning,
         intent: dijiang_task::RouteIntent::Unknown,
+            complexity: dijiang_task::TaskComplexity::Complex,
     }
 }
 
@@ -174,51 +197,67 @@ pub fn dispatch_route_from_skill(skill: &str) -> Option<DispatchRoute> {
             task_type: "排查调试", primary_intent: "继续排查",
             skill: "dj-hunt", recommended_path: "dj-hunt → dj-implement → dj-check",
             status: TaskStatus::InProgress, intent: dijiang_task::RouteIntent::Debug,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dj-implement" => Some(DispatchRoute {
             task_type: "代码开发", primary_intent: "继续实现",
             skill: "dj-implement", recommended_path: "dj-implement → dj-check",
             status: TaskStatus::InProgress, intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dj-script" => Some(DispatchRoute {
             task_type: "脚本工具", primary_intent: "继续实现脚本或工具",
             skill: "dj-script", recommended_path: "dj-script → dj-check",
             status: TaskStatus::InProgress, intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dj-tdd" => Some(DispatchRoute {
             task_type: "测试开发", primary_intent: "继续 TDD",
             skill: "dj-tdd", recommended_path: "dj-tdd → dj-check",
             status: TaskStatus::InProgress, intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dj-check" => Some(DispatchRoute {
             task_type: "代码审查", primary_intent: "质量检查",
             skill: "dj-check", recommended_path: "dj-check",
             status: TaskStatus::InProgress, intent: dijiang_task::RouteIntent::Check,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dj-output" => Some(DispatchRoute {
             task_type: "写文档", primary_intent: "文档产出",
             skill: "dj-output", recommended_path: "dj-output",
             status: TaskStatus::Planning, intent: dijiang_task::RouteIntent::Document,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dj-grill" => Some(DispatchRoute {
             task_type: "调研对齐", primary_intent: "需求澄清",
             skill: "dj-grill", recommended_path: "dj-grill → dj-output/dj-implement",
             status: TaskStatus::Planning, intent: dijiang_task::RouteIntent::Align,
+            complexity: dijiang_task::TaskComplexity::Complex,
+        }),
+        "dj-research" => Some(DispatchRoute {
+            task_type: "调研对齐", primary_intent: "需求澄清",
+            skill: "dj-grill", recommended_path: "dj-grill → dj-output/dj-implement",
+            status: TaskStatus::Planning, intent: dijiang_task::RouteIntent::Align,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dijiang-finish-work" => Some(DispatchRoute {
             task_type: "收尾归档", primary_intent: "完成工作",
             skill: "dijiang-finish-work", recommended_path: "dijiang-finish-work",
             status: TaskStatus::Completed, intent: dijiang_task::RouteIntent::Finish,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dijiang-continue" => Some(DispatchRoute {
             task_type: "恢复上下文", primary_intent: "继续暂停任务",
             skill: "dijiang-continue", recommended_path: "dijiang-continue",
             status: TaskStatus::Paused, intent: dijiang_task::RouteIntent::Resume,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         "dijiang-start" => Some(DispatchRoute {
             task_type: "恢复上下文", primary_intent: "重新激活归档任务",
             skill: "dijiang-start", recommended_path: "dijiang-start",
             status: TaskStatus::Archived, intent: dijiang_task::RouteIntent::Resume,
+            complexity: dijiang_task::TaskComplexity::Complex,
         }),
         _ => None,
     }
@@ -230,6 +269,7 @@ pub fn dispatch_route_for_active_task(task: &TaskRecord) -> DispatchRoute {
             task_type: "调研对齐", primary_intent: "需求澄清",
             skill: "dj-grill", recommended_path: "dj-grill → dj-output/dj-implement",
             status: TaskStatus::Planning, intent: dijiang_task::RouteIntent::Align,
+            complexity: dijiang_task::TaskComplexity::Complex,
         },
         TaskStatus::InProgress => task
             .meta
@@ -241,21 +281,25 @@ pub fn dispatch_route_for_active_task(task: &TaskRecord) -> DispatchRoute {
                 task_type: "代码开发", primary_intent: "继续实现",
                 skill: "dj-implement", recommended_path: "dj-implement → dj-check",
                 status: TaskStatus::InProgress, intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Complex,
             }),
         TaskStatus::Completed => DispatchRoute {
             task_type: "收尾归档", primary_intent: "完成工作",
             skill: "dijiang-finish-work", recommended_path: "dijiang-finish-work",
             status: TaskStatus::Completed, intent: dijiang_task::RouteIntent::Finish,
+            complexity: dijiang_task::TaskComplexity::Complex,
         },
         TaskStatus::Paused => DispatchRoute {
             task_type: "恢复上下文", primary_intent: "继续暂停任务",
             skill: "dijiang-continue", recommended_path: "dijiang-continue",
             status: TaskStatus::Paused, intent: dijiang_task::RouteIntent::Resume,
+            complexity: dijiang_task::TaskComplexity::Complex,
         },
         TaskStatus::Archived => DispatchRoute {
             task_type: "恢复上下文", primary_intent: "重新激活归档任务",
             skill: "dijiang-start", recommended_path: "dijiang-start",
             status: TaskStatus::Archived, intent: dijiang_task::RouteIntent::Resume,
+            complexity: dijiang_task::TaskComplexity::Complex,
         },
     }
 }
@@ -264,12 +308,24 @@ pub fn apply_route_gate(
     status: &TaskStatus,
     route: DispatchRoute,
     requested_skill: Option<&str>,
+    dijiang_dir: &Path,
+    tasks_dir: &Path,
+    task_name: Option<&str>,
 ) -> DispatchDecision {
-    let decision = dijiang_task::evaluate_route(
+    let mut decision = dijiang_task::evaluate_route(
         status,
         route.intent,
         requested_skill.or(Some(route.skill)),
+        Some(route.complexity),
     );
+    // Apply readiness gate: verify prerequisites before implementation skills
+    if let Some(name) = task_name {
+        decision = store::apply_readiness_gate(dijiang_dir, tasks_dir, name, &decision);
+    }
+    // Apply completion gate: block Finish action if checklist is incomplete
+    if let Some(name) = task_name {
+        decision = store::apply_completion_gate(tasks_dir, Some(name), &decision);
+    }
     let resolved_skill = decision.resolved_skill;
     let gated_route = dispatch_route_from_skill(resolved_skill).unwrap_or(DispatchRoute {
         task_type: route.task_type,
@@ -278,6 +334,7 @@ pub fn apply_route_gate(
         recommended_path: route.recommended_path,
         status: route.status,
         intent: route.intent,
+        complexity: route.complexity,
     });
     DispatchDecision {
         route: gated_route,
@@ -536,16 +593,16 @@ pub fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str)
     let dispatch = match &existing_task {
         Some(task) if matches!(hook_event, "session:start" | "session_start") => {
             let route = dispatch_route_for_active_task(task);
-            apply_route_gate(&task.status, route, Some(prompt))
+            apply_route_gate(&task.status, route, Some(prompt), &dijiang_dir, &tasks_dir, Some(&task.name))
         }
         Some(task) => {
             let route = dispatch_route(prompt);
-            apply_route_gate(&task.status, route, Some(prompt))
+            apply_route_gate(&task.status, route, Some(prompt), &dijiang_dir, &tasks_dir, Some(&task.name))
         }
         None => {
             let route = dispatch_route(prompt);
             let gate_status = &route.status.clone();
-            let mut dispatch = apply_route_gate(gate_status, route, None);
+            let mut dispatch = apply_route_gate(gate_status, route, None, &dijiang_dir, &tasks_dir, None);
             dispatch.decision.next_action = "continue with the requested skill for the new task".to_string();
             dispatch
         }
@@ -575,8 +632,8 @@ pub fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str)
                 "nextAction": dispatch.decision.next_action,
             },
         });
-        store::save_task(&tasks_dir, &new_task)?;
-        store::write_active_task(&dijiang_dir, &unique_name)?;
+        store::activate_new_task(&dijiang_dir, &new_task)?;
+        hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskCreate, &unique_name);
         (unique_name, title, new_task)
     };
 

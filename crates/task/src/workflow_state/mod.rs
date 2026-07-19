@@ -714,7 +714,7 @@ fn workflow_route_gate(
     recommended_path: &str,
     task_context: &WorkflowTaskContext<'_>,
 ) -> WorkflowRouteGate {
-    let summary = summarize_route_gate(&task_context.effective_status);
+    let summary = summarize_route_gate(&task_context.effective_status, None);
     WorkflowRouteGate {
         capsule: summary.capsule.as_str().to_string(),
         allowed_skills: summary
@@ -757,7 +757,7 @@ fn workflow_git_gate(project_root: &Path, task: &TaskRecord) -> WorkflowGitGate 
 }
 
 fn workflow_skill_manifests(task_context: &WorkflowTaskContext<'_>) -> Vec<WorkflowSkillManifest> {
-    let capsule = summarize_route_gate(&task_context.effective_status).capsule;
+    let capsule = summarize_route_gate(&task_context.effective_status, None).capsule;
     manifests_for_capsule(capsule)
         .into_iter()
         .map(|entry| WorkflowSkillManifest {
@@ -850,7 +850,7 @@ fn workflow_loop_state(task_context: &WorkflowTaskContext<'_>) -> WorkflowLoopSt
                 title.to_string()
             }
         });
-    let mode = summarize_route_gate(&task_context.effective_status)
+    let mode = summarize_route_gate(&task_context.effective_status, None)
         .capsule
         .as_str()
         .to_string();
@@ -904,7 +904,7 @@ fn workflow_loop_state(task_context: &WorkflowTaskContext<'_>) -> WorkflowLoopSt
     let next_skill =
         next_skill_from_recommended_path(task_context.recommended_path).or_else(|| {
             Some(
-                summarize_route_gate(&task_context.effective_status)
+                summarize_route_gate(&task_context.effective_status, None)
                     .default_skill
                     .to_string(),
             )
@@ -923,6 +923,16 @@ fn workflow_loop_state(task_context: &WorkflowTaskContext<'_>) -> WorkflowLoopSt
         TaskStatus::Paused => "恢复任务上下文后继续 loop".to_string(),
     };
     let agent_focus = agent_focus(task, &dispatch, task_context, next_skill.as_deref());
+    let resolved_agent = {
+        let capsule = summarize_route_gate(&task_context.effective_status, None)
+            .capsule;
+        let agent_name = crate::agent_manifest::resolve_agent(
+            dispatch.task_type,
+            dispatch.primary_intent,
+            capsule.as_str(),
+        );
+        Some(agent_name.to_string())
+    };
     let memory_writeback =
         workflow_memory_writeback(task, &dispatch, task_context, next_skill.as_deref());
     let remaining_attempts = max_attempts.map(|max| max.saturating_sub(attempt));
@@ -944,6 +954,7 @@ fn workflow_loop_state(task_context: &WorkflowTaskContext<'_>) -> WorkflowLoopSt
         next_action,
         next_skill,
         agent_focus,
+        resolved_agent,
         memory_writeback,
         retry: WorkflowLoopRetry {
             attempt,
@@ -1052,7 +1063,7 @@ fn format_loop_state(loop_state: &WorkflowLoopState) -> String {
         loop_state.retry.last_failure.as_deref().unwrap_or("none"),
     );
     format!(
-        "Loop：goal={}；mode={}；progress={} ({})；next_skill={}；next_action={}；agent_focus={}；memory_writeback=outcome:{}|next_tactic:{}|next_pattern:{}；stop_conditions={}；retry={}",
+        "Loop：goal={}；mode={}；progress={} ({})；next_skill={}；next_action={}；agent_focus={}；resolved_agent={}；memory_writeback=outcome:{}|next_tactic:{}|next_pattern:{}；stop_conditions={}；retry={}",
         loop_state.goal,
         loop_state.mode,
         loop_state.progress.status,
@@ -1060,6 +1071,7 @@ fn format_loop_state(loop_state: &WorkflowLoopState) -> String {
         loop_state.next_skill.as_deref().unwrap_or("none"),
         loop_state.next_action,
         loop_state.agent_focus,
+        loop_state.resolved_agent.as_deref().unwrap_or("none"),
         loop_state.memory_writeback.outcome,
         loop_state.memory_writeback.next_tactic,
         loop_state.memory_writeback.next_pattern,
@@ -1115,6 +1127,7 @@ mod tests {
             children: vec![],
             parent: None,
             related_files: vec![],
+            depends_on: None,
             notes: String::new(),
             meta: serde_json::json!({}),
             started_at: None,
