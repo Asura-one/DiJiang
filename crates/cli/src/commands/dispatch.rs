@@ -629,8 +629,9 @@ pub fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str)
     let (task_name, title, mut task) = if let Some(task) = existing_task {
         (task.name.clone(), task.title.clone(), task.clone())
     } else {
-        let title = title_from_prompt(prompt);
-        let slug = slug_from_prompt(prompt);
+        let clean_prompt = strip_embedded_context(prompt);
+        let title = title_from_prompt(&clean_prompt);
+        let slug = slug_from_prompt(&clean_prompt);
         let unique_name = unique_task_name(&tasks_dir, &slug);
         let mut new_task = store::create_task(&unique_name, &title);
         new_task.status = dispatch.route.status.clone();
