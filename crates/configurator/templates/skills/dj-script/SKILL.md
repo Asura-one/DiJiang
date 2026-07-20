@@ -26,6 +26,9 @@ risk: medium
 
 ## 工作流
 
+- 将任务状态推进到 `in_progress`：`dijiang task status $(dijiang task current) in_progress`
+
+
 ### 1. 理解需求
 
 - 输入是什么？

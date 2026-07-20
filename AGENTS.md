@@ -75,35 +75,24 @@ This project uses DiJiang for task management and workflow.
 | 类别 | 使用 |
 |----------|-----|
 | 新任务 / 不清楚的请求 | `dj-dispatch` |
-| 不知道用哪个 skill 时的入口 | `dj-ask` |
 | 需求对齐；模糊的功能/优化或 bug/fix 请求 | `dj-grill` |
-| 文档/规范产出 | `dj-output` |
-| 任务拆分 | `dj-split` |
 | 有明确对象/范围的具体功能实现 | `dj-implement` 或 `dj-tdd` |
 | Bug / regression | `dj-hunt` |
 | Code review / 质量门禁 | `dj-check` |
 | 轻量只读 review | `dj-review` |
 | 全仓审计 | `dj-audit` |
-| 知识治理收尾 | `dj-gov` |
 | 技术债评估 | `dj-debt` |
 | 代码库健康报告 | `dj-health` |
 | Pattern 研究 | `dj-pattern` |
-| spec 初始化 | `dj-spec-bootstrap` |
 | 推理增强 / 系统透镜 | `dj-reason` |
 | 最小聚焦改动 | `dj-ponytail` |
 | Prototype | `dj-prototype` |
 | UI design | `dj-design` |
-| 代码结构设计 | `dj-codebase-design` |
-| 领域建模 / 统一语言 | `dj-domain-modeling` |
-| 吸收融合 | `dj-absorb` |
 | 网站/App 复刻 / 仿站 / 站点再造 | `dj-remix` |
 | Script / tool | `dj-script` |
 | 写作润色 | `dj-write` |
 | 长篇代码讨论 | `dj-karpathy` |
 | Session handoff | `dj-handoff` |
-| 跨会话记忆检索 | `dj-session-insight` |
-| Agent channel 管理 | `dj-channel` |
-| DiJiang 架构自省 / 系统理解 | `dj-meta` |
 | Session findings / lessons | `dijiang mem findings` / `dijiang mem learn` |
 
 ## Workflow 路由
