@@ -535,6 +535,7 @@ pub fn dispatch_context(
     dispatch: &DispatchDecision,
     state_context: &str,
     worktree: Option<&WorktreeDecision>,
+    original_status: Option<&TaskStatus>,
 ) -> String {
     let route = &dispatch.route;
     let decision = &dispatch.decision;
@@ -569,8 +570,18 @@ pub fn dispatch_context(
         ),
     };
     let skill_context = dispatch_runtime_skill_context(dispatch);
+    let status_hint = if let Some(status) = original_status {
+        let legal: Vec<&str> = status.legal_transitions()
+.iter()
+.map(|t| t.as_str())
+.collect();
+        format!("\n状态推进：当前状态={}，合法推进方向：{}",
+            status.as_str(), legal.join(", "))
+    } else {
+        String::new()
+    };
     format!(
-        "<dijiang-dispatch>\n任务：{task_name}\n标题：{title}\n任务类型：{task_type}\n主要意图：{primary_intent}\n路线：{skill}\n推荐路径：{recommended_path}\naction：{action}\nreason：{reason}\nnextAction：{next_action}\n{worktree_line}\n</dijiang-dispatch>\n{skill_context}\n{state_context}",
+        "<dijiang-dispatch>\n任务：{task_name}\n标题：{title}\n任务类型：{task_type}\n主要意图：{primary_intent}\n路线：{skill}\n推荐路径：{recommended_path}\naction：{action}\nreason：{reason}\nnextAction：{next_action}{status_hint}\n{worktree_line}\n</dijiang-dispatch>\n{skill_context}\n{state_context}",
         task_type = route.task_type,
         primary_intent = route.primary_intent,
         skill = route.skill,
@@ -578,6 +589,7 @@ pub fn dispatch_context(
         action = decision.action.as_str(),
         reason = decision.reason,
         next_action = decision.next_action,
+        status_hint = status_hint,
     )
 }
 
@@ -636,10 +648,22 @@ pub fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str)
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskCreate, &unique_name);
         (unique_name, title, new_task)
     };
-    // Sync task status with route status
+    // Sync task status with route status via transition validation
+    // Capture original status for transition hints
+    let original_status = task.status.clone();
     if task.status != dispatch.route.status {
-        task.status = dispatch.route.status.clone();
-        store::save_task(&tasks_dir, &task)?;
+        task = match store::update_status(&tasks_dir, &task_name, dispatch.route.status.clone()) {
+            Ok(updated) => updated,
+            Err(store::TaskError::InvalidTransition { from, to }) => {
+                let legal: Vec<&str> = from.legal_transitions()
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect();
+                anyhow::bail!("✗ 无法从 {} 状态推进到 {}。\n  合法推进方向：{}",
+                    from.as_str(), to.as_str(), legal.join(", "));
+            }
+            Err(e) => return Err(e.into()),
+        };
     }
 
     // Worktree decision (for both existing and new tasks)
@@ -656,7 +680,7 @@ pub fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str)
     };
 
     // Build dispatch context
-    let context = dispatch_context(&task_name, &title, &dispatch, &state_context, worktree_decision.as_ref());
+    let context = dispatch_context(&task_name, &title, &dispatch, &state_context, worktree_decision.as_ref(), Some(&original_status));
 
     if json {
         let payload = serde_json::json!({

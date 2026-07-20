@@ -21,7 +21,14 @@ pub enum TaskError {
 
     #[error("Invalid status: {0}")]
     InvalidStatus(String),
+
+    #[error("Invalid transition: {from} → {to}")]
+    InvalidTransition {
+        from: TaskStatus,
+        to: TaskStatus,
+    },
 }
+
 
 /// Find the `.dijiang/` directory by walking up from `cwd`.
 /// Falls back to `.trellis/` for backward compatibility with existing projects.
@@ -414,6 +421,17 @@ pub fn update_status(
     new_status: TaskStatus,
 ) -> Result<TaskRecord, TaskError> {
     let mut task = load_task(tasks_dir, task_name)?;
+    let old_status = task.status.clone();
+    if old_status == new_status {
+        // Same status — no-op, return as-is
+        return Ok(task);
+    }
+    if !old_status.is_valid_transition(&new_status) {
+        return Err(TaskError::InvalidTransition {
+            from: old_status,
+            to: new_status,
+        });
+    }
     task.status = new_status;
     save_task(tasks_dir, &task)?;
     Ok(task)
@@ -422,6 +440,14 @@ pub fn update_status(
 /// Archive a task: set status to Archived and record archived_at timestamp.
 pub fn archive_task(tasks_dir: &Path, task_name: &str) -> Result<TaskRecord, TaskError> {
     let mut task = load_task(tasks_dir, task_name)?;
+    // Allow Planning→Archived (abandon) or Completed→Archived (correct flow)
+    let old_status = task.status.clone();
+    if !old_status.is_valid_transition(&TaskStatus::Archived) {
+        return Err(TaskError::InvalidTransition {
+            from: old_status,
+            to: TaskStatus::Archived,
+        });
+    }
     task.status = TaskStatus::Archived;
     task.archived_at = Some(chrono::Utc::now().format("%Y-%m-%d").to_string());
     save_task(tasks_dir, &task)?;

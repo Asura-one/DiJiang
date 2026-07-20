@@ -1204,6 +1204,7 @@ mod tests {
             &dispatch,
             "<dijiang-workflow-state>state</dijiang-workflow-state>",
             None,
+            None,
         );
 
         assert!(context.contains("<dijiang-dispatch>"));

@@ -12,6 +12,12 @@ pub enum TaskStatus {
     Paused,
 }
 
+impl std::fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 impl TaskStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -63,7 +69,44 @@ impl TaskStatus {
             TaskStatus::Archived => "archive",
         }
     }
+
+    /// Check whether a transition from `self` to `to` is valid.
+    ///
+    /// Valid transitions:
+    ///
+    /// ```text
+    /// Planning ──→ InProgress ──→ Completed ──→ Archived
+    ///     │              │
+    ///     └── Paused ←──┘
+    /// ```
+    pub fn is_valid_transition(&self, to: &TaskStatus) -> bool {
+        use TaskStatus::*;
+        matches!(
+            (self, to),
+            (Planning, InProgress)
+                | (Planning, Archived)
+                | (InProgress, Completed)
+                | (InProgress, Paused)
+                | (InProgress, Planning)
+                | (Paused, Planning)
+                | (Paused, InProgress)
+                | (Completed, Archived)
+        )
+    }
+
+    /// Return the list of legal target statuses from `self`.
+    pub fn legal_transitions(&self) -> &[TaskStatus] {
+        use TaskStatus::*;
+        match self {
+            Planning => &[InProgress, Archived],
+            InProgress => &[Completed, Paused, Planning],
+            Paused => &[Planning, InProgress],
+            Completed => &[Archived],
+            Archived => &[],
+        }
+    }
 }
+
 
 /// Canonical field order for the `task.json` file. Must match the 24-field
 /// `TASK_RECORD_FIELD_ORDER` defined in Trellis's `packages/core/src/task/schema.ts`

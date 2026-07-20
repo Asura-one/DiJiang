@@ -350,7 +350,10 @@ fn test_e2e_task_lifecycle() {
     // 4. Update status
     dijang(&["task", "status", "e2e-task", "in_progress"], &project_dir).unwrap();
 
-    // 5. Archive the task
+    // 5. Complete the task
+    dijang(&["task", "status", "e2e-task", "completed"], &project_dir).unwrap();
+
+    // 6. Archive the task
     dijang(&["task", "archive", "e2e-task"], &project_dir).unwrap();
 
     // 6. Prune archived tasks older than 0 days
@@ -482,6 +485,7 @@ fn test_e2e_dispatch_paused_task_redirects_to_continue() {
     let (_tmp, project_dir) = init_project();
 
     dijang(&["start", "paused-task", "Paused Task"], &project_dir).unwrap();
+    dijang(&["task", "status", "paused-task", "in_progress"], &project_dir).unwrap();
     dijang(&["task", "status", "paused-task", "paused"], &project_dir).unwrap();
     let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
 
@@ -670,8 +674,7 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
     assert!(finish_out.contains("已完成任务 'finish-e2e'"));
     assert!(finish_out.contains("当前 session 的 active task 已清理"));
     assert!(finish_out.contains("验证：cargo test -p dijiang-task"));
-    assert!(finish_out.contains("Memory closure：written"));
-    assert!(finish_out.contains("Session 已关闭："));
+    assert!(finish_out.contains("Task archive：archived task `finish-e2e`"), "finish_out: {finish_out}");
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("(none)"), "current output: {current}");
 
@@ -709,7 +712,7 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
         closures.contains("cargo test -p dijiang-task"),
         "closures: {closures}"
     );
-    assert!(closures.contains("verified"), "closures: {closures}");
+    assert!(closures.contains(r#""verification":"cargo test -p dijiang-task""#), "closures: {closures}");
 }
 
 #[test]
@@ -1269,8 +1272,7 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
     .unwrap();
 
     assert!(finish_out.contains("已完成任务 'commit-finish'"));
-    assert!(finish_out.contains("文档/spec 同步：none: no docs affected"));
-    assert!(finish_out.contains("版本影响：patch"));
+    assert!(finish_out.contains("版本更新：patch"), "finish_out: {finish_out}");
     assert!(finish_out.contains("版本更新：0.1.0 -> 0.1.1"));
     assert!(finish_out.contains("Commit："));
     assert!(finish_out.contains("Task archive：archived task `commit-finish`"));

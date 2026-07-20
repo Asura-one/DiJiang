@@ -49,6 +49,7 @@ pub fn cmd_task_start(name: &str, parent: Option<&str>) -> anyhow::Result<()> {
         }
         Err(store::TaskError::NotFound(_)) => {
             let t = store::create_task(name, name);
+            store::save_task(&tasks_dir, &t)?;
             println!("✓ Created task: {name}");
             t
         }
@@ -57,8 +58,9 @@ pub fn cmd_task_start(name: &str, parent: Option<&str>) -> anyhow::Result<()> {
             std::process::exit(1);
         }
     };
-    task.status = TaskStatus::InProgress;
-    store::activate_new_task(&dijiang_dir, &task)?;
+    // Use update_status for transition validation
+    store::update_status(&tasks_dir, name, TaskStatus::InProgress)?;
+    store::write_active_task(&dijiang_dir, name)?;
     hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskStart, name);
     // If parent specified and task already existed, link was handled above
     if let Some(parent_name) = parent {
@@ -103,6 +105,18 @@ pub fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
             eprintln!("Task '{name}' not found.");
             std::process::exit(1);
         }
+        Err(store::TaskError::InvalidTransition { from, to }) => {
+            eprintln!("✗ Invalid transition: {} → {}", from.as_str(), to.as_str());
+            eprintln!("  Legal transitions from {}: {}",
+                from.as_str(),
+                from.legal_transitions()
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
+            std::process::exit(1);
+        }
         Err(e) => {
             eprintln!("Error updating task: {e}");
             std::process::exit(1);
@@ -128,6 +142,18 @@ pub fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
         }
         Err(store::TaskError::NotFound(_)) => {
             eprintln!("Task '{name}' not found.");
+            std::process::exit(1);
+        }
+        Err(store::TaskError::InvalidTransition { from, to }) => {
+            eprintln!("✗ Invalid transition: {} → {}", from.as_str(), to.as_str());
+            eprintln!("  Legal transitions from {}: {}",
+                from.as_str(),
+                from.legal_transitions()
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
             std::process::exit(1);
         }
         Err(e) => {
@@ -476,9 +502,9 @@ pub fn cmd_task_queue_next() -> anyhow::Result<()> {
             println!("Next task: {task}");
             // Optionally start the task
             let tasks_dir = dijiang_dir.join("tasks");
-            if let Ok(mut record) = store::load_task(&tasks_dir, &task) {
-                record.status = dijiang_task::types::TaskStatus::InProgress;
-                if store::activate_new_task(&dijiang_dir, &record).is_ok() {
+            // Use update_status to apply transition validation
+            if store::update_status(&tasks_dir, &task, dijiang_task::types::TaskStatus::InProgress).is_ok() {
+                if store::write_active_task(&dijiang_dir, &task).is_ok() {
                     println!("  Activated: {task}");
                 }
             }
