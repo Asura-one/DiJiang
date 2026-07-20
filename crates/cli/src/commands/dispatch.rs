@@ -669,10 +669,31 @@ pub fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str)
 
     // Worktree decision (for both existing and new tasks)
     let main_worktree_root = crate::commands::finish::git_main_worktree(project_root, "main").ok();
-    let worktree_decision = ensure_task_worktree(
+    let mut worktree_decision = ensure_task_worktree(
         project_root, &tasks_dir, &mut task, &dispatch.route,
         &cwd, worktree_root.as_deref(), main_worktree_root.as_deref(),
     )?;
+
+    // Fallback: status transitioned to in_progress but route doesn't require worktree
+    // e.g., dj-check route has status InProgress but route_requires_worktree returns false
+    if worktree_decision.is_none()
+        && original_status == TaskStatus::Planning
+        && task.status == TaskStatus::InProgress
+    {
+        let implement_route = DispatchRoute {
+            task_type: "代码开发",
+            primary_intent: "继续实现",
+            skill: "dj-implement",
+            recommended_path: "dj-implement → dj-check",
+            status: TaskStatus::InProgress,
+            intent: dijiang_task::RouteIntent::Implement,
+            complexity: dijiang_task::TaskComplexity::Lightweight,
+        };
+        worktree_decision = ensure_task_worktree(
+            project_root, &tasks_dir, &mut task, &implement_route,
+            &cwd, worktree_root.as_deref(), main_worktree_root.as_deref(),
+        )?;
+    }
 
     // Build state_context from workflow state
     let state_context = match dijiang_task::workflow_state::build(&dijiang_dir) {
