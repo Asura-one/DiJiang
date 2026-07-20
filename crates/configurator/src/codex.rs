@@ -14,7 +14,7 @@ impl CodexConfigurator {
 
     fn agent_content() -> &'static str {
         r#"[agent]
-name = "dijiang-implement"
+name = "dijiang-implementer"
 version = "1.0"
 description = "DiJiang implementation agent"
 
@@ -37,7 +37,7 @@ enabled = ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
 
     fn check_agent_content() -> &'static str {
         r#"[agent]
-name = "dijiang-check"
+name = "dijiang-checker"
 version = "1.0"
 description = "DiJiang quality check agent"
 
@@ -163,8 +163,7 @@ if __name__ == "__main__":
 
     fn config_toml_content() -> &'static str {
         r#"[agent]
-default_agent = "dijiang-implement"
-
+default_agent = "dijiang-implementer"
 [features]
 hooks = true
 "#
@@ -192,11 +191,11 @@ impl Configurator for CodexConfigurator {
         fs::create_dir_all(&agents_dir)?;
 
         fs::write(
-            agents_dir.join("dijiang-implement.toml"),
+            agents_dir.join("dijiang-implementer.toml"),
             Self::agent_content(),
         )?;
         fs::write(
-            agents_dir.join("dijiang-check.toml"),
+            agents_dir.join("dijiang-checker.toml"),
             Self::check_agent_content(),
         )?;
 

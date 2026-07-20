@@ -1630,11 +1630,11 @@ fn test_e2e_channel_lifecycle() {
     assert!(out.is_ok(), "channel list should succeed");
 
     // Spawn
-    let out = dijang(&["channel", "spawn", "check", "--task", "."], &project_dir);
+    let out = dijang(&["channel", "spawn", "checker", "--task", "."], &project_dir);
     assert!(out.is_ok(), "channel spawn should succeed: {:?}", out.err());
     let stdout = out.unwrap();
     assert!(
-        stdout.contains("Agent 'check' spawned"),
+        stdout.contains("Agent 'checker' spawned"),
         "should confirm spawn"
     );
     assert!(stdout.contains("Channel ID:"), "should output channel ID");
@@ -1643,13 +1643,13 @@ fn test_e2e_channel_lifecycle() {
     let out = dijang(&["channel", "list"], &project_dir);
     assert!(out.is_ok());
     let stdout = out.unwrap();
-    assert!(stdout.contains("check"), "should list check agent");
+    assert!(stdout.contains("checker"), "should list check agent");
     assert!(stdout.contains("active"), "should show active status");
 
     // Extract channel ID
     let channel_id = stdout
         .lines()
-        .find(|l| l.contains("check") && l.contains("active"))
+        .find(|l| l.contains("checker") && l.contains("active"))
         .and_then(|l| l.split_whitespace().next())
         .expect("should find channel ID");
 

@@ -336,8 +336,8 @@ impl WorkflowState {
             .as_ref()
             .and_then(|ls| ls.resolved_agent.as_ref())
             .and_then(|name| {
-                let body = crate::agent_manifest::agent_body_by_name(name)?;
-                Some(format!("<dijiang-agent name=\"{name}\">\n{body}\n</dijiang-agent>"))
+                let entry = crate::agent_manifest::agent_by_name(name)?;
+                Some(format!("<dijiang-agent name=\"{}\" summary=\"{}\" />", entry.name, entry.summary))
             })
             .unwrap_or_default();
 

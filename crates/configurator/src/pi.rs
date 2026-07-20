@@ -215,14 +215,16 @@ impl PiConfigurator {
     fn write_agents(cwd: &Path) -> Result<(), ConfigError> {
         let agents_dir = cwd.join(".pi").join("agents");
         let agent_templates = [
-            ("dijiang-implement", "agents/dijiang-implement.md"),
-            ("dijiang-check", "agents/dijiang-check.md"),
-            ("dijiang-research", "agents/dijiang-research.md"),
+            ("architect", "agents/dijiang-architect.md"),
+            ("planner", "agents/dijiang-planner.md"),
+            ("implementer", "agents/dijiang-implementer.md"),
+            ("checker", "agents/dijiang-checker.md"),
+            ("researcher", "agents/dijiang-researcher.md"),
         ];
         for (name, template_path) in &agent_templates {
             let content =
                 templates::render(template_path, &[]).map_err(|e| ConfigError::Serialize(e))?;
-            std::fs::write(agents_dir.join(format!("{name}.md")), content)?;
+            std::fs::write(agents_dir.join(format!("dijiang-{name}.md")), content)?;
         }
         Ok(())
     }

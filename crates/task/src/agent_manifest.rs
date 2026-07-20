@@ -19,27 +19,27 @@ const AGENT_MANIFESTS: &[AgentManifestEntry] = &[
     AgentManifestEntry {
         name: "architect",
         summary: "架构评审与设计回检",
-        body: include_str!("../../configurator/templates/agents/architect.md"),
+        body: include_str!("../../configurator/templates/agents/dijiang-architect.md"),
     },
     AgentManifestEntry {
         name: "planner",
         summary: "任务分解与结构化规划",
-        body: include_str!("../../configurator/templates/agents/planner.md"),
+        body: include_str!("../../configurator/templates/agents/dijiang-planner.md"),
     },
     AgentManifestEntry {
         name: "implementer",
         summary: "代码实现与变更推进",
-        body: include_str!("../../configurator/templates/agents/implementer.md"),
+        body: include_str!("../../configurator/templates/agents/dijiang-implementer.md"),
     },
     AgentManifestEntry {
         name: "checker",
         summary: "质量审计与回归审查",
-        body: include_str!("../../configurator/templates/agents/checker.md"),
+        body: include_str!("../../configurator/templates/agents/dijiang-checker.md"),
     },
     AgentManifestEntry {
         name: "researcher",
         summary: "技术调研与上下文收集",
-        body: include_str!("../../configurator/templates/agents/researcher.md"),
+        body: include_str!("../../configurator/templates/agents/dijiang-researcher.md"),
     },
 ];
 

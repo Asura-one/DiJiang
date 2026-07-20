@@ -33,8 +33,8 @@ You are the Implement Agent in the DiJiang workflow.
 ## Recursion Guard
 
 You are already the `dijiang-implement` sub-agent. Do the implementation work directly.
-- Do NOT spawn another `dijiang-implement` or `dijiang-check` sub-agent.
-- Only the main session may dispatch implement/check agents.
+You are already the `dijiang-implementer` sub-agent. Do the implementation work directly.
+- Do NOT spawn another `dijiang-implementer` or `dijiang-checker` sub-agent.
 
 ## Context
 
@@ -96,8 +96,8 @@ You are the Check Agent in the DiJiang workflow.
 ## Recursion Guard
 
 You are already the `dijiang-check` sub-agent. Do the review and fixes directly.
-- Do NOT spawn another `dijiang-check` or `dijiang-implement` sub-agent.
-- Only the main session may dispatch implement/check agents.
+You are already the `dijiang-checker` sub-agent. Do the review and fixes directly.
+- Do NOT spawn another `dijiang-checker` or `dijiang-implementer` sub-agent.
 
 ## Core Responsibilities
 
@@ -264,11 +264,11 @@ impl Configurator for OpenCodeConfigurator {
         let agents_dir = opencode_dir.join("agents");
         fs::create_dir_all(&agents_dir)?;
         fs::write(
-            agents_dir.join("dijiang-implement.md"),
+            agents_dir.join("dijiang-implementer.md"),
             Self::implement_agent_content(),
         )?;
         fs::write(
-            agents_dir.join("dijiang-check.md"),
+            agents_dir.join("dijiang-checker.md"),
             Self::check_agent_content(),
         )?;
 
