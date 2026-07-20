@@ -189,11 +189,11 @@ pub(crate) fn write_dijiang_infrastructure(
     let agents_root = dijiang_dir.join("agents");
     std::fs::create_dir_all(&agents_root)?;
     let agent_templates: &[(&str, &str)] = &[
-        ("architect.md", "agents/architect.md"),
-        ("planner.md", "agents/planner.md"),
-        ("implementer.md", "agents/implementer.md"),
-        ("checker.md", "agents/checker.md"),
-        ("researcher.md", "agents/researcher.md"),
+        ("architect.md", "agents/dijiang-architect.md"),
+        ("planner.md", "agents/dijiang-planner.md"),
+        ("implementer.md", "agents/dijiang-implementer.md"),
+        ("checker.md", "agents/dijiang-checker.md"),
+        ("researcher.md", "agents/dijiang-researcher.md"),
     ];
     for (filename, tmpl_name) in agent_templates {
         let file_path = agents_root.join(filename);

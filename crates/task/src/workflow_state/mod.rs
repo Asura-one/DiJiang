@@ -775,34 +775,22 @@ fn workflow_skill_manifests(task_context: &WorkflowTaskContext<'_>) -> Vec<Workf
 
 fn format_target_skill_bodies(
     route_gate: Option<&WorkflowRouteGate>,
-    _skill_manifests: &[WorkflowSkillManifest],
+    skill_manifests: &[WorkflowSkillManifest],
     primary_skill: &str,
     recommended_path: &str,
 ) -> String {
     let Some(route_gate) = route_gate else {
         return String::new();
     };
-    let selected = crate::skill_manifest::select_skill_bodies(
-        match route_gate.capsule.as_str() {
-            "align" => crate::route_gate::WorkflowCapsule::Align,
-            "implement" => crate::route_gate::WorkflowCapsule::Implement,
-            "check" => crate::route_gate::WorkflowCapsule::Check,
-            "finish" => crate::route_gate::WorkflowCapsule::Finish,
-            "resume" => crate::route_gate::WorkflowCapsule::Resume,
-            _ => crate::route_gate::WorkflowCapsule::Idle,
-        },
-        primary_skill,
-        recommended_path,
-    );
-    if selected.is_empty() {
-        return String::new();
-    }
-    let mut cache = crate::skill_manifest::SkillBodyCache::default();
-    let rendered = crate::skill_manifest::render_selected_skill_bodies(&selected, &mut cache);
-    if rendered.is_empty() {
-        return String::new();
-    }
-    rendered
+    let skill_info = skill_manifests
+        .iter()
+        .find(|s| s.name == primary_skill)
+        .map(|s| format!("{}（{}）", s.name, s.summary))
+        .unwrap_or_else(|| primary_skill.to_string());
+    format!(
+        "Target Skill：[{}] capsule={}；recommended_path={}",
+        skill_info, route_gate.capsule, recommended_path
+    )
 }
 
 fn format_git_gate(git_gate: &WorkflowGitGate) -> String {
@@ -824,10 +812,10 @@ fn format_skill_manifests(skill_manifests: &[WorkflowSkillManifest]) -> String {
     let entries = skill_manifests
         .iter()
         .map(|manifest| {
-            format!(
-                "{}({}; risk={})",
-                manifest.name, manifest.summary, manifest.risk
-            )
+                format!(
+                    "{}({})",
+                    manifest.name, manifest.summary
+                )
         })
         .collect::<Vec<_>>()
         .join(", ");
