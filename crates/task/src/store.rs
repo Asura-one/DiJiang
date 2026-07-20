@@ -320,6 +320,7 @@ pub fn clear_active_task_for_session(
     dijiang_dir: &Path,
     identity: Option<&SessionIdentity>,
 ) -> Result<(), TaskError> {
+    // 1. Clear the identity-specific session file
     if let Some(identity) = identity {
         let path = session_path(dijiang_dir, identity);
         if path.exists() {
@@ -331,11 +332,27 @@ pub fn clear_active_task_for_session(
             fs::remove_file(path)?;
         }
     }
+    // 2. Clear legacy active_task.txt
     let active_path = dijiang_dir.join("active_task.txt");
     if active_path.exists() {
         fs::remove_file(active_path)?;
     }
-
+    // 3. BUGFIX: Also clear current_task from the global session file,
+    //    so a new session doesn't resurrect it from the global fallback.
+    let global_path = session_path(dijiang_dir, &global_session_identity());
+    if global_path.exists() {
+        let content = fs::read_to_string(&global_path)?;
+        if let Ok(mut session) = serde_json::from_str::<serde_json::Value>(&content) {
+            if session.get("current_task").is_some()
+                && session["current_task"].is_string()
+                && !session["current_task"].as_str().unwrap_or("").is_empty()
+            {
+                session["last_active_task"] = session["current_task"].clone();
+                session["current_task"] = serde_json::Value::Null;
+                fs::write(&global_path, serde_json::to_string_pretty(&session)?)?;
+            }
+        }
+    }
     Ok(())
 }
 

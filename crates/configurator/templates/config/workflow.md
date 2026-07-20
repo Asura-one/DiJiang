@@ -77,7 +77,7 @@ Phase 4 已开始最小闭环：当前先覆盖 `finish-work --integrate`、`fin
 | 实现 | `dj-implement`, `dj-tdd`, `dj-hunt`, `dj-prototype`, `dj-script`, `dj-design` | 写代码或调查根因 |
 | 质量门禁 | `dj-check` | 验证 diff 质量、完整性、安全性和回归 |
 | 审查视角 | `dj-review` | 轻量只读 review；不运行测试、不改代码、不替代 `dj-check` |
-| 分析报告 | `dj-audit`, `dj-debt`, `dj-health`, `dj-pattern` | 产出报告；不是默认交付门禁 |
+| 分析报告 | `dj-audit`, `dj-debt`, `dj-health`, `dj-pattern`, `dj-gov` | 产出报告；不是默认交付门禁 |
 | 推理增强 | `dj-reason` | 复杂判断、系统透镜和认知校准；只分析，不改变 workflow state |
 | 风格叠加 | `dj-ponytail`, `dj-karpathy` | 给其他 workflow 路径增加约束 |
 | 写作润色 | `dj-write` | 润色文本；不负责工程文档生命周期 |

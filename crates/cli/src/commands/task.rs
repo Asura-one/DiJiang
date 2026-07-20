@@ -89,6 +89,15 @@ pub fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
     match store::update_status(&tasks_dir, name, new_status) {
         Ok(task) => {
             println!("✓ Task '{name}' status updated to: {}", task.status.as_str());
+            // BUGFIX: clear active task pointer when archiving, so the system
+            // doesn't keep injecting the archived task as current context
+            if task.status == TaskStatus::Archived {
+                if let Ok(Some(active)) = store::read_active_task(&dijiang_dir) {
+                    if active == name {
+                        let _ = store::clear_active_task(&dijiang_dir);
+                    }
+                }
+            }
         }
         Err(store::TaskError::NotFound(_)) => {
             eprintln!("Task '{name}' not found.");
@@ -109,6 +118,13 @@ pub fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
         Ok(task) => {
             hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskArchive, name);
             println!("✓ Task '{name}' archived (status: {})", task.status.as_str());
+            // BUGFIX: clear active task pointer when archiving, so the system
+            // doesn't keep injecting the archived task as current context
+            if let Ok(Some(active)) = store::read_active_task(&dijiang_dir) {
+                if active == name {
+                    let _ = store::clear_active_task(&dijiang_dir);
+                }
+            }
         }
         Err(store::TaskError::NotFound(_)) => {
             eprintln!("Task '{name}' not found.");

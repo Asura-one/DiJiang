@@ -497,7 +497,7 @@ fn test_e2e_dispatch_paused_task_redirects_to_continue() {
 }
 
 #[test]
-fn test_e2e_dispatch_archived_task_blocks_until_restart() {
+fn test_e2e_dispatch_archived_task_creates_new_task() {
     let (_tmp, project_dir) = init_project();
 
     dijang(&["start", "archived-task", "Archived Task"], &project_dir).unwrap();
@@ -508,19 +508,14 @@ fn test_e2e_dispatch_archived_task_blocks_until_restart() {
     .unwrap();
     let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
 
+    // After archiving, active task pointer is cleared.
+    // Dispatch creates a new in_progress task instead of blocking.
     assert!(
-        out.contains("路线：dijiang-start"),
-        "dispatch output: {out}"
-    );
-    assert!(out.contains("action：block"), "dispatch output: {out}");
-    assert!(
-        out.contains(
-            "reason：archived tasks are closed and must be explicitly restarted before more work"
-        ),
+        out.contains("action：allow"),
         "dispatch output: {out}"
     );
     assert!(
-        out.contains("nextAction：run dijiang start <task> or create a new task before continuing"),
+        out.contains("路线：dj-implement"),
         "dispatch output: {out}"
     );
 }

@@ -224,17 +224,21 @@ RouteIntent::Implement
                 "continue with dj-check and record validation scope",
                 false,
             ),
-            RouteIntent::Document => decision(
-                task_status.clone(),
-                WorkflowCapsule::Implement,
-                requested_intent,
-                requested_skill,
-                "dj-output",
-                RouteAction::Allow,
-                "in_progress tasks may sync task artifacts while implementation is active",
-                "continue with dj-output and sync implementation notes",
-                false,
-            ),
+            RouteIntent::Document => {
+                let resolved =
+                    requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-output");
+                decision(
+                    task_status.clone(),
+                    WorkflowCapsule::Implement,
+                    requested_intent,
+                    requested_skill,
+                    resolved,
+                    RouteAction::Allow,
+                    "in_progress tasks may sync docs or run knowledge governance",
+                    "continue with dj-output for task artifacts or dj-gov for knowledge governance",
+                    false,
+                )
+            },
             RouteIntent::Finish => decision(
                 task_status.clone(),
                 WorkflowCapsule::Check,
@@ -311,17 +315,21 @@ RouteIntent::Implement
                 "continue with dj-check if more validation evidence is needed",
                 false,
             ),
-            RouteIntent::Document => decision(
-                task_status.clone(),
-                WorkflowCapsule::Finish,
-                requested_intent,
-                requested_skill,
-                "dj-output",
-                RouteAction::Allow,
-                "completed tasks may still sync docs before finish-work",
-                "continue with dj-output and finalize task artifacts",
-                false,
-            ),
+            RouteIntent::Document => {
+                let resolved =
+                    requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-output");
+                decision(
+                    task_status.clone(),
+                    WorkflowCapsule::Finish,
+                    requested_intent,
+                    requested_skill,
+                    resolved,
+                    RouteAction::Allow,
+                    "completed tasks may sync docs or run knowledge governance before finish-work",
+                    "continue with dj-output for task artifacts or dj-gov for knowledge governance",
+                    false,
+                )
+            },
             RouteIntent::Align => {
                 let resolved =
                     requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
@@ -433,7 +441,7 @@ pub fn summarize_route_gate(
         TaskStatus::InProgress => RouteGateSummary {
             capsule: WorkflowCapsule::Implement,
             complexity: effective_complexity,
-            allowed_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dj-output", "dj-grill", "dj-reason", "dj-research"],
+            allowed_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dj-output", "dj-grill", "dj-gov", "dj-reason", "dj-research"],
             default_skill: "dj-implement",
             blocked_skills: vec!["dijiang-finish-work"],
             note: "in_progress tasks stay in the implementation lane, but finish-work remains gated behind verification.".to_string(),
@@ -441,7 +449,7 @@ pub fn summarize_route_gate(
         TaskStatus::Completed => RouteGateSummary {
             capsule: WorkflowCapsule::Finish,
             complexity: effective_complexity,
-            allowed_skills: vec!["dijiang-finish-work", "dj-check", "dj-output", "dj-grill", "dj-reason", "dj-research"],
+            allowed_skills: vec!["dijiang-finish-work", "dj-gov", "dj-check", "dj-output", "dj-grill", "dj-reason", "dj-research"],
             default_skill: "dijiang-finish-work",
             blocked_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt"],
             note: "completed tasks may finish or document, but implementation requests must re-open alignment first.".to_string(),
@@ -476,6 +484,7 @@ fn requested_skill_name(skill: Option<&str>) -> Option<&'static str> {
         Some("dj-grill") => Some("dj-grill"),
         Some("dj-reason") => Some("dj-reason"),
         Some("dj-research") => Some("dj-research"),
+        Some("dj-gov") => Some("dj-gov"),
         Some("dijiang-finish-work") => Some("dijiang-finish-work"),
         Some("dijiang-continue") => Some("dijiang-continue"),
         _ => None,
