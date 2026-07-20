@@ -30,6 +30,9 @@ risk: medium
 
 ## 工作流
 
+- 将任务状态推进到 `in_progress`：`dijiang task status $(dijiang task current) in_progress`
+
+
 ### 1. 切片（确定本轮 RED）
 
 选择一个最小的、可独立验证的行为增量。从用户视角出发：这个切片是否有独立价值？

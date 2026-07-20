@@ -1013,6 +1013,41 @@ mod tests {
     }
 
     #[test]
+    fn test_archive_task_sets_archived() {
+        let (_dir, tasks_dir) = setup_temp_tasks();
+        let task = create_task("test-archive-status", "Archive Status Test");
+        save_task(&tasks_dir, &task).unwrap();
+        let archived = archive_task(&tasks_dir, "test-archive-status").unwrap();
+        assert_eq!(archived.status, TaskStatus::Archived);
+        assert!(archived.archived_at.is_some(), "archived_at should be set");
+        // Verify on disk too
+        let reloaded = load_task(&tasks_dir, "test-archive-status").unwrap();
+        assert_eq!(reloaded.status, TaskStatus::Archived);
+    }
+
+    #[test]
+    fn test_completed_then_archive_transition() {
+        // Simulate the finish-work flow: save as Completed, then archive
+        let (_dir, tasks_dir) = setup_temp_tasks();
+        let mut task = create_task("test-complete-archive", "Complete → Archive");
+        save_task(&tasks_dir, &task).unwrap();
+
+        // Step 1: set to InProgress (like start would)
+        let in_progress = update_status(&tasks_dir, "test-complete-archive", TaskStatus::InProgress).unwrap();
+        assert_eq!(in_progress.status, TaskStatus::InProgress);
+
+        // Step 2: set to Completed (like finish-work now does before archiving)
+        task.status = TaskStatus::Completed;
+        save_task(&tasks_dir, &task).unwrap();
+        let loaded = load_task(&tasks_dir, "test-complete-archive").unwrap();
+        assert_eq!(loaded.status, TaskStatus::Completed, "should pass through Completed");
+
+        // Step 3: archive (like finish-work does after completing)
+        let archived = archive_task(&tasks_dir, "test-complete-archive").unwrap();
+        assert_eq!(archived.status, TaskStatus::Archived);
+        let reloaded = load_task(&tasks_dir, "test-complete-archive").unwrap();
+        assert_eq!(reloaded.status, TaskStatus::Archived);
+    }
     fn test_find_dijiang_dir() {
         let dir = tempfile::tempdir().unwrap();
         let dijiang = dir.path().join(".dijiang");

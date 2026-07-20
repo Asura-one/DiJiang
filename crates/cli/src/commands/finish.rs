@@ -746,6 +746,12 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let task_label = resolved_target.as_ref().map(|t| t.task_name.as_str()).unwrap_or("no-active-task");
     let journal = append_finish_journal(&dijiang_dir, &developer, task_label, options.summary, &verification, options.allow_dirty)?;
     let archive_status = if let Some(target) = resolved_target.as_ref() {
+        // Transition through Completed before archiving
+        if target.task.status != TaskStatus::Completed {
+            let mut task = target.task.clone();
+            task.status = TaskStatus::Completed;
+            store::save_task(&tasks_dir, &task)?;
+        }
         let task = store::archive_task(&tasks_dir, &target.task_name)?;
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskFinish, &target.task_name);
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskArchive, &target.task_name);

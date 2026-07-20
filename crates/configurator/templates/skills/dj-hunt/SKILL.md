@@ -115,6 +115,8 @@ risk: medium
 
 ### Phase 5 — 修复 + regression 测试
 
+- 将任务状态推进到 `in_progress`：`dijiang task status $(dijiang task current) in_progress`
+
 回归测试写在修复 **之前**——仅当存在正确的 seam。
 
 - 正确的 seam：测试能复现 bug 在调用点的真实模式

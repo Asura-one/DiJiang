@@ -42,6 +42,7 @@ risk: medium
 - 遵守 **Code Task TDD Contract**：先固定行为和回归边界，再实现。
 - 固定行为边界：先写一个失败测试（RED/Repro evidence）、复现步骤或人工复核清单。
 - 确认测试环境可用，或记录不可用原因。
+- 将任务状态推进到 `in_progress`：`dijiang task status $(dijiang task current) in_progress`
 
 ### 1.5 决策阶梯门禁
 
