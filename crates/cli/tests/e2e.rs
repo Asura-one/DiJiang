@@ -236,7 +236,7 @@ fn test_e2e_update_refreshes_existing_platform_hooks() {
     );
     let hook =
         std::fs::read_to_string(project_dir.join(".codex/hooks/inject-workflow-state.py")).unwrap();
-    assert!(hook.contains("workflow-state"));
+    assert!(hook.contains("workflow_state.py"));
     let config = std::fs::read_to_string(project_dir.join(".dijiang/config.toml")).unwrap();
     assert!(config.contains("codex"));
 }

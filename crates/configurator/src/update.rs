@@ -769,7 +769,7 @@ mod tests {
         );
         let hook =
             fs::read_to_string(tmp.path().join(".codex/hooks/inject-workflow-state.py")).unwrap();
-        assert!(hook.contains("Hook 错误:"));
+        assert!(hook.contains("workflow_state.py"));
     }
 
     #[test]

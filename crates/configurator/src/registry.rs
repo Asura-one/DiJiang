@@ -174,22 +174,22 @@ mod tests {
         let codex_hook =
             std::fs::read_to_string(tmp.path().join(".codex/hooks/inject-workflow-state.py"))
                 .unwrap();
-        assert!(codex_hook.contains("Hook 错误:"));
-        assert!(codex_hook.contains("CODEX_SESSION_ID"));
+        assert!(codex_hook.contains("workflow_state.py"));
+        assert!(codex_hook.contains("dijiang_root"));
 
         let claude_hook =
             std::fs::read_to_string(tmp.path().join(".claude/hooks/inject-workflow-state.py"))
                 .unwrap();
-        assert!(claude_hook.contains("Hook 错误:"));
-        assert!(claude_hook.contains("CLAUDE_SESSION_ID"));
+        assert!(claude_hook.contains("workflow_state.py"));
+        assert!(claude_hook.contains("dijiang_root"));
 
         let cursor_hooks = std::fs::read_to_string(tmp.path().join(".cursor/hooks.json")).unwrap();
         assert!(cursor_hooks.contains(".cursor/hooks/inject-workflow-state.py"));
         let cursor_hook =
             std::fs::read_to_string(tmp.path().join(".cursor/hooks/inject-workflow-state.py"))
                 .unwrap();
-        assert!(cursor_hook.contains("Hook 错误:"));
-        assert!(cursor_hook.contains("CURSOR_SESSION_ID"));
+        assert!(cursor_hook.contains("workflow_state.py"));
+        assert!(cursor_hook.contains("dijiang_root"));
 
         let pi_extension =
             std::fs::read_to_string(tmp.path().join(".pi/extensions/dijiang/index.ts")).unwrap();
