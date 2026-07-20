@@ -636,6 +636,11 @@ pub fn cmd_dispatch(prompt: &str, force_new: bool, json: bool, hook_event: &str)
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskCreate, &unique_name);
         (unique_name, title, new_task)
     };
+    // Sync task status with route status
+    if task.status != dispatch.route.status {
+        task.status = dispatch.route.status.clone();
+        store::save_task(&tasks_dir, &task)?;
+    }
 
     // Worktree decision (for both existing and new tasks)
     let main_worktree_root = crate::commands::finish::git_main_worktree(project_root, "main").ok();

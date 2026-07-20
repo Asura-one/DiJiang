@@ -64,14 +64,18 @@ pub struct GitGateSummary {
     pub note: String,
 }
 
-pub fn summarize_git_gate(task: &TaskRecord, current_location: &Path) -> GitGateSummary {
+pub fn summarize_git_gate(
+    task: &TaskRecord,
+    current_location: &Path,
+    route_requires_worktree: bool,
+) -> GitGateSummary {
     let readiness = evaluate_worktree_readiness(
         task,
         &GitGateInput {
             current_location: current_location.to_path_buf(),
             current_worktree_root: None,
             main_worktree_root: None,
-            route_requires_worktree: false,
+            route_requires_worktree,
         },
     );
     GitGateSummary {
@@ -377,11 +381,26 @@ mod tests {
 
     #[test]
     fn summarize_ready_git_gate_uses_task_record() {
-        let summary = summarize_git_gate(&task(), Path::new("/repo"));
+        let summary = summarize_git_gate(&task(), Path::new("/repo"), false);
         assert_eq!(summary.state, GitGateState::Ready);
         assert_eq!(summary.branch.as_deref(), Some("feat/task-1"));
         assert_eq!(summary.base_branch.as_deref(), Some("main"));
         assert_eq!(summary.worktree_path.as_deref(), Some("/tmp/task-1"));
+    }
+
+    #[test]
+    fn summarize_git_gate_blocked_when_impl_route_missing_worktree() {
+        let mut record = task();
+        record.branch = None;
+        record.worktree_path = None;
+        record.meta = serde_json::json!({
+            "dispatch": {
+                "skill": "dj-implement"
+            }
+        });
+        let summary = summarize_git_gate(&record, Path::new("/repo"), true);
+        assert_eq!(summary.state, GitGateState::Blocked);
+        assert_eq!(summary.note, "task has no provisioned worktree metadata yet");
     }
 
     #[test]

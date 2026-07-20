@@ -746,7 +746,11 @@ fn format_route_gate(route_gate: &WorkflowRouteGate) -> String {
 }
 
 fn workflow_git_gate(project_root: &Path, task: &TaskRecord) -> WorkflowGitGate {
-    let summary = summarize_git_gate(task, project_root);
+    let skill = dispatch_meta(task).skill;
+    let route_requires_worktree = skill.map_or(false, |s| {
+        matches!(s, "dj-implement" | "dj-hunt" | "dj-tdd" | "dj-script")
+    });
+    let summary = summarize_git_gate(task, project_root, route_requires_worktree);
     WorkflowGitGate {
         state: summary.state.as_str().to_string(),
         branch: summary.branch,
