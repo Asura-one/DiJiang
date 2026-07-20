@@ -12,6 +12,8 @@ use rust_embed::RustEmbed;
 #[include = "*.toml"]
 #[include = "*.yml"]
 #[include = "*.yaml"]
+#[include = "*.py"]
+#[include = "*.sh"]
 pub(crate) struct TemplateAssets;
 
 /// Simple variable substitution: replaces `{{key}}` with `value`.

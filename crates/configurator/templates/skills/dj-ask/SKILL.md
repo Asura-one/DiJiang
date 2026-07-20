@@ -1,7 +1,10 @@
 ---
 name: dj-ask
 description: 不知道用哪个 dj-* skill 时的入口。告诉我你想做什么，我推荐对口的 skill。
+summary: 不知道用哪个 skill 时的入口，推荐对口的 skill
 disable-model-invocation: true
+phases: [align, implement, idle]
+risk: low
 ---
 
 不知道从哪个 `dj-*` 开始？告诉我你想做什么，我帮你推荐。

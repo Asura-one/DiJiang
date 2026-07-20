@@ -6,9 +6,12 @@ description: >
   Use when the user says "ponytail", "be lazy", "minimal", "keep it simple",
   "don't over-engineer", or you detect unnecessary complexity creeping in.
   触发词：ponytail、极简、最小、少写、偷懒、简单。
+summary: 极简编码模式：只写任务需要的最少代码
 dispatch_intent: >
   极简编码模式：仅提供最少代码量纪律，不驱动实现策略。
 when_to_use: ponytail、极简、最小、少写、偷懒、简单
+phases: [implement]
+risk: low
 ---
 
 参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）。

@@ -5,9 +5,12 @@ description: >
   一次一个问题，追到没有模糊为止。每个非平凡任务之前必备的第一步。
   当用户需求模糊时自动激活——不需要等用户主动调用。
   触发词：想法、方案、参考、细化、grill、plan、research、不确定做什么。
+summary: 需求对齐、范围澄清、问题收敛
 dispatch_intent: >
   需求对齐：从模糊想法到可执行的共享理解。每个非平凡任务之前必备的第一步。
 when_to_use: 想法、方案、参考、细化、grill、plan、research、不确定做什么
+phases: [align]
+risk: low
 ---
 
 ## Outcome Contract

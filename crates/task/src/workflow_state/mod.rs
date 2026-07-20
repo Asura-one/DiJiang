@@ -1172,7 +1172,7 @@ mod tests {
         assert!(context_a.contains("dj-implement("));
         assert!(context_a.contains("dj-tdd("));
         assert!(
-            context_a.contains("<dijiang-target-skill role=\"primary\" name=\"dj-implement\">")
+            context_a.contains("Target Skill：[dj-implement")
         );
         assert!(context_a.contains("Loop：goal=Task A"));
         assert!(context_a.contains("progress=executing (实现与验证正在推进)"));
@@ -1278,9 +1278,9 @@ mod tests {
         assert!(context.contains("Route Gate：capsule=align"));
         assert!(context.contains("default_skill=dj-grill"));
         assert!(context.contains("Git Gate：state=ready"));
-        assert!(context.contains("Skill Manifests：dj-grill"));
+        assert!(context.contains("dj-grill("));
         assert!(context.contains("dj-output"));
-        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">"));
+        assert!(context.contains("Target Skill：[dj-grill"));
         assert!(context.contains("Loop：goal=Align Task"));
         assert!(context.contains("progress=aligning (需求与验收标准仍需对齐)"));
         assert!(context.contains("next_skill=dj-grill"));
@@ -1341,8 +1341,8 @@ mod tests {
         assert!(context.contains("Route Gate：capsule=align"));
         assert!(context.contains("default_skill=dj-grill"));
         assert!(context.contains("Git Gate：state=ready"));
-        assert!(context.contains("Skill Manifests：dj-grill"));
-        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">"));
+        assert!(context.contains("dj-grill("));
+        assert!(context.contains("Target Skill：[dj-grill"));
         assert!(context.contains("progress=ready_to_restart"));
         assert!(context.contains("先 restart 任务并按 planning 路径重新对齐"));
     }

@@ -1,6 +1,9 @@
 ---
 name: dj-pattern
 description: >
+summary: 模式识别：发现可复用抽象和需要改进的反模式
+phases: [align]
+risk: low
   模式识别：从历史修复、代码模式中学习，发现可复用的抽象和需要改进的反模式。
   Use when investigating recurring issues, code duplication, or inconsistent patterns.
   触发词：模式、重复、pattern、重复代码、相似逻辑、历史修复、反模式。

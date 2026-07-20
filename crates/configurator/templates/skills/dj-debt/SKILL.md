@@ -2,6 +2,9 @@
 name: dj-debt
 description: >
   技术债评估、追踪和管理。聚合多种来源（`ponytail:` 标记、TODO/FIXME/HACK、
+summary: 技术债评估与追踪：多源聚合 ponytail/TODO/依赖/死代码债务
+phases: [align, check, finish]
+risk: low
   过时依赖、死代码模式），生成按模块/严重度/年龄归类的债务台账。
   Use when asked about technical debt, cleanup priorities, what shortcuts
   were taken, or pre-release debt review.

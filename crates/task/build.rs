@@ -1,0 +1,329 @@
+use std::collections::BTreeMap;
+use std::env;
+use std::fs;
+use std::path::Path;
+
+/// Generate skill_manifest.gen.rs and agent_manifest.gen.rs from templates directory.
+///
+/// This replaces the old hardcoded SKILL_MANIFESTS and AGENT_MANIFESTS constants.
+/// Adding a new skill or agent is now just creating a file in the templates directory.
+fn main() {
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR must be set");
+    let crate_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR must be set");
+    let templates_dir = Path::new(&crate_dir).join("../configurator/templates");
+
+    // Build a mapping from skill name -> (summary, is_yaml_multiline)
+    // extracted from the current hardcoded manifests.
+    // These are used as defaults when YAML frontmatter is missing fields.
+    let known_summaries: BTreeMap<&str, &str> = [
+        ("dj-grill", "需求对齐、范围澄清、问题收敛"),
+        ("dj-output", "产出或同步 PRD、design、implement 等任务文档"),
+        ("dj-prd", "将需求对齐结果转化为结构化 PRD 文档"),
+        ("dj-implement", "功能实现与局部代码变更"),
+        ("dj-tdd", "测试驱动实现与行为回归保护"),
+        ("dj-hunt", "bug、回归和根因排查"),
+        ("dj-health", "综合代码库健康检查：构建、测试、Git、依赖、lint、agent 配置"),
+        ("dj-script", "脚本或工具实现"),
+        ("dj-design", "UI/UX 主导的设计实现"),
+        ("dj-debt", "技术债评估与追踪：多源聚合 ponytail/TODO/依赖/死代码债务"),
+        ("dj-absorb", "有选择地从外部目标中吸收融合设计模式、交互或视觉元素到自有项目中"),
+        ("dj-check", "质量门禁、验证 diff、回归审查"),
+        ("dj-audit", "全仓扫描：过度工程检查 + 安全性扫描。只报告，不修改。"),
+        ("dj-channel", "多 agent 协作通道：生成、监控和管理 AI agent 通道"),
+        ("dj-reason", "推理增强、系统透镜和复杂判断校准"),
+        ("dj-research", "技术调研与信息收集"),
+        ("dj-spec-bootstrap", "扫描 crates 目录并为每个 crate 生成初始 spec 文件"),
+        ("dj-session-insight", "跨会话记忆检索：通过 dijiang mem recall 检索历史对话、findings 和 learnings"),
+        ("dj-review", "轻量只读审查"),
+        ("dj-meta", "DiJiang 架构自省、技能创建指南和系统理解"),
+        ("dj-codebase-design", "代码结构设计：决定模块划分、接口定义"),
+        ("dj-domain-modeling", "统一语言：检查术语一致性，更新共享术语表"),
+        ("dj-git-guardrails", "Git 操作安全护栏：防止危险操作，保护 main 分支"),
+        ("dj-handoff", "Session 交接：将当前对话压缩为结构化交接文档"),
+        ("dj-karpathy", "LLM 编码行为准则：减少常见错误，避免过度工程"),
+        ("dj-pattern", "模式识别：发现可复用抽象和需要改进的反模式"),
+        ("dj-ponytail", "极简编码模式：只写任务需要的最少代码"),
+        ("dj-prototype", "造废品验证设计：用可运行代码回答方案可行性"),
+        ("dj-remix", "系统化复刻网站或 App 的界面与功能"),
+        ("dj-split", "将 PRD 文档拆分为独立可执行的 task"),
+        ("dj-write", "文字润色：去除 AI 味，让文本读起来自然"),
+        ("dijiang-continue", "恢复 paused task 上下文并重新进入 workflow"),
+        ("dijiang-start", "重新激活 archived task 或启动新任务"),
+        ("dijiang-finish-work", "执行收尾、验证汇总、归档与提交前检查"),
+        ("dj-dispatch", "通用任务分类器：识别任务类型，路由到对应 skill 执行"),
+        ("dj-ask", "不知道用哪个 dj-* skill 时的入口。告诉我你想做什么，我推荐对口的 skill。"),
+    ]
+    .into();
+
+    // ── Generate agent_manifest.gen.rs ──
+    let agents_dir = templates_dir.join("agents");
+    let mut agent_entries = Vec::new();
+    if agents_dir.exists() {
+        for entry in fs::read_dir(&agents_dir).expect("read agents dir") {
+            let entry = entry.expect("entry");
+            let path = entry.path();
+            if path.extension().map_or(true, |e| e != "md") {
+                continue;
+            }
+            let filename = path.file_stem().unwrap().to_str().unwrap().to_string();
+            // Only include dijiang-* prefixed files
+            if !filename.starts_with("dijiang-") {
+                continue;
+            }
+            let agent_name = filename.strip_prefix("dijiang-").unwrap();
+            if agent_name.is_empty() {
+                continue;
+            }
+            // Parse YAML frontmatter for description
+            let content = fs::read_to_string(&path).expect("read agent file");
+            let description = parse_yaml_field(&content, "description").unwrap_or_default();
+            let summary = if !description.is_empty() {
+                // Use first line if multiline, truncate to ~80 chars
+                let first_line = description.lines().next().unwrap_or("");
+                if first_line.len() > 80 {
+                    // Truncate to ~80 chars at char boundary
+                    let mut end = 77;
+                    while end > 0 && !first_line.is_char_boundary(end) {
+                        end -= 1;
+                    }
+                    if end == 0 { first_line } else { &first_line[..end] }
+                } else {
+                    first_line
+                }
+            } else {
+                ""
+            };
+
+            let template_path = format!("agents/{filename}.md");
+
+            agent_entries.push(AgentGenEntry {
+                name: agent_name.to_string(),
+                summary: summary.to_string(),
+                path: template_path,
+            });
+        }
+    }
+    agent_entries.sort_by(|a, b| a.name.cmp(&b.name));
+
+    let mut agent_gen = String::new();
+    agent_gen.push_str(&format!(
+        "// Auto-generated by build.rs — DO NOT EDIT\n"
+    ));
+    agent_gen.push_str(&format!(
+        "#[allow(unused)]\n"
+    ));
+    agent_gen.push_str(&format!(
+        "pub const AGENT_MANIFESTS: &[super::AgentManifestEntry] = &[\n"
+    ));
+    for entry in &agent_entries {
+        agent_gen.push_str(&format!(
+            "    super::AgentManifestEntry {{\n"
+        ));
+        agent_gen.push_str(&format!(
+            "        name: \"{}\",\n",
+            entry.name
+        ));
+        agent_gen.push_str(&format!(
+            "        summary: \"{}\",\n",
+            entry.summary.replace('"', r#"\""#)
+        ));
+        agent_gen.push_str(&format!(
+            "        body: include_str!(\"../../configurator/templates/{}\"),\n",
+            entry.path
+        ));
+        agent_gen.push_str("    },\n");
+    }
+    agent_gen.push_str("];\n");
+
+    // ── Generate skill_manifest.gen.rs ──
+    let skills_dir = templates_dir.join("skills");
+    let mut skill_entries = Vec::new();
+    if skills_dir.exists() {
+        for entry in fs::read_dir(&skills_dir).expect("read skills dir") {
+            let entry = entry.expect("entry");
+            let skill_dir = entry.path();
+            if !skill_dir.is_dir() {
+                continue;
+            }
+            let skill_name = skill_dir.file_name().unwrap().to_str().unwrap().to_string();
+            let skill_md_path = skill_dir.join("SKILL.md");
+            if !skill_md_path.exists() {
+                continue;
+            }
+
+            // Parse YAML frontmatter for metadata
+            let content = fs::read_to_string(&skill_md_path).expect("read skill file");
+            let yaml_name = parse_yaml_field(&content, "name");
+            let yaml_summary = parse_yaml_field(&content, "summary");
+            let description = parse_yaml_field(&content, "description");
+            let phases_str = parse_yaml_field(&content, "phases");
+            let risk_str = parse_yaml_field(&content, "risk");
+
+            let name = yaml_name.as_deref().unwrap_or(&skill_name);
+            let summary = yaml_summary.as_deref()
+                .or_else(|| description.as_deref())
+                .or_else(|| known_summaries.get(name).copied())
+                .unwrap_or("");
+            let summary = if summary.len() > 80 {
+                // Truncate to ~80 chars at char boundary
+                let mut end = 77;
+                while end > 0 && !summary.is_char_boundary(end) {
+                    end -= 1;
+                }
+                if end == 0 { summary } else { &summary[..end] }
+            } else {
+                summary
+            };
+
+            let phases = phases_str.as_deref().unwrap_or("");
+            let risk = risk_str.as_deref().unwrap_or("low");
+
+            let template_path = format!("skills/{skill_name}/SKILL.md");
+
+            skill_entries.push(SkillGenEntry {
+                name: name.to_string(),
+                summary: summary.to_string(),
+                phases: phases.to_string(),
+                risk: risk.to_string(),
+                path: template_path,
+            });
+        }
+    }
+    skill_entries.sort_by(|a, b| a.name.cmp(&b.name));
+
+    let mut skill_gen = String::new();
+    skill_gen.push_str("// Auto-generated by build.rs — DO NOT EDIT\n");
+    skill_gen.push_str("#[allow(unused)]\n");
+    skill_gen.push_str("pub const SKILL_MANIFESTS: &[super::SkillManifestEntry] = &[\n");
+    for entry in &skill_entries {
+        skill_gen.push_str("    super::SkillManifestEntry {\n");
+        skill_gen.push_str(&format!("        name: \"{}\",\n", entry.name));
+        skill_gen.push_str(&format!(
+            "        summary: \"{}\",\n",
+            entry.summary.replace('"', r#"\""#)
+        ));
+        skill_gen.push_str(&format!("        phases: &[{}],\n", entry.phases));
+        skill_gen.push_str(&format!("        risk: \"{}\",\n", entry.risk));
+        skill_gen.push_str(&format!(
+            "        body: include_str!(\"../../configurator/templates/{}\"),\n",
+            entry.path
+        ));
+        skill_gen.push_str("    },\n");
+    }
+    skill_gen.push_str("];\n");
+
+    // Write generated files
+    // Write generated files to src/ so include_str! paths resolve correctly
+    let src_dir = Path::new(&crate_dir).join("src");
+    fs::write(src_dir.join("agent_manifest.gen.rs"), agent_gen)
+        .expect("write agent_manifest.gen.rs");
+    fs::write(src_dir.join("skill_manifest.gen.rs"), skill_gen)
+        .expect("write skill_manifest.gen.rs");
+
+    // Signal re-run when template files change
+    println!("cargo::rerun-if-changed=../configurator/templates/skills");
+    println!("cargo::rerun-if-changed=../configurator/templates/agents");
+}
+
+struct AgentGenEntry {
+    name: String,
+    summary: String,
+    path: String,
+}
+
+struct SkillGenEntry {
+    name: String,
+    summary: String,
+    phases: String,
+    risk: String,
+    path: String,
+}
+
+/// Parse a YAML frontmatter field value from a markdown file.
+/// Returns the value as a string, or None if the field is not found.
+fn parse_yaml_field(content: &str, field: &str) -> Option<String> {
+    // Find YAML frontmatter between --- delimiters
+    let content_trimmed = content.trim_start();
+    if !content_trimmed.starts_with("---") {
+        return None;
+    }
+    let after_first = content_trimmed.strip_prefix("---")?;
+    let end = after_first.find("\n---")?;
+    let yaml_block = &after_first[..end];
+
+    // Find the field in YAML block
+    // Support formats:
+    //   field: value
+    //   field: "value"
+    //   field: >
+    //     multiline text
+    //   field: [item1, item2]
+    let lines: Vec<&str> = yaml_block.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        if let Some((key, rest)) = line.split_once(':') {
+            if key.trim() == field {
+                let rest = rest.trim();
+                if rest.is_empty() {
+                    // Could be multiline (starts with > or |)
+                    let mut value = String::new();
+                    i += 1;
+                    while i < lines.len() {
+                        let cont = lines[i];
+                        if cont.starts_with("  ") || cont.starts_with('\t') {
+                            if !value.is_empty() {
+                                value.push(' ');
+                            }
+                            value.push_str(cont.trim());
+                            i += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    return Some(value);
+                } else if rest.starts_with('>') || rest.starts_with('|') {
+                    // multiline scalar
+                    let mut value = String::new();
+                    i += 1;
+                    while i < lines.len() {
+                        let cont = lines[i];
+                        if cont.starts_with("  ") || cont.starts_with('\t') {
+                            if !value.is_empty() {
+                                value.push(' ');
+                            }
+                            value.push_str(cont.trim());
+                            i += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    return Some(value);
+                } else if rest.starts_with('[') && rest.ends_with(']') {
+                    // array [item1, item2] → "[item1, item2, ...]"
+                    let inner = &rest[1..rest.len() - 1];
+                    let items: Vec<&str> = inner
+                        .split(',')
+                        .map(|s| {
+                            let s = s.trim();
+                            s.trim_matches('"')
+                        })
+                        .collect();
+                    // Generate Rust array syntax
+                    let result = items
+                        .iter()
+                        .map(|item| format!("\"{}\"", item))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return Some(result);
+                } else {
+                    // scalar value
+                    let val = rest.trim_matches('"');
+                    return Some(val.to_string());
+                }
+            }
+        }
+        i += 1;
+    }
+    None
+}

@@ -1,6 +1,9 @@
 ---
 name: dj-prd
 description: >
+summary: 将需求对齐结果转化为结构化 PRD 文档
+phases: [align]
+risk: low
   将需求对齐结果转化为结构化 PRD 文档。衔接 dj-grill 的输出，产出可供评审和后续拆分的形式化文档。
   Use after a dj-grill session, when alignment output needs to become a formal PRD document.
   触发词：写 PRD、PRD、产品文档、形式化需求、把对齐结果写下来。

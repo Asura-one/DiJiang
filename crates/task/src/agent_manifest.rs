@@ -15,33 +15,7 @@ pub struct AgentManifestEntry {
     pub body: &'static str,
 }
 
-const AGENT_MANIFESTS: &[AgentManifestEntry] = &[
-    AgentManifestEntry {
-        name: "architect",
-        summary: "架构评审与设计回检",
-        body: include_str!("../../configurator/templates/agents/dijiang-architect.md"),
-    },
-    AgentManifestEntry {
-        name: "planner",
-        summary: "任务分解与结构化规划",
-        body: include_str!("../../configurator/templates/agents/dijiang-planner.md"),
-    },
-    AgentManifestEntry {
-        name: "implementer",
-        summary: "代码实现与变更推进",
-        body: include_str!("../../configurator/templates/agents/dijiang-implementer.md"),
-    },
-    AgentManifestEntry {
-        name: "checker",
-        summary: "质量审计与回归审查",
-        body: include_str!("../../configurator/templates/agents/dijiang-checker.md"),
-    },
-    AgentManifestEntry {
-        name: "researcher",
-        summary: "技术调研与上下文收集",
-        body: include_str!("../../configurator/templates/agents/dijiang-researcher.md"),
-    },
-];
+include!("agent_manifest.gen.rs");
 
 /// Look up an agent manifest entry by name.
 pub fn agent_by_name(name: &str) -> Option<&'static AgentManifestEntry> {

@@ -4,9 +4,12 @@ description: >
   按计划实现特性代码，遵守 git 安全工作流。
   Use when the user wants to implement a feature, fix, or change based on a plan or issue.
   触发词：实现、写代码、implement、开始做、按计划做、开发。
+summary: 功能实现与局部代码变更
 dispatch_intent: >
   按计划实现特性代码：PRD/设计文档 → worktree → 实现 → 验证 → 收尾。
 when_to_use: 实现、写代码、implement、开始做、按计划做、开发
+phases: [implement]
+risk: medium
 ---
 
 参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）、`.dijiang/references/code-task-contract.md`（代码任务合约）。

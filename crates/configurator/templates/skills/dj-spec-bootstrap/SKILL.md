@@ -1,3 +1,11 @@
+---
+name: dj-spec-bootstrap
+description: 扫描项目 crates 目录，为每个 crate 生成初始 spec 文件
+summary: 扫描 crates 目录并为每个 crate 生成初始 spec 文件
+phases: [align]
+risk: low
+---
+
 # dj-spec-bootstrap — Spec 初始化
 
 扫描项目 crates 目录，为每个 crate 生成初始 spec 文件（`.dijiang/spec/<crate>/index.md`）。

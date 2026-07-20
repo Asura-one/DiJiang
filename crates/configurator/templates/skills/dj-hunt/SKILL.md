@@ -5,9 +5,12 @@ description: >
   Use when the user reports errors, crashes, regressions, failing tests,
   or unexpected behavior changes — anything that needs root cause investigation.
   触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。
+summary: bug、回归和根因排查
 dispatch_intent: >
   系统化排查 bug：先定位根因，再修复。尤其擅长回归和'以前好现在坏'的情况。
 when_to_use: 修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查
+phases: [implement]
+risk: medium
 ---
 
 参考规范：`.dijiang/references/decision-ladder.md`（编码前的决策阶梯）、`.dijiang/references/code-task-contract.md`（代码任务合约）。
@@ -117,7 +120,9 @@ when_to_use: 修 bug、出错了、报错、crash、不工作、坏了、hunt、
 - 正确的 seam：测试能复现 bug 在调用点的真实模式
 - 没有正确的 seam → 本身就是一个发现：代码架构阻碍了 bug 锁定
 - 如果 seam 存在：最小化 repro → 写 failing test → 看它 RED → 修代码 → 看它 GREEN → 跑 Phase 1 反馈环确认原始场景不复现
-
+- 遵守 **Code Task TDD Contract**：修复必须包含 RED/Repro evidence、GREEN command、Regression scope 和 Exception 证据。
+- 确认 Regression scope（判断修复是否影响相关功能）并用测试或手动校验验证。
+- 确认 Exception（记录因架构限制无法修复的边界情况，或标记为 n/a）。
 ### Phase 6 — 清理 + 复盘
 
 **完成前必须检查：**

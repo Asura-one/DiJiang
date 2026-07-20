@@ -103,6 +103,14 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
         copy_dir_contents(&templates_spec_dir, &dst_spec)?;
     }
 
+    // Sync Python scripts (templates/scripts/) if available
+    let templates_scripts_dir = cwd.join("crates/configurator/templates/scripts");
+    if templates_scripts_dir.exists() {
+        let dst_scripts = temp.path().join(".dijiang/scripts");
+        fs::create_dir_all(&dst_scripts)?;
+        copy_dir_contents(&templates_scripts_dir, &dst_scripts)?;
+    }
+
     let mut managed_files = managed_files_for_platforms(&platforms);
     // Enumerate ALL files under .pi/skills/ in the temp dir (SKILL.md + references)
     // instead of using a static list, so new template files are picked up automatically.
@@ -119,6 +127,11 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     let dijiang_spec = temp.path().join(".dijiang/spec");
     if dijiang_spec.exists() {
         collect_managed_files(&dijiang_spec, ".dijiang/spec", &mut managed_files);
+    }
+    // Enumerate ALL files under .dijiang/scripts/ in the temp dir
+    let dijiang_scripts = temp.path().join(".dijiang/scripts");
+    if dijiang_scripts.exists() {
+        collect_managed_files(&dijiang_scripts, ".dijiang/scripts", &mut managed_files);
     }
     managed_files.push(ManagedFile {
         path: "AGENTS.md".to_string(),
@@ -255,6 +268,13 @@ fn managed_files_for_platforms(platforms: &[PlatformKind]) -> Vec<ManagedFile> {
                 protected(".pi/agents/dijiang-implementer.md"),
                 protected(".pi/agents/dijiang-checker.md"),
                 protected(".pi/agents/dijiang-researcher.md"),
+                protected(".pi/agents/dijiang-architect.md"),
+                protected(".pi/agents/dijiang-planner.md"),
+                managed(".dijiang/agents/architect.md"),
+                managed(".dijiang/agents/planner.md"),
+                managed(".dijiang/agents/implementer.md"),
+                managed(".dijiang/agents/checker.md"),
+                managed(".dijiang/agents/researcher.md"),
             ]),
             PlatformKind::Cursor => files.extend([
                 managed(".cursor/rules/dijiang.mdc"),

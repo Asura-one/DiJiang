@@ -1,6 +1,9 @@
 ---
 name: dj-domain-modeling
 description: >
+summary: 统一语言：检查术语一致性，更新共享术语表
+phases: [align]
+risk: low
   统一语言（Ubiquitous Language）：检查代码中的术语一致性，标记工程师术语 vs 业务术语的差异，更新共享术语表。
   Use when terminology feels inconsistent, when engineers and domain experts use different words for the same concept,
   or during a new feature that touches core domain concepts.

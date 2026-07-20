@@ -1,8 +1,11 @@
 ---
 name: dijiang-continue
 description: "Resume work on the current task: find active task and phase, load artifacts, then report the appropriate dj-* route."
+summary: 恢复 paused task 上下文并重新进入 workflow
 triggers:
   - session:start
+phases: [resume]
+risk: low
 ---
 
 # 继续会话

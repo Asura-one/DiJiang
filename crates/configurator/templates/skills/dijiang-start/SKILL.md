@@ -1,8 +1,11 @@
 ---
 name: dijiang-start
 description: "启动 DiJiang session：加载项目上下文、当前任务和 workflow 状态，然后报告合适的 dj-* 路线。"
+summary: 重新激活 archived task 或启动新任务
 triggers:
   - session:start
+phases: [idle]
+risk: low
 ---
 
 # 启动会话

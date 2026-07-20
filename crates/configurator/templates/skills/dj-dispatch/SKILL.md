@@ -1,6 +1,9 @@
 ---
 name: dj-dispatch
 description: >
+summary: 通用任务分类器：识别任务类型，路由到对应 skill 执行
+phases: [idle, align]
+risk: low
   通用任务分类器：识别任务类型，路由到对应 skill 执行。
   支持单一任务和混合任务（主类型驱动 + 串联执行）。
   Use when the user gives a new task, request, feature idea, bug report,
@@ -120,7 +123,7 @@ description: >
 2. 混合任务取主要类型，不尝试并排路由
 3. 低置信度时必须路由到 `dj-grill`，不可猜
 4. 不记录路由历史——每次请求独立路由
-
+5. 路由到代码任务时，遵守 **Code Task TDD Contract**：输出必须包含 RED/Repro evidence、GREEN command、Regression scope 和 Exception 说明。
 ## Gotchas
 
 | Gotcha | 后果 | 预防 |

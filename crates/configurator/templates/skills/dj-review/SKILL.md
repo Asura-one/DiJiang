@@ -1,6 +1,9 @@
 ---
 name: dj-review
 description: >
+summary: 轻量只读审查
+phases: [check]
+risk: low
   代码评审辅助：对变更进行并行审查，同时检查 spec 匹配度和代码质量。
   使用 delegate_task 并行执行两个独立维度的审查，最后汇总。
   Use when reviewing PRs, inspecting diffs, before committing, or after code changes.

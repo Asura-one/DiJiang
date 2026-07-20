@@ -2,6 +2,9 @@
 name: dj-remix
 description: >
   系统化地1:1复刻一个网站或App的界面与功能，并在复刻完成后做一次差异化改造。
+summary: 系统化复刻网站或 App 的界面与功能
+phases: [implement]
+risk: medium
   Use when the user says "复刻""仿站""照着XX做一个""帮我做一个类似XX的产品/网站/App"
   "对标XX""clone this site/app""recreate the UI of X""rebuild X's interface".
   触发词：复刻、仿站、对标、clone、remix、rebuild、recreate、站点复制。

@@ -35,6 +35,7 @@ pub(crate) struct ConflictReport {
     pub has_tasks_dir: bool,
     pub has_spec_dir: bool,
     pub has_workspace_dir: bool,
+    pub has_scripts_dir: bool,
     pub has_dijiang_block_in_workflow: bool,
 }
 
@@ -65,6 +66,7 @@ pub(crate) fn detect_dijiang_conflict(cwd: &Path) -> ConflictReport {
     report.has_dijiang_dir = true;
     report.has_tasks_dir = dijiang_dir.join("tasks").exists();
     report.has_spec_dir = dijiang_dir.join("spec").exists();
+    report.has_scripts_dir = dijiang_dir.join("scripts").exists();
     report.has_workspace_dir = dijiang_dir.join("workspace").exists();
 
     let workflow_path = dijiang_dir.join("workflow.md");
@@ -186,6 +188,7 @@ pub(crate) fn write_dijiang_infrastructure(
     }
 
     // agents/ — persona definitions for AI agent roles
+    // (see write_agents_md in pi.rs for .pi/agents/; this is for .dijiang/agents/)
     let agents_root = dijiang_dir.join("agents");
     std::fs::create_dir_all(&agents_root)?;
     let agent_templates: &[(&str, &str)] = &[
@@ -200,6 +203,40 @@ pub(crate) fn write_dijiang_infrastructure(
         if !file_path.exists() {
             if let Ok(content) = templates::render(tmpl_name, &[]) {
                 std::fs::write(&file_path, content)?;
+            }
+        }
+    }
+
+    // scripts/ — Python helper scripts for AI operations
+    // Deployed from embedded templates on first init only; updates go through
+    // `dijiang update` (see update.rs managed files).
+    if !report.has_scripts_dir {
+        let scripts_root = dijiang_dir.join("scripts");
+        // Collect all unique parent dirs first to handle empty subdirs
+        let mut script_dirs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for asset_path in crate::templates::TemplateAssets::iter() {
+            let asset_path = asset_path.as_ref();
+            if let Some(rel_path) = asset_path.strip_prefix("scripts/") {
+                if let Some(parent) = std::path::Path::new(rel_path).parent() {
+                    if !parent.as_os_str().is_empty() {
+                        script_dirs.insert(parent.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+        for dir in &script_dirs {
+            std::fs::create_dir_all(scripts_root.join(dir))?;
+        }
+        for asset_path in crate::templates::TemplateAssets::iter() {
+            let asset_path = asset_path.as_ref();
+            if let Some(rel_path) = asset_path.strip_prefix("scripts/") {
+                // Skip hidden files and __pycache__
+                if rel_path.contains("/.") || rel_path.contains("__pycache__") {
+                    continue;
+                }
+                let content = templates::render(asset_path, &[])
+                    .map_err(crate::ConfigError::Serialize)?;
+                std::fs::write(scripts_root.join(rel_path), content)?;
             }
         }
     }
@@ -285,6 +322,7 @@ pub fn init_project_with_platforms(
     println!("  ├── .dijiang/config.toml");
     println!("  ├── .dijiang/workflow.md");
     println!("  ├── .dijiang/agents/");
+    println!("  ├── .dijiang/scripts/");
     println!("  ├── .dijiang/tasks/");
     println!("  ├── .dijiang/workspace/");
     println!("  └── .dijiang/spec/");
