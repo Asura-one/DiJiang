@@ -11,3 +11,7 @@ Steps:
 6. Record durable findings, lessons, or corrections with `dijiang mem findings` / `dijiang mem learn` / `dijiang mem correction` when they pass the memory quality gate; successful `dijiang finish-work` writes session closure memory automatically
 7. Finish with `dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit` when a scoped commit is needed
 8. Add `--push` and `--integrate` only when push/merge/worktree cleanup is explicitly allowed
+
+## Changelog gate
+
+When `--version-impact` is `major|minor|patch`, write the **target version** entry in root `CHANGELOG.md` (Keep a Changelog structure) **before** calling `dijiang finish-work`. CLI rejects missing/invalid entries and does not auto-write the body. `none` must not change the authority version.

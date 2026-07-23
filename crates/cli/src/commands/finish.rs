@@ -470,9 +470,18 @@ fn build_body(
     body.trim().to_string()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VersionSource {
+    CargoWorkspace,
+    PackageJson,
+    VersionFile,
+}
+
 fn bump_semver(version: &str, impact: &str) -> anyhow::Result<String> {
     let parts = version.split('.').map(str::parse::<u64>).collect::<Result<Vec<_>, _>>()?;
-    if parts.len() != 3 { anyhow::bail!("unsupported version format: {version}"); }
+    if parts.len() != 3 {
+        anyhow::bail!("unsupported version format: {version}");
+    }
     let (major, minor, patch) = (parts[0], parts[1], parts[2]);
     Ok(match impact {
         "major" => format!("{}.0.0", major + 1),
@@ -483,24 +492,249 @@ fn bump_semver(version: &str, impact: &str) -> anyhow::Result<String> {
     })
 }
 
+fn read_workspace_cargo_version(content: &str) -> Option<String> {
+    let mut in_workspace_package = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_workspace_package = trimmed == "[workspace.package]";
+            continue;
+        }
+        if in_workspace_package && trimmed.starts_with("version") && trimmed.contains('=') {
+            return trimmed
+                .split_once('=')
+                .map(|(_, v)| v.trim().trim_matches('"').to_string())
+                .filter(|v| !v.is_empty());
+        }
+    }
+    None
+}
+
+fn read_package_json_version(content: &str) -> Option<String> {
+    // Prefer simple key scan so one-line package.json works without full JSON parse.
+    let key = "\"version\"";
+    let mut search = content;
+    while let Some(idx) = search.find(key) {
+        let after_key = &search[idx + key.len()..];
+        let after_key = after_key.trim_start();
+        if !after_key.starts_with(':') {
+            search = &search[idx + key.len()..];
+            continue;
+        }
+        let after_colon = after_key[1..].trim_start();
+        if !after_colon.starts_with('"') {
+            search = &search[idx + key.len()..];
+            continue;
+        }
+        let rest = &after_colon[1..];
+        if let Some(end) = rest.find('"') {
+            let v = &rest[..end];
+            if !v.is_empty() {
+                return Some(v.to_string());
+            }
+        }
+        search = &search[idx + key.len()..];
+    }
+    None
+}
+
+fn read_authority_version(project_root: &Path) -> Option<(String, VersionSource)> {
+    let cargo = project_root.join("Cargo.toml");
+    if cargo.exists() {
+        if let Ok(content) = std::fs::read_to_string(&cargo) {
+            if let Some(v) = read_workspace_cargo_version(&content) {
+                return Some((v, VersionSource::CargoWorkspace));
+            }
+        }
+    }
+    let pkg = project_root.join("package.json");
+    if pkg.exists() {
+        if let Ok(content) = std::fs::read_to_string(&pkg) {
+            if let Some(v) = read_package_json_version(&content) {
+                return Some((v, VersionSource::PackageJson));
+            }
+        }
+    }
+    let version_file = project_root.join("VERSION");
+    if version_file.exists() {
+        if let Ok(content) = std::fs::read_to_string(&version_file) {
+            let v = content.trim().to_string();
+            if !v.is_empty() {
+                return Some((v, VersionSource::VersionFile));
+            }
+        }
+    }
+    None
+}
+
+fn sync_version_file(project_root: &Path, version: &str) -> anyhow::Result<()> {
+    let path = project_root.join("VERSION");
+    if path.exists() {
+        std::fs::write(&path, format!("{version}\n"))?;
+    }
+    Ok(())
+}
+
+fn changelog_template(version: &str) -> String {
+    format!(
+        "## [{version}] — YYYY-MM-DD\n\n### Added\n\n- Describe the change\n\n### Fixed\n\n- ...\n"
+    )
+}
+
+fn is_standard_section_heading(line: &str) -> bool {
+    let t = line.trim();
+    let Some(rest) = t.strip_prefix("###") else {
+        return false;
+    };
+    let name = rest.trim();
+    let lower = name.to_ascii_lowercase();
+    matches!(lower.as_str(), "added" | "changed" | "fixed" | "removed")
+        || matches!(name, "新增" | "变更" | "修改" | "修复" | "移除")
+}
+
+fn version_heading_matches(line: &str, version: &str) -> bool {
+    let t = line.trim();
+    if !t.starts_with("##") || t.starts_with("###") {
+        return false;
+    }
+    let rest = t.trim_start_matches('#').trim();
+    if let Some(start) = rest.find('[') {
+        if let Some(end) = rest[start + 1..].find(']') {
+            if &rest[start + 1..start + 1 + end] == version {
+                return true;
+            }
+        }
+    }
+    rest == version
+        || rest.starts_with(&format!("{version} "))
+        || rest.starts_with(&format!("{version}\t"))
+        || rest.starts_with(&format!("{version}—"))
+        || rest.starts_with(&format!("{version}–"))
+}
+
+fn changelog_has_version_entry(content: &str, version: &str) -> bool {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        if !version_heading_matches(lines[i], version) {
+            i += 1;
+            continue;
+        }
+        let mut j = i + 1;
+        let mut in_standard_section = false;
+        while j < lines.len() {
+            let t = lines[j].trim();
+            if t.starts_with("##") && !t.starts_with("###") {
+                break;
+            }
+            if is_standard_section_heading(lines[j]) {
+                in_standard_section = true;
+            } else if in_standard_section {
+                if (t.starts_with('-') || t.starts_with('*')) && t.len() > 1 {
+                    let body = t[1..].trim();
+                    if !body.is_empty() {
+                        return true;
+                    }
+                }
+                if t.starts_with("###") {
+                    in_standard_section = is_standard_section_heading(lines[j]);
+                }
+            }
+            j += 1;
+        }
+        return false;
+    }
+    false
+}
+
+fn ensure_changelog_gate(project_root: &Path, target_version: &str) -> anyhow::Result<()> {
+    let path = project_root.join("CHANGELOG.md");
+    if !path.exists() {
+        anyhow::bail!(
+            "finish-work 需要根目录 CHANGELOG.md（version-impact ≠ none）。\n\
+             请创建 Keep a Changelog 文件并写入目标版本 `{target_version}` 条目，例如：\n\n{}",
+            changelog_template(target_version)
+        );
+    }
+    let content = std::fs::read_to_string(&path)?;
+    if !changelog_has_version_entry(&content, target_version) {
+        anyhow::bail!(
+            "finish-work 校验失败：CHANGELOG.md 缺少版本 `{target_version}` 的合法条目。\n\
+             要求：`## [{target_version}]`（或 `## {target_version}`）标题，且至少一个标准 section\
+             （Added/Changed/Fixed/Removed 或 新增/变更/修复/移除）含非空 bullet。\n\n\
+             最小示例：\n\n{}",
+            changelog_template(target_version)
+        );
+    }
+    Ok(())
+}
+
+fn git_show_file(project_root: &Path, rel: &str) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .args(["show", &format!("HEAD:{rel}")])
+        .current_dir(project_root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn ensure_version_unchanged_for_none(project_root: &Path) -> anyhow::Result<()> {
+    let Some((working, source)) = read_authority_version(project_root) else {
+        return Ok(());
+    };
+    let head_version = match source {
+        VersionSource::CargoWorkspace => {
+            git_show_file(project_root, "Cargo.toml").and_then(|c| read_workspace_cargo_version(&c))
+        }
+        VersionSource::PackageJson => {
+            git_show_file(project_root, "package.json").and_then(|c| read_package_json_version(&c))
+        }
+        VersionSource::VersionFile => {
+            git_show_file(project_root, "VERSION").map(|c| c.trim().to_string())
+        }
+    };
+    if let Some(head) = head_version {
+        if head != working {
+            anyhow::bail!(
+                "finish-work 校验失败：version-impact=none，但权威版本已从 `{head}` 变为 `{working}`。\n\
+                 若确需发版，请使用 major/minor/patch 并更新 CHANGELOG.md。"
+            );
+        }
+    }
+    Ok(())
+}
+
 fn update_workspace_version(project_root: &Path, impact: &str) -> anyhow::Result<Option<String>> {
-    if impact == "none" { return Ok(None); }
+    if impact == "none" {
+        return Ok(None);
+    }
     let cargo_toml = project_root.join("Cargo.toml");
-    if !cargo_toml.exists() { return Ok(None); }
+    if !cargo_toml.exists() {
+        return Ok(None);
+    }
     let content = std::fs::read_to_string(&cargo_toml)?;
     let mut in_workspace_package = false;
     let mut changed = false;
     let mut old_version = String::new();
+    let mut next_version = String::new();
     let mut new_lines = Vec::new();
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with('[') { in_workspace_package = trimmed == "[workspace.package]"; }
+        if trimmed.starts_with('[') {
+            in_workspace_package = trimmed == "[workspace.package]";
+        }
         if in_workspace_package && trimmed.starts_with("version") && trimmed.contains('=') {
             let indent = line.chars().take_while(|ch| ch.is_whitespace()).collect::<String>();
-            let value = trimmed.split_once('=').map(|(_, v)| v.trim().trim_matches('"'))
+            let value = trimmed
+                .split_once('=')
+                .map(|(_, v)| v.trim().trim_matches('"'))
                 .ok_or_else(|| anyhow::anyhow!("invalid version line in Cargo.toml"))?;
             let next = bump_semver(value, impact)?;
             old_version = value.to_string();
+            next_version = next.clone();
             new_lines.push(format!("{indent}version = \"{next}\""));
             changed = true;
             continue;
@@ -509,8 +743,42 @@ fn update_workspace_version(project_root: &Path, impact: &str) -> anyhow::Result
     }
     if changed {
         std::fs::write(&cargo_toml, format!("{}\n", new_lines.join("\n")))?;
-        Ok(Some(format!("{old_version} -> {}", bump_semver(&old_version, impact)?)))
-    } else { Ok(None) }
+        sync_version_file(project_root, &next_version)?;
+        Ok(Some(format!("{old_version} -> {next_version}")))
+    } else {
+        Ok(None)
+    }
+}
+
+fn apply_version_and_changelog_gates(
+    project_root: &Path,
+    impact: &str,
+) -> anyhow::Result<Option<String>> {
+    if impact == "none" {
+        ensure_version_unchanged_for_none(project_root)?;
+        return Ok(None);
+    }
+    let Some((current, source)) = read_authority_version(project_root) else {
+        anyhow::bail!(
+            "finish-work 无法解析项目版本（version-impact={impact}）。\n\
+             请提供 Cargo.toml [workspace.package].version、根 package.json 的 version，或 VERSION 文件。"
+        );
+    };
+    let version_update = if source == VersionSource::CargoWorkspace {
+        update_workspace_version(project_root, impact)?
+    } else {
+        let target = bump_semver(&current, impact)?;
+        Some(format!("{current} -> {target} (authority not Cargo; bump not applied)"))
+    };
+    let target = if source == VersionSource::CargoWorkspace {
+        read_authority_version(project_root)
+            .map(|(v, _)| v)
+            .unwrap_or(bump_semver(&current, impact)?)
+    } else {
+        bump_semver(&current, impact)?
+    };
+    ensure_changelog_gate(project_root, &target)?;
+    Ok(version_update)
 }
 
 fn ensure_finish_preconditions(
@@ -793,7 +1061,7 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let resolved_target = resolve_finish_target(&tasks_dir, active_task.as_deref(), current_branch.as_deref(), worktree_hint.as_deref())?;
     let task_before_archive = resolved_target.as_ref().map(|target| &target.task);
     let (verification, docs_sync) = ensure_finish_preconditions(&project_root, task_before_archive, options)?;
-    let version_update = update_workspace_version(&project_root, options.version_impact)?;
+    let version_update = apply_version_and_changelog_gates(&project_root, options.version_impact)?;
     let developer = dijiang_task::developer::resolve_developer(&dijiang_dir);
     let (session_key, source) = current_session_key();
     let task_label = resolved_target.as_ref().map(|t| t.task_name.as_str()).unwrap_or("no-active-task");
@@ -933,6 +1201,63 @@ mod tests {
         assert!(!has_chinese("12345"));
         assert!(!has_chinese("!@#$%"));
         assert!(!has_chinese("test: "));
+    }
+
+    #[test]
+
+    #[test]
+    fn test_version_heading_matches_bracket_and_bare() {
+        assert!(version_heading_matches("## [0.13.5] — 2026-07-23", "0.13.5"));
+        assert!(version_heading_matches("## 0.13.5", "0.13.5"));
+        assert!(version_heading_matches("## 0.13.5 — 2026-07-23", "0.13.5"));
+        assert!(!version_heading_matches("### Added", "0.13.5"));
+        assert!(!version_heading_matches("## [0.13.4]", "0.13.5"));
+    }
+
+    #[test]
+    fn test_changelog_has_version_entry_en_and_zh() {
+        let en = "# Changelog\n\n## [1.2.3] — 2026-01-01\n\n### Added\n\n- feature x\n\n## [1.2.2]\n\n### Fixed\n\n- y\n";
+        assert!(changelog_has_version_entry(en, "1.2.3"));
+        assert!(changelog_has_version_entry(en, "1.2.2"));
+        assert!(!changelog_has_version_entry(en, "1.2.4"));
+
+        let zh = "# 变更日志\n\n## [0.13.5] — 2026-07-23\n\n### 新增\n\n- 某功能\n\n## [0.10.0]\n\n### 修复\n\n- bug\n";
+        assert!(changelog_has_version_entry(zh, "0.13.5"));
+        assert!(!changelog_has_version_entry("## [0.1.0]\n\n### Added\n\n\n", "0.1.0"));
+        assert!(!changelog_has_version_entry("## [0.1.0]\n\nNotes without section\n\n- bullet\n", "0.1.0"));
+    }
+
+    #[test]
+    fn test_read_authority_version_prefers_cargo_workspace() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("Cargo.toml"),
+            "[workspace]\nmembers = []\n\n[workspace.package]\nversion = \"1.2.3\"\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("package.json"), r#"{"version":"9.9.9"}"#).unwrap();
+        std::fs::write(dir.path().join("VERSION"), "0.0.1\n").unwrap();
+        let (v, src) = read_authority_version(dir.path()).expect("version");
+        assert_eq!(v, "1.2.3");
+        assert_eq!(src, VersionSource::CargoWorkspace);
+    }
+
+    #[test]
+    fn test_read_authority_version_falls_back_to_package_json() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("package.json"), r#"{"name":"x","version":"2.0.0"}"#).unwrap();
+        std::fs::write(dir.path().join("VERSION"), "0.0.1\n").unwrap();
+        let (v, src) = read_authority_version(dir.path()).expect("version");
+        assert_eq!(v, "2.0.0");
+        assert_eq!(src, VersionSource::PackageJson);
+    }
+
+    #[test]
+    fn test_bump_semver_levels() {
+        assert_eq!(bump_semver("1.2.3", "patch").unwrap(), "1.2.4");
+        assert_eq!(bump_semver("1.2.3", "minor").unwrap(), "1.3.0");
+        assert_eq!(bump_semver("1.2.3", "major").unwrap(), "2.0.0");
+        assert_eq!(bump_semver("1.2.3", "none").unwrap(), "1.2.3");
     }
 
     #[test]

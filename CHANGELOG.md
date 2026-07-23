@@ -1,5 +1,47 @@
 # 变更日志
 
+## [0.13.6] — 2026-07-23
+
+### 新增
+
+- `finish-work` 硬门禁：`version-impact ≠ none` 时强制根 `CHANGELOG.md` 含目标版本 Keep a Changelog 条目（中英 section）
+- 版本权威读取顺序：Cargo workspace → package.json → VERSION；`none` 时禁止相对 HEAD 漂移
+- 模板：`check-version.sh` 对齐 workspace/VERSION；version-management / finish-work skill / meta/changelog 约定
+
+### 变更
+
+- Cargo workspace bump 后自动同步根 `VERSION`（若存在）
+- e2e 剥离宿主 `DIJIANG_CONTEXT_ID`，避免 session 路径非 hermetic
+
+## [0.13.5] — 2026-07-23
+
+### 变更
+
+- 统一 crate 版本到 Cargo workspace `0.13.5`（ADR 004：workspace 为版本权威面）
+- 各 crate 使用 `version.workspace = true`；根 `VERSION` 与 workspace 同号
+
+### 新增
+
+- （回填汇总）0.10.0 之后至 0.13.5：finish-work 路由/门禁、task worktree、dispatch/route gate、mem/session 闭环、configurator update 与模板投影等演进
+
+## [0.13.0] — 2026-07-20
+
+### 变更
+
+- （粗粒度回填）CLI/task/workflow 平台能力持续迭代至 0.13 线；细节见对应任务归档与 git 历史
+
+## [0.12.0] — 2026-07-16
+
+### 变更
+
+- （粗粒度回填）中间次要版本区间汇总；完整逐 commit 说明不在此展开
+
+## [0.11.0] — 2026-07-13
+
+### 变更
+
+- （粗粒度回填）0.10.0 之后功能与修复区间汇总
+
 ## [0.10.0] — 2026-07-11
 
 ### 新增
