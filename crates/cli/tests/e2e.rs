@@ -33,6 +33,8 @@ fn dijang(args: &[&str], cwd: &Path) -> Result<String, String> {
     let output = Command::new(&bin)
         .args(args)
         .current_dir(cwd)
+        // Keep e2e hermetic when parent agent injects DIJIANG_CONTEXT_ID.
+        .env_remove("DIJIANG_CONTEXT_ID")
         .output()
         .map_err(|e| format!("Failed to execute {}: {e}", bin.display()))?;
 
@@ -58,6 +60,7 @@ fn dijang_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> Result<S
     }
     let mut command = Command::new(&bin);
     command.args(args).current_dir(cwd);
+    command.env_remove("DIJIANG_CONTEXT_ID");
     for (key, value) in envs {
         command.env(key, value);
     }
@@ -1251,6 +1254,11 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
     )
     .unwrap();
     std::fs::write(project_dir.join("change.txt"), "changed").unwrap();
+    std::fs::write(
+        project_dir.join("CHANGELOG.md"),
+        "# Changelog\n\n## [0.1.1] — 2026-01-01\n\n### Added\n\n- patch release notes\n",
+    )
+    .unwrap();
 
     let finish_out = dijang(
         &[
@@ -1328,6 +1336,41 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
         String::from_utf8_lossy(&log.stdout)
     );
 }
+
+#[test]
+fn test_e2e_finish_work_patch_requires_changelog_entry() {
+    let (_tmp, project_dir) = init_project();
+
+    dijang(&["start", "changelog-gate", "Changelog Gate"], &project_dir).unwrap();
+    std::fs::write(
+        project_dir.join("Cargo.toml"),
+        "[workspace.package]\nversion = \"0.1.0\"\n",
+    )
+    .unwrap();
+    std::fs::write(project_dir.join("change.txt"), "changed").unwrap();
+
+    let err = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "missing changelog",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: gate test",
+            "--version-impact",
+            "patch",
+            "--allow-dirty",
+        ],
+        &project_dir,
+    )
+    .unwrap_err();
+    assert!(
+        err.contains("CHANGELOG.md") || err.contains("changelog"),
+        "error should mention CHANGELOG: {err}"
+    );
+}
+
 #[test]
 fn test_e2e_workflow_state_reports_stale_active_task_without_failing() {
     let (_tmp, project_dir) = init_project();
