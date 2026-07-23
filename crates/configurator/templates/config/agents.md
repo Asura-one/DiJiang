@@ -69,6 +69,13 @@ This project uses DiJiang for task management and workflow.
 | `dijiang channel stop <id>` | 停止 channel |
 | `dijiang update` | 更新 DiJiang 管理的 skills、agents、prompts、hooks 和 workflow 投影 |
 | `dijiang update --from-github` | 更新项目之前，先从 GitHub 刷新全局 skills |
+| `dijiang skill-body <name>` | 按需获取 skill body（渐进式加载） |
+| `dijiang doc-sync check [--base]` | 检查代码改动是否需要同步文档 |
+| `dijiang spec-sync check/record` | 检查/记录 spec 文件 checksum |
+| `dijiang bucket ...` | 任务 bucket 相关操作 |
+| `dijiang context ...` | 上下文组装/查询 |
+| `dijiang commit ...` | 约定式提交辅助 |
+| `dijiang session ...` | session 管理 |
 
 ## Skill 路由
 
@@ -94,6 +101,22 @@ This project uses DiJiang for task management and workflow.
 | 长篇代码讨论 | `dj-karpathy` |
 | Session handoff | `dj-handoff` |
 | Session findings / lessons | `dijiang mem findings` / `dijiang mem learn` |
+| 知识治理收尾 | `dj-gov` |
+| 技术调研 | `dj-research` |
+| 吸收/蒸馏外部材料 | `dj-absorb` |
+| 领域建模 / 术语 | `dj-domain-modeling` |
+| 代码结构设计 | `dj-codebase-design` |
+| Git 护栏说明 | `dj-git-guardrails` |
+| Session 洞察检索 | `dj-session-insight` |
+| Spec 初始生成 | `dj-spec-bootstrap` |
+| PRD 拆分 | `dj-split` |
+| 产出/同步任务文档 | `dj-output` |
+| 入口推荐 skill | `dj-ask` |
+| 多 agent 通道 | `dj-channel` |
+| 架构自省 / meta | `dj-meta` |
+| Session 包装：start | `dijiang-start` |
+| Session 包装：continue | `dijiang-continue` |
+| Session 包装：finish-work | `dijiang-finish-work` |
 
 ## Workflow 路由
 
