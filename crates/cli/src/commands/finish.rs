@@ -674,6 +674,10 @@ fn cleanup_current_worktree(
 
     if removed {
         println!("    ✓ 已删除 worktree");
+        // Commit-only cleanup must NOT force-delete an unmerged feature branch
+        // (`-D`). Only soft-delete with `-d` when already fully merged (e.g.
+        // after a separate integrate). Unmerged branches stay for later
+        // `finish-work --integrate`.
         if !target_branch.is_empty() {
             let del = std::process::Command::new("git")
                 .args(["branch", "-d", &target_branch])
@@ -681,13 +685,13 @@ fn cleanup_current_worktree(
                 .status()
                 .ok()
                 .map_or(false, |s| s.success());
-            if !del {
-                let _ = std::process::Command::new("git")
-                    .args(["branch", "-D", &target_branch])
-                    .current_dir(&main_worktree)
-                    .status();
+            if del {
+                println!("    ✓ 已删除分支 {target_branch}");
+            } else {
+                println!(
+                    "    ℹ 分支 {target_branch} 尚未合入主线，已保留（后续可用 --integrate）"
+                );
             }
-            println!("    ✓ 已删除分支 {target_branch}");
         }
         // Running finish from inside a removed worktree leaves a stale cwd.
         let cwd = std::env::current_dir().ok();

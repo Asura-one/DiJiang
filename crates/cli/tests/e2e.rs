@@ -1949,6 +1949,18 @@ fn test_e2e_finish_work_commit_removes_task_worktree() {
         !list.contains("cleanup-wt-tree"),
         "worktree list should not include removed tree: {list}"
     );
+
+    // Commit-only cleanup must keep the unmerged feature branch for later integrate.
+    let branches = Command::new("git")
+        .args(["branch", "--list", "feat/cleanup-wt"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git branch list");
+    let branch_out = String::from_utf8_lossy(&branches.stdout);
+    assert!(
+        branch_out.contains("feat/cleanup-wt"),
+        "unmerged feature branch must be retained after commit-only cleanup: {branch_out}"
+    );
 }
 
 
