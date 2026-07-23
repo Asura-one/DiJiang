@@ -17,9 +17,11 @@
 ## 示例
 - Route Gate 第一阶段：`crates/task/src/route_gate.rs` 决定活跃任务的 `allow`、`redirect` 或 `block`，CLI dispatch 输出 `action`、`reason` 和 `nextAction`。
 - Git Gate 第二阶段：`crates/task/src/git_gate.rs` 评估 worktree 就绪状态，`crates/cli/src/main.rs::ensure_task_worktree(...)` 消费该决策，并为面向实现的活跃任务 dispatch 报告 `ready / provisioned / blocked`。
+- 跨 worktree discovery：`crates/cli/src/util.rs::resolve_dijiang_dir` 供 CLI（含 `finish-work`）定位项目 `.dijiang/`。
+- Phase 4 capability：`finish-work --integrate` / `--push` / cleanup 走 `evaluate_capability` 显式批准门禁。
 - 受 Zleap 启发的设计：渐进式披露和审批策略可以在设计文档中作为后续阶段出现，而 README 和 workflow 只声明已交付的活跃运行时门禁。
 
 ## 反模式
 - 在 Route Gate 已经落地后，仍将 `dj-grill` 强制描述为仅存在于 skill 文本中。
-- 当运行时门禁当前仅覆盖 dispatch / 活跃任务实现路线时，声称 Git Gate 已经覆盖跨 worktree 的 `.dijiang` 发现或 `finish-work`。
+- 把跨 worktree 的 `.dijiang` discovery 或 `finish-work` 的 capability approval 说成 Phase 2 Git Gate 的同一条路径；discovery 在 `resolve_dijiang_dir`，finish 高风险操作在 `evaluate_capability`（Phase 4）。
 - 当 CLI 有意为新工作保留分类器行为时，为新任务和活跃任务使用同一条路由表。

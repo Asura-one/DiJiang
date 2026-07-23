@@ -4,7 +4,7 @@
 
 DiJiang 是一个 Rust 原生的 AI 编码助手工作流层。它提供 CLI 二进制 `dijiang`、一组可组合的 skill（`dj-*`），以及面向 Pi 平台的扩展集成，用于管理项目任务生命周期、记忆持久化、模板配置和 agent channel 编排。
 
-项目结构为 Cargo workspace，包含 4 个 crate，各司其职。
+项目结构为 Cargo workspace，包含 5 个 crate（cli / task / mem / configurator / mcp-server），各司其职。
 
 ## Crate 关系图
 
@@ -13,7 +13,8 @@ dijiang（workspace 根目录）
 ├── crates/cli/           # 入口：CLI 二进制、dispatch、finish-work
 ├── crates/task/          # 任务状态模型、路由/版本/能力门禁
 ├── crates/mem/           # 跨平台记忆持久化
-└── crates/configurator/  # Init、模板、平台配置、更新
+├── crates/configurator/  # Init、模板、平台配置、更新
+└── crates/mcp-server/    # MCP 服务端（包名 dijiang-mcp，与 CLI 独立）
 ```
 
 ### 依赖流向
@@ -26,7 +27,7 @@ cli ──→ task ──→ （独立，不依赖 DiJiang 其他 crate）
   └──→ configurator ──→ （独立，仅有模板注册表）
 ```
 
-三个库 crate（`task`、`mem`、`configurator`）互相独立，不共享 DiJiang 内部依赖。`cli` 是唯一依赖全部三个 crate 的集成层。
+三个库 crate（`task`、`mem`、`configurator`）互相独立，不共享 DiJiang 内部依赖。`cli` 是主要集成层；`mcp-server`（`dijiang-mcp`）为独立 MCP 入口，版本与 CLI crate 可不一致。
 
 ## Crate 职责
 
@@ -52,6 +53,10 @@ cli ──→ task ──→ （独立，不依赖 DiJiang 其他 crate）
 | `init` | `init <name> [--force] [--platforms]` |
 | `migrate` | `migrate` |
 | `update` | `update [--force] [--from-github]` |
+| `bucket` | `bucket ...` |
+| `context` | `context ...` |
+| `commit` | `commit ...` |
+| `session` | `session ...` |
 
 `cli` 中的关键架构组件：
 - **Dispatch 引擎**（`dispatch_route`、`apply_route_gate`）：将自然语言提示分类为 skill 路由，执行工况状态门禁（Route Gate Phase 1）。
@@ -348,8 +353,8 @@ DiJiang 在 Pi 中通过 `.pi/extensions/dijiang/index.ts` 扩展实现运行时
 .dijiang/
 ├── tasks/<id>/task.json   # 每个任务的状态
 ├── spec/                   # 逐层编码规范
-│   ├── backend/
-│   ├── frontend/
+│   ├── backend/          # 可选 skeleton（init 模板可 seed；本仓库已无本地 spec 实例）
+│   ├── frontend/         # 可选 skeleton（init 模板可 seed；本仓库已无本地 spec 实例）
 │   ├── guides/
 │   └── meta/               # ADR 模板、贡献指南
 ├── workspace/              # 开发者日志（每个 session 一个）

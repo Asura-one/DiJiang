@@ -121,7 +121,7 @@ DiJiang 现在已经把一部分 workflow 规则从 skill 文本提升到了 run
 
 当前这组 Git 规则已经有一部分下沉成 runtime hard gate。Phase 2 Git Gate 现在由 `crates/task/src/git_gate.rs` 提供 readiness evaluator，并由 `crates/cli/src/main.rs` 在 dispatch / active-task implementation route 中统一消费。当前已覆盖 `ready / provisioned / blocked`、缺失 task worktree metadata 时的 provision 决策、以及当前 runtime 仍在主 checkout 或错误 worktree 时的阻断。
 
-当前还没有覆盖的边界也要说清：跨 worktree 的 `.dijiang` discovery 还没统一，所以直接在纯 task worktree 目录里运行 `dijiang dispatch` 仍可能因为找不到 `.dijiang/` 失败；`finish-work` 的语义与 Git Gate 也还没有接线。这两项属于 Phase 2 之后的后续点，而不是当前已交付行为。
+后续增量：跨 worktree 的 `.dijiang` discovery 已由 `crates/cli/src/util.rs::resolve_dijiang_dir` 统一（worktree 本地 → 同仓 sibling → legacy 上溯；同时兼容 `.trellis`）。`finish-work` 使用同一 discovery，并对 integrate / push / cleanup 走 Phase 4 capability approval gate（`evaluate_capability`），不是 Phase 2 Git Gate evaluator 的同一条路径。
 
 ## CLI 工具
 
@@ -173,7 +173,7 @@ dijiang mem archive                          # 归档当前会话
 dijiang mem tactic --name N --description D  # 添加全局策略
 dijiang mem record --tactic T --outcome success --context C    # 记录策略事件
 dijiang mem pattern --name N --description D [--cadence]        # 添加带元数据的工作流模式
-dijiang mem recommend --use-case "watch CI" [--registry]        # 根据用例关键词推荐模式
+# dijiang mem recommend  — 当前 CLI 无此子命令（mem 子命令见 `dijiang mem --help`）
 ```
 
 ### template / skills / channel
@@ -186,9 +186,9 @@ dijiang skills --sync
 dijiang workflow-state --json
 dijiang channel spawn <agent>
 dijiang channel list
-dijiang audit [--suggest] [--badge]          # 循环就绪评分（0-100，L0-L3 等级）
-dijiang cost [--pattern] [--level L1/L2/L3]  # 估算模式每日 token 开销
-dijiang mcp                                  # 启动 MCP 服务器 (JSON-RPC 2.0 over stdio)
+# 注意：audit / cost / mcp 不是当前 dijiang 顶层子命令。
+# MCP 入口为独立 crate dijiang-mcp（crates/mcp-server）；勿把下列伪命令当 CLI 文档。
+# dijiang-mcp  # 独立二进制，非 `dijiang mcp` 子命令
 ```
 
 ## 兼容性
