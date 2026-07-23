@@ -1,6 +1,8 @@
 ---
 name: dj-channel
 description: >
+  多 agent 协作通道。通过 `dijiang channel` 生成 AI agent 执行任务、跨 agent 协作、
+  进度检查、通道日志调试。
 summary: 多 agent 协作通道：生成、监控和管理 AI agent 通道
 phases: [align, implement, check, finish]
 risk: low

@@ -1,6 +1,10 @@
 ---
 name: dj-session-insight
 description: >
+  跨会话记忆检索。通过 `dijiang mem recall` 检索过去的对话历史、findings 和 learnings。
+  当用户问"上次怎么解的"、"之前讨论过吗"、"决定是什么"、"我想想上次的对话"、"记得那条坑吗"，
+  或需要跨会话补全上下文时使用。返回原始记忆片段；根据情景决定是否更新 spec、追加到 task notes、
+  在回答中引用、或仅内化。
 summary: 跨会话记忆检索：通过 dijiang mem recall 检索历史对话、findings 和 learnings
 phases: [align, implement, check, finish]
 risk: low

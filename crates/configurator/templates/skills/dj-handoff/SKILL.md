@@ -1,6 +1,10 @@
 ---
 name: dj-handoff
 description: >
+  Session 交接：将当前对话压缩为结构化交接文档，让下一个 agent 无缝接手。
+  Use when the user needs to switch sessions, hand off work to another agent,
+  or preserve context before a break.
+  触发词：handoff、交接、换个session、接手、总结一下当前状态。
 summary: Session 交接：将当前对话压缩为结构化交接文档
 phases: [finish]
 risk: low

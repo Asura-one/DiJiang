@@ -1,6 +1,10 @@
 ---
 name: dj-prototype
 description: >
+  造废品验证设计：用可运行的代码回答"这个方案行不行"的问题。
+  Use when the user wants to validate a design idea before committing to it,
+  explore an unknown tech, spike a solution, or test an assumption with throwaway code.
+  触发词：prototype、原型、验证方案、探一下、spike、试一下、造废品。
 summary: 造废品验证设计：用可运行代码回答方案可行性
 phases: [align, implement]
 risk: low

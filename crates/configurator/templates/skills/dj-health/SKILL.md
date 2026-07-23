@@ -1,6 +1,10 @@
 ---
 name: dj-health
 description: >
+  综合代码库健康检查：覆盖构建、测试、Git、依赖、lint、工作区和
+  agent 配置。每当用户对项目状态不确定、或想确认修改没有引入
+  问题时使用。触发词：健康检查、状态报告、有没有问题、检查一切正常吗、
+  全面检查。
 summary: 综合代码库健康检查：构建、测试、Git、依赖、lint、agent 配置
 phases: [align, check, finish]
 risk: low
