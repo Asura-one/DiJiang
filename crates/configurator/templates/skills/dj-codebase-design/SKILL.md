@@ -1,6 +1,9 @@
 ---
 name: dj-codebase-design
 description: >
+  代码结构设计：决定代码放在哪、模块如何划分、接口如何定义。"先设计两次"——设计一个方案，扔掉，再设计一个更好的。
+  Use when planning a new module, refactoring existing code, or deciding where to put new functionality.
+  触发词：结构设计、放在哪、模块划分、架构设计、codebase design、design twice。
 summary: 代码结构设计：决定模块划分、接口定义
 phases: [align]
 risk: low

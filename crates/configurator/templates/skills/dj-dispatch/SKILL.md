@@ -1,6 +1,11 @@
 ---
 name: dj-dispatch
 description: >
+  通用任务分类器：识别任务类型，路由到对应 skill 执行。
+  支持单一任务和混合任务（主类型驱动 + 串联执行）。
+  Use when the user gives a new task, request, feature idea, bug report,
+  or any command that isn't already in a specific skill workflow.
+  触发词：新任务、帮忙、做一下、有个想法、有个需求。
 summary: 通用任务分类器：识别任务类型，路由到对应 skill 执行
 phases: [idle, align]
 risk: low

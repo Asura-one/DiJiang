@@ -1,6 +1,9 @@
 ---
 name: dj-research
 description: >
+  技术调研与信息收集。在任务规划或实现期间查找外部信息、比较方案、验证技术可行性。
+  Use when investigating third-party libraries, comparing approaches, or exploring technical unknowns.
+  触发词：调研、研究、比较、对比、可行性、research、investigate、figure out。
 summary: 技术调研与信息收集
 phases: [align, implement, finish]
 risk: low

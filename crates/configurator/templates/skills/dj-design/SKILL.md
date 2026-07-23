@@ -1,6 +1,9 @@
 ---
 name: dj-design
 description: >
+  前端 UI 设计：产出有观点的界面，不是千篇一律的默认样式。
+  Use when the user asks for UI design, page layout, component styling, or visual polish.
+  触发词：设计、做页面、做组件、不好看、很丑、前端、UI、design、page、component。
 summary: UI/UX 主导的设计实现
 phases: [implement]
 risk: medium

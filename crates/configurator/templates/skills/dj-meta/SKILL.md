@@ -1,6 +1,9 @@
 ---
 name: dj-meta
 description: >
+  Skill 写作指南：记录 dj-* 的设计原则和写作规范，用于创建和审查技能。
+  Use when creating a new dj-* skill, reviewing an existing one, or onboarding a new developer to the skill system.
+  触发词：写 skill、创建技能、skill 规范、技能指南、meta。
 summary: DiJiang 架构自省、技能创建指南和系统理解
 phases: [align, implement, check, finish]
 risk: low

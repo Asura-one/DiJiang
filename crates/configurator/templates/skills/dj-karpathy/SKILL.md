@@ -1,6 +1,11 @@
 ---
 name: dj-karpathy
 description: >
+  LLM 编码行为准则：减少常见错误，避免过度工程，暴露假设，定义可验证的成功标准。
+  可叠加到任何其他 skill 上使用。
+  Use when writing, reviewing, or refactoring code — especially for non-trivial tasks.
+  Activates automatically when writing 20+ lines or touching more than 3 files.
+  触发词：karpathy、规范、纪律、行为准则、不要乱写。
 summary: LLM 编码行为准则：减少常见错误，避免过度工程
 phases: [align, implement]
 risk: low

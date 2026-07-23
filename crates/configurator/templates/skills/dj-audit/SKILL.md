@@ -1,6 +1,9 @@
 ---
 name: dj-audit
 description: >
+  全仓扫描：过度工程检查 + 安全性扫描。只报告，不修改。
+  Use when the user wants to audit the codebase for over-engineering, bloat, dead code, or security issues.
+  触发词：审计、扫一下、过度工程、安全扫描、audit、代码大检查。
 summary: 全仓扫描：过度工程检查 + 安全性扫描。只报告，不修改。
 phases: [check, finish]
 risk: low

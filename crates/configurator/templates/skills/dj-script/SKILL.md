@@ -1,6 +1,9 @@
 ---
 name: dj-script
 description: >
+  脚本和工具编写：独立于特性实现，专注于一次性或可复用的自动化脚本。
+  Use when the user needs a script, CLI tool, automation, or utility that is not part of the main application.
+  触发词：脚本、script、工具、utility、自动化、写个命令、CLI、批量处理。
 summary: 脚本或工具实现
 phases: [implement]
 risk: medium

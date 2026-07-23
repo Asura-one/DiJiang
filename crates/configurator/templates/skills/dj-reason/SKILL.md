@@ -1,6 +1,9 @@
 ---
 name: dj-reason
 description: >
+  推理增强：用认知矩阵和系统透镜分析复杂判断、架构取舍、反复问题、流程副作用和长期影响。
+  Use when a task needs deep reasoning, system thinking, tradeoff analysis, or cognitive calibration before choosing an approach.
+  触发词：分析、推理、取舍、权衡、架构决策、复杂判断、reason、tradeoff。
 summary: 推理增强、系统透镜和复杂判断校准
 phases: [align, implement, check, finish]
 risk: low
