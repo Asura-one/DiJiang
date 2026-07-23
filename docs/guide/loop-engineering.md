@@ -1,6 +1,6 @@
 # DiJiang Loop Engineering 使用指南
 
-> 适用版本：dijiang >= 0.6.3
+> 适用版本：dijiang >= 0.13.5
 > 更新日期：2026-07-08
 
 Loop Engineering 是将 AI 编程代理的使用模式从"手动写提示"升级为"设计自动化循环"的工程方法。DiJiang 实现了 loop-engineering 的核心能力，让项目可以自动评估自动化成熟度、记录工作模式、估算成本，并通过 MCP 协议与外部工具集成。
