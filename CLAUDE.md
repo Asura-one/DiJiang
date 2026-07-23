@@ -9,7 +9,7 @@ This project uses DiJiang, an AI-native development workflow framework.
 - `.dijiang/spec/` — Project specifications and coding guidelines
 - `.dijiang/workspace/` — Developer journals and session traces
 - `.pi/` — Pi agent platform configuration
-- `crates/` — Rust workspace crates (cli, task, mem, configurator, mcp-server)
+- `crates/` — Rust workspace crates (core, cli, task, mem, configurator)
 
 ## Task Workflow
 
@@ -37,13 +37,10 @@ Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
 
 ## CLI Commands
 
-- `dijiang status` / `status --compat` — 项目概览 / 兼容性诊断
-- `dijiang start <name>` / `dijiang dispatch <prompt>` — session 与路由
-- `dijiang task list|current|start|status|archive|prune` — 任务生命周期
-- `dijiang finish-work --verification ... --docs-sync ... --version-impact ...` — 收尾（可选 commit/push/integrate）
-- `dijiang mem ...` / `dijiang channel ...` / `dijiang template ...` / `dijiang skills [--sync]`
-- `dijiang workflow-state --json` / `dijiang skill-body <name>` — runtime route 与 skill body
-- `dijiang doc-sync` / `dijiang spec-sync` / `dijiang bucket` / `dijiang context` / `dijiang commit` / `dijiang session`
-- `dijiang init` / `dijiang migrate` / `dijiang update [--from-github]`
-- `cargo build -p dijiang` — Build CLI binary
+- `dijiang status` — 项目概览
+- `dijiang task list` — 所有任务
+- `dijiang task current` — 当前任务
+- `dijiang start <name>` — Start task
+- `dijiang workflow-state --json` — Load injected runtime route + target skill context
+- `cargo build -p dijiang-cli` — Build CLI
 - `cargo test` — Run all tests
