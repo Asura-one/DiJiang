@@ -1,57 +1,60 @@
 # 版本管理流程
 
-DiJiang 项目版本管理原先按 VERSION 单一真相源设计；审计时发现与 Cargo/CLI 运行态分裂，收敛策略 pending。
+## 权威面（2026-07-23 决策）
+
+**以 Cargo workspace 的 `0.x` 为项目版本权威：**
+
+- 文件：根目录 `Cargo.toml` → `[workspace.package].version`
+- 当前值：`0.13.5`
+- `finish-work --version-impact` 递增目标就是这一面
+
+本轮（决策收尾）**不改任何版本数字**，只固定策略。
+
+## 各版本面关系
+
+| 面 | 当前值（写文档时） | 角色 |
+|----|-------------------|------|
+| **workspace Cargo** `[workspace.package].version` | `0.13.5` | **权威**：项目/发版语义版本 |
+| 根目录 `VERSION` | `3.0.0` | **从属/遗留**：历史项目文件；`check-version.sh` 仍可能读它与 `package.json` 对比。**不得**再称为唯一权威；与 workspace 不一致时以 workspace 为准 |
+| `crates/cli` / `crates/task` 包 `version` | `0.6.3` | **实现面**：独立声明的 crate 版本；`dijiang --version` 来自 CLI 的 `CARGO_PKG_VERSION`。与 workspace 权威尚未对齐，对齐属后续实现任务 |
+| `crates/mcp-server` | `0.1.0` | **独立面**：MCP 包可与主项目不同步；发布策略可单独定 |
+
+依赖项若写 `workspace = true`，跟的是 workspace **依赖版本表**，不是把 crate 自身 `version` 绑到 `0.13.5`。cli/task 目前仍自带 `version = "0.6.3"`。
 
 ## VERSION 文件
-
-> **状态（2026-07-23 审计）**：文档原先宣称 `VERSION` 为唯一权威来源，与运行态不一致，以下按代码/运行态重述。**版本收敛策略（如何统一三源）标 `pending`，需产品决策。**
-
-当前同时存在多套版本面（均已现场核实）：
-
-| 面 | 当前值（审计时） | 用途 |
-|----|------------------|------|
-| 根目录 `VERSION` | `3.0.0` | 项目级版本文件；`check-version.sh` 主要与 `package.json` 对比 |
-| workspace `Cargo.toml` `[workspace.package].version` | `0.13.5` | `finish-work --version-impact` 递增的目标 |
-| `crates/cli` / 已安装 `dijiang --version` | `0.6.3` | CLI 二进制 `CARGO_PKG_VERSION` |
-| `crates/mcp-server` | `0.1.0` | 独立 MCP 包版本 |
-
-`VERSION` 文件本身：
 
 ```
 3.0.0
 ```
 
-不含前缀 `v`，不包含其他元数据。它**不是**当前 CLI 运行态版本的唯一来源。
+不含前缀 `v`。它是遗留从属文件，不是运行态或发版权威。
 
-## 版本同步步骤
+## 发版 / bump 步骤
 
-当发布新版本时（在版本面收敛策略确定前，至少保证下面几处一致或明确标注差异）：
+在「不改号」任务之外真正发版时：
 
-1. 决定本轮要 bump 的面：`VERSION` / workspace Cargo / CLI crate / mcp crate
-2. 更新对应文件；`finish-work --version-impact` 目前主要 bump workspace `Cargo.toml` 版本
-3. 运行 `.dijiang/scripts/check-version.sh`（若存在）核对 `VERSION` 与 `package.json`
-4. 用 `dijiang --version` 与 `cargo metadata` 抽查运行态
-5. 提交含 `chore: bump to <version>` 的 commit
+1. **先 bump 权威面**：`Cargo.toml` `[workspace.package].version`（或由 `finish-work --version-impact major|minor|patch`）
+2. 决定是否同步从属面（本决策不要求本轮做）：
+   - `VERSION` 是否改成与 workspace 同号或退役
+   - CLI/task crate `version` 是否改为 `version.workspace = true` 或与权威同号
+   - mcp 是否独立 bump
+3. 抽查：`cargo metadata`、重新安装后的 `dijiang --version`（在 CLI 对齐前仍可能显示 crate 自有版本）
+4. 提交：`chore: bump to <workspace-version>`（中文 Conventional Commits 亦可）
 
-## 版本策略
+## 版本策略（作用于 workspace 权威）
 
-| 影响范围 | 版本变更 | 示例 |
-|----------|---------|------|
-| 重大架构变更或不兼容改动 | major | 2.0.0 → 3.0.0 |
-| 新功能（向后兼容） | minor | 2.1.0 → 2.2.0 |
-| Bug 修复或文档更新 | patch | 2.1.0 → 2.1.1 |
-| 仅 spec/指南变更（无功能代码） | none | 不修改 VERSION |
+| 影响范围 | 变更 | 示例（workspace） |
+|----------|------|-------------------|
+| 不兼容公开行为 / API | major | 0.13.5 → 1.0.0 |
+| 向后兼容新功能 | minor | 0.13.5 → 0.14.0 |
+| 向后兼容修复 | patch | 0.13.5 → 0.13.6 |
+| 仅文档/测试/workflow | none | 不改权威版本 |
 
 ## 检查脚本
 
-```bash
-# check-version.sh - 验证版本一致性
-VERSION=$(cat VERSION)
-# 检查 package.json 中的版本
-for pkg in $(find . -name package.json -not -path '*/node_modules/*'); do
-  pkg_ver=$(grep '"version"' "$pkg" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-  if [ "$pkg_ver" != "$VERSION" ]; then
-    echo "MISMATCH: $pkg has version $pkg_ver, expected $VERSION"
-  fi
-done
-```
+`.dijiang/scripts/check-version.sh` 当前主要核对 `VERSION` 与 `package.json`，**不能**单独证明与 workspace 权威一致。在脚本未改前，人工以 `Cargo.toml` 的 `[workspace.package].version` 为准。
+
+## 决策记录
+
+- **2026-07-23**：用户确认「以 workspace 0.x 为准，本轮不改号」。
+- 此前「VERSION 唯一权威 / 收敛 pending」表述废止。
