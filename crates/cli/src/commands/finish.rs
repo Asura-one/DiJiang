@@ -602,66 +602,128 @@ pub(crate) fn git_main_worktree(project_root: &Path, main_branch: &str) -> anyho
     anyhow::bail!("未找到主分支 worktree：{main_branch}");
 }
 
-fn cleanup_current_worktree(project_root: &Path, main_branch: &str) -> anyhow::Result<()> {
-    let branch_name = git_current_branch(project_root).unwrap_or_else(|_| "detached".to_string());
-    if branch_name == main_branch {
-        println!("  ✓ 当前位于主分支 worktree，不执行自动清理");
+/// Remove a finished task worktree via the main worktree, even if finish-work is
+/// still running inside that task worktree (git allows remove from another worktree).
+fn cleanup_current_worktree(
+    project_root: &Path,
+    main_branch: &str,
+    task: Option<&TaskRecord>,
+) -> anyhow::Result<()> {
+    let current_branch = git_current_branch(project_root).unwrap_or_else(|_| String::new());
+    let (target_path, target_branch) = if let Some(task) = task {
+        let path = task
+            .worktree_path
+            .as_ref()
+            .map(PathBuf::from)
+            .filter(|p| p.as_os_str().len() > 0);
+        let branch = task.branch.clone().filter(|b| !b.is_empty());
+        match (path, branch) {
+            (Some(p), Some(b)) => (p, b),
+            (Some(p), None) => (p, current_branch.clone()),
+            (None, Some(b)) if current_branch == b => (project_root.to_path_buf(), b),
+            (None, Some(b)) => {
+                // Task records a branch but no path; if we are on that branch use cwd.
+                if !current_branch.is_empty() && current_branch != main_branch {
+                    (project_root.to_path_buf(), b)
+                } else {
+                    println!("  ✓ 任务无 worktree 路径可清理（branch={b}）");
+                    return Ok(());
+                }
+            }
+            (None, None) => {
+                if current_branch.is_empty() || current_branch == main_branch {
+                    println!("  ✓ 当前位于主分支 worktree，不执行自动清理");
+                    return Ok(());
+                }
+                (project_root.to_path_buf(), current_branch.clone())
+            }
+        }
+    } else {
+        if current_branch.is_empty() || current_branch == main_branch {
+            println!("  ✓ 当前位于主分支 worktree，不执行自动清理");
+            return Ok(());
+        }
+        (project_root.to_path_buf(), current_branch.clone())
+    };
+
+    if target_branch == main_branch {
+        println!("  ✓ 目标是主分支，跳过 worktree 清理");
         return Ok(());
     }
-    println!("  → 清理当前任务 worktree：{} ({})", project_root.display(), branch_name);
-    println!("    ✓ 跳过自动删除：当前仍在该 worktree 内运行 finish-work");
-    Ok(())
-}
 
-fn auto_cleanup_worktree(project_root: &Path, main_branch: &str) -> anyhow::Result<()> {
-    let output = std::process::Command::new("git")
-        .args(["worktree", "list", "--porcelain"])
-        .current_dir(project_root)
-        .output()?;
-    if !output.status.success() { return Ok(()); }
-    let main_path = std::fs::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf());
-    let entries: Vec<(String, String)> = {
-        let mut entries = Vec::new();
-        let mut current_path = String::new();
-        let mut current_branch = String::new();
-        for line in String::from_utf8_lossy(&output.stdout).lines() {
-            if let Some(path) = line.strip_prefix("worktree ") { current_path = path.to_string(); }
-            else if let Some(br) = line.strip_prefix("branch refs/heads/") { current_branch = br.to_string(); }
-            else if line.trim().is_empty() && !current_path.is_empty() {
-                entries.push((current_path.clone(), current_branch.clone()));
-                current_path.clear(); current_branch.clear();
-            }
+    let main_worktree = match git_main_worktree(project_root, main_branch) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("  ⚠ 无法定位主 worktree，跳过自动清理: {e}");
+            return Ok(());
         }
-        if !current_path.is_empty() { entries.push((current_path, current_branch)); }
-        entries
     };
-    let mut cleaned = false;
-    for (path, branch_name) in &entries {
-        if path.is_empty() { continue; }
-        let canonical = std::fs::canonicalize(path.as_str()).unwrap_or_else(|_| PathBuf::from(path.as_str()));
-        if canonical == main_path || branch_name == main_branch { continue; }
-        println!("  → 清理 worktree：{} ({})", path, if branch_name.is_empty() { "detached" } else { branch_name });
-        if std::process::Command::new("git").args(["worktree", "remove", path.as_str()])
-            .current_dir(project_root).status().ok().map_or(false, |s| s.success())
-        {
-            cleaned = true;
-            println!("    ✓ 已删除 worktree");
-            if !branch_name.is_empty() {
-                let _ = std::process::Command::new("git").args(["branch", "-d", branch_name.as_str()]).current_dir(project_root).status();
-            }
-        } else {
-            if std::process::Command::new("git").args(["worktree", "remove", "--force", path.as_str()])
-                .current_dir(project_root).status().ok().map_or(false, |s| s.success())
-            {
-                cleaned = true;
-                println!("    ✓ 已强制删除 worktree");
-                if !branch_name.is_empty() {
-                    let _ = std::process::Command::new("git").args(["branch", "-D", branch_name.as_str()]).current_dir(project_root).status();
-                }
-            } else { eprintln!("    ⚠  删除失败，请手动处理"); }
-        }
+
+    let target_canon = std::fs::canonicalize(&target_path).unwrap_or_else(|_| target_path.clone());
+    let main_canon = std::fs::canonicalize(&main_worktree).unwrap_or_else(|_| main_worktree.clone());
+    if target_canon == main_canon {
+        println!("  ✓ 目标路径即主 worktree，不执行自动清理");
+        return Ok(());
     }
-    if !cleaned { println!("  ✓ 无可清理的 worktree"); }
+
+    if !target_path.exists() {
+        println!("  ✓ worktree 路径已不存在：{}", target_path.display());
+        // Still try to delete the task branch if present.
+        if !target_branch.is_empty() {
+            let _ = std::process::Command::new("git")
+                .args(["branch", "-d", &target_branch])
+                .current_dir(&main_worktree)
+                .status();
+        }
+        return Ok(());
+    }
+
+    let path_str = target_path.display().to_string();
+    println!("  → 清理任务 worktree：{path_str} ({target_branch})");
+    let removed = std::process::Command::new("git")
+        .args(["worktree", "remove", &path_str])
+        .current_dir(&main_worktree)
+        .status()
+        .ok()
+        .map_or(false, |s| s.success())
+        || std::process::Command::new("git")
+            .args(["worktree", "remove", "--force", &path_str])
+            .current_dir(&main_worktree)
+            .status()
+            .ok()
+            .map_or(false, |s| s.success());
+
+    if removed {
+        println!("    ✓ 已删除 worktree");
+        if !target_branch.is_empty() {
+            let del = std::process::Command::new("git")
+                .args(["branch", "-d", &target_branch])
+                .current_dir(&main_worktree)
+                .status()
+                .ok()
+                .map_or(false, |s| s.success());
+            if !del {
+                let _ = std::process::Command::new("git")
+                    .args(["branch", "-D", &target_branch])
+                    .current_dir(&main_worktree)
+                    .status();
+            }
+            println!("    ✓ 已删除分支 {target_branch}");
+        }
+        // Running finish from inside a removed worktree leaves a stale cwd.
+        let cwd = std::env::current_dir().ok();
+        if let Some(cwd) = cwd {
+            let cwd_canon = std::fs::canonicalize(&cwd).unwrap_or(cwd);
+            if cwd_canon == target_canon || !target_path.exists() {
+                println!(
+                    "    ⚠ 当前 shell 仍在已删除的 worktree 路径；请 `cd {}`",
+                    main_worktree.display()
+                );
+            }
+        }
+    } else {
+        eprintln!("    ⚠ worktree 删除失败，请手动：git worktree remove {path_str}");
+    }
     Ok(())
 }
 
@@ -800,7 +862,7 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     };
     if options.commit { project_memory.append_session_closure(&memory_closure)?; }
     let commit = if options.commit { perform_finish_commit(&project_root, task_label, options.summary, options.commit_message)? } else { None };
-    if options.commit && !options.integrate && !options.keep_worktree { cleanup_current_worktree(&project_root, options.main_branch)?; }
+    if options.commit && !options.integrate && !options.keep_worktree { cleanup_current_worktree(&project_root, options.main_branch, task_before_archive)?; }
     if options.push || options.integrate { perform_finish_integration(&project_root, options, options.approve_integrate)?; }
     if !options.commit { project_memory.append_session_closure(&memory_closure)?; }
     if let Some(target) = resolved_target.as_ref() { println!("✓ 已完成任务 '{}'", target.task_name); } else { println!("✓ 已完成工作（无 active task）"); }

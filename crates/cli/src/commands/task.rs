@@ -1,10 +1,8 @@
 use std::collections::HashMap;
-use crate::commands::dispatch;
-use crate::util::{git_worktree_root, require_dijiang_dir};
+use crate::util::require_dijiang_dir;
 use dijiang_task::hooks::{self, HookEvent};
 use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
-use dijiang_task::{RouteIntent, TaskComplexity};
 use dijiang_task::TaskRecord;
 
 pub fn cmd_task_list() -> anyhow::Result<()> {
@@ -98,54 +96,25 @@ pub fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
         .unwrap_or(TaskStatus::Planning);
 
     match store::update_status(&tasks_dir, name, new_status) {
-        Ok(mut task) => {
+        Ok(task) => {
             let task_status = task.status.clone();
             println!("✓ Task '{name}' status updated to: {}", task_status.as_str());
 
-            // Auto-provision worktree when transitioning planning → in_progress
+            // Worktree is provisioned by implement-class dispatch only
+            // (dj-implement|dj-hunt|dj-tdd|dj-script|dj-design). Status alone must
+            // not invent a fake dj-implement route — that created worktrees for
+            // docs/research tasks and left agents blocked on main checkout.
             if old_status == TaskStatus::Planning && task_status == TaskStatus::InProgress {
-                if let Some(project_root) = dijiang_dir.parent() {
-                    if let Ok(cwd) = std::env::current_dir() {
-                        let worktree_root = git_worktree_root(&cwd).ok();
-                        let route = dispatch::DispatchRoute {
-                            task_type: "代码开发",
-                            primary_intent: "继续实现",
-                            skill: "dj-implement",
-                            recommended_path: "dj-implement → dj-check",
-                            status: TaskStatus::InProgress,
-                            intent: RouteIntent::Implement,
-                            complexity: TaskComplexity::Lightweight,
-                        };
-                        match dispatch::ensure_task_worktree(
-                            project_root, &tasks_dir, &mut task, &route,
-                            &cwd, worktree_root.flatten().as_deref(), None,
-                        ) {
-                            Ok(Some(decision)) => {
-                                match &decision.readiness.state {
-                                    dijiang_task::GitGateState::Provisioned => {
-                                        println!("  ✓ 自动创建 worktree: {} (分支: {})",
-                                            decision.readiness.worktree_path.as_deref().unwrap_or("?"),
-                                            decision.readiness.branch.as_deref().unwrap_or("?"));
-                                    }
-                                    dijiang_task::GitGateState::Ready => {
-                                        println!("  ✓ 使用已有 worktree: {}",
-                                            decision.readiness.worktree_path.as_deref().unwrap_or("?"));
-                                    }
-                                    dijiang_task::GitGateState::Blocked => {
-                                        if !decision.readiness.message.is_empty() {
-                                            eprintln!("  ⚠ worktree 不可用: {}", decision.readiness.message);
-                                        }
-                                    }
-                                }
-                            }
-                            Ok(None) => {
-                                println!("  ℹ 当前任务不需要 worktree");
-                            }
-                            Err(e) => {
-                                eprintln!("  ⚠ 创建 worktree 失败（可忽略）: {e}");
-                            }
-                        }
-                    }
+                if task.worktree_path.as_ref().map(|p| !p.is_empty()).unwrap_or(false) {
+                    println!(
+                        "  ℹ 已有任务 worktree: {}（分支: {}）",
+                        task.worktree_path.as_deref().unwrap_or("?"),
+                        task.branch.as_deref().unwrap_or("?")
+                    );
+                } else {
+                    println!(
+                        "  ℹ 状态切换不会自动创建 worktree；实现类路线 dispatch 时再 provision"
+                    );
                 }
             }
 

@@ -160,7 +160,12 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     // Remove stale files from fully managed directories (.pi/skills/, .dijiang/references/)
     // that exist in the project dir but no longer in the template source.
     // .dijiang/spec/ is excluded because it also holds local-only files not tracked in templates.
-    remove_stale_files(cwd, temp.path(), &[".pi/skills", ".dijiang/references"], &mut report)?;
+    remove_stale_files(
+        cwd,
+        temp.path(),
+        &[".pi/skills", ".dijiang/references", ".dijiang/scripts"],
+        &mut report,
+    )?;
 
     let config_updated =
         update_config(cwd, &platforms, config.as_ref(), &mut hashes, options.force)?;
@@ -545,6 +550,14 @@ fn copy_template_skills(src: &Path, temp_dir: &Path) -> Result<(), ConfigError> 
     Ok(())
 }
 
+
+/// Skip Python bytecode caches that should never be managed/synced.
+fn is_python_cache_entry(name: &str) -> bool {
+    name == "__pycache__"
+        || name.ends_with(".pyc")
+        || name.ends_with(".pyo")
+}
+
 /// Recursively copy all files from src_dir to dst_dir, preserving relative paths.
 fn copy_dir_contents(src_dir: &Path, dst_dir: &Path) -> Result<(), ConfigError> {
     fs::create_dir_all(dst_dir).map_err(|e| {
@@ -556,17 +569,21 @@ fn copy_dir_contents(src_dir: &Path, dst_dir: &Path) -> Result<(), ConfigError> 
         let entry = entry.map_err(|e| {
             ConfigError::Serialize(format!("failed to read entry in {}: {e}", src_dir.display()))
         })?;
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if is_python_cache_entry(&name_str) {
+            continue;
+        }
         let file_type = entry.file_type().map_err(|e| {
             ConfigError::Serialize(format!("failed to get file type: {e}"))
         })?;
         if file_type.is_dir() {
             let sub_src = entry.path();
-            let sub_name = entry.file_name();
-            let sub_dst = dst_dir.join(&sub_name);
+            let sub_dst = dst_dir.join(&name);
             copy_dir_contents(&sub_src, &sub_dst)?;
         } else if file_type.is_file() {
             let src_file = entry.path();
-            let dst_file = dst_dir.join(entry.file_name());
+            let dst_file = dst_dir.join(&name);
             fs::copy(&src_file, &dst_file).map_err(|e| {
                 ConfigError::Serialize(format!(
                     "failed to copy {} -> {}: {e}",
@@ -603,6 +620,9 @@ fn collect_managed_files_inner(
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
         if name_str.starts_with('.') && name_str != ".gitkeep" { continue; }
+        if is_python_cache_entry(&name_str) {
+            continue;
+        }
         let relative = if subpath.is_empty() {
             name_str.to_string()
         } else {
@@ -658,8 +678,9 @@ fn remove_stale_inner(
             ConfigError::Serialize(format!("failed to get file type: {e}"))
         })?;
         let ref_path = reference_dir.join(&name);
-        if !ref_path.exists() {
-            // Delete: file/subdir exists in project but not in reference
+        // Always drop Python caches from managed trees even if a template source still has them.
+        if is_python_cache_entry(&name_str) || !ref_path.exists() {
+            // Delete: cache entry, or file/subdir exists in project but not in reference
             let full_path = entry.path();
             let relative = format!("{prefix}/{name_str}");
             if file_type.is_dir() {
@@ -855,5 +876,87 @@ version = "0.1.0"
         let config = fs::read_to_string(tmp.path().join(".dijiang/config.toml")).unwrap();
         assert!(config.contains("codex"));
         assert!(config.contains("cursor"));
+    }
+
+    #[test]
+    fn update_project_skips_and_removes_python_cache_under_scripts() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        crate::init_project_with_platforms(tmp.path(), "pycache-test", None, &[PlatformKind::Pi])
+            .unwrap();
+
+        // Seed a leftover cache under managed scripts path.
+        let residual_dir = tmp.path().join(".dijiang/scripts/common/__pycache__");
+        fs::create_dir_all(&residual_dir).unwrap();
+        fs::write(residual_dir.join("paths.cpython-314.pyc"), b"stale").unwrap();
+        fs::write(
+            tmp.path().join(".dijiang/scripts/common/stale.pyc"),
+            b"stale",
+        )
+        .unwrap();
+
+        // If this project tree has template scripts, plant cache next to a real script source.
+        let templates_common = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates/scripts/common");
+        let planted_cache = templates_common.join("__pycache__");
+        let planted = if templates_common.exists() {
+            fs::create_dir_all(&planted_cache).unwrap();
+            fs::write(planted_cache.join("planted.cpython-314.pyc"), b"planted").unwrap();
+            true
+        } else {
+            false
+        };
+
+        // Run update from a cwd that may include this repo's templates (when tests run in-tree).
+        // Always also exercise pure copy helpers via a synthetic tree under temp.
+        let synth_src = tmp.path().join("_synth_src");
+        let synth_dst = tmp.path().join("_synth_dst");
+        fs::create_dir_all(synth_src.join("common/__pycache__")).unwrap();
+        fs::write(synth_src.join("common/__init__.py"), b"").unwrap();
+        fs::write(synth_src.join("common/__pycache__/x.pyc"), b"x").unwrap();
+        fs::write(synth_src.join("common/skip.pyc"), b"x").unwrap();
+        copy_dir_contents(&synth_src, &synth_dst).unwrap();
+        assert!(synth_dst.join("common/__init__.py").exists());
+        assert!(!synth_dst.join("common/__pycache__").exists());
+        assert!(!synth_dst.join("common/skip.pyc").exists());
+
+        let mut managed = Vec::new();
+        collect_managed_files(&synth_src, ".dijiang/scripts", &mut managed);
+        assert!(
+            managed.iter().all(|m| !m.path.contains("__pycache__") && !m.path.ends_with(".pyc")),
+            "managed files must not include python caches: {managed:?}"
+        );
+
+        // For full update_project path: seed templates only when running in DiJiang source tree.
+        // Simulate by placing residual under scripts and ensuring remove_stale covers scripts.
+        // Call remove_stale_files directly with a temp reference without caches.
+        let temp_ref = tmp.path().join("_temp_ref");
+        fs::create_dir_all(temp_ref.join(".dijiang/scripts/common")).unwrap();
+        fs::write(temp_ref.join(".dijiang/scripts/common/__init__.py"), b"").unwrap();
+        // Keep a real project scripts tree with residual cache
+        let project_scripts = tmp.path().join(".dijiang/scripts");
+        fs::create_dir_all(project_scripts.join("common")).unwrap();
+        fs::write(project_scripts.join("common/__init__.py"), b"").unwrap();
+        fs::create_dir_all(project_scripts.join("common/__pycache__")).unwrap();
+        fs::write(project_scripts.join("common/__pycache__/y.pyc"), b"y").unwrap();
+
+        let mut report = UpdateReport::default();
+        remove_stale_files(
+            tmp.path(),
+            &temp_ref,
+            &[".dijiang/scripts"],
+            &mut report,
+        )
+        .unwrap();
+        assert!(
+            !project_scripts.join("common/__pycache__").exists(),
+            "residual __pycache__ should be removed"
+        );
+        assert!(
+            report.removed.iter().any(|p| p.contains("__pycache__")),
+            "report should record cache removal: {report:?}"
+        );
+
+        if planted {
+            let _ = fs::remove_dir_all(&planted_cache);
+        }
     }
 }

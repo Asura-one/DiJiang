@@ -1814,3 +1814,139 @@ fn test_e2e_mem_tactics() {
         "should show tactics or empty message"
     );
 }
+
+
+#[test]
+fn test_e2e_task_status_in_progress_does_not_provision_worktree() {
+    let (_tmp, project_dir) = init_project();
+    // Ensure main branch name is main (git init may use master).
+    Command::new("git")
+        .args(["branch", "-m", "master", "main"])
+        .current_dir(&project_dir)
+        .output()
+        .ok();
+
+    dijang(&["start", "status-no-wt", "Status No Worktree"], &project_dir).unwrap();
+    let out = dijang(
+        &["task", "status", "status-no-wt", "in_progress"],
+        &project_dir,
+    )
+    .unwrap();
+    assert!(
+        out.contains("状态切换不会自动创建 worktree")
+            || out.contains("不会自动创建 worktree"),
+        "status output should explain no auto provision: {out}"
+    );
+    assert!(
+        !out.contains("✓ 自动创建 worktree"),
+        "status must not auto-create worktree: {out}"
+    );
+
+    let task_json = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang/tasks/status-no-wt/task.json"),
+    )
+    .unwrap();
+    let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
+    assert_eq!(task["status"], "in_progress");
+    assert!(
+        task["worktreePath"].is_null()
+            || task["worktreePath"].as_str().map(|s| s.is_empty()).unwrap_or(true),
+        "worktreePath must stay empty after status-only transition: {task_json}"
+    );
+    assert!(
+        task["branch"].is_null()
+            || task["branch"].as_str().map(|s| s.is_empty()).unwrap_or(true),
+        "branch must stay empty after status-only transition: {task_json}"
+    );
+
+    let wt = Command::new("git")
+        .args(["worktree", "list"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("worktree list");
+    let list = String::from_utf8_lossy(&wt.stdout);
+    assert_eq!(
+        list.lines().count(),
+        1,
+        "only main worktree should exist: {list}"
+    );
+}
+
+#[test]
+fn test_e2e_finish_work_commit_removes_task_worktree() {
+    let (tmp, project_dir) = init_project();
+    Command::new("git")
+        .args(["branch", "-m", "master", "main"])
+        .current_dir(&project_dir)
+        .output()
+        .ok();
+
+    dijang(
+        &["start", "cleanup-wt", "Cleanup Worktree"],
+        &project_dir,
+    )
+    .unwrap();
+
+    let worktree_dir = tmp.path().join("cleanup-wt-tree");
+    Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "feat/cleanup-wt",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git worktree add");
+
+    // Point task at the worktree (as ensure_task_worktree would).
+    let task_json_path = project_dir.join(".dijiang/tasks/cleanup-wt/task.json");
+    let mut task: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&task_json_path).unwrap()).unwrap();
+    task["branch"] = serde_json::json!("feat/cleanup-wt");
+    task["baseBranch"] = serde_json::json!("main");
+    task["worktreePath"] = serde_json::json!(worktree_dir.display().to_string());
+    task["status"] = serde_json::json!("in_progress");
+    std::fs::write(&task_json_path, serde_json::to_string_pretty(&task).unwrap()).unwrap();
+
+    std::fs::write(worktree_dir.join("change.txt"), "changed").unwrap();
+    let finish_out = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "cleanup worktree after commit",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: cleanup worktree e2e",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test(cli): 提交后清理任务 worktree",
+        ],
+        &worktree_dir,
+    )
+    .unwrap();
+    assert!(
+        finish_out.contains("已删除 worktree") || finish_out.contains("清理任务 worktree"),
+        "finish output should report worktree cleanup: {finish_out}"
+    );
+    assert!(
+        !worktree_dir.exists(),
+        "task worktree directory should be removed"
+    );
+
+    let wt = Command::new("git")
+        .args(["worktree", "list"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("worktree list");
+    let list = String::from_utf8_lossy(&wt.stdout);
+    assert!(
+        !list.contains("cleanup-wt-tree"),
+        "worktree list should not include removed tree: {list}"
+    );
+}
