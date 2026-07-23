@@ -1,6 +1,6 @@
 pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    let _dijiang_dir = dijiang_task::store::find_dijiang_dir(&cwd)
+    let _dijiang_dir = crate::util::resolve_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?;
 
     if from_github {

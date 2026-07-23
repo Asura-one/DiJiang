@@ -1,4 +1,4 @@
-use crate::util::{require_dijiang_dir, run_git, read_developer, current_session_key, git_current_branch, git_worktree_root};
+use crate::util::{require_dijiang_dir, resolve_dijiang_dir, run_git, read_developer, current_session_key, git_current_branch, git_worktree_root};
 use dijiang_task::hooks::{self, HookEvent};
 use dijiang_task::store;
 use dijiang_task::types::{TaskRecord, TaskStatus};
@@ -47,27 +47,6 @@ fn git_dirty_entries(project_root: &Path) -> anyhow::Result<Vec<String>> {
         .collect())
 }
 
-fn find_dijiang_dir_in_git_worktrees(project_root: &Path) -> anyhow::Result<Option<PathBuf>> {
-    let output = std::process::Command::new("git")
-        .args(["worktree", "list", "--porcelain"])
-        .current_dir(project_root)
-        .output()?;
-    if !output.status.success() {
-        return Err(anyhow::anyhow!(
-            "git worktree list failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
-    for line in String::from_utf8_lossy(&output.stdout).lines() {
-        if let Some(path) = line.strip_prefix("worktree ") {
-            let candidate = PathBuf::from(path).join(".dijiang");
-            if candidate.is_dir() {
-                return Ok(Some(candidate));
-            }
-        }
-    }
-    Ok(None)
-}
 
 fn recover_finish_task_from_branch(
     tasks_dir: &Path,
@@ -772,7 +751,15 @@ fn perform_finish_integration(project_root: &Path, options: FinishWorkOptions<'_
             anyhow::bail!("finish-work cleanup blocked: {}; nextAction: {}", cleanup_decision.reason, cleanup_decision.next_action);
         }
         let project_root_str = project_root.display().to_string();
-        run_git(&main_worktree, &["merge", "--no-ff", &branch])?;
+        let merge_message = format!(
+            "merge: 合入 {branch} 到 {}——任务收尾集成",
+            options.main_branch
+        );
+        run_git(
+            &main_worktree,
+            &["merge", "--no-ff", "-m", &merge_message, &branch],
+        )?;
+
         if options.push { run_git(&main_worktree, &["push", options.remote, options.main_branch])?; }
         run_git(&main_worktree, &["worktree", "remove", &project_root_str])?;
         run_git(&main_worktree, &["branch", "-d", &branch])?;
@@ -792,7 +779,7 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let dijiang_dir = if uses_local_dijiang_state {
         local_dijiang_dir
     } else {
-        find_dijiang_dir_in_git_worktrees(&project_root)?
+        resolve_dijiang_dir(&project_root)
             .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?
     };
     let tasks_dir = dijiang_dir.join("tasks");

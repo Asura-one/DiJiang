@@ -1950,3 +1950,136 @@ fn test_e2e_finish_work_commit_removes_task_worktree() {
         "worktree list should not include removed tree: {list}"
     );
 }
+
+
+#[test]
+fn test_e2e_task_current_from_worktree_without_local_dijiang() {
+    let (tmp, project_dir) = init_project();
+    Command::new("git")
+        .args(["branch", "-m", "master", "main"])
+        .current_dir(&project_dir)
+        .output()
+        .ok();
+
+    dijang(
+        &["start", "cross-wt", "Cross Worktree Discovery"],
+        &project_dir,
+    )
+    .unwrap();
+
+    let worktree_dir = tmp.path().join("cross-wt-tree");
+    Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "feat/cross-wt",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git worktree add");
+    assert!(!worktree_dir.join(".dijiang").exists());
+
+    let current = dijang(&["task", "current"], &worktree_dir).unwrap();
+    assert!(
+        current.contains("cross-wt"),
+        "task current from task worktree should resolve main .dijiang: {current}"
+    );
+}
+
+#[test]
+fn test_e2e_finish_work_integrate_uses_chinese_merge_message() {
+    let (tmp, project_dir) = init_project();
+    Command::new("git")
+        .args(["branch", "-m", "master", "main"])
+        .current_dir(&project_dir)
+        .output()
+        .ok();
+
+    // Portable CJK check in commit-msg (matches DiJiang Chinese commit policy).
+    let hook = project_dir.join(".git/hooks/commit-msg");
+    std::fs::write(
+        &hook,
+        "#!/usr/bin/env python3\nimport sys\ntext=open(sys.argv[1],encoding='utf-8').read()\nif not any('\\u4e00'<=ch<='\\u9fff' for ch in text):\n    sys.stderr.write('no chinese\\n'); sys.exit(1)\n",
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&hook).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&hook, perms).unwrap();
+    }
+
+    dijang(
+        &["start", "merge-zh", "Merge Chinese Message"],
+        &project_dir,
+    )
+    .unwrap();
+
+    let worktree_dir = tmp.path().join("merge-zh-tree");
+    Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "feat/merge-zh",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&project_dir)
+        .output()
+        .expect("worktree add");
+
+    let task_json_path = project_dir.join(".dijiang/tasks/merge-zh/task.json");
+    let mut task: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&task_json_path).unwrap()).unwrap();
+    task["branch"] = serde_json::json!("feat/merge-zh");
+    task["baseBranch"] = serde_json::json!("main");
+    task["worktreePath"] = serde_json::json!(worktree_dir.display().to_string());
+    task["status"] = serde_json::json!("in_progress");
+    std::fs::write(&task_json_path, serde_json::to_string_pretty(&task).unwrap()).unwrap();
+
+    std::fs::write(worktree_dir.join("change.txt"), "changed").unwrap();
+    let finish_out = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "integrate with chinese merge message",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: integrate chinese merge e2e",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test(cli): 测试中文 merge message 集成",
+            "--integrate",
+            "--approve-integrate",
+            "--approve-cleanup",
+        ],
+        &worktree_dir,
+    )
+    .unwrap();
+    assert!(
+        finish_out.contains("Integration"),
+        "finish should integrate: {finish_out}"
+    );
+
+    let log = Command::new("git")
+        .args(["log", "-1", "--pretty=%s"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git log");
+    let subject = String::from_utf8_lossy(&log.stdout);
+    assert!(
+        subject.contains("合入")
+            || subject.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)),
+        "merge commit subject must contain Chinese: {subject}"
+    );
+    assert!(
+        !worktree_dir.exists(),
+        "worktree should be cleaned after integrate"
+    );
+}
