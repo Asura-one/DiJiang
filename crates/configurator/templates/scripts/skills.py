@@ -40,7 +40,6 @@ KNOWN_SKILLS: list[dict[str, str]] = [
     {"name": "dj-script", "summary": "脚本和工具开发"},
     {"name": "dj-tdd", "summary": "测试驱动开发"},
     {"name": "dj-design", "summary": "UI 设计实现"},
-    {"name": "dj-prd", "summary": "PRD 文档编写"},
     {"name": "dj-codebase-design", "summary": "代码库架构设计"},
     {"name": "dj-domain-modeling", "summary": "领域建模"},
     {"name": "dj-git-guardrails", "summary": "Git 操作安全护栏"},
@@ -54,7 +53,6 @@ KNOWN_SKILLS: list[dict[str, str]] = [
     {"name": "dj-write", "summary": "写作润色与文档撰写"},
     {"name": "dj-dispatch", "summary": "请求分类与 skill 路由"},
     {"name": "dj-absorb", "summary": "吸收和整合外部知识"},
-    {"name": "dj-prd", "summary": "PRD 文档编写"},
 ]
 
 # ── Helpers ──────────────────────────────────────────────────────────────

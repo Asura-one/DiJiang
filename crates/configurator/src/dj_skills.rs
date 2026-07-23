@@ -15,7 +15,7 @@ pub fn list_skill_names() -> Vec<String> {
             .strip_prefix("skills/")
             .and_then(|p| p.strip_suffix("/SKILL.md"))
         {
-            if !name.contains('/') {
+            if !name.contains('/') && !name.starts_with('.') {
                 names.push(name.to_string());
             }
         }
@@ -49,8 +49,8 @@ pub fn ensure_global_skills(force: bool) -> Result<PathBuf> {
             .strip_prefix("skills/")
             .and_then(|p| p.strip_suffix("/SKILL.md"))
         {
-            if name.contains('/') {
-                continue; // Skip files inside references/ subdirectories
+            if name.contains('/') || name.starts_with('.') {
+                continue; // Skip nested files and retired/hidden skills
             }
             let asset = TemplateAssets::get(path)
                 .expect("Embedded skill SKILL.md should exist after iter() returned it");

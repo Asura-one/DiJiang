@@ -18,7 +18,6 @@ fn main() {
     let known_summaries: BTreeMap<&str, &str> = [
         ("dj-grill", "需求对齐、范围澄清、问题收敛"),
         ("dj-output", "产出或同步 PRD、design、implement 等任务文档"),
-        ("dj-prd", "将需求对齐结果转化为结构化 PRD 文档"),
         ("dj-implement", "功能实现与局部代码变更"),
         ("dj-tdd", "测试驱动实现与行为回归保护"),
         ("dj-hunt", "bug、回归和根因排查"),
@@ -146,6 +145,10 @@ fn main() {
                 continue;
             }
             let skill_name = skill_dir.file_name().unwrap().to_str().unwrap().to_string();
+            // Skip retired/hidden skill dirs (e.g. .retired-dj-prd)
+            if skill_name.starts_with('.') {
+                continue;
+            }
             let skill_md_path = skill_dir.join("SKILL.md");
             if !skill_md_path.exists() {
                 continue;
