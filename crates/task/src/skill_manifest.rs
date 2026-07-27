@@ -50,6 +50,37 @@ pub fn skill_body_by_name(name: &str) -> Option<&'static str> {
     manifest_by_name(name).map(|entry| entry.body)
 }
 
+/// Verify generated manifests and embedded templates have the same skill names.
+pub fn validate_manifest_templates() -> Result<(), String> {
+    let mut errors = Vec::new();
+    for route in crate::routing_registry::skill_routes() {
+        if manifest_by_name(route.name).is_none() {
+            errors.push(format!("route {} has no manifest", route.name));
+        }
+    }
+    for manifest in SKILL_MANIFESTS {
+        if crate::routing_registry::skill_route(manifest.name).is_none() {
+            errors.push(format!("manifest {} has no route", manifest.name));
+        }
+        let declared_name = manifest
+            .body
+            .lines()
+            .find_map(|line| line.strip_prefix("name:").map(str::trim))
+            .map(|value| value.trim_matches('"'));
+        if declared_name != Some(manifest.name) {
+            errors.push(format!(
+                "manifest {} disagrees with template {:?}",
+                manifest.name, declared_name
+            ));
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
 pub fn select_skill_bodies(
     capsule: WorkflowCapsule,
     primary_skill: &str,
@@ -180,6 +211,11 @@ impl SkillBodyCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn manifest_templates_and_routes_stay_in_sync() {
+        validate_manifest_templates().unwrap();
+    }
 
     #[test]
     fn manifest_lookup_returns_known_skill() {

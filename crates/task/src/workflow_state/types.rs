@@ -99,7 +99,7 @@ pub struct WorkflowTask {
     pub task_path: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowMemory {
     pub summary: String,
@@ -261,16 +261,21 @@ impl WorkflowState {
             .session
             .as_ref()
             .map(|session| format!("会话：{}（{}）", session.key, session.source))
-            .unwrap_or_else(|| "会话：global fallback".to_string());
-        let runtime_line = format!(
-            "注入：#{}，活跃任务是否变化：{}，上一个活跃任务：{}",
-            self.runtime.injection_count,
-            self.runtime.active_task_changed,
-            self.runtime
-                .previous_active_task
-                .as_deref()
-                .unwrap_or("none"),
-        );
+            .unwrap_or_else(|| "会话：无身份（无状态/不可用）".to_string());
+        let runtime_line = self.session.as_ref().map(|_| {
+            format!(
+                "注入：#{}，活跃任务是否变化：{}，上一个活跃任务：{}",
+                self.runtime.injection_count,
+                self.runtime.active_task_changed,
+                self.runtime
+                    .previous_active_task
+                    .as_deref()
+                    .unwrap_or("none"),
+            )
+        });
+        let header_lines = runtime_line
+            .map(|runtime_line| format!("{session_line}\n{runtime_line}"))
+            .unwrap_or(session_line);
         let tag_line = match &self.active_task {
             Some(task) => {
                 let status = &task.status;
@@ -293,7 +298,7 @@ impl WorkflowState {
 
         let Some(task) = &self.active_task else {
             return format!(
-                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
+                "<dijiang-workflow-state>\n{header_lines}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
                 self.guidance
             );
         };
@@ -321,7 +326,7 @@ impl WorkflowState {
                 .unwrap_or_default(),
         );
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{header_lines}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
             task.id,
             task.title,
             task.status,

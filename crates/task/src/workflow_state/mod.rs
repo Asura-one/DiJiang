@@ -44,7 +44,11 @@ pub fn build_for_session(
     };
     let task = active_task_state.task();
     let runtime = record_runtime_injection(dijiang_dir, identity, task)?;
-    let memory = load_recent_memory(dijiang_dir, &runtime.journal_path, 5);
+    let memory = runtime
+        .journal_path
+        .is_empty()
+        .then(WorkflowMemory::default)
+        .unwrap_or_else(|| load_recent_memory(dijiang_dir, &runtime.journal_path, 5));
     let peers = load_peer_sessions(dijiang_dir, identity, 8)?;
     let learned_memory = load_learned_memory(dijiang_dir);
     let circuit_breaker_status = load_circuit_breaker_status(dijiang_dir);
@@ -112,20 +116,20 @@ fn record_runtime_injection(
     identity: Option<&SessionIdentity>,
     active_task: Option<&TaskRecord>,
 ) -> Result<WorkflowRuntime, TaskError> {
+    let Some(identity) = identity else {
+        return Ok(WorkflowRuntime {
+            injection_count: 0,
+            active_task_changed: false,
+            previous_active_task: None,
+            last_seen_at: chrono::Utc::now().to_rfc3339(),
+            log_path: String::new(),
+            journal_path: String::new(),
+        });
+    };
     let runtime_dir = dijiang_dir.join(".runtime");
     let sessions_dir = runtime_dir.join("sessions");
     fs::create_dir_all(&sessions_dir)?;
     fs::write(runtime_dir.join(".dijiang_owned"), "")?;
-
-    let fallback_identity;
-    let identity = match identity {
-        Some(identity) => identity,
-        None => {
-            fallback_identity = SessionIdentity::new("global", "global")
-                .expect("literal global session key is valid");
-            &fallback_identity
-        }
-    };
 
     let session_path = sessions_dir.join(format!("{}.json", identity.key()));
     let mut record = if session_path.exists() {
@@ -517,14 +521,9 @@ fn load_peer_sessions(
     if !sessions_dir.exists() {
         return Ok(Vec::new());
     }
-    let current_key = identity
-        .map(|identity| identity.key().to_string())
-        .unwrap_or_else(|| {
-            SessionIdentity::new("global", "global")
-                .expect("literal global session key is valid")
-                .key()
-                .to_string()
-        });
+    let Some(current_key) = identity.map(|identity| identity.key().to_string()) else {
+        return Ok(Vec::new());
+    };
 
     let mut peers = Vec::new();
     for entry in fs::read_dir(sessions_dir)? {
@@ -1152,6 +1151,22 @@ mod tests {
         let log = std::fs::read_to_string(dijiang_dir.join(".runtime/workflow-state.log")).unwrap();
         assert!(log.contains("workflow_state_injected"));
         assert!(log.contains("\"active_task\":null"));
+    }
+
+    #[test]
+    fn no_identity_context_is_explicitly_stateless_without_runtime_injection() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(&dijiang_dir).unwrap();
+
+        let context = build_for_session(&dijiang_dir, None)
+            .unwrap()
+            .additional_context();
+
+        assert!(context.contains("会话：无身份（无状态/不可用）"));
+        assert!(!context.contains("global fallback"));
+        assert!(!context.contains("注入："));
+        assert!(!dijiang_dir.join(".runtime").exists());
     }
 
     #[test]

@@ -27,6 +27,12 @@ pub enum TaskError {
 
     #[error("Task is not eligible for archive: {0}")]
     ArchiveIneligible(String),
+
+    #[error("Invalid context action: {0}")]
+    InvalidContextAction(String),
+
+    #[error("Invalid context path: {0}")]
+    InvalidContextPath(String),
 }
 
 /// Find the `.dijiang/` directory by walking up from `cwd`.
@@ -162,7 +168,10 @@ fn read_session_task(
 
 /// Find the active task for the current session, using global state only when no session identity exists.
 pub fn read_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskError> {
-    read_active_task_for_session(dijiang_dir, current_session_identity().as_ref())
+    match current_session_identity() {
+        Some(identity) => read_active_task_for_session(dijiang_dir, Some(&identity)),
+        None => read_global_active_task(dijiang_dir),
+    }
 }
 
 fn read_global_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskError> {
@@ -198,7 +207,7 @@ pub fn read_active_task_for_session(
         return Ok(None);
     }
 
-    read_global_active_task(dijiang_dir)
+    Ok(None)
 }
 
 /// Write the active task for the current session, using a global pointer only without session identity.
@@ -1397,6 +1406,9 @@ mod tests {
         fs::remove_dir_all(sessions_dir).unwrap();
 
         let active = read_active_task_for_session(&dijiang_dir, None).unwrap();
+        assert_eq!(active, None);
+
+        let active = read_active_task(&dijiang_dir).unwrap();
         assert_eq!(active, Some("fallback-task".to_string()));
     }
 }

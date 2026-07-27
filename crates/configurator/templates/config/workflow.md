@@ -8,11 +8,14 @@
 2. **Spec 注入，不靠记忆** — 指南通过 hook/skill 注入，不从记忆中回想。
 3. **持久化决策** — task artifacts、findings、lessons 和 handoffs 写入 `.dijiang/`。
 4. **一个规范 workflow** — CLI、skills、AGENTS、prompts 和 agents 都是这个模型的投影。
-5. **验证循环优先** — 把目标拆成可证明的命题，先建立 pass/fail 反馈回路，再让实现、审查和记忆围绕它收敛。
-6. **决策可持久追溯** — 重要取舍写 ADR，记录 why、状态和替代方案；设计文档描述当前形态并引用 ADR。
-7. **复利式学习** — AI 造成或发现的问题必须沉淀到 prompt、skill、spec 或 memory，让下一轮工作少犯同类错。
-8. **记忆有质量门禁** — 长期记忆必须有 source、scope、confidence、freshness、conflict、actionability；不满足就留在 task artifact。
-9. **Git 隔离优先** — 所有会修改代码的任务，修改前都必须创建专用 worktree/branch；任务结束时先做版本决策，再按权限完成提交、push、合并和 worktree 清理。
+5. **Session 身份隔离** — workflow hooks/runtime 在缺少稳定身份时保持 stateless，不读写共享的 active task、runtime 或 journal；终端 CLI lifecycle commands 为兼容性保留 legacy task pointer。
+6. **Context 路径受限** — task context 仅接受仓库内、存在的文件，且 action 仅限 `implement` 或 `check`。
+7. **模板一致性可验证** — skill registry、runtime manifest 和嵌入模板必须保持一一对应，漂移由测试和 `verify_skills.py` 拦截。
+8. **验证循环优先** — 把目标拆成可证明的命题，先建立 pass/fail 反馈回路，再让实现、审查和记忆围绕它收敛。
+9. **决策可持久追溯** — 重要取舍写 ADR，记录 why、状态和替代方案；设计文档描述当前形态并引用 ADR。
+10. **复利式学习** — AI 造成或发现的问题必须沉淀到 prompt、skill、spec 或 memory，让下一轮工作少犯同类错。
+11. **记忆有质量门禁** — 长期记忆必须有 source、scope、confidence、freshness、conflict、actionability；不满足就留在 task artifact。
+12. **Git 隔离优先** — 所有会修改代码的任务，修改前都必须创建专用 worktree/branch；任务结束时先做版本决策，再按权限完成提交、push、合并和 worktree 清理。
 
 ## DiJiang 规范工作流
 

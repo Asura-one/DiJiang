@@ -30,7 +30,8 @@ SEED_ROW = {
 
 # ── Context entry types ────────────────────────────────────────────────
 
-CONTEXT_FILE_NAMES = ["implement.jsonl", "check.jsonl", "context.jsonl"]
+CONTEXT_FILE_NAMES = ["implement.jsonl", "check.jsonl"]
+CONTEXT_ACTIONS = {name.removesuffix(".jsonl") for name in CONTEXT_FILE_NAMES}
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────
@@ -42,26 +43,24 @@ def get_context_dir(task_id: str, root: Path | None = None) -> Path:
 
 
 def seed_context(task_id: str, root: Path | None = None) -> int:
-    """Seed a task directory with an empty ``context.jsonl``.
+    """Seed each supported context file with a self-describing example row.
 
-    Creates the file with a self-describing example row if it doesn't exist.
-    Returns 0 on success, 1 on failure.
+    Existing files are preserved. Returns 0 on success, 1 on failure.
     """
     task_dir = get_context_dir(task_id, root)
     if not task_dir.is_dir():
         print(f"Error: task directory not found: {task_dir}")
         return 1
 
-    context_file = task_dir / "context.jsonl"
-    if context_file.exists():
-        return 0  # already exists
-
     try:
-        context_file.parent.mkdir(parents=True, exist_ok=True)
-        context_file.write_text(
-            json.dumps(SEED_ROW, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
+        for jsonl_name in CONTEXT_FILE_NAMES:
+            context_file = task_dir / jsonl_name
+            if context_file.exists():
+                continue
+            context_file.write_text(
+                json.dumps(SEED_ROW, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
         return 0
     except OSError as e:
         print(f"Error: failed to seed context: {e}")
@@ -95,11 +94,28 @@ def add_context_entry(
         print(f"Error: task directory not found: {task_dir}")
         return 1
 
-    if not jsonl_name.endswith(".jsonl"):
-        jsonl_name += ".jsonl"
+    action = jsonl_name.removesuffix(".jsonl")
+    if action not in CONTEXT_ACTIONS:
+        print(f"Error: unsupported context action: {action}")
+        return 1
+    jsonl_name = f"{action}.jsonl"
 
+    candidate = Path(path)
+    if candidate.is_absolute() or ".." in candidate.parts or not path:
+        print(f"Error: context path must stay within the repo: {path}")
+        return 1
     jsonl_file = task_dir / jsonl_name
-    full_path = repo_root / path
+    full_path = repo_root / candidate
+    try:
+        canonical_root = repo_root.resolve(strict=True)
+        canonical_path = full_path.resolve(strict=True)
+    except OSError:
+        print(f"Error: path not found (relative to repo root): {path}")
+        return 1
+    if not canonical_path.is_relative_to(canonical_root):
+        print(f"Error: context path must stay within the repo: {path}")
+        return 1
+    full_path = canonical_path
 
     entry_type = "file"
     if full_path.is_dir():
@@ -236,7 +252,22 @@ def _validate_jsonl(jsonl_file: Path, repo_root: Path) -> tuple[int, int]:
             continue  # seed/comment row
 
         real_entries += 1
-        full_path = repo_root / file_path
+        candidate = Path(file_path)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            print(f"    {jsonl_file.name}:{line_num}: Path escapes repo: {file_path}")
+            errors += 1
+            continue
+        full_path = repo_root / candidate
+        try:
+            canonical_root = repo_root.resolve(strict=True)
+            canonical_path = full_path.resolve(strict=True)
+        except OSError:
+            canonical_path = None
+        if canonical_path is None or not canonical_path.is_relative_to(canonical_root):
+            print(f"    {jsonl_file.name}:{line_num}: Path escapes repo: {file_path}")
+            errors += 1
+            continue
+        full_path = canonical_path
         if entry_type == "directory":
             if not full_path.is_dir():
                 print(f"    {jsonl_file.name}:{line_num}: Directory not found: {file_path}")
