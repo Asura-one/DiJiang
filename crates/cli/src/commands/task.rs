@@ -593,7 +593,8 @@ pub fn cmd_task_validate(name: Option<&str>) -> anyhow::Result<()> {
     total_errors += validate_task_json(&task_dir, &task_name);
 
     // 2. Validate context JSONL files (implement.jsonl, check.jsonl)
-    total_errors += validate_context_files(&task_dir);
+    let repo_root = dijiang_dir.parent().unwrap_or(&dijiang_dir);
+    total_errors += validate_context_files(&task_dir, repo_root);
 
     // 3. Validate link consistency
     total_errors += validate_links(&tasks_dir, &task_name);
@@ -661,9 +662,8 @@ fn validate_task_json(task_dir: &std::path::Path, task_name: &str) -> usize {
     errors
 }
 
-fn validate_context_files(task_dir: &std::path::Path) -> usize {
+fn validate_context_files(task_dir: &std::path::Path, repo_root: &std::path::Path) -> usize {
     let mut errors = 0;
-    let repo_root = std::env::current_dir().unwrap_or_else(|_| task_dir.to_path_buf());
     for jsonl_name in ["implement.jsonl", "check.jsonl"] {
         let jsonl_path = task_dir.join(jsonl_name);
         if !jsonl_path.exists() {
@@ -700,7 +700,20 @@ fn validate_context_files(task_dir: &std::path::Path) -> usize {
             };
             real_entries += 1;
             let entry_type = entry.get("type").and_then(|t| t.as_str()).unwrap_or("file");
-            let full_path = repo_root.join(file_path);
+            let full_path = match dijiang_task::context::resolve_context_file(repo_root, file_path)
+            {
+                Ok(path) => path,
+                Err(_) => {
+                    eprintln!(
+                        "  ✗ {}:{} invalid context path: {}",
+                        jsonl_name,
+                        line_num + 1,
+                        file_path
+                    );
+                    file_errors += 1;
+                    continue;
+                }
+            };
             if entry_type == "directory" {
                 if !full_path.is_dir() {
                     eprintln!(
@@ -729,6 +742,43 @@ fn validate_context_files(task_dir: &std::path::Path) -> usize {
         }
     }
     errors
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_context_files_rejects_paths_outside_project_root() {
+        let root = tempfile::tempdir().unwrap();
+        let outside_root = tempfile::tempdir().unwrap();
+        let task_dir = root.path().join(".dijiang/tasks/task");
+        std::fs::create_dir_all(&task_dir).unwrap();
+        let outside = outside_root.path().join("outside.md");
+        std::fs::write(&outside, "outside").unwrap();
+
+        let mut entries = vec![
+            serde_json::json!({ "file": outside }),
+            serde_json::json!({ "file": "../outside.md" }),
+        ];
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&outside, root.path().join("linked.md")).unwrap();
+            entries.push(serde_json::json!({ "file": "linked.md" }));
+        }
+        let manifest = entries
+            .iter()
+            .map(serde_json::to_string)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .join("\n");
+        std::fs::write(task_dir.join("implement.jsonl"), manifest).unwrap();
+
+        #[cfg(unix)]
+        assert_eq!(validate_context_files(&task_dir, root.path()), 3);
+        #[cfg(not(unix))]
+        assert_eq!(validate_context_files(&task_dir, root.path()), 2);
+    }
 }
 
 fn validate_links(tasks_dir: &std::path::Path, task_name: &str) -> usize {

@@ -552,7 +552,15 @@ fn test_e2e_dispatch_vague_feature_routes_to_grill() {
     let out = dijang(&["dispatch", "做个导出功能", "--force-new"], &project_dir).unwrap();
 
     assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
-    assert!(out.contains("状态：planning"), "dispatch output: {out}");
+    let task_name = dijang(&["task", "current"], &project_dir).unwrap();
+    let task_json = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang/tasks")
+            .join(task_name.trim())
+            .join("task.json"),
+    )
+    .unwrap();
+    assert!(task_json.contains(r#""status": "planning""#));
 }
 #[test]
 fn test_e2e_dispatch_specific_feature_routes_to_implement() {
@@ -574,7 +582,15 @@ fn test_e2e_dispatch_specific_feature_routes_to_implement() {
         out.contains("Git 工作流：Git Gate=provisioned；已创建任务 worktree"),
         "dispatch output: {out}"
     );
-    assert!(out.contains("状态：in_progress"), "dispatch output: {out}");
+    let task_name = dijang(&["task", "current"], &project_dir).unwrap();
+    let task_json = std::fs::read_to_string(
+        project_dir
+            .join(".dijiang/tasks")
+            .join(task_name.trim())
+            .join("task.json"),
+    )
+    .unwrap();
+    assert!(task_json.contains(r#""status": "in_progress""#));
 }
 
 #[test]

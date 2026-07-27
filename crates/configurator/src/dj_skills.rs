@@ -125,3 +125,63 @@ pub fn get_skill_content(name: &str) -> Option<String> {
     let content = std::str::from_utf8(asset.data.as_ref()).ok()?;
     Some(content.to_string())
 }
+
+/// Verify the supplied skill registry contains exactly the managed skill templates.
+pub fn validate_skill_registry_names<I, S>(names: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut errors = Vec::new();
+    let expected = list_skill_names();
+    let actual: std::collections::BTreeSet<_> = names
+        .into_iter()
+        .map(|name| name.as_ref().to_string())
+        .collect();
+    let expected_set: std::collections::BTreeSet<_> = expected.iter().cloned().collect();
+    for name in expected_set.difference(&actual) {
+        errors.push(format!("registry missing {name}"));
+    }
+    for name in actual.difference(&expected_set) {
+        errors.push(format!("registry has unknown {name}"));
+    }
+    for name in expected {
+        let content = get_skill_content(&name)
+            .ok_or_else(|| format!("missing embedded template for {name}"))?;
+        let declared_name = content
+            .lines()
+            .find_map(|line| line.strip_prefix("name:").map(str::trim))
+            .map(|value| value.trim_matches('"'));
+        if declared_name != Some(name.as_str()) {
+            errors.push(format!("template {name} declares {:?}", declared_name));
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+/// Verify that the embedded skill registry contains exactly the managed skill templates.
+pub fn validate_skill_registry() -> Result<(), String> {
+    validate_skill_registry_names(list_skill_names())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn embedded_skill_registry_matches_template_frontmatter() {
+        validate_skill_registry().unwrap();
+    }
+
+    #[test]
+    fn skill_registry_rejects_name_drift() {
+        let error = validate_skill_registry_names(["dj-grill", "unknown-skill"])
+            .expect_err("name drift must fail validation");
+        assert!(error.contains("registry missing"));
+        assert!(error.contains("registry has unknown unknown-skill"));
+    }
+}

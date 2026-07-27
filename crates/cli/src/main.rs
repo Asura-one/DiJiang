@@ -1213,8 +1213,8 @@ mod tests {
             None,
         );
 
-        assert_eq!(dispatch.route.skill, "dj-grill");
-        assert_eq!(dispatch.decision.action.as_str(), "redirect");
+        assert_eq!(dispatch.route.skill, "dj-implement");
+        assert_eq!(dispatch.decision.action.as_str(), "allow");
     }
 
     #[test]
@@ -1251,16 +1251,23 @@ mod tests {
 
     #[test]
     fn test_dispatch_target_skill_summary_uses_lazy_skill_body_contract() {
-        let route = dispatch_route("补测试");
+        let route = dispatch_route("为现有函数补充单元测试");
         let dir = tempfile::tempdir().unwrap();
         let tasks_dir = dir.path().join("tasks");
+        let dijiang_dir = dir.path().join(".dijiang");
         let task_name = "test-task";
         std::fs::create_dir_all(tasks_dir.join(task_name)).unwrap();
+        std::fs::create_dir_all(dijiang_dir.join("spec/backend")).unwrap();
+        std::fs::write(
+            tasks_dir.join(task_name).join("prd.md"),
+            "## Goal\n\nKeep the test route available.\n\n## Requirements\n\n- A substantive test task requirement.\n\n## Acceptance Criteria\n\n- [ ] The task route remains test driven.",
+        )
+        .unwrap();
         let dispatch = apply_route_gate(
             &TaskStatus::InProgress,
             route,
-            Some("补测试"),
-            Path::new(""),
+            Some("dj-tdd"),
+            &dijiang_dir,
             &tasks_dir,
             Some(task_name),
         );
