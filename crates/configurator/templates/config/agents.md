@@ -31,11 +31,11 @@ This project uses DiJiang for task management and workflow.
 | `dijiang status --compat` | 显示兼容性诊断 |
 | `dijiang start <name>` | 创建并激活工作 session |
 | `dijiang dispatch <prompt>` | 从自然语言请求创建或复用 active task，并输出路由上下文 |
-| `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>` | 通过验证、docs/spec 证据、版本决策、可选 commit/集成、journal 和归档完成当前工作 |
+| `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>` | 通过验证、docs/spec 证据、版本决策、可选 commit/集成、journal 和归档完成当前工作；删除任务 worktree 时传 `--approve-cleanup` |
 | `dijiang task list` | 列出 active tasks |
 | `dijiang task current` | 显示 active task |
-| `dijiang task start <name>` | 用底层任务语义创建或激活任务记录 |
-| `dijiang task status <name> <status>` | 更新任务状态 |
+| `dijiang task start <name> --unsafe-without-worktree` | 低层维护入口；显式绕过 worktree gate 创建并激活任务记录 |
+| `dijiang task status <name> <status>` | 更新非实现状态；进入 `in_progress` 必须通过 `dispatch` 或显式 `--unsafe-without-worktree` |
 | `dijiang task archive <name>` | 归档任务 |
 | `dijiang task prune --days N` | 清理旧的已归档任务 |
 | `dijiang mem list` | 列出平台 sessions |

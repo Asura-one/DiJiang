@@ -57,7 +57,7 @@ DiJiang 现在已经把一部分 workflow 规则从 skill 文本提升到了 run
 
 - Phase 3: Progressive Skill Loading，已部分落地。当前 runtime 已在 `dispatch` 与 `workflow-state` 两个 agent-facing 入口上复用同一套 shared body registry，相关的 Pi/Codex/OpenCode/Hermes agent prompt 也已统一改成优先消费这套 runtime context：先暴露 capsule-scoped skill manifests，再按 route 目标延迟展开单个或少量顺序/分叉 skill body，并已补上 risk/capsule 驱动的最小展开阈值；同时已提供 `dijiang skill-body` 作为兼容优先的执行期 lazy fetch 通路。当前仍未完成的只剩：切掉默认预注 body 的全链路切换。
 
-- Phase 4: Approval / Capability Policy，已开始最小闭环。当前已对 `finish-work --integrate`、`finish-work --push` 与 merge 后 cleanup（worktree remove / branch delete）接入首批高风险 runtime approval gate：未显式批准时 block，显式批准后才允许继续集成、push 与清理。当前正式 phase plan 到 4 为止；`Phase 5+` 只出现在历史分析文档，不属于现行规范路线图。
+- Phase 4: Approval / Capability Policy，已开始最小闭环。当前已对 `finish-work --integrate`、`finish-work --push` 与删除记录的任务 worktree / branch 接入首批高风险 runtime approval gate：未显式批准时 block，显式批准后才允许继续集成、push 与清理。当前正式 phase plan 到 4 为止；`Phase 5+` 只出现在历史分析文档，不属于现行规范路线图。
 
 ### Finish Work 入口边界
 
@@ -119,7 +119,7 @@ DiJiang 现在已经把一部分 workflow 规则从 skill 文本提升到了 run
 
 7. 版本号使用 Major.Minor.Revision。
 
-当前这组 Git 规则已经有一部分下沉成 runtime hard gate。Phase 2 Git Gate 现在由 `crates/task/src/git_gate.rs` 提供 readiness evaluator，并由 `crates/cli/src/main.rs` 在 dispatch / active-task implementation route 中统一消费。当前已覆盖 `ready / provisioned / blocked`、缺失 task worktree metadata 时的 provision 决策、以及当前 runtime 仍在主 checkout 或错误 worktree 时的阻断。
+当前这组 Git 规则已经有一部分下沉成 runtime hard gate。Phase 2 Git Gate 现在由 `crates/task/src/git_gate.rs` 提供 readiness evaluator，并由 `crates/cli/src/commands/dispatch.rs::ensure_task_worktree(...)` 在 dispatch / active-task implementation route 中统一消费。当前已覆盖 `ready / provisioned / blocked`、缺失 task worktree metadata 时的 provision 决策、以及当前 runtime 仍在主 checkout 或错误 worktree 时的阻断。
 
 后续增量：跨 worktree 的 `.dijiang` discovery 已由 `crates/cli/src/util.rs::resolve_dijiang_dir` 统一（worktree 本地 → 同仓 sibling → legacy 上溯；同时兼容 `.trellis`）。`finish-work` 使用同一 discovery，并对 integrate / push / cleanup 走 Phase 4 capability approval gate（`evaluate_capability`），不是 Phase 2 Git Gate evaluator 的同一条路径。
 
@@ -156,10 +156,10 @@ dijiang status --compat
 dijiang start <name>                         # 创建并激活一个工作会话
 dijiang task list                            # 列出所有任务
 dijiang task current                         # 显示活跃任务
-dijiang task status <name> <status>          # 更新任务状态
+dijiang task status <name> <status>          # 更新非实现状态；in_progress 通过 dispatch，维护场景显式使用 --unsafe-without-worktree
 dijiang task archive <name>                  # 归档任务
 dijiang task prune --days N                  # 删除超过 N 天的已归档任务
-dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit
+dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit --approve-cleanup
 ```
 
 ### mem — 记忆管理

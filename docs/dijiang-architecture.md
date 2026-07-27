@@ -84,9 +84,8 @@
 **DiJiang 定义**：`dijiang` 是一个 Rust 二进制文件（`crates/cli/`），提供所有基础设施操作。
 
 | 命令类别 | 示例 | 职责 |
-|---------|------|------|
+| 任务 | `task start`、`task status`、`task archive` | 任务生命周期管理；进入 `in_progress` 走 `dispatch`，低层维护入口需显式 unsafe override |
 | 项目 | `init`、`update` | 创建 `.dijiang/`、部署 agents/skills/hooks 到平台目录 |
-| 任务 | `task create`、`task start`、`task archive` | 任务生命周期管理 |
 | 会话 | `start`、`finish-work` | Session 生命周期 |
 | 状态 | `status`、`workflow-state` | 查询项目状态、输出上下文注入 |
 | 通道 | `channel spawn`、`channel list` | 多 agent 编排 |
@@ -95,7 +94,7 @@
 | 工具 | `skills`、`template` | 枚举可用 skill、管理模板 |
 
 **关系**：
-- CLI 是 **Agent 的操作接口**：Agent 读取 `dijiang workflow-state` 获取上下文，调用 `dijiang task start` 推进状态
+- CLI 是 **Agent 的操作接口**：Agent 读取 `dijiang workflow-state` 获取上下文，通过 `dijiang dispatch` 路由实现任务；`task start/status` 是需显式 unsafe override 的低层维护接口
 - CLI 是 **Hook 的数据源**：Hook 脚本调用 `dijiang workflow-state --json` 获取 JSON payload 注入会话
 - CLI 是 **Skill 的部署器**：`dijiang init` / `dijiang update` 将 skill/agent/hook 文件写入平台目录
 - CLI 不自包含业务逻辑——大多数命令委托给 `dijiang-task`、`dijiang-mem`、`dijiang-configurator` 等 crate

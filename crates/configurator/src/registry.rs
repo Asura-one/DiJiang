@@ -197,6 +197,9 @@ mod tests {
         assert!(pi_extension.contains("session_shutdown"));
         assert!(pi_extension.contains("Hook 错误:"));
         assert!(pi_extension.contains("PI_SESSION_ID"));
+        assert!(pi_extension.contains("requiresWorktreeGate"));
+        assert!(pi_extension.contains("block: true"));
+        assert!(pi_extension.contains("expectedWorktreePath"));
 
         let opencode_plugin =
             std::fs::read_to_string(tmp.path().join(".opencode/plugins/session-start.js")).unwrap();

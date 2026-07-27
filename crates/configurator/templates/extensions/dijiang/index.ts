@@ -14,9 +14,9 @@ type WorkflowStatePayload = {
   activeTaskStatus?: string;
   capsule?: string;
   gitGateState?: string;
+  expectedWorktreePath?: string;
   guidance?: string;
 };
-
 function errorContext(message: string): string {
   const session =
     process.env.DIJIANG_CONTEXT_ID ||
@@ -111,12 +111,14 @@ async function getWorkflowState(pi: ExtensionAPI): Promise<WorkflowStatePayload 
     const gitGate = pick("Git Gate");
     const capsuleMatch = routeGate?.match(/capsule=([^；]+)/);
     const gitStateMatch = gitGate?.match(/state=([^；]+)/);
+    const worktreePathMatch = gitGate?.match(/worktreePath=([^；]+)/);
     return {
       activeTaskId: pick("活跃任务"),
       activeTaskTitle: pick("标题"),
       activeTaskStatus: pick("状态"),
       capsule: capsuleMatch?.[1]?.trim(),
       gitGateState: gitStateMatch?.[1]?.trim(),
+      expectedWorktreePath: worktreePathMatch?.[1]?.trim(),
       guidance: pick("指引"),
     };
   } catch {
@@ -182,7 +184,39 @@ async function dispatchContext(pi: ExtensionAPI, eventName: string, prompt: stri
   }
   return undefined;
 }
+function hasShellOperators(command: string): boolean {
+  return /[;&|><`$()\r\n]/.test(command);
+}
 
+function isDijiangControlCommand(command: string): boolean {
+  return !hasShellOperators(command) && /^\s*dijiang\s+(?:dispatch|workflow-state)(?:\s|$)/i.test(command);
+}
+
+
+
+
+function hasGitWriteOption(command: string): boolean {
+  return /\bgit\b[^\r\n]*(?:\s-o(?:\s|$)|\s--output(?:=|\s)|\s--ext-diff(?:\s|$))|\bgit\s+branch\b[^\r\n]*\s--edit-description(?:\s|$)/i.test(command);
+}
+
+function isReadOnlyCommand(command: string): boolean {
+  if (hasShellOperators(command) || hasGitWriteOption(command) || /^\s*rg\b[^\r\n]*\s--pre(?:=|\s|$)/i.test(command)) {
+    return false;
+  }
+  return /^\s*(?:pwd|git\s+(?:status|diff|log|show|branch(?:\s+--list)?|worktree\s+list|rev-parse|ls-files|remote\s+-v|config\s+--get|grep)(?:\s|$)|(?:rg|grep|ls|cat|head|tail)\b)/i.test(command);
+}
+
+function requiresWorktreeGate(toolName?: string): boolean {
+  return ["bash", "write", "edit", "apply_patch", "replace"].includes(toolName || "");
+}
+
+
+function blockedWorktreeReason(worktreePath?: string): string {
+  const next = worktreePath
+    ? `请从任务 worktree 重启 Pi：\`cd ${worktreePath} && pi\`。`
+    : "先建立 Git 基线并重新运行 `dijiang dispatch <request>`。";
+  return `DiJiang Git Gate 已阻止在当前目录执行可能修改工作区的工具调用；${next}`;
+}
 async function injectWorkflowState(pi: ExtensionAPI, eventName: string) {
   try {
     const result = await pi.exec("dijiang", [
@@ -251,8 +285,23 @@ export default function (pi: ExtensionAPI) {
     return maybeDispatchFromPrompt("user_prompt_submit", event.prompt);
   });
 
-  pi.on("tool_call", (event) => {
-    const ev = event as { toolName?: string; input?: { command?: string } };
+  pi.on("tool_call", async (event) => {
+    const ev = event as ToolResultEvent;
+    if (requiresWorktreeGate(ev.toolName)) {
+      const state = await getWorkflowState(pi);
+      if (state?.gitGateState === "blocked") {
+        const command = ev.input?.command;
+        const isControlCommand = typeof command === "string" && isDijiangControlCommand(command);
+        const isReadOnly = typeof command === "string" && isReadOnlyCommand(command);
+        if (!isControlCommand && !isReadOnly) {
+          return {
+            block: true,
+            reason: blockedWorktreeReason(state.expectedWorktreePath),
+          };
+        }
+      }
+    }
+
     if (
       ev.toolName === "bash" &&
       ev.input &&

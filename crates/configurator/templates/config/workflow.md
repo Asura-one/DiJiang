@@ -56,7 +56,7 @@ DiJiang 使用 `dijiang` CLI 管理项目状态，使用 `dj-*` skills 执行具
 
 - 不需要立即写代码的路线，例如 `dj-grill` 或 `dj-output`，不会提前 provision worktree。
 
-当前 Git Gate 的事实源在 `crates/task/src/git_gate.rs`，可视化注入在 `crates/task/src/workflow_state.rs`，CLI 统一消费点在 `crates/cli/src/main.rs::ensure_task_worktree(...)`。
+当前 Git Gate 的事实源在 `crates/task/src/git_gate.rs`，可视化注入在 `crates/task/src/workflow_state.rs`，CLI 消费点在 `crates/cli/src/commands/dispatch.rs::ensure_task_worktree(...)`。
 
 ## Progressive Skill Loading
 
@@ -130,9 +130,9 @@ Exception: <none，或无法自动化/纯机械变更/环境不可用的具体�
 
 4. **版本决策** — 任务结束时判断变更属于 `major`、`minor`、`patch` 或 `none`。只有项目存在可发布的 package/version 元数据，且变更需要发布时才更新版本文件。
 
-5. **提交内容** — `dijiang finish-work --commit` 只提交当前任务的实际 diff；提交前必须提供 `--verification`、`--docs-sync` 和 `--version-impact`。commit message 描述行为变化，不堆文件名。`/dijiang-finish-work` 只是 Pi prompt checklist，`/skill:dijiang-finish-work` 是 agent workflow，真实归档/提交状态只由 `dijiang finish-work ...` CLI 修改。
+5. **提交内容** — `dijiang finish-work --commit` 只提交当前任务的实际 diff；提交前必须提供 `--verification`、`--docs-sync` 和 `--version-impact`。删除任务 worktree 还必须显式传 `--approve-cleanup`；push 或集成必须传 `--approve-integrate`。commit message 描述行为变化，不堆文件名。`/dijiang-finish-work` 只是 Pi prompt checklist，`/skill:dijiang-finish-work` 是 agent workflow，真实归档/提交状态只由 `dijiang finish-work ...` CLI 修改。
 
-6. **Push 与集成** — `dijiang finish-work --integrate` 是本地集成动作：在主分支 worktree 中 `--no-ff` 合并任务分支、清理任务 worktree 并删除已合并分支。`--push` 是可选发布动作；远端明显不可达、凭证缺失或策略不允许时，不阻塞本地 merge 和 worktree 清理，必须报告 push 阻塞原因。
+6. **Push 与集成** — `dijiang finish-work --integrate` 是本地集成动作：在主分支 worktree 中 `--no-ff` 合并任务分支、清理任务 worktree 并删除已合并分支。`--push` 是可选发布动作；两者都需要 `--approve-integrate`，删除 worktree / 分支还需要 `--approve-cleanup`。远端明显不可达、凭证缺失或策略不允许时，不阻塞本地 merge 和 worktree 清理，必须报告 push 阻塞原因。
 
 7. **主仓库落地** — 任务分支完成但未能执行 `--integrate` 时，必须在主 checkout 明确执行 `git merge <task-branch>` 或记录未合并原因。只要任务分支已合并到主分支，就应删除任务 worktree 和已合并本地分支；只有未合并、存在冲突、范围未确认或需要人工保留证据时才保留。任何面向本机安装、发布、演示或后续开发的命令，都必须基于已合并后的主 checkout，避免从旧代码执行 `make install`、构建或更新。
 
@@ -168,9 +168,8 @@ Exception: <none，或无法自动化/纯机械变更/环境不可用的具体�
 | `dijiang dispatch <prompt>` | 从自然语言请求创建或复用 active task，并输出路由上下文 |
 | `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>` | 在验证、文档/spec 同步证据、版本决策、范围一致的提交/发布决策、journal 记录后完成当前工作并归档 |
 | `dijiang task list` | 列出所有任务 |
-| `dijiang task current` | 显示 active task |
-| `dijiang task start <name>` | 用低层任务语义创建或激活任务记录 |
-| `dijiang task status <name> <status>` | 更新任务状态 |
+| `dijiang task start <name> --unsafe-without-worktree` | 低层维护入口；显式绕过 worktree gate 创建并激活任务记录 |
+| `dijiang task status <name> <status>` | 更新非实现状态；进入 `in_progress` 必须通过 `dispatch` 或显式 `--unsafe-without-worktree` |
 | `dijiang task archive <name>` | 归档任务 |
 | `dijiang task prune --days N` | 删除早于 N 天的已归档任务 |
 | `dijiang mem list` | 列出平台会话 |

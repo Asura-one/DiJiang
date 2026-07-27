@@ -69,12 +69,22 @@ pub fn summarize_git_gate(
     current_location: &Path,
     route_requires_worktree: bool,
 ) -> GitGateSummary {
+    summarize_git_gate_with_runtime(task, current_location, None, None, route_requires_worktree)
+}
+
+pub fn summarize_git_gate_with_runtime(
+    task: &TaskRecord,
+    current_location: &Path,
+    current_worktree_root: Option<PathBuf>,
+    main_worktree_root: Option<PathBuf>,
+    route_requires_worktree: bool,
+) -> GitGateSummary {
     let readiness = evaluate_worktree_readiness(
         task,
         &GitGateInput {
             current_location: current_location.to_path_buf(),
-            current_worktree_root: None,
-            main_worktree_root: None,
+            current_worktree_root,
+            main_worktree_root,
             route_requires_worktree,
         },
     );
@@ -178,7 +188,7 @@ pub fn evaluate_worktree_readiness(task: &TaskRecord, input: &GitGateInput) -> W
     }
 
     match location_kind {
-        GitRuntimeLocation::TaskWorktree | GitRuntimeLocation::Unknown => WorktreeReadiness {
+        GitRuntimeLocation::TaskWorktree => WorktreeReadiness {
             task_name: task.name.clone(),
             branch,
             base_branch,
@@ -194,6 +204,20 @@ pub fn evaluate_worktree_readiness(task: &TaskRecord, input: &GitGateInput) -> W
                 task.base_branch.as_deref(),
                 task.worktree_path.as_deref(),
             ),
+            fix_applied: false,
+            needs_provision: false,
+        },
+        GitRuntimeLocation::Unknown => WorktreeReadiness {
+            task_name: task.name.clone(),
+            branch,
+            base_branch,
+            worktree_path,
+            state: GitGateState::Blocked,
+            current_location,
+            current_worktree_root,
+            expected_worktree_root,
+            location_kind: location_kind.as_str().to_string(),
+            message: "unable to determine the current Git worktree; restart from the task worktree before implementation work".to_string(),
             fix_applied: false,
             needs_provision: false,
         },
@@ -400,7 +424,29 @@ mod tests {
         });
         let summary = summarize_git_gate(&record, Path::new("/repo"), true);
         assert_eq!(summary.state, GitGateState::Blocked);
-        assert_eq!(summary.note, "task has no provisioned worktree metadata yet");
+        assert_eq!(
+            summary.note,
+            "task has no provisioned worktree metadata yet"
+        );
+    }
+    #[test]
+    fn evaluator_blocks_when_runtime_location_is_unknown() {
+        let temp = tempfile::tempdir().unwrap();
+        let task_dir = temp.path().join("task-1");
+        std::fs::create_dir_all(&task_dir).unwrap();
+        let mut record = task();
+        record.worktree_path = Some(task_dir.display().to_string());
+        let readiness = evaluate_worktree_readiness(
+            &record,
+            &GitGateInput {
+                current_location: PathBuf::from("/unknown"),
+                current_worktree_root: None,
+                main_worktree_root: None,
+                route_requires_worktree: true,
+            },
+        );
+        assert_eq!(readiness.state, GitGateState::Blocked);
+        assert_eq!(readiness.location_kind, "unknown");
     }
 
     #[test]

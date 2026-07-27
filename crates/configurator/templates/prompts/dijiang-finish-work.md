@@ -9,8 +9,7 @@ Steps:
 4. Sync task artifacts, docs, spec, or changelog; record `docs-sync: none` with reason if no update is needed
 5. Decide version impact: `major`, `minor`, `patch`, or `none`
 6. Record durable findings, lessons, or corrections with `dijiang mem findings` / `dijiang mem learn` / `dijiang mem correction` when they pass the memory quality gate; successful `dijiang finish-work` writes session closure memory automatically
-7. Finish with `dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit` when a scoped commit is needed
-8. Add `--push` and `--integrate` only when push/merge/worktree cleanup is explicitly allowed
+7. Finish with `dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit` when a scoped commit is needed. Add `--approve-cleanup` before deleting a task worktree, and `--approve-integrate` for push or integration.
 
 ## Changelog gate
 

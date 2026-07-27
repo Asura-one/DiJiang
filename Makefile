@@ -1,4 +1,4 @@
-.PHONY: build release install uninstall clean test
+.PHONY: build release install uninstall clean test test-pi-extension
 
 # 默认构建
 build:
@@ -27,6 +27,9 @@ clean:
 # 运行测试
 test:
 	cargo test --test e2e
+
+test-pi-extension:
+	node crates/configurator/tests/pi_extension_contract.mjs "$(CURDIR)/crates/configurator/templates/extensions/dijiang/index.ts"
 
 # 格式化代码
 fmt:
