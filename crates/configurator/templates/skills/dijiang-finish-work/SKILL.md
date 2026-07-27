@@ -186,7 +186,9 @@ dijiang finish-work \
 
 ### 7. 可用时 Push 和集成
 
-Push 和集成是在 `--commit` 基础上的显式参数：
+Push 和集成是在 `--commit` 基础上的显式参数；`--push` / `--integrate` 需要 `--approve-integrate`，删除任务 worktree 或分支需要 `--approve-cleanup`。
+
+在当前 CLI 中，`--commit` 且不传 `--keep-worktree` 会删除记录的任务 worktree，因此也必须显式传 `--approve-cleanup`。
 
 ```bash
 dijiang finish-work \
@@ -194,8 +196,10 @@ dijiang finish-work \
   --docs-sync "<evidence>" \
   --version-impact <major|minor|patch|none> \
   --commit \
+  --approve-cleanup \
   --push \
   --integrate \
+  --approve-integrate \
   --main-branch main \
   --remote origin
 ```
@@ -203,8 +207,8 @@ dijiang finish-work \
 
 `--integrate` 将任务分支以 `--no-ff` 合并到主分支后清理 worktree。`--push` 仅在远端可达且策略允许时推送任务分支。
 
-对于任务 worktree，不传 `--keep-worktree` 时 finish-work 会自动清理 worktree（删除 worktree 和本地分支）。
-`--integrate` 额外做合并操作后同样清理 worktree。默认使用 `--integrate` 合并并清理 worktree；仅在需要保留孤立证据时使用 `--keep-worktree`。
+对于任务 worktree，不传 `--keep-worktree` 时 finish-work 会在显式 `--approve-cleanup` 后自动清理 worktree（删除 worktree 和本地分支）。
+`--integrate` 额外做合并操作后同样清理 worktree，并需要 `--approve-integrate`。默认使用 `--integrate` 合并并清理 worktree；仅在需要保留孤立证据时使用 `--keep-worktree`。
 
 最终报告必须说明任务 worktree 已删除还是通过 `--keep-worktree` 有意保留。
 
@@ -212,8 +216,7 @@ dijiang finish-work \
 ### 8. 关闭 DiJiang 状态
 
 ```bash
-dijiang task status <name> completed
-dijiang finish-work --verification "<commands or manual checks>" --docs-sync "<docs/spec evidence>" --version-impact none --commit
+dijiang finish-work --verification "<commands or manual checks>" --docs-sync "<docs/spec evidence>" --version-impact none --commit --approve-cleanup
 dijiang mem findings --finding "<key decisions and learnings; source=task; scope=project; confidence=verified>"
 dijiang mem archive
 ```

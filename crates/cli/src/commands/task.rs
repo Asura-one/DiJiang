@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use crate::util::require_dijiang_dir;
+use dijiang_task::TaskRecord;
 use dijiang_task::hooks::{self, HookEvent};
 use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
-use dijiang_task::TaskRecord;
+use std::collections::HashMap;
 
 pub fn cmd_task_list() -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
@@ -35,45 +35,54 @@ pub fn cmd_task_current() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn cmd_task_start(name: &str, parent: Option<&str>) -> anyhow::Result<()> {
+pub fn cmd_task_start(
+    name: &str,
+    parent: Option<&str>,
+    unsafe_without_worktree: bool,
+) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
+    if !unsafe_without_worktree {
+        anyhow::bail!(
+            "task start bypasses dispatch and its worktree gate; use `dijiang dispatch <request>` or pass `--unsafe-without-worktree` for maintenance work"
+        );
+    }
     let tasks_dir = dijiang_dir.join("tasks");
 
-    let mut task = match store::load_task(&tasks_dir, name) {
-        Ok(task) => {
+    match store::load_task(&tasks_dir, name) {
+        Ok(_) => {
             if let Some(parent_name) = parent {
                 store::link_tasks(&tasks_dir, parent_name, name)?;
                 println!("✓ Linked {} as child of {}", name, parent_name);
             }
-            task
         }
         Err(store::TaskError::NotFound(_)) => {
-            let t = store::create_task(name, name);
-            store::save_task(&tasks_dir, &t)?;
+            let task = store::create_task(name, name);
+            store::save_task(&tasks_dir, &task)?;
             println!("✓ Created task: {name}");
-            t
+            if let Some(parent_name) = parent {
+                store::link_tasks(&tasks_dir, parent_name, name)?;
+                println!("✓ Linked {} as child of {}", name, parent_name);
+            }
         }
         Err(e) => {
             eprintln!("Error loading task: {e}");
             std::process::exit(1);
         }
-    };
+    }
     // Use update_status for transition validation
     store::update_status(&tasks_dir, name, TaskStatus::InProgress)?;
     store::write_active_task(&dijiang_dir, name)?;
     hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskStart, name);
-    // If parent specified and task already existed, link was handled above
-    if let Some(parent_name) = parent {
-        // For newly created tasks, link now
-        store::link_tasks(&tasks_dir, parent_name, name)?;
-        println!("✓ Linked {} as child of {}", name, parent_name);
-    }
     println!("✓ Current task set to: .dijiang/tasks/{name}");
     println!("  Status: planning → in_progress");
     Ok(())
 }
 
-pub fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
+pub fn cmd_task_status(
+    name: &str,
+    status_str: &str,
+    unsafe_without_worktree: bool,
+) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
     let new_status = match status_str {
         "planning" => TaskStatus::Planning,
@@ -82,41 +91,27 @@ pub fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
         "archived" => TaskStatus::Archived,
         "paused" => TaskStatus::Paused,
         _ => {
-            eprintln!("Invalid status: '{status_str}'. Valid: planning|in_progress|completed|archived|paused");
+            eprintln!(
+                "Invalid status: '{status_str}'. Valid: planning|in_progress|completed|archived|paused"
+            );
             std::process::exit(1);
         }
     };
 
     let tasks_dir = dijiang_dir.join("tasks");
-
-    // Capture old status before update, to detect transitions
-    let old_status = store::load_task(&tasks_dir, name)
-        .ok()
-        .map(|t| t.status)
-        .unwrap_or(TaskStatus::Planning);
+    if new_status == TaskStatus::InProgress && !unsafe_without_worktree {
+        anyhow::bail!(
+            "task status in_progress bypasses dispatch and its worktree gate; use `dijiang dispatch <request>` or pass `--unsafe-without-worktree` for maintenance work"
+        );
+    }
 
     match store::update_status(&tasks_dir, name, new_status) {
         Ok(task) => {
             let task_status = task.status.clone();
-            println!("✓ Task '{name}' status updated to: {}", task_status.as_str());
-
-            // Worktree is provisioned by implement-class dispatch only
-            // (dj-implement|dj-hunt|dj-tdd|dj-script|dj-design). Status alone must
-            // not invent a fake dj-implement route — that created worktrees for
-            // docs/research tasks and left agents blocked on main checkout.
-            if old_status == TaskStatus::Planning && task_status == TaskStatus::InProgress {
-                if task.worktree_path.as_ref().map(|p| !p.is_empty()).unwrap_or(false) {
-                    println!(
-                        "  ℹ 已有任务 worktree: {}（分支: {}）",
-                        task.worktree_path.as_deref().unwrap_or("?"),
-                        task.branch.as_deref().unwrap_or("?")
-                    );
-                } else {
-                    println!(
-                        "  ℹ 状态切换不会自动创建 worktree；实现类路线 dispatch 时再 provision"
-                    );
-                }
-            }
+            println!(
+                "✓ Task '{name}' status updated to: {}",
+                task_status.as_str()
+            );
 
             // BUGFIX: clear active task pointer when archiving, so the system
             // doesn't keep injecting the archived task as current context
@@ -134,7 +129,8 @@ pub fn cmd_task_status(name: &str, status_str: &str) -> anyhow::Result<()> {
         }
         Err(store::TaskError::InvalidTransition { from, to }) => {
             eprintln!("✗ Invalid transition: {} → {}", from.as_str(), to.as_str());
-            eprintln!("  Legal transitions from {}: {}",
+            eprintln!(
+                "  Legal transitions from {}: {}",
                 from.as_str(),
                 from.legal_transitions()
                     .iter()
@@ -158,7 +154,10 @@ pub fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
     match store::archive_task(&tasks_dir, name) {
         Ok(task) => {
             hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskArchive, name);
-            println!("✓ Task '{name}' archived (status: {})", task.status.as_str());
+            println!(
+                "✓ Task '{name}' archived (status: {})",
+                task.status.as_str()
+            );
             // BUGFIX: clear active task pointer when archiving, so the system
             // doesn't keep injecting the archived task as current context
             if let Ok(Some(active)) = store::read_active_task(&dijiang_dir) {
@@ -173,7 +172,8 @@ pub fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
         }
         Err(store::TaskError::InvalidTransition { from, to }) => {
             eprintln!("✗ Invalid transition: {} → {}", from.as_str(), to.as_str());
-            eprintln!("  Legal transitions from {}: {}",
+            eprintln!(
+                "  Legal transitions from {}: {}",
                 from.as_str(),
                 from.legal_transitions()
                     .iter()
@@ -218,7 +218,9 @@ pub fn cmd_task_context_add(file: &str, action: &str, reason: &str) -> anyhow::R
     let task_name = match store::read_active_task(&dijiang_dir)? {
         Some(name) => name,
         None => {
-            eprintln!("No active task. Set one with 'dijiang task start <name>'.");
+            eprintln!(
+                "No active task. Create a planning task with `dijiang start <name>` or route implementation work through `dijiang dispatch <request>`."
+            );
             std::process::exit(1);
         }
     };
@@ -327,17 +329,16 @@ pub fn cmd_task_tree() -> anyhow::Result<()> {
         .iter()
         .filter(|t| {
             t.parent.is_none()
-                || !tasks.iter().any(|other| Some(other.id.as_str()) == t.parent.as_deref())
+                || !tasks
+                    .iter()
+                    .any(|other| Some(other.id.as_str()) == t.parent.as_deref())
         })
         .collect();
 
     fn print_tree(tasks: &[TaskRecord], task_name: &str, indent: usize) {
         let indent_str = "  ".repeat(indent);
         if let Some(task) = tasks.iter().find(|t| t.name == task_name) {
-            println!(
-                "{}- {} [{}]",
-                indent_str, task.title, task.status.as_str()
-            );
+            println!("{}- {} [{}]", indent_str, task.title, task.status.as_str());
             for child_id in &task.children {
                 if let Some(child) = tasks.iter().find(|t| t.id == *child_id) {
                     print_tree(tasks, &child.name, indent + 1);
@@ -388,7 +389,10 @@ pub fn cmd_task_hook_add(task_name: &str, event: &str, cmd: &str) -> anyhow::Res
         Err(e) => return Err(anyhow::anyhow!("Failed to read hooks: {}", e)),
     };
 
-    hooks.entry(event.to_string()).or_default().push(cmd.to_string());
+    hooks
+        .entry(event.to_string())
+        .or_default()
+        .push(cmd.to_string());
     store::set_task_hooks(&tasks_dir, task_name, hooks)?;
     println!("✓ Added hook [{}] {}: {}", task_name, event, cmd);
     Ok(())
@@ -404,12 +408,16 @@ pub fn cmd_task_hook_remove(task_name: &str, event: &str, index: usize) -> anyho
         Err(e) => return Err(anyhow::anyhow!("Failed to read hooks: {}", e)),
     };
 
-    let cmds = hooks.get_mut(event).ok_or_else(|| {
-        anyhow::anyhow!("No hooks for event '{}' on task '{}'", event, task_name)
-    })?;
+    let cmds = hooks
+        .get_mut(event)
+        .ok_or_else(|| anyhow::anyhow!("No hooks for event '{}' on task '{}'", event, task_name))?;
 
     if index >= cmds.len() {
-        return Err(anyhow::anyhow!("Index {} out of range (0..{})", index, cmds.len()));
+        return Err(anyhow::anyhow!(
+            "Index {} out of range (0..{})",
+            index,
+            cmds.len()
+        ));
     }
     cmds.remove(index);
 
@@ -437,7 +445,9 @@ pub fn cmd_task_checklist_list() -> anyhow::Result<()> {
     let task_name = active.as_deref().unwrap_or("<no active task>");
     let checklist = store::get_checklist(&tasks_dir, task_name)?;
     if checklist.criteria.is_empty() {
-        println!("Checklist is empty. Use `dijiang task checklist add <description>` to add items.");
+        println!(
+            "Checklist is empty. Use `dijiang task checklist add <description>` to add items."
+        );
     }
     for (i, item) in checklist.criteria.iter().enumerate() {
         let status = if item.met { "[x]" } else { "[ ]" };
@@ -522,19 +532,24 @@ pub fn cmd_task_queue_remove(name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn cmd_task_queue_next() -> anyhow::Result<()> {
+pub fn cmd_task_queue_next(unsafe_without_worktree: bool) -> anyhow::Result<()> {
     let dijiang_dir = crate::util::require_dijiang_dir()?;
+    if !unsafe_without_worktree {
+        anyhow::bail!(
+            "task queue next bypasses dispatch and its worktree gate; use `dijiang dispatch <request>` to activate implementation work or pass `--unsafe-without-worktree` for maintenance work"
+        );
+    }
     match store::queue_pop(&dijiang_dir) {
         Some(task) => {
             println!("Next task: {task}");
-            // Optionally start the task
             let tasks_dir = dijiang_dir.join("tasks");
-            // Use update_status to apply transition validation
-            if store::update_status(&tasks_dir, &task, dijiang_task::types::TaskStatus::InProgress).is_ok() {
-                if store::write_active_task(&dijiang_dir, &task).is_ok() {
-                    println!("  Activated: {task}");
-                }
-            }
+            store::update_status(
+                &tasks_dir,
+                &task,
+                dijiang_task::types::TaskStatus::InProgress,
+            )?;
+            store::write_active_task(&dijiang_dir, &task)?;
+            println!("  Activated: {task}");
         }
         None => {
             println!("Queue is empty.");
@@ -633,7 +648,10 @@ fn validate_task_json(task_dir: &std::path::Path, task_name: &str) -> usize {
     // Validate name matches directory
     if let Some(n) = task.get("name").and_then(|n| n.as_str()) {
         if n != task_name {
-            eprintln!("  ✗ task.json: name '{}' does not match directory '{}'", n, task_name);
+            eprintln!(
+                "  ✗ task.json: name '{}' does not match directory '{}'",
+                n, task_name
+            );
             errors += 1;
         }
     }
@@ -685,11 +703,21 @@ fn validate_context_files(task_dir: &std::path::Path) -> usize {
             let full_path = repo_root.join(file_path);
             if entry_type == "directory" {
                 if !full_path.is_dir() {
-                    eprintln!("  ✗ {}:{} directory not found: {}", jsonl_name, line_num + 1, file_path);
+                    eprintln!(
+                        "  ✗ {}:{} directory not found: {}",
+                        jsonl_name,
+                        line_num + 1,
+                        file_path
+                    );
                     file_errors += 1;
                 }
             } else if !full_path.is_file() {
-                eprintln!("  ✗ {}:{} file not found: {}", jsonl_name, line_num + 1, file_path);
+                eprintln!(
+                    "  ✗ {}:{} file not found: {}",
+                    jsonl_name,
+                    line_num + 1,
+                    file_path
+                );
                 file_errors += 1;
             }
         }
@@ -713,7 +741,10 @@ fn validate_links(tasks_dir: &std::path::Path, task_name: &str) -> usize {
     // Check parent exists
     if let Some(parent_id) = &current.parent {
         if !all_tasks.iter().any(|t| t.id == *parent_id) {
-            eprintln!("  ✗ child links to parent '{}' which does not exist", parent_id);
+            eprintln!(
+                "  ✗ child links to parent '{}' which does not exist",
+                parent_id
+            );
             errors += 1;
         }
     }
@@ -788,10 +819,14 @@ pub fn cmd_task_create_pr(
         .unwrap_or_else(|| task.title.clone());
 
     // Resolve body
-    let pr_body = body
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| format!("Automated PR for task: {}\n\n**Task**: {}\n**Scope**: {}",
-            task.title, task_name, task.scope.as_deref().unwrap_or("(none)")));
+    let pr_body = body.map(|s| s.to_string()).unwrap_or_else(|| {
+        format!(
+            "Automated PR for task: {}\n\n**Task**: {}\n**Scope**: {}",
+            task.title,
+            task_name,
+            task.scope.as_deref().unwrap_or("(none)")
+        )
+    });
 
     println!("── Creating PR ────────────────────────────────");
     println!("  Task:   {}", task_name);
@@ -800,8 +835,10 @@ pub fn cmd_task_create_pr(
     println!("  Base:   {}", base);
 
     if dry_run {
-        println!("  (dry-run) Would execute: gh pr create --title \"{}\" --head {} --base {} --body \"<body>\"",
-            pr_title, branch, base);
+        println!(
+            "  (dry-run) Would execute: gh pr create --title \"{}\" --head {} --base {} --body \"<body>\"",
+            pr_title, branch, base
+        );
         println!("  (dry-run) Would save pr_url to task.json");
         println!("  ✓ DRY-RUN: no changes made");
         return Ok(());
@@ -809,7 +846,9 @@ pub fn cmd_task_create_pr(
 
     // Run gh pr create
     let output = std::process::Command::new("gh")
-        .args(["pr","create","--title", &pr_title, "--head", &branch, "--base", &base])
+        .args([
+            "pr", "create", "--title", &pr_title, "--head", &branch, "--base", &base,
+        ])
         .arg("--body")
         .arg(&pr_body)
         .output()?;
@@ -819,7 +858,10 @@ pub fn cmd_task_create_pr(
         eprintln!("Error: gh pr create failed:");
         eprintln!("{}", stderr);
         if stderr.contains("could not find any remote") {
-            eprintln!("Hint: ensure your branch is pushed: git push origin {}", branch);
+            eprintln!(
+                "Hint: ensure your branch is pushed: git push origin {}",
+                branch
+            );
         }
         std::process::exit(1);
     }

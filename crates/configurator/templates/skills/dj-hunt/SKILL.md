@@ -115,7 +115,7 @@ risk: medium
 
 ### Phase 5 — 修复 + regression 测试
 
-- 将任务状态推进到 `in_progress`：`dijiang task status $(dijiang task current) in_progress`
+- 若任务仍为 `planning`，使用原始用户请求重新运行 `dijiang dispatch "<user request>"`；不要通过 `dijiang task status ... in_progress` 绕过 worktree gate。
 
 回归测试写在修复 **之前**——仅当存在正确的 seam。
 

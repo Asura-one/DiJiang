@@ -1,11 +1,14 @@
-use crate::util::{require_dijiang_dir, resolve_dijiang_dir, run_git, read_developer, current_session_key, git_current_branch, git_worktree_root};
+use crate::util::{
+    current_session_key, git_current_branch, git_worktree_root, read_developer,
+    require_dijiang_dir, resolve_dijiang_dir, run_git,
+};
 use dijiang_task::hooks::{self, HookEvent};
 use dijiang_task::store;
 use dijiang_task::types::{TaskRecord, TaskStatus};
-use std::path::{Path, PathBuf};
-use std::io::Write;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy)]
 pub struct FinishWorkOptions<'a> {
@@ -47,15 +50,14 @@ fn git_dirty_entries(project_root: &Path) -> anyhow::Result<Vec<String>> {
         .collect())
 }
 
-
-fn recover_finish_task_from_branch(
-    tasks_dir: &Path,
-    branch: &str,
-) -> Option<(String, TaskRecord)> {
+fn recover_finish_task_from_branch(tasks_dir: &Path, branch: &str) -> Option<(String, TaskRecord)> {
     let branch = branch.trim();
-    if branch.is_empty() { return None; }
+    if branch.is_empty() {
+        return None;
+    }
     let tasks = store::list_tasks(tasks_dir).ok()?;
-    tasks.into_iter()
+    tasks
+        .into_iter()
         .find(|task| task.branch.as_deref() == Some(branch) || task.name == branch)
         .map(|task| (task.name.clone(), task))
 }
@@ -103,11 +105,19 @@ fn append_finish_journal(
     std::fs::create_dir_all(&workspace)?;
     let journal = workspace.join("journal.md");
     let summary = summary.unwrap_or("工作已完成。");
-    let status = if task_name == "no-active-task" { "completed-no-task" } else { "archived" };
+    let status = if task_name == "no-active-task" {
+        "completed-no-task"
+    } else {
+        "archived"
+    };
     let entry = format!(
         "\n## {} — finish-work\n- 任务：`{}`\n- 摘要：{}\n- 验证：{}\n- 允许脏改：{}\n- 状态：{}\n",
         chrono::Local::now().format("%Y-%m-%d %H:%M"),
-        task_name, summary, verification, dirty_allowed, status
+        task_name,
+        summary,
+        verification,
+        dirty_allowed,
+        status
     );
     std::fs::OpenOptions::new()
         .create(true)
@@ -128,7 +138,10 @@ fn append_session_closure(
     dirty_allowed: bool,
 ) -> anyhow::Result<PathBuf> {
     let closed_at = chrono::Utc::now().to_rfc3339();
-    let sessions_dir = dijiang_dir.join("workspace").join(developer).join("sessions");
+    let sessions_dir = dijiang_dir
+        .join("workspace")
+        .join(developer)
+        .join("sessions");
     std::fs::create_dir_all(&sessions_dir)?;
     let journal = sessions_dir.join(format!("{session_key}.jsonl"));
     let event = serde_json::json!({
@@ -147,8 +160,13 @@ fn append_session_closure(
         .open(&journal)?
         .write_all(format!("{}\n", serde_json::to_string(&event)?).as_bytes())?;
 
-    let runtime_path = dijiang_dir.join(".runtime").join("sessions").join(format!("{session_key}.json"));
-    if let Some(parent) = runtime_path.parent() { std::fs::create_dir_all(parent)?; }
+    let runtime_path = dijiang_dir
+        .join(".runtime")
+        .join("sessions")
+        .join(format!("{session_key}.json"));
+    if let Some(parent) = runtime_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     let mut value: Value = if runtime_path.exists() {
         let content = std::fs::read_to_string(&runtime_path)?;
         serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}))
@@ -179,7 +197,11 @@ fn has_chinese(text: &str) -> bool {
 fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<&str>) -> String {
     let user_summary = summary.and_then(|s| {
         let t = s.trim();
-        if t.is_empty() { None } else { Some(t.to_string()) }
+        if t.is_empty() {
+            None
+        } else {
+            Some(t.to_string())
+        }
     });
 
     let name_status = std::process::Command::new("git")
@@ -204,30 +226,34 @@ fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<
             if s.is_empty() { None } else { Some(s) }
         });
     let numstat = std::process::Command::new("git")
-.args(["diff", "--cached", "--numstat"])
-.current_dir(project_root)
-.output()
-.ok()
-.filter(|o| o.status.success())
-.map(|o| {
-        let s = String::from_utf8_lossy(&o.stdout).to_string();
-        let mut map: HashMap<String, (usize, usize)> = HashMap::new();
-        for line in s.lines() {
-            if line.trim().is_empty() { continue; }
-            let parts: Vec<&str> = line.split('\t').collect();
-            if parts.len() == 3 {
-                let added: usize = parts[0].parse().unwrap_or(0);
-                let deleted: usize = parts[1].parse().unwrap_or(0);
-                map.insert(parts[2].trim().to_string(), (added, deleted));
+        .args(["diff", "--cached", "--numstat"])
+        .current_dir(project_root)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).to_string();
+            let mut map: HashMap<String, (usize, usize)> = HashMap::new();
+            for line in s.lines() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let parts: Vec<&str> = line.split('\t').collect();
+                if parts.len() == 3 {
+                    let added: usize = parts[0].parse().unwrap_or(0);
+                    let deleted: usize = parts[1].parse().unwrap_or(0);
+                    map.insert(parts[2].trim().to_string(), (added, deleted));
+                }
             }
-        }
-        map
-    });
+            map
+        });
 
     let (mut added, mut modified, mut deleted) = (Vec::new(), Vec::new(), Vec::new());
     if let Some(ns) = &name_status {
         for line in ns.lines() {
-            if line.trim().is_empty() { continue; }
+            if line.trim().is_empty() {
+                continue;
+            }
             if let Some((status, path)) = line.split_once('\t') {
                 let path = path.trim();
                 match status.chars().next() {
@@ -247,38 +273,61 @@ fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<
     // === 确定 type (Conventional Commits) ===
     let change_type = if let Some(s) = &user_summary {
         let lower = s.to_lowercase();
-        if lower.contains("修复") || lower.contains("fix") { "fix" }
-        else if lower.contains("feat") || lower.contains("新增") || lower.contains("添加") { "feat" }
-        else if lower.contains("docs") || lower.contains("文档") { "docs" }
-        else if lower.contains("refactor") || lower.contains("重构") { "refactor" }
-        else if lower.contains("test") || lower.contains("测试") { "test" }
-        else if lower.contains("perf") || lower.contains("性能") || lower.contains("优化") { "perf" }
-        else if lower.contains("ci") || lower.starts_with("ci") { "ci" }
-        else if lower.contains("style") || lower.starts_with("style") { "style" }
-        else if lower.contains("chore") || lower.starts_with("chore") || lower.contains("配置") { "chore" }
-        else { "refactor" }
+        if lower.contains("修复") || lower.contains("fix") {
+            "fix"
+        } else if lower.contains("feat") || lower.contains("新增") || lower.contains("添加") {
+            "feat"
+        } else if lower.contains("docs") || lower.contains("文档") {
+            "docs"
+        } else if lower.contains("refactor") || lower.contains("重构") {
+            "refactor"
+        } else if lower.contains("test") || lower.contains("测试") {
+            "test"
+        } else if lower.contains("perf") || lower.contains("性能") || lower.contains("优化") {
+            "perf"
+        } else if lower.contains("ci") || lower.starts_with("ci") {
+            "ci"
+        } else if lower.contains("style") || lower.starts_with("style") {
+            "style"
+        } else if lower.contains("chore") || lower.starts_with("chore") || lower.contains("配置")
+        {
+            "chore"
+        } else {
+            "refactor"
+        }
     } else {
         // Pure file-based detection without user summary
         let is_test = |f: &&str| {
-            f.contains("/tests/") || f.starts_with("tests/")
-                || f.ends_with("_test.rs") || f.ends_with("_test.go")
-                || f.ends_with(".spec.js") || f.ends_with(".spec.ts")
+            f.contains("/tests/")
+                || f.starts_with("tests/")
+                || f.ends_with("_test.rs")
+                || f.ends_with("_test.go")
+                || f.ends_with(".spec.js")
+                || f.ends_with(".spec.ts")
         };
-        let is_doc = |f: &&str| f.ends_with(".md") || f.starts_with("docs/") || f.contains("/docs/");
+        let is_doc =
+            |f: &&str| f.ends_with(".md") || f.starts_with("docs/") || f.contains("/docs/");
         let is_ci = |f: &&str| {
-            f.contains("/.github/") || f.contains("/.gitlab/") || f.starts_with(".github/")
-                || f.ends_with("Dockerfile") || f.ends_with("Jenkinsfile")
+            f.contains("/.github/")
+                || f.contains("/.gitlab/")
+                || f.starts_with(".github/")
+                || f.ends_with("Dockerfile")
+                || f.ends_with("Jenkinsfile")
         };
         let is_config = |f: &&str| {
-            f.ends_with(".toml") || f.ends_with(".lock") || f.ends_with(".env")
-                || f.ends_with(".editorconfig") || f.ends_with(".gitignore")
+            f.ends_with(".toml")
+                || f.ends_with(".lock")
+                || f.ends_with(".env")
+                || f.ends_with(".editorconfig")
+                || f.ends_with(".gitignore")
         };
 
-        let all_files: Vec<&str> = added.iter()
-.map(|s| s.as_str())
-.chain(modified.iter().map(|s| s.as_str()))
-.chain(deleted.iter().map(|s| s.as_str()))
-.collect();
+        let all_files: Vec<&str> = added
+            .iter()
+            .map(|s| s.as_str())
+            .chain(modified.iter().map(|s| s.as_str()))
+            .chain(deleted.iter().map(|s| s.as_str()))
+            .collect();
         // Test changes
         if all_files.iter().all(|f| is_test(f)) {
             "test"
@@ -296,7 +345,8 @@ fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<
     };
 
     // === 确定 scope (最常见的 crate/模块前缀) ===
-    let all_files: Vec<&str> = added.iter()
+    let all_files: Vec<&str> = added
+        .iter()
         .chain(modified.iter())
         .chain(deleted.iter())
         .map(|s| s.as_str())
@@ -321,17 +371,22 @@ fn default_commit_message(project_root: &Path, task_name: &str, summary: Option<
 
 fn detect_scope(files: &[&str]) -> Option<String> {
     // 只考虑"真正"的文件：跳过内部文件和根级配置文件
-    let significant: Vec<&str> = files.iter()
-.filter(|f| !f.starts_with(".dijiang/") && !f.starts_with(".pi/"))
-.filter(|f| {
+    let significant: Vec<&str> = files
+        .iter()
+        .filter(|f| !f.starts_with(".dijiang/") && !f.starts_with(".pi/"))
+        .filter(|f| {
             let name = f.split('/').last().unwrap_or("");
-            !matches!(name, "Cargo.toml" | "Cargo.lock" | "package.json" | "package-lock.json"
-)
+            !matches!(
+                name,
+                "Cargo.toml" | "Cargo.lock" | "package.json" | "package-lock.json"
+            )
         })
-.copied()
-.collect();
+        .copied()
+        .collect();
 
-    if significant.is_empty() { return None; }
+    if significant.is_empty() {
+        return None;
+    }
 
     // 统计 crate 级目录（优先）和顶层目录频率
     let mut top_counts: HashMap<&str, usize> = HashMap::new();
@@ -339,7 +394,9 @@ fn detect_scope(files: &[&str]) -> Option<String> {
 
     for path in &significant {
         let parts: Vec<&str> = path.split('/').collect();
-        if parts.len() < 2 { continue; }
+        if parts.len() < 2 {
+            continue;
+        }
 
         // 收集顶层目录
         *top_counts.entry(parts[0]).or_insert(0) += 1;
@@ -364,13 +421,19 @@ fn detect_scope(files: &[&str]) -> Option<String> {
     }
 
     // 回退到顶层目录（需要超过 50% 才能确定 scope）
-    top_counts.into_iter()
-.filter(|(_, count)| *count * 2 > n)  // 严格 >50%
-.max_by_key(|(_, count)| *count)
-.map(|(dir, _)| dir.to_string())
+    top_counts
+        .into_iter()
+        .filter(|(_, count)| *count * 2 > n) // 严格 >50%
+        .max_by_key(|(_, count)| *count)
+        .map(|(dir, _)| dir.to_string())
 }
 
-fn generate_description(_task_name: &str, added: &[String], modified: &[String], deleted: &[String]) -> String {
+fn generate_description(
+    _task_name: &str,
+    added: &[String],
+    modified: &[String],
+    deleted: &[String],
+) -> String {
     let total = added.len() + modified.len() + deleted.len();
     if total == 0 {
         return _task_name.to_string();
@@ -379,14 +442,21 @@ fn generate_description(_task_name: &str, added: &[String], modified: &[String],
     let is_internal = |s: &str| s.starts_with(".dijiang/") || s.starts_with(".pi/");
 
     let fmt_paths = |files: &[String], max: usize| -> Option<String> {
-        let real: Vec<&str> = files.iter()
-.filter(|f| !is_internal(f.as_str()))
-.map(|s| s.as_str())
-.collect();
-        if real.is_empty() { return None; }
+        let real: Vec<&str> = files
+            .iter()
+            .filter(|f| !is_internal(f.as_str()))
+            .map(|s| s.as_str())
+            .collect();
+        if real.is_empty() {
+            return None;
+        }
         let shown: Vec<&str> = real.iter().take(max).map(|s| *s).collect();
         let joined = shown.join("、");
-        let suffix = if real.len() > max { format!(" 等 {} 个", real.len()) } else { String::new() };
+        let suffix = if real.len() > max {
+            format!(" 等 {} 个", real.len())
+        } else {
+            String::new()
+        };
         Some(format!("{}{}", joined, suffix))
     };
 
@@ -422,25 +492,38 @@ fn build_body(
     let is_internal = |s: &&str| s.starts_with(".dijiang/") || s.starts_with(".pi/");
 
     let fmt_stats = |path: &&str| -> String {
-        numstat.as_ref()
-.and_then(|ns| ns.get(*path))
-.map(|(add, del)| {
-            if *del > 0 && *add > 0 {
-                format!("（+{} 行，-{} 行）", add, del)
-            } else if *del > 0 {
-                format!("（-{} 行）", del)
-            } else {
-                format!("（+{} 行）", add)
-            }
-        })
-.unwrap_or_default()
+        numstat
+            .as_ref()
+            .and_then(|ns| ns.get(*path))
+            .map(|(add, del)| {
+                if *del > 0 && *add > 0 {
+                    format!("（+{} 行，-{} 行）", add, del)
+                } else if *del > 0 {
+                    format!("（-{} 行）", del)
+                } else {
+                    format!("（+{} 行）", add)
+                }
+            })
+            .unwrap_or_default()
     };
 
     let mut body = String::new();
 
-    let filtered_added: Vec<&str> = added.iter().map(|s| s.as_str()).filter(|s| !is_internal(s)).collect();
-    let filtered_modified: Vec<&str> = modified.iter().map(|s| s.as_str()).filter(|s| !is_internal(s)).collect();
-    let filtered_deleted: Vec<&str> = deleted.iter().map(|s| s.as_str()).filter(|s| !is_internal(s)).collect();
+    let filtered_added: Vec<&str> = added
+        .iter()
+        .map(|s| s.as_str())
+        .filter(|s| !is_internal(s))
+        .collect();
+    let filtered_modified: Vec<&str> = modified
+        .iter()
+        .map(|s| s.as_str())
+        .filter(|s| !is_internal(s))
+        .collect();
+    let filtered_deleted: Vec<&str> = deleted
+        .iter()
+        .map(|s| s.as_str())
+        .filter(|s| !is_internal(s))
+        .collect();
 
     let total = filtered_added.len() + filtered_modified.len() + filtered_deleted.len();
     if total == 0 {
@@ -459,11 +542,15 @@ fn build_body(
         push_files(&mut body, &filtered_added, "新增");
     }
     if !filtered_modified.is_empty() {
-        if !filtered_added.is_empty() { body.push('\n'); }
+        if !filtered_added.is_empty() {
+            body.push('\n');
+        }
         push_files(&mut body, &filtered_modified, "修改");
     }
     if !filtered_deleted.is_empty() {
-        if !filtered_added.is_empty() || !filtered_modified.is_empty() { body.push('\n'); }
+        if !filtered_added.is_empty() || !filtered_modified.is_empty() {
+            body.push('\n');
+        }
         push_files(&mut body, &filtered_deleted, "删除");
     }
 
@@ -478,7 +565,10 @@ enum VersionSource {
 }
 
 fn bump_semver(version: &str, impact: &str) -> anyhow::Result<String> {
-    let parts = version.split('.').map(str::parse::<u64>).collect::<Result<Vec<_>, _>>()?;
+    let parts = version
+        .split('.')
+        .map(str::parse::<u64>)
+        .collect::<Result<Vec<_>, _>>()?;
     if parts.len() != 3 {
         anyhow::bail!("unsupported version format: {version}");
     }
@@ -685,17 +775,16 @@ fn ensure_version_unchanged_for_none(project_root: &Path) -> anyhow::Result<()> 
     let Some((working, source)) = read_authority_version(project_root) else {
         return Ok(());
     };
-    let head_version = match source {
-        VersionSource::CargoWorkspace => {
-            git_show_file(project_root, "Cargo.toml").and_then(|c| read_workspace_cargo_version(&c))
-        }
-        VersionSource::PackageJson => {
-            git_show_file(project_root, "package.json").and_then(|c| read_package_json_version(&c))
-        }
-        VersionSource::VersionFile => {
-            git_show_file(project_root, "VERSION").map(|c| c.trim().to_string())
-        }
-    };
+    let head_version =
+        match source {
+            VersionSource::CargoWorkspace => git_show_file(project_root, "Cargo.toml")
+                .and_then(|c| read_workspace_cargo_version(&c)),
+            VersionSource::PackageJson => git_show_file(project_root, "package.json")
+                .and_then(|c| read_package_json_version(&c)),
+            VersionSource::VersionFile => {
+                git_show_file(project_root, "VERSION").map(|c| c.trim().to_string())
+            }
+        };
     if let Some(head) = head_version {
         if head != working {
             anyhow::bail!(
@@ -727,7 +816,10 @@ fn update_workspace_version(project_root: &Path, impact: &str) -> anyhow::Result
             in_workspace_package = trimmed == "[workspace.package]";
         }
         if in_workspace_package && trimmed.starts_with("version") && trimmed.contains('=') {
-            let indent = line.chars().take_while(|ch| ch.is_whitespace()).collect::<String>();
+            let indent = line
+                .chars()
+                .take_while(|ch| ch.is_whitespace())
+                .collect::<String>();
             let value = trimmed
                 .split_once('=')
                 .map(|(_, v)| v.trim().trim_matches('"'))
@@ -768,7 +860,9 @@ fn apply_version_and_changelog_gates(
         update_workspace_version(project_root, impact)?
     } else {
         let target = bump_semver(&current, impact)?;
-        Some(format!("{current} -> {target} (authority not Cargo; bump not applied)"))
+        Some(format!(
+            "{current} -> {target} (authority not Cargo; bump not applied)"
+        ))
     };
     let target = if source == VersionSource::CargoWorkspace {
         read_authority_version(project_root)
@@ -800,34 +894,104 @@ fn ensure_finish_preconditions(
     if !matches!(options.version_impact, "major" | "minor" | "patch" | "none") {
         anyhow::bail!("--version-impact must be one of: major, minor, patch, none");
     }
-    let verification = crate::util::trim_required(
-        options.verification,
-        "finish-work requires --verification",
-    )?;
+    let verification =
+        crate::util::trim_required(options.verification, "finish-work requires --verification")?;
     let dirty = git_dirty_entries(project_root)?;
     if (options.commit || !dirty.is_empty()) && !options.allow_dirty {
         let docs_sync = crate::util::trim_required(
             options.docs_sync,
             "finish-work requires --docs-sync when code/artifacts changed",
         )?;
-        if options.commit { return Ok((verification, docs_sync)); }
+        if options.commit {
+            return Ok((verification, docs_sync));
+        }
     }
     if !dirty.is_empty() && !options.allow_dirty {
-        let preview = dirty.iter().take(12).cloned().collect::<Vec<_>>().join("\n  ");
+        let preview = dirty
+            .iter()
+            .take(12)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n  ");
         anyhow::bail!(
             "finish-work 被阻止：git worktree 存在未提交修改。\n  {}\n",
             preview
         );
     }
-    Ok((verification, options.docs_sync
-        .map(str::trim).filter(|v| !v.is_empty())
-        .unwrap_or("none: no code or docs change").to_string()))
+    Ok((
+        verification,
+        options
+            .docs_sync
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .unwrap_or("none: no code or docs change")
+            .to_string(),
+    ))
+}
+fn ensure_finish_capabilities(
+    task: Option<&TaskRecord>,
+    options: FinishWorkOptions<'_>,
+) -> anyhow::Result<()> {
+    if options.integrate {
+        let decision = dijiang_task::evaluate_capability(
+            dijiang_task::WorkflowCapsule::Finish,
+            dijiang_task::CapabilityTarget::FinishIntegrate,
+            options.approve_integrate,
+        );
+        if matches!(decision.action, dijiang_task::CapabilityAction::Block) {
+            anyhow::bail!("finish-work integration blocked: {}", decision.reason);
+        }
+    }
+    if options.push {
+        let decision = dijiang_task::evaluate_capability(
+            dijiang_task::WorkflowCapsule::Finish,
+            dijiang_task::CapabilityTarget::FinishPush,
+            options.approve_integrate,
+        );
+        if matches!(decision.action, dijiang_task::CapabilityAction::Block) {
+            anyhow::bail!("finish-work push blocked: {}", decision.reason);
+        }
+    }
+    let cleans_task_worktree = options.integrate
+        || (options.commit
+            && !options.keep_worktree
+            && task.is_some_and(|task| {
+                task.worktree_path
+                    .as_deref()
+                    .is_some_and(|path| !path.is_empty())
+                    || task
+                        .branch
+                        .as_deref()
+                        .is_some_and(|branch| !branch.is_empty())
+            }));
+    if cleans_task_worktree {
+        let cleanup_decision = dijiang_task::evaluate_capability(
+            dijiang_task::WorkflowCapsule::Finish,
+            dijiang_task::CapabilityTarget::FinishCleanup,
+            options.approve_cleanup,
+        );
+        if matches!(
+            cleanup_decision.action,
+            dijiang_task::CapabilityAction::Block
+        ) {
+            anyhow::bail!(
+                "finish-work cleanup blocked: {}; nextAction: {}",
+                cleanup_decision.reason,
+                cleanup_decision.next_action
+            );
+        }
+    }
+    Ok(())
 }
 
 fn git_common_dir(project_root: &Path) -> anyhow::Result<PathBuf> {
     let path = run_git(project_root, &["rev-parse", "--git-common-dir"])?;
     let path = PathBuf::from(path);
-    Ok(if path.is_absolute() { path } else { project_root.join(path) })
+    Ok(if path.is_absolute() {
+        path
+    } else {
+        project_root.join(path)
+    })
 }
 
 pub(crate) fn git_main_worktree(project_root: &Path, main_branch: &str) -> anyhow::Result<PathBuf> {
@@ -837,11 +1001,17 @@ pub(crate) fn git_main_worktree(project_root: &Path, main_branch: &str) -> anyho
         .current_dir(project_root)
         .output()?;
     if !output.status.success() {
-        anyhow::bail!("git worktree list failed: {}", String::from_utf8_lossy(&output.stderr).trim());
+        anyhow::bail!(
+            "git worktree list failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
     }
     let mut current_path: Option<PathBuf> = None;
     for line in String::from_utf8_lossy(&output.stdout).lines() {
-        if let Some(path) = line.strip_prefix("worktree ") { current_path = Some(PathBuf::from(path)); continue; }
+        if let Some(path) = line.strip_prefix("worktree ") {
+            current_path = Some(PathBuf::from(path));
+            continue;
+        }
         if line == format!("branch refs/heads/{main_branch}") {
             return current_path.ok_or_else(|| anyhow::anyhow!("invalid git worktree output"));
         }
@@ -907,7 +1077,8 @@ fn cleanup_current_worktree(
     };
 
     let target_canon = std::fs::canonicalize(&target_path).unwrap_or_else(|_| target_path.clone());
-    let main_canon = std::fs::canonicalize(&main_worktree).unwrap_or_else(|_| main_worktree.clone());
+    let main_canon =
+        std::fs::canonicalize(&main_worktree).unwrap_or_else(|_| main_worktree.clone());
     if target_canon == main_canon {
         println!("  ✓ 目标路径即主 worktree，不执行自动清理");
         return Ok(());
@@ -956,9 +1127,7 @@ fn cleanup_current_worktree(
             if del {
                 println!("    ✓ 已删除分支 {target_branch}");
             } else {
-                println!(
-                    "    ℹ 分支 {target_branch} 尚未合入主线，已保留（后续可用 --integrate）"
-                );
+                println!("    ℹ 分支 {target_branch} 尚未合入主线，已保留（后续可用 --integrate）");
             }
         }
         // Running finish from inside a removed worktree leaves a stale cwd.
@@ -978,49 +1147,84 @@ fn cleanup_current_worktree(
     Ok(())
 }
 
-fn perform_finish_commit(project_root: &Path, task_name: &str, summary: Option<&str>, message: Option<&str>) -> anyhow::Result<Option<String>> {
+fn perform_finish_commit(
+    project_root: &Path,
+    task_name: &str,
+    summary: Option<&str>,
+    message: Option<&str>,
+) -> anyhow::Result<Option<String>> {
     let dirty = git_dirty_entries(project_root)?;
-    if dirty.is_empty() { return Ok(None); }
+    if dirty.is_empty() {
+        return Ok(None);
+    }
     run_git(project_root, &["add", "--all"])?;
-    let commit_message = message.map(str::trim).filter(|v| !v.is_empty())
+    let commit_message = message
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
         .map(str::to_string)
         .unwrap_or_else(|| default_commit_message(project_root, task_name, summary));
     if !has_chinese(&commit_message) {
-        anyhow::bail!("commit message 不含中文字符，已拒绝：{}
+        anyhow::bail!(
+            "commit message 不含中文字符，已拒绝：{}
 
-所有 commit message 必须使用中文编写，描述实际变更内容。", commit_message);
+所有 commit message 必须使用中文编写，描述实际变更内容。",
+            commit_message
+        );
     }
     run_git(project_root, &["commit", "-m", &commit_message])?;
     let commit = run_git(project_root, &["rev-parse", "--short", "HEAD"])?;
     Ok(Some(commit))
 }
 
-fn perform_finish_integration(project_root: &Path, options: FinishWorkOptions<'_>, approved: bool) -> anyhow::Result<()> {
+fn perform_finish_integration(
+    project_root: &Path,
+    options: FinishWorkOptions<'_>,
+    approved: bool,
+) -> anyhow::Result<()> {
     let decision = dijiang_task::evaluate_capability(
-        dijiang_task::WorkflowCapsule::Finish, dijiang_task::CapabilityTarget::FinishIntegrate, approved,
+        dijiang_task::WorkflowCapsule::Finish,
+        dijiang_task::CapabilityTarget::FinishIntegrate,
+        approved,
     );
     if options.integrate && matches!(decision.action, dijiang_task::CapabilityAction::Block) {
         anyhow::bail!("finish-work integration blocked: {}", decision.reason);
     }
     if options.push {
         let push_dec = dijiang_task::evaluate_capability(
-            dijiang_task::WorkflowCapsule::Finish, dijiang_task::CapabilityTarget::FinishPush, approved,
+            dijiang_task::WorkflowCapsule::Finish,
+            dijiang_task::CapabilityTarget::FinishPush,
+            approved,
         );
         if matches!(push_dec.action, dijiang_task::CapabilityAction::Block) {
             anyhow::bail!("finish-work push blocked: {}", push_dec.reason);
         }
     }
     let branch = git_current_branch(project_root)?;
-    if branch.is_empty() { anyhow::bail!("finish-work 无法在 detached HEAD 上执行集成"); }
-    if branch == options.main_branch { anyhow::bail!("finish-work 不在主分支上执行 --integrate"); }
-    if options.push { run_git(project_root, &["push", "-u", options.remote, &branch])?; }
+    if branch.is_empty() {
+        anyhow::bail!("finish-work 无法在 detached HEAD 上执行集成");
+    }
+    if branch == options.main_branch {
+        anyhow::bail!("finish-work 不在主分支上执行 --integrate");
+    }
+    if options.push {
+        run_git(project_root, &["push", "-u", options.remote, &branch])?;
+    }
     if options.integrate {
         let main_worktree = git_main_worktree(project_root, options.main_branch)?;
         let cleanup_decision = dijiang_task::evaluate_capability(
-            dijiang_task::WorkflowCapsule::Finish, dijiang_task::CapabilityTarget::FinishCleanup, options.approve_cleanup,
+            dijiang_task::WorkflowCapsule::Finish,
+            dijiang_task::CapabilityTarget::FinishCleanup,
+            options.approve_cleanup,
         );
-        if matches!(cleanup_decision.action, dijiang_task::CapabilityAction::Block) {
-            anyhow::bail!("finish-work cleanup blocked: {}; nextAction: {}", cleanup_decision.reason, cleanup_decision.next_action);
+        if matches!(
+            cleanup_decision.action,
+            dijiang_task::CapabilityAction::Block
+        ) {
+            anyhow::bail!(
+                "finish-work cleanup blocked: {}; nextAction: {}",
+                cleanup_decision.reason,
+                cleanup_decision.next_action
+            );
         }
         let project_root_str = project_root.display().to_string();
         let merge_message = format!(
@@ -1032,7 +1236,12 @@ fn perform_finish_integration(project_root: &Path, options: FinishWorkOptions<'_
             &["merge", "--no-ff", "-m", &merge_message, &branch],
         )?;
 
-        if options.push { run_git(&main_worktree, &["push", options.remote, options.main_branch])?; }
+        if options.push {
+            run_git(
+                &main_worktree,
+                &["push", options.remote, options.main_branch],
+            )?;
+        }
         run_git(&main_worktree, &["worktree", "remove", &project_root_str])?;
         run_git(&main_worktree, &["branch", "-d", &branch])?;
     }
@@ -1057,34 +1266,72 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     let tasks_dir = dijiang_dir.join("tasks");
     let active_task = store::read_active_task(&dijiang_dir)?;
     let current_branch = git_current_branch(&project_root).ok();
-    let worktree_hint = project_root.file_name().and_then(|v| v.to_str()).map(str::to_string);
-    let resolved_target = resolve_finish_target(&tasks_dir, active_task.as_deref(), current_branch.as_deref(), worktree_hint.as_deref())?;
+    let worktree_hint = project_root
+        .file_name()
+        .and_then(|v| v.to_str())
+        .map(str::to_string);
+    let resolved_target = resolve_finish_target(
+        &tasks_dir,
+        active_task.as_deref(),
+        current_branch.as_deref(),
+        worktree_hint.as_deref(),
+    )?;
     let task_before_archive = resolved_target.as_ref().map(|target| &target.task);
-    let (verification, docs_sync) = ensure_finish_preconditions(&project_root, task_before_archive, options)?;
+    let (verification, docs_sync) =
+        ensure_finish_preconditions(&project_root, task_before_archive, options)?;
+    ensure_finish_capabilities(task_before_archive, options)?;
     let version_update = apply_version_and_changelog_gates(&project_root, options.version_impact)?;
     let developer = dijiang_task::developer::resolve_developer(&dijiang_dir);
     let (session_key, source) = current_session_key();
-    let task_label = resolved_target.as_ref().map(|t| t.task_name.as_str()).unwrap_or("no-active-task");
-    let journal = append_finish_journal(&dijiang_dir, &developer, task_label, options.summary, &verification, options.allow_dirty)?;
+    let task_label = resolved_target
+        .as_ref()
+        .map(|t| t.task_name.as_str())
+        .unwrap_or("no-active-task");
+    let commit = if options.commit {
+        perform_finish_commit(
+            &project_root,
+            task_label,
+            options.summary,
+            options.commit_message,
+        )?
+    } else {
+        None
+    };
+    if options.push || options.integrate {
+        perform_finish_integration(&project_root, options, options.approve_integrate)?;
+    }
+    if options.commit && !options.integrate && !options.keep_worktree {
+        cleanup_current_worktree(&project_root, options.main_branch, task_before_archive)?;
+    }
+    let journal = append_finish_journal(
+        &dijiang_dir,
+        &developer,
+        task_label,
+        options.summary,
+        &verification,
+        options.allow_dirty,
+    )?;
     let archive_status = if let Some(target) = resolved_target.as_ref() {
-        // Transition through InProgress → Completed before archiving
         if target.task.status == TaskStatus::Planning {
             store::update_status(&tasks_dir, &target.task_name, TaskStatus::InProgress)?;
         }
         if target.task.status != TaskStatus::Completed {
-            // Use update_status so transition validation is applied
             store::update_status(&tasks_dir, &target.task_name, TaskStatus::Completed)?;
         }
         let task = store::archive_task(&tasks_dir, &target.task_name)?;
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskFinish, &target.task_name);
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskArchive, &target.task_name);
         store::clear_active_task(&dijiang_dir)?;
-        format!("archived task `{}` (status: {}), journal: {}", target.task_name, task.status.as_str(), journal.display())
-    } else { "skipped: no active task".to_string() };
+        format!(
+            "archived task `{}` (status: {}), journal: {}",
+            target.task_name,
+            task.status.as_str(),
+            journal.display()
+        )
+    } else {
+        "skipped: no active task".to_string()
+    };
 
-    // Auto-archive orphan planning tasks that were created but never started.
-    // These are tasks in planning state with no started_at —
-    // they were abandoned when another task became active.
     let orphan_archived = if resolved_target.is_some() {
         if let Ok(all_tasks) = store::list_tasks(&tasks_dir) {
             let mut count = 0usize;
@@ -1098,16 +1345,32 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
                 }
             }
             count
-        } else { 0 }
-    } else { 0 };
-    let session_journal = append_session_closure(&dijiang_dir, &developer, &session_key, &source, task_label, options.summary, &verification, options.allow_dirty)?;
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+    let session_journal = append_session_closure(
+        &dijiang_dir,
+        &developer,
+        &session_key,
+        &source,
+        task_label,
+        options.summary,
+        &verification,
+        options.allow_dirty,
+    )?;
     let project_memory = dijiang_mem::ProjectMemory::from_dijiang_dir(&dijiang_dir)?;
     let memory_closure = dijiang_mem::SessionClosure {
         timestamp: chrono::Utc::now().to_rfc3339(),
         session_key: session_key.clone(),
         source: source.clone(),
         task: task_label.to_string(),
-        summary: options.summary.unwrap_or("Work finished and task archived.").to_string(),
+        summary: options
+            .summary
+            .unwrap_or("Work finished and task archived.")
+            .to_string(),
         verification: verification.clone(),
         docs_sync: docs_sync.clone(),
         version_impact: options.version_impact.to_string(),
@@ -1119,12 +1382,12 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         loop_signal: None,
         attempts: vec![],
     };
-    if options.commit { project_memory.append_session_closure(&memory_closure)?; }
-    let commit = if options.commit { perform_finish_commit(&project_root, task_label, options.summary, options.commit_message)? } else { None };
-    if options.commit && !options.integrate && !options.keep_worktree { cleanup_current_worktree(&project_root, options.main_branch, task_before_archive)?; }
-    if options.push || options.integrate { perform_finish_integration(&project_root, options, options.approve_integrate)?; }
-    if !options.commit { project_memory.append_session_closure(&memory_closure)?; }
-    if let Some(target) = resolved_target.as_ref() { println!("✓ 已完成任务 '{}'", target.task_name); } else { println!("✓ 已完成工作（无 active task）"); }
+    project_memory.append_session_closure(&memory_closure)?;
+    if let Some(target) = resolved_target.as_ref() {
+        println!("✓ 已完成任务 '{}'", target.task_name);
+    } else {
+        println!("✓ 已完成工作（无 active task）");
+    }
     println!("  验证：{verification}");
     println!("  版本更新：{}", options.version_impact);
     if let Ok(mem) = current_project_memory(&dijiang_dir) {
@@ -1134,10 +1397,19 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
             }
         }
     }
-    if let Some(version_update) = version_update { println!("  版本更新：{version_update}"); }
-    if let Some(commit) = commit { println!("  Commit：{commit}"); } else { println!("  Commit：none"); }
+    if let Some(version_update) = version_update {
+        println!("  版本更新：{version_update}");
+    }
+    if let Some(commit) = commit {
+        println!("  Commit：{commit}");
+    } else {
+        println!("  Commit：none");
+    }
     println!("  Push：{}", if options.push { "done" } else { "skipped" });
-    println!("  Integration：{}", if options.integrate { "done" } else { "skipped" });
+    println!(
+        "  Integration：{}",
+        if options.integrate { "done" } else { "skipped" }
+    );
     println!("  Task archive：{archive_status}");
     if orphan_archived > 0 {
         println!("  Orphan tasks archived：{orphan_archived}（从未开始的 planning 任务）");
@@ -1148,25 +1420,24 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
     } else {
         println!("  当前 session 没有 active task 需要清理");
     }
-    // #16: Auto-commit workspace journal (best-effort)
-    let _ = auto_commit_journal(&project_root, task_label);
+    // Persist the lifecycle records created after the user-change commit.
+    let _ = auto_commit_journal(&dijiang_dir, task_label);
     Ok(())
 }
 
 /// Auto-commit workspace journal changes (best-effort).
-fn auto_commit_journal(project_root: &Path, task_label: &str) -> anyhow::Result<()> {
-    let workspace_dir = project_root.join(".dijiang").join("workspace");
-    if !workspace_dir.exists() {
+fn auto_commit_journal(dijiang_dir: &Path, task_label: &str) -> anyhow::Result<()> {
+    let Some(project_root) = dijiang_dir.parent() else {
         return Ok(());
-    }
-    let status = run_git(project_root, &["status", "--porcelain", ".dijiang/workspace/"]);
+    };
+    let status = run_git(project_root, &["status", "--porcelain", ".dijiang/"]);
     match status {
         Ok(stdout) if stdout.trim().is_empty() => return Ok(()),
-        Err(_) => return Ok(()), // not a git repo or git not available
+        Err(_) => return Ok(()),
         _ => {}
     }
-    run_git(project_root, &["add", ".dijiang/workspace/"])?;
-    let msg = format!("journal: {}", task_label);
+    run_git(project_root, &["add", ".dijiang/"])?;
+    let msg = format!("journal: 完成任务 {task_label}");
     let _ = run_git(project_root, &["commit", "-m", &msg]);
     Ok(())
 }
@@ -1204,10 +1475,12 @@ mod tests {
     }
 
     #[test]
-
     #[test]
     fn test_version_heading_matches_bracket_and_bare() {
-        assert!(version_heading_matches("## [0.13.5] — 2026-07-23", "0.13.5"));
+        assert!(version_heading_matches(
+            "## [0.13.5] — 2026-07-23",
+            "0.13.5"
+        ));
         assert!(version_heading_matches("## 0.13.5", "0.13.5"));
         assert!(version_heading_matches("## 0.13.5 — 2026-07-23", "0.13.5"));
         assert!(!version_heading_matches("### Added", "0.13.5"));
@@ -1223,8 +1496,14 @@ mod tests {
 
         let zh = "# 变更日志\n\n## [0.13.5] — 2026-07-23\n\n### 新增\n\n- 某功能\n\n## [0.10.0]\n\n### 修复\n\n- bug\n";
         assert!(changelog_has_version_entry(zh, "0.13.5"));
-        assert!(!changelog_has_version_entry("## [0.1.0]\n\n### Added\n\n\n", "0.1.0"));
-        assert!(!changelog_has_version_entry("## [0.1.0]\n\nNotes without section\n\n- bullet\n", "0.1.0"));
+        assert!(!changelog_has_version_entry(
+            "## [0.1.0]\n\n### Added\n\n\n",
+            "0.1.0"
+        ));
+        assert!(!changelog_has_version_entry(
+            "## [0.1.0]\n\nNotes without section\n\n- bullet\n",
+            "0.1.0"
+        ));
     }
 
     #[test]
@@ -1245,7 +1524,11 @@ mod tests {
     #[test]
     fn test_read_authority_version_falls_back_to_package_json() {
         let dir = tempfile::tempdir().expect("tempdir");
-        std::fs::write(dir.path().join("package.json"), r#"{"name":"x","version":"2.0.0"}"#).unwrap();
+        std::fs::write(
+            dir.path().join("package.json"),
+            r#"{"name":"x","version":"2.0.0"}"#,
+        )
+        .unwrap();
         std::fs::write(dir.path().join("VERSION"), "0.0.1\n").unwrap();
         let (v, src) = read_authority_version(dir.path()).expect("version");
         assert_eq!(v, "2.0.0");
@@ -1264,9 +1547,13 @@ mod tests {
     fn test_has_chinese_with_english_only_commit() {
         // 这是历史上出现过的真实英文 commit
         assert!(!has_chinese("task-20260703155147"));
-        assert!(!has_chinese("fix(extension): live refresh status bar and widget on session events"));
+        assert!(!has_chinese(
+            "fix(extension): live refresh status bar and widget on session events"
+        ));
         // 这也是历史上出现过的真实英文 commit（不含中文）
         assert!(!has_chinese("task-20260703155147"));
-        assert!(!has_chinese("fix(extension): live refresh status bar and widget on session events"));
+        assert!(!has_chinese(
+            "fix(extension): live refresh status bar and widget on session events"
+        ));
     }
 }

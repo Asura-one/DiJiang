@@ -448,6 +448,9 @@ enum TaskCommands {
         /// Parent task name (slug) to create this task under
         #[arg(long)]
         parent: Option<String>,
+        /// Permit this low-level command to enter in_progress without a worktree gate
+        #[arg(long)]
+        unsafe_without_worktree: bool,
     },
     /// Set task status
     Status {
@@ -455,6 +458,9 @@ enum TaskCommands {
         name: String,
         /// New status: planning|in_progress|completed|archived|paused
         status: String,
+        /// Permit in_progress without dispatching through the worktree gate
+        #[arg(long)]
+        unsafe_without_worktree: bool,
     },
     /// Archive a task (set status to Archived, record archived_at)
     Archive {
@@ -614,7 +620,12 @@ pub enum QueueCommands {
         name: String,
     },
     /// Show and activate the next queued task (pops from queue)
-    Next,
+    /// Activate the next queued task for maintenance work (pops from queue)
+    Next {
+        /// Permit activation without dispatching through the worktree gate
+        #[arg(long)]
+        unsafe_without_worktree: bool,
+    },
     /// Clear the entire queue
     Clear,
 }
@@ -723,26 +734,36 @@ fn main() -> anyhow::Result<()> {
         Commands::Task { command } => match command {
             TaskCommands::List => commands::task::cmd_task_list(),
             TaskCommands::Current => commands::task::cmd_task_current(),
-            TaskCommands::Start { name, parent } => commands::task::cmd_task_start(&name, parent.as_deref()),
-            TaskCommands::Status { name, status } => commands::task::cmd_task_status(&name, &status),
+            TaskCommands::Start {
+                name,
+                parent,
+                unsafe_without_worktree,
+            } => commands::task::cmd_task_start(&name, parent.as_deref(), unsafe_without_worktree),
+            TaskCommands::Status {
+                name,
+                status,
+                unsafe_without_worktree,
+            } => commands::task::cmd_task_status(&name, &status, unsafe_without_worktree),
             TaskCommands::Archive { name } => commands::task::cmd_task_archive(&name),
             TaskCommands::Prune { days } => commands::task::cmd_task_prune(days),
             TaskCommands::Link { parent, child } => commands::task::cmd_task_link(&parent, &child),
             TaskCommands::Unlink { child } => commands::task::cmd_task_unlink(&child),
             TaskCommands::Tree => commands::task::cmd_task_tree(),
-            TaskCommands::SetScope { name, scope } => commands::task::cmd_task_set_scope(&name, &scope),
+            TaskCommands::SetScope { name, scope } => {
+                commands::task::cmd_task_set_scope(&name, &scope)
+            }
             TaskCommands::Context { command } => match command {
-                ContextCommands::Add { file, action, reason } => {
-                    commands::task::cmd_task_context_add(&file, &action, &reason)
-                }
+                ContextCommands::Add {
+                    file,
+                    action,
+                    reason,
+                } => commands::task::cmd_task_context_add(&file, &action, &reason),
                 ContextCommands::List { action } => {
                     commands::task::cmd_task_context_list(action.as_deref())
                 }
             },
             TaskCommands::Checklist { command } => match command {
-                ChecklistCommands::List => {
-                    commands::task::cmd_task_checklist_list()
-                }
+                ChecklistCommands::List => commands::task::cmd_task_checklist_list(),
                 ChecklistCommands::Add { description } => {
                     commands::task::cmd_task_checklist_add(&description)
                 }
@@ -760,16 +781,20 @@ fn main() -> anyhow::Result<()> {
                 QueueCommands::List => commands::task::cmd_task_queue_list(),
                 QueueCommands::Add { name } => commands::task::cmd_task_queue_add(&name),
                 QueueCommands::Remove { name } => commands::task::cmd_task_queue_remove(&name),
-                QueueCommands::Next => commands::task::cmd_task_queue_next(),
+                QueueCommands::Next {
+                    unsafe_without_worktree,
+                } => commands::task::cmd_task_queue_next(unsafe_without_worktree),
                 QueueCommands::Clear => commands::task::cmd_task_queue_clear(),
             },
             TaskCommands::Hook { command } => match command {
                 HookCommands::Show { task, event } => {
                     commands::task::cmd_task_hook_list(&task, event.as_deref())
                 }
-                HookCommands::Append { task, event, command: cmd } => {
-                    commands::task::cmd_task_hook_add(&task, &event, &cmd)
-                }
+                HookCommands::Append {
+                    task,
+                    event,
+                    command: cmd,
+                } => commands::task::cmd_task_hook_add(&task, &event, &cmd),
                 HookCommands::Delete { task, event, index } => {
                     commands::task::cmd_task_hook_remove(&task, &event, index)
                 }
@@ -785,31 +810,34 @@ fn main() -> anyhow::Result<()> {
                 BenchCommands::Status => commands::bench::cmd_bench_status(),
             },
             TaskCommands::Validate { name } => commands::task::cmd_task_validate(name.as_deref()),
-            TaskCommands::CreatePr { name, title, body, branch, base, dry_run } => {
-                commands::task::cmd_task_create_pr(
-                    name.as_deref(),
-                    title.as_deref(),
-                    body.as_deref(),
-                    branch.as_deref(),
-                    base.as_deref(),
-                    dry_run,
-                )
-            },
+            TaskCommands::CreatePr {
+                name,
+                title,
+                body,
+                branch,
+                base,
+                dry_run,
+            } => commands::task::cmd_task_create_pr(
+                name.as_deref(),
+                title.as_deref(),
+                body.as_deref(),
+                branch.as_deref(),
+                base.as_deref(),
+                dry_run,
+            ),
             TaskCommands::SetBranch { name, branch } => {
                 commands::task::cmd_task_set_branch(name.as_deref(), &branch)
-            },
+            }
             TaskCommands::SetBaseBranch { name, branch } => {
                 commands::task::cmd_task_set_base_branch(name.as_deref(), &branch)
-            },
+            }
             TaskCommands::AddDep { name, depends_on } => {
                 commands::task::cmd_task_add_dep(name.as_deref(), &depends_on)
-            },
+            }
             TaskCommands::RemoveDep { name, depends_on } => {
                 commands::task::cmd_task_remove_dep(name.as_deref(), &depends_on)
-            },
-            TaskCommands::ListDeps { name } => {
-                commands::task::cmd_task_list_deps(name.as_deref())
-            },
+            }
+            TaskCommands::ListDeps { name } => commands::task::cmd_task_list_deps(name.as_deref()),
         },
         Commands::Mem {
             command: MemCommands::List,
@@ -879,7 +907,12 @@ fn main() -> anyhow::Result<()> {
             command: MemCommands::Finetune,
         } => commands::mem::cmd_mem_finetune(),
         Commands::Mem {
-            command: MemCommands::Recall { query, limit, project },
+            command:
+                MemCommands::Recall {
+                    query,
+                    limit,
+                    project,
+                },
         } => commands::mem::cmd_mem_recall(&query, limit, project.as_deref()),
         Commands::Mem {
             command: MemCommands::Index,
@@ -894,7 +927,9 @@ fn main() -> anyhow::Result<()> {
         },
         Commands::Skills { sync } => commands::skills::cmd_skills(sync),
         Commands::Migrate => commands::migrate::cmd_migrate(),
-        Commands::WorkflowState { json, hook_event } => commands::workflow::cmd_workflow_state(json, &hook_event),
+        Commands::WorkflowState { json, hook_event } => {
+            commands::workflow::cmd_workflow_state(json, &hook_event)
+        }
         Commands::SkillBody { name, json } => commands::workflow::cmd_skill_body(&name, json),
         Commands::Channel { command } => match command {
             ChannelCommands::Spawn { agent, task, dir } => {
@@ -905,8 +940,12 @@ fn main() -> anyhow::Result<()> {
                 channel_id,
                 message,
             } => commands::channel::cmd_channel_send(&channel_id, &message),
-            ChannelCommands::Status { channel_id } => commands::channel::cmd_channel_status(&channel_id),
-            ChannelCommands::Stop { channel_id } => commands::channel::cmd_channel_stop(&channel_id),
+            ChannelCommands::Status { channel_id } => {
+                commands::channel::cmd_channel_status(&channel_id)
+            }
+            ChannelCommands::Stop { channel_id } => {
+                commands::channel::cmd_channel_stop(&channel_id)
+            }
             ChannelCommands::Execute {
                 channel_id,
                 model,
@@ -924,7 +963,11 @@ fn main() -> anyhow::Result<()> {
                 model,
                 provider,
                 timeout,
-            } => commands::channel::cmd_channel_execute_all(model.as_deref(), provider.as_deref(), timeout),
+            } => commands::channel::cmd_channel_execute_all(
+                model.as_deref(),
+                provider.as_deref(),
+                timeout,
+            ),
         },
         Commands::FinishWork {
             summary,
@@ -988,9 +1031,12 @@ fn main() -> anyhow::Result<()> {
             })
         }
         Commands::Session { command } => match command {
-            SessionCommands::Add { title, summary, branch, stdin } => {
-                commands::session::cmd_session_add(&title, &summary, branch.as_deref(), stdin)
-            }
+            SessionCommands::Add {
+                title,
+                summary,
+                branch,
+                stdin,
+            } => commands::session::cmd_session_add(&title, &summary, branch.as_deref(), stdin),
         },
     }
 }
@@ -1143,7 +1189,14 @@ mod tests {
     #[test]
     fn test_route_gate_redirects_planning_implement_to_grill() {
         let route = dispatch_route("新增一个导出按钮");
-        let dispatch = apply_route_gate(&TaskStatus::Planning, route, Some("新增一个导出按钮"), Path::new(""), Path::new(""), None);
+        let dispatch = apply_route_gate(
+            &TaskStatus::Planning,
+            route,
+            Some("新增一个导出按钮"),
+            Path::new(""),
+            Path::new(""),
+            None,
+        );
 
         assert_eq!(dispatch.route.skill, "dj-grill");
         assert_eq!(dispatch.decision.action.as_str(), "redirect");
@@ -1152,7 +1205,14 @@ mod tests {
     #[test]
     fn test_route_gate_routes_paused_task_to_continue() {
         let route = dispatch_route("新增一个导出按钮");
-        let dispatch = apply_route_gate(&TaskStatus::Paused, route, Some("新增一个导出按钮"), Path::new(""), Path::new(""), None);
+        let dispatch = apply_route_gate(
+            &TaskStatus::Paused,
+            route,
+            Some("新增一个导出按钮"),
+            Path::new(""),
+            Path::new(""),
+            None,
+        );
 
         assert_eq!(dispatch.route.skill, "dijiang-continue");
         assert_eq!(dispatch.decision.action.as_str(), "redirect");
@@ -1161,7 +1221,14 @@ mod tests {
     #[test]
     fn test_route_gate_blocks_archived_task_until_restart() {
         let route = dispatch_route("新增一个导出按钮");
-        let dispatch = apply_route_gate(&TaskStatus::Archived, route, Some("新增一个导出按钮"), Path::new(""), Path::new(""), None);
+        let dispatch = apply_route_gate(
+            &TaskStatus::Archived,
+            route,
+            Some("新增一个导出按钮"),
+            Path::new(""),
+            Path::new(""),
+            None,
+        );
 
         assert_eq!(dispatch.route.skill, "dijiang-start");
         assert_eq!(dispatch.decision.action.as_str(), "block");
@@ -1176,7 +1243,14 @@ mod tests {
         let task_dir = tasks_dir.join(task_name);
         std::fs::create_dir_all(&task_dir).unwrap();
         std::fs::write(task_dir.join("prd.md"), "# test PRD").unwrap();
-        let dispatch = apply_route_gate(&TaskStatus::InProgress, route, Some("补测试"), Path::new(""), &tasks_dir, Some(task_name));
+        let dispatch = apply_route_gate(
+            &TaskStatus::InProgress,
+            route,
+            Some("补测试"),
+            Path::new(""),
+            &tasks_dir,
+            Some(task_name),
+        );
         let context = dispatch_runtime_skill_context(&dispatch);
 
         assert!(context.contains("<dijiang-skill-manifests>"));
@@ -1191,12 +1265,17 @@ mod tests {
         }
     }
 
-
-
     #[test]
     fn test_dispatch_context_keeps_header_and_adds_target_skill_body() {
         let route = dispatch_route("新增一个导出按钮");
-        let dispatch = apply_route_gate(&TaskStatus::Planning, route, Some("新增一个导出按钮"), Path::new(""), Path::new(""), None);
+        let dispatch = apply_route_gate(
+            &TaskStatus::Planning,
+            route,
+            Some("新增一个导出按钮"),
+            Path::new(""),
+            Path::new(""),
+            None,
+        );
 
         let context = dispatch_context(
             "task-1",
@@ -1212,7 +1291,7 @@ mod tests {
         assert!(context.contains("路线：dj-grill"));
         assert!(context.contains("<dijiang-skill-manifests>"));
         assert!(context.contains("dj-grill | 需求对齐、范围澄清、问题收敛"));
-        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">") );
+        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">"));
         assert!(context.contains("<dijiang-workflow-state>state</dijiang-workflow-state>"));
     }
 }

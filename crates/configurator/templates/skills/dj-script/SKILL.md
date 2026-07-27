@@ -29,7 +29,7 @@ risk: medium
 
 ## 工作流
 
-- 将任务状态推进到 `in_progress`：`dijiang task status $(dijiang task current) in_progress`
+- 若任务仍为 `planning`，使用原始用户请求重新运行 `dijiang dispatch "<user request>"`；不要通过 `dijiang task status ... in_progress` 绕过 worktree gate。
 
 
 ### 1. 理解需求

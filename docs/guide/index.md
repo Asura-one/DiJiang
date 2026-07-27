@@ -62,14 +62,14 @@
 
 ```
 1. dijiang start feat-user-auth
-   → 创建任务，状态为 in_progress
+   → 创建 planning 任务；实现请求由 dispatch 进入 worktree-gated route
 
 2. dijiang dispatch "实现用户登录模块"
    → 引擎分类为 dj-implement，分配 worktree
 
 3. 在 worktree 中实现 → 测试 → dj-check 审查
 
-4. dijiang finish-work --verification "测试通过" --docs-sync "CHANGELOG" --version-impact minor --commit
+4. dijiang finish-work --verification "测试通过" --docs-sync "CHANGELOG" --version-impact minor --commit --approve-cleanup
    → 提交、归档任务
 ```
 
@@ -81,7 +81,7 @@
 
 2. dj-hunt 排查根因 → 找到问题 → 修复 → 验证
 
-3. dijiang finish-work --verification "Bug 已修复，回归测试通过" --docs-sync "CHANGELOG" --version-impact patch --commit
+3. dijiang finish-work --verification "Bug 已修复，回归测试通过" --docs-sync "CHANGELOG" --version-impact patch --commit --approve-cleanup
 ```
 
 ### 场景 C：需求不明确
@@ -159,7 +159,7 @@ DiJiang 使用 git worktree 隔离代码修改。了解该流程可避免常见�
 | Git Gate | 在错误 worktree 中运行 | block → 提示切换到正确 worktree |
 | Capability Gate | `finish-work --integrate` 未显式批准 | block → 需确认后才允许 |
 | Capability Gate | `finish-work --push` 未显式批准 | block → 需确认后才允许 |
-| Capability Gate | merge 后 worktree cleanup 未批准 | block → 需确认后才清理 |
+| Capability Gate | 删除任务 worktree / 分支未显式批准 | block → 传 `--approve-cleanup` 后才清理 |
 
 ## Pi Extension 集成
 
@@ -235,10 +235,11 @@ dijiang init my-project --platforms pi,codex --yes
 ### 任务生命周期
 
 ```bash
-dijiang start <name>
+dijiang start <name>                         # 创建 planning 会话
+dijiang dispatch "实现用户注册"                # 路由并通过 worktree gate 进入实现
 dijiang task list
 dijiang task current
-dijiang task status <name> <status>
+dijiang task status <name> <status>          # 非实现状态更新；in_progress 走 dispatch，或维护场景显式加 --unsafe-without-worktree
 dijiang task archive <name>
 dijiang task prune --days 30
 ```
@@ -254,8 +255,9 @@ dijiang dispatch "修复登录 bug"
 
 ```bash
 dijiang finish-work --verification "..." --docs-sync "CHANGELOG" --version-impact patch
-dijiang finish-work --verification "..." --docs-sync "CHANGELOG" --version-impact minor --commit
-dijiang finish-work --verification "..." --docs-sync "CHANGELOG" --version-impact major --commit --push
+dijiang finish-work --verification "..." --docs-sync "CHANGELOG" --version-impact minor --commit --approve-cleanup
+dijiang finish-work --verification "..." --docs-sync "CHANGELOG" --version-impact major --commit --push --approve-integrate --approve-cleanup
+dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit --approve-cleanup
 ```
 
 ### 记忆

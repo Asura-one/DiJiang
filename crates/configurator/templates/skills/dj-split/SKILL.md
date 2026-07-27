@@ -1,13 +1,12 @@
 ---
 name: dj-split
 description: >
-  将 PRD 文档拆分为独立可执行的 task。衔接 dj-output 的输出，产出可直接用 dijiaang task start 的任务列表。
+  将 PRD 文档拆分为独立可执行的 task。衔接 dj-output 的输出，产出可通过 `dijiang dispatch` 路由的任务列表。
   Use after a PRD is written, when you need to break the work into independently implementable tasks.
   触发词：拆分任务、分任务、切成 task、work breakdown、分批做。
 summary: 将 PRD 文档拆分为独立可执行的 task
 phases: [align]
 risk: low
-  将 PRD 文档拆分为独立可执行的 task。衔接 dj-output 的输出，产出可直接用 dijiaang task start 的任务列表。
   Use after a PRD is written, when you need to break the work into independently implementable tasks.
   触发词：拆分任务、分任务、切成 task、work breakdown、分批做。
 ---
@@ -70,7 +69,7 @@ Phase 3（增强功能）：Task D, Task E（可并行，依赖 C）
 
 ### 4. 输出
 
-- 任务列表可直接作为 `dijiang task start <name>` 的输入
+- 任务列表用于后续 `dijiang dispatch "<user request>"`；不要用 `dijiang task start` 进入实现状态。
 - 保存到 `.dijiang/tasks/` 或输出到对话中
 
 ## 边界

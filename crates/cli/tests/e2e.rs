@@ -21,6 +21,26 @@ fn dijiang_bin() -> PathBuf {
     manifest_dir.join("../../target/debug/dijiang")
 }
 
+fn remove_inherited_session_env(command: &mut Command) {
+    for key in [
+        "DIJIANG_CONTEXT_ID",
+        "DIJIANG_SESSION_ID",
+        "CODEX_SESSION_ID",
+        "CODEX_THREAD_ID",
+        "CLAUDE_SESSION_ID",
+        "CLAUDE_CODE_SESSION_ID",
+        "PI_SESSION_ID",
+        "PI_SESSIONID",
+        "CURSOR_SESSION_ID",
+        "CURSOR_CONVERSATION_ID",
+        "OPENCODE_SESSION_ID",
+        "OPENCODE_RUN_ID",
+        "HERMES_SESSION_ID",
+    ] {
+        command.env_remove(key);
+    }
+}
+
 /// Run `dijiang <args>` in `cwd`, returning stdout.
 fn dijang(args: &[&str], cwd: &Path) -> Result<String, String> {
     let bin = dijiang_bin();
@@ -30,11 +50,10 @@ fn dijang(args: &[&str], cwd: &Path) -> Result<String, String> {
             bin.display()
         ));
     }
-    let output = Command::new(&bin)
-        .args(args)
-        .current_dir(cwd)
-        // Keep e2e hermetic when parent agent injects DIJIANG_CONTEXT_ID.
-        .env_remove("DIJIANG_CONTEXT_ID")
+    let mut command = Command::new(&bin);
+    command.args(args).current_dir(cwd);
+    remove_inherited_session_env(&mut command);
+    let output = command
         .output()
         .map_err(|e| format!("Failed to execute {}: {e}", bin.display()))?;
 
@@ -60,7 +79,7 @@ fn dijang_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> Result<S
     }
     let mut command = Command::new(&bin);
     command.args(args).current_dir(cwd);
-    command.env_remove("DIJIANG_CONTEXT_ID");
+    remove_inherited_session_env(&mut command);
     for (key, value) in envs {
         command.env(key, value);
     }
@@ -340,8 +359,14 @@ fn test_e2e_task_lifecycle() {
         "task list should not error: {list_out}"
     );
 
-    // 2. Start a task
-    dijang(&["task", "start", "e2e-task"], &project_dir).unwrap();
+    // 2. Low-level task start requires an explicit maintenance override.
+    let start_error = dijang(&["task", "start", "e2e-task"], &project_dir).unwrap_err();
+    assert!(start_error.contains("bypasses dispatch and its worktree gate"));
+    dijang(
+        &["task", "start", "e2e-task", "--unsafe-without-worktree"],
+        &project_dir,
+    )
+    .unwrap();
 
     // 3. Check current task
     let current_out = dijang(&["task", "current"], &project_dir).unwrap();
@@ -351,8 +376,17 @@ fn test_e2e_task_lifecycle() {
     );
 
     // 4. Update status
-    dijang(&["task", "status", "e2e-task", "in_progress"], &project_dir).unwrap();
-
+    dijang(
+        &[
+            "task",
+            "status",
+            "e2e-task",
+            "in_progress",
+            "--unsafe-without-worktree",
+        ],
+        &project_dir,
+    )
+    .unwrap();
     // 5. Complete the task
     dijang(&["task", "status", "e2e-task", "completed"], &project_dir).unwrap();
 
@@ -370,6 +404,32 @@ fn test_e2e_task_lifecycle() {
             .exists(),
         "pruned task directory should be removed"
     );
+}
+
+#[test]
+fn test_e2e_task_queue_next_requires_worktree_override() {
+    let (_tmp, project_dir) = init_project();
+    dijang(&["start", "queued-task", "Queued Task"], &project_dir).unwrap();
+    dijang(&["task", "queue", "add", "queued-task"], &project_dir).unwrap();
+
+    let err = dijang(&["task", "queue", "next"], &project_dir).unwrap_err();
+    assert!(
+        err.contains("bypasses dispatch and its worktree gate"),
+        "error: {err}"
+    );
+    let queued = dijang(&["task", "queue", "list"], &project_dir).unwrap();
+    assert!(
+        queued.contains("queued-task"),
+        "failed activation must retain queue item: {queued}"
+    );
+
+    dijang(
+        &["task", "queue", "next", "--unsafe-without-worktree"],
+        &project_dir,
+    )
+    .unwrap();
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(current.contains("queued-task"));
 }
 
 #[test]
@@ -404,6 +464,25 @@ fn test_e2e_dispatch_creates_task_from_natural_language() {
     assert!(task_json.contains("排查登录接口报错并修复"));
     assert!(task_json.contains("dj-hunt"));
     assert!(task_json.contains("in_progress"));
+}
+#[test]
+fn test_e2e_dispatch_force_new_replaces_active_task() {
+    let (_tmp, project_dir) = init_project();
+    dijang(&["start", "existing-task", "Existing task"], &project_dir).unwrap();
+
+    dijang(
+        &["dispatch", "新增一个导出按钮", "--force-new"],
+        &project_dir,
+    )
+    .unwrap();
+
+    let active_task = dijang(&["task", "current"], &project_dir).unwrap();
+    assert_ne!(active_task.trim(), "existing-task");
+    assert!(
+        project_dir
+            .join(".dijiang/tasks/existing-task/task.json")
+            .exists()
+    );
 }
 
 #[test]
@@ -488,7 +567,17 @@ fn test_e2e_dispatch_paused_task_redirects_to_continue() {
     let (_tmp, project_dir) = init_project();
 
     dijang(&["start", "paused-task", "Paused Task"], &project_dir).unwrap();
-    dijang(&["task", "status", "paused-task", "in_progress"], &project_dir).unwrap();
+    dijang(
+        &[
+            "task",
+            "status",
+            "paused-task",
+            "in_progress",
+            "--unsafe-without-worktree",
+        ],
+        &project_dir,
+    )
+    .unwrap();
     dijang(&["task", "status", "paused-task", "paused"], &project_dir).unwrap();
     let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
 
@@ -517,14 +606,8 @@ fn test_e2e_dispatch_archived_task_creates_new_task() {
 
     // After archiving, active task pointer is cleared.
     // Dispatch creates a new in_progress task instead of blocking.
-    assert!(
-        out.contains("action：allow"),
-        "dispatch output: {out}"
-    );
-    assert!(
-        out.contains("路线：dj-implement"),
-        "dispatch output: {out}"
-    );
+    assert!(out.contains("action：allow"), "dispatch output: {out}");
+    assert!(out.contains("路线：dj-implement"), "dispatch output: {out}");
 }
 
 #[test]
@@ -677,7 +760,10 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
     assert!(finish_out.contains("已完成任务 'finish-e2e'"));
     assert!(finish_out.contains("当前 session 的 active task 已清理"));
     assert!(finish_out.contains("验证：cargo test -p dijiang-task"));
-    assert!(finish_out.contains("Task archive：archived task `finish-e2e`"), "finish_out: {finish_out}");
+    assert!(
+        finish_out.contains("Task archive：archived task `finish-e2e`"),
+        "finish_out: {finish_out}"
+    );
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("(none)"), "current output: {current}");
 
@@ -715,7 +801,10 @@ fn test_e2e_finish_work_archives_and_clears_active_task() {
         closures.contains("cargo test -p dijiang-task"),
         "closures: {closures}"
     );
-    assert!(closures.contains(r#""verification":"cargo test -p dijiang-task""#), "closures: {closures}");
+    assert!(
+        closures.contains(r#""verification":"cargo test -p dijiang-task""#),
+        "closures: {closures}"
+    );
 }
 
 #[test]
@@ -822,7 +911,7 @@ fn test_e2e_finish_work_commit_without_active_task_skips_archive() {
     assert_eq!(String::from_utf8_lossy(&status.stdout).trim(), "");
 
     let log = Command::new("git")
-        .args(["log", "--oneline", "-1"])
+        .args(["log", "--oneline"])
         .current_dir(&project_dir)
         .output()
         .expect("git log");
@@ -900,6 +989,7 @@ fn test_e2e_finish_work_commit_from_git_worktree_without_local_dijiang() {
             "--version-impact",
             "none",
             "--commit",
+            "--approve-cleanup",
             "--commit-message",
             "test(cli): 测试外部 worktree finish 功能",
         ],
@@ -1156,6 +1246,11 @@ fn test_e2e_finish_work_blocks_integrate_without_approval() {
         "error: {err}"
     );
     assert!(err.contains("requires explicit approval"), "error: {err}");
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(
+        current.contains("integrate-blocked"),
+        "failed finish-work must preserve the active task: {current}"
+    );
 }
 #[test]
 fn test_e2e_finish_work_blocks_push_without_approval() {
@@ -1183,6 +1278,49 @@ fn test_e2e_finish_work_blocks_push_without_approval() {
     .unwrap_err();
     assert!(err.contains("finish-work push blocked"), "error: {err}");
     assert!(err.contains("requires explicit approval"), "error: {err}");
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(
+        current.contains("push-blocked"),
+        "failed finish-work must preserve the active task: {current}"
+    );
+}
+
+#[test]
+fn test_e2e_finish_work_commit_failure_preserves_active_task() {
+    let (_tmp, project_dir) = init_project();
+    dijang(&["start", "commit-failed", "Commit Failed"], &project_dir).unwrap();
+    std::fs::write(project_dir.join("change.txt"), "changed").unwrap();
+
+    let err = dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "commit fails",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: commit failure gate test",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test(cli): commit message without cjk",
+        ],
+        &project_dir,
+    )
+    .unwrap_err();
+    assert!(err.contains("commit message 不含中文字符"), "error: {err}");
+    let current = dijang(&["task", "current"], &project_dir).unwrap();
+    assert!(
+        current.contains("commit-failed"),
+        "failed commit must preserve active task: {current}"
+    );
+    let task = std::fs::read_to_string(project_dir.join(".dijiang/tasks/commit-failed/task.json"))
+        .unwrap();
+    assert!(
+        task.contains("\"status\": \"planning\""),
+        "failed commit must not archive task: {task}"
+    );
 }
 #[test]
 fn test_e2e_finish_work_blocks_cleanup_without_approval() {
@@ -1280,7 +1418,10 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
     .unwrap();
 
     assert!(finish_out.contains("已完成任务 'commit-finish'"));
-    assert!(finish_out.contains("版本更新：patch"), "finish_out: {finish_out}");
+    assert!(
+        finish_out.contains("版本更新：patch"),
+        "finish_out: {finish_out}"
+    );
     assert!(finish_out.contains("版本更新：0.1.0 -> 0.1.1"));
     assert!(finish_out.contains("Commit："));
     assert!(finish_out.contains("Task archive：archived task `commit-finish`"));
@@ -1326,7 +1467,7 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
     assert_eq!(String::from_utf8_lossy(&status.stdout).trim(), "");
 
     let log = Command::new("git")
-        .args(["log", "--oneline", "-1"])
+        .args(["log", "--oneline"])
         .current_dir(&project_dir)
         .output()
         .expect("git log");
@@ -1400,6 +1541,48 @@ fn test_e2e_workflow_state_reports_stale_active_task_without_failing() {
     assert!(out.contains("missing-task"), "output: {out}");
     assert!(out.contains("task state 已陈旧"), "output: {out}");
     assert!(out.contains("dj-hunt"), "output: {out}");
+}
+
+#[test]
+fn test_e2e_workflow_state_blocks_implementation_in_main_checkout() {
+    let (tmp, project_dir) = init_project();
+    Command::new("git")
+        .args(["branch", "-m", "master", "main"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git branch -m master main");
+    dijang(&["start", "gate-location", "Gate Location"], &project_dir).unwrap();
+
+    let worktree_dir = tmp.path().join("gate-location-tree");
+    Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "feat/gate-location",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git worktree add");
+    let task_json_path = project_dir.join(".dijiang/tasks/gate-location/task.json");
+    let mut task: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&task_json_path).unwrap()).unwrap();
+    task["branch"] = serde_json::json!("feat/gate-location");
+    task["baseBranch"] = serde_json::json!("main");
+    task["worktreePath"] = serde_json::json!(worktree_dir.display().to_string());
+    task["meta"]["dispatch"] = serde_json::json!({ "skill": "dj-implement" });
+    std::fs::write(
+        &task_json_path,
+        serde_json::to_string_pretty(&task).unwrap(),
+    )
+    .unwrap();
+
+    let main_state = dijang(&["workflow-state"], &project_dir).unwrap();
+    assert!(
+        main_state.contains("Git Gate：state=blocked"),
+        "state: {main_state}"
+    );
 }
 
 #[test]
@@ -1670,7 +1853,10 @@ fn test_e2e_channel_lifecycle() {
     assert!(out.is_ok(), "channel list should succeed");
 
     // Spawn
-    let out = dijang(&["channel", "spawn", "checker", "--task", "."], &project_dir);
+    let out = dijang(
+        &["channel", "spawn", "checker", "--task", "."],
+        &project_dir,
+    );
     assert!(out.is_ok(), "channel spawn should succeed: {:?}", out.err());
     let stdout = out.unwrap();
     assert!(
@@ -1858,62 +2044,39 @@ fn test_e2e_mem_tactics() {
     );
 }
 
-
 #[test]
-fn test_e2e_task_status_in_progress_does_not_provision_worktree() {
+fn test_e2e_task_status_in_progress_requires_explicit_unsafe_override() {
     let (_tmp, project_dir) = init_project();
-    // Ensure main branch name is main (git init may use master).
-    Command::new("git")
-        .args(["branch", "-m", "master", "main"])
-        .current_dir(&project_dir)
-        .output()
-        .ok();
-
-    dijang(&["start", "status-no-wt", "Status No Worktree"], &project_dir).unwrap();
-    let out = dijang(
-        &["task", "status", "status-no-wt", "in_progress"],
+    dijang(
+        &["start", "status-no-wt", "Status No Worktree"],
         &project_dir,
     )
     .unwrap();
-    assert!(
-        out.contains("状态切换不会自动创建 worktree")
-            || out.contains("不会自动创建 worktree"),
-        "status output should explain no auto provision: {out}"
-    );
-    assert!(
-        !out.contains("✓ 自动创建 worktree"),
-        "status must not auto-create worktree: {out}"
-    );
 
-    let task_json = std::fs::read_to_string(
-        project_dir
-            .join(".dijiang/tasks/status-no-wt/task.json"),
+    let error = dijang(
+        &["task", "status", "status-no-wt", "in_progress"],
+        &project_dir,
+    )
+    .unwrap_err();
+    assert!(error.contains("bypasses dispatch and its worktree gate"));
+
+    dijang(
+        &[
+            "task",
+            "status",
+            "status-no-wt",
+            "in_progress",
+            "--unsafe-without-worktree",
+        ],
+        &project_dir,
     )
     .unwrap();
+
+    let task_json =
+        std::fs::read_to_string(project_dir.join(".dijiang/tasks/status-no-wt/task.json")).unwrap();
     let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
     assert_eq!(task["status"], "in_progress");
-    assert!(
-        task["worktreePath"].is_null()
-            || task["worktreePath"].as_str().map(|s| s.is_empty()).unwrap_or(true),
-        "worktreePath must stay empty after status-only transition: {task_json}"
-    );
-    assert!(
-        task["branch"].is_null()
-            || task["branch"].as_str().map(|s| s.is_empty()).unwrap_or(true),
-        "branch must stay empty after status-only transition: {task_json}"
-    );
-
-    let wt = Command::new("git")
-        .args(["worktree", "list"])
-        .current_dir(&project_dir)
-        .output()
-        .expect("worktree list");
-    let list = String::from_utf8_lossy(&wt.stdout);
-    assert_eq!(
-        list.lines().count(),
-        1,
-        "only main worktree should exist: {list}"
-    );
+    assert!(task["worktreePath"].is_null());
 }
 
 #[test]
@@ -1925,11 +2088,7 @@ fn test_e2e_finish_work_commit_removes_task_worktree() {
         .output()
         .ok();
 
-    dijang(
-        &["start", "cleanup-wt", "Cleanup Worktree"],
-        &project_dir,
-    )
-    .unwrap();
+    dijang(&["start", "cleanup-wt", "Cleanup Worktree"], &project_dir).unwrap();
 
     let worktree_dir = tmp.path().join("cleanup-wt-tree");
     Command::new("git")
@@ -1952,7 +2111,11 @@ fn test_e2e_finish_work_commit_removes_task_worktree() {
     task["baseBranch"] = serde_json::json!("main");
     task["worktreePath"] = serde_json::json!(worktree_dir.display().to_string());
     task["status"] = serde_json::json!("in_progress");
-    std::fs::write(&task_json_path, serde_json::to_string_pretty(&task).unwrap()).unwrap();
+    std::fs::write(
+        &task_json_path,
+        serde_json::to_string_pretty(&task).unwrap(),
+    )
+    .unwrap();
 
     std::fs::write(worktree_dir.join("change.txt"), "changed").unwrap();
     let finish_out = dijang(
@@ -1967,6 +2130,7 @@ fn test_e2e_finish_work_commit_removes_task_worktree() {
             "--version-impact",
             "none",
             "--commit",
+            "--approve-cleanup",
             "--commit-message",
             "test(cli): 提交后清理任务 worktree",
         ],
@@ -2006,6 +2170,93 @@ fn test_e2e_finish_work_commit_removes_task_worktree() {
     );
 }
 
+#[test]
+fn test_e2e_finish_work_pushes_before_cleaning_task_worktree() {
+    let (tmp, project_dir) = init_project();
+    Command::new("git")
+        .args(["branch", "-m", "master", "main"])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git branch -m master main");
+    let remote_dir = tmp.path().join("finish-push-remote.git");
+    Command::new("git")
+        .args(["init", "--bare", remote_dir.to_str().unwrap()])
+        .output()
+        .expect("git init bare");
+    Command::new("git")
+        .args(["remote", "add", "origin", remote_dir.to_str().unwrap()])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git remote add");
+
+    dijang(&["start", "push-cleanup", "Push Cleanup"], &project_dir).unwrap();
+    let worktree_dir = tmp.path().join("push-cleanup-tree");
+    Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "feat/push-cleanup",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git worktree add");
+    let task_json_path = project_dir.join(".dijiang/tasks/push-cleanup/task.json");
+    let mut task: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&task_json_path).unwrap()).unwrap();
+    task["branch"] = serde_json::json!("feat/push-cleanup");
+    task["baseBranch"] = serde_json::json!("main");
+    task["worktreePath"] = serde_json::json!(worktree_dir.display().to_string());
+    task["status"] = serde_json::json!("in_progress");
+    std::fs::write(
+        &task_json_path,
+        serde_json::to_string_pretty(&task).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(worktree_dir.join("change.txt"), "changed").unwrap();
+
+    dijang(
+        &[
+            "finish-work",
+            "--summary",
+            "push then cleanup",
+            "--verification",
+            "manual check",
+            "--docs-sync",
+            "none: push cleanup e2e",
+            "--version-impact",
+            "none",
+            "--commit",
+            "--commit-message",
+            "test(cli): 推送后清理任务 worktree",
+            "--push",
+            "--approve-integrate",
+            "--approve-cleanup",
+        ],
+        &worktree_dir,
+    )
+    .unwrap();
+
+    assert!(
+        !worktree_dir.exists(),
+        "task worktree should be removed after push"
+    );
+    let remote_branch = Command::new("git")
+        .args([
+            "--git-dir",
+            remote_dir.to_str().unwrap(),
+            "show-ref",
+            "--verify",
+            "refs/heads/feat/push-cleanup",
+        ])
+        .output()
+        .expect("git show-ref");
+    assert!(
+        remote_branch.status.success(),
+        "task branch must reach remote before cleanup"
+    );
+}
 
 #[test]
 fn test_e2e_task_current_from_worktree_without_local_dijiang() {
@@ -2093,7 +2344,11 @@ fn test_e2e_finish_work_integrate_uses_chinese_merge_message() {
     task["baseBranch"] = serde_json::json!("main");
     task["worktreePath"] = serde_json::json!(worktree_dir.display().to_string());
     task["status"] = serde_json::json!("in_progress");
-    std::fs::write(&task_json_path, serde_json::to_string_pretty(&task).unwrap()).unwrap();
+    std::fs::write(
+        &task_json_path,
+        serde_json::to_string_pretty(&task).unwrap(),
+    )
+    .unwrap();
 
     std::fs::write(worktree_dir.join("change.txt"), "changed").unwrap();
     let finish_out = dijang(
@@ -2130,7 +2385,9 @@ fn test_e2e_finish_work_integrate_uses_chinese_merge_message() {
     let subject = String::from_utf8_lossy(&log.stdout);
     assert!(
         subject.contains("合入")
-            || subject.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)),
+            || subject
+                .chars()
+                .any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)),
         "merge commit subject must contain Chinese: {subject}"
     );
     assert!(

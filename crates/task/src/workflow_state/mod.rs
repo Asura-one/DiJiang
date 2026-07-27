@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,7 @@ use crate::circuit_breaker::{
     BreakerDecision, CircuitBreakerConfig, Ledger, PruneConfig, check_circuit_breaker,
     error_signature, prune_ledger,
 };
-use crate::git_gate::summarize_git_gate;
+use crate::git_gate::summarize_git_gate_with_runtime;
 use crate::route_gate::summarize_route_gate;
 use crate::skill_manifest::manifests_for_capsule;
 use crate::store::{self, SessionIdentity, TaskError};
@@ -19,7 +19,6 @@ mod types;
 pub use types::*;
 
 mod tag_parser;
-
 
 pub fn build(dijiang_dir: &Path) -> Result<WorkflowState, TaskError> {
     build_for_session(dijiang_dir, store::current_session_identity().as_ref())
@@ -76,6 +75,7 @@ pub fn build_for_session(
     };
 
     let project_root = dijiang_dir.parent().unwrap_or(dijiang_dir);
+    let runtime_location = std::env::current_dir().unwrap_or_else(|_| project_root.to_path_buf());
     let guidance = status_guidance(&task.status).to_string();
     let task_context = workflow_task_context(&task);
     let active_task = Some(workflow_task(dijiang_dir, task_context.task));
@@ -83,7 +83,11 @@ pub fn build_for_session(
         task_context.recommended_path,
         &task_context,
     ));
-    let git_gate = Some(workflow_git_gate(project_root, task_context.task));
+    let git_gate = Some(workflow_git_gate(
+        project_root,
+        &runtime_location,
+        task_context.task,
+    ));
     let skill_manifests = workflow_skill_manifests(&task_context);
     let loop_state = Some(workflow_loop_state(&task_context));
     Ok(WorkflowState {
@@ -166,7 +170,13 @@ fn record_runtime_injection(
         })
     });
     let git_gate_event = active_task.map(|task| {
-        let gate = workflow_git_gate(dijiang_dir.parent().unwrap_or(dijiang_dir), task);
+        let runtime_location = std::env::current_dir()
+            .unwrap_or_else(|_| dijiang_dir.parent().unwrap_or(dijiang_dir).to_path_buf());
+        let gate = workflow_git_gate(
+            dijiang_dir.parent().unwrap_or(dijiang_dir),
+            &runtime_location,
+            task,
+        );
         serde_json::json!({
             "state": gate.state,
             "branch": gate.branch,
@@ -745,12 +755,26 @@ fn format_route_gate(route_gate: &WorkflowRouteGate) -> String {
     )
 }
 
-fn workflow_git_gate(project_root: &Path, task: &TaskRecord) -> WorkflowGitGate {
+fn workflow_git_gate(
+    _project_root: &Path,
+    runtime_location: &Path,
+    task: &TaskRecord,
+) -> WorkflowGitGate {
     let skill = dispatch_meta(task).skill;
-    let route_requires_worktree = skill.map_or(false, |s| {
-        matches!(s, "dj-implement" | "dj-hunt" | "dj-tdd" | "dj-script")
+    let route_requires_worktree = skill.map_or(false, |skill| {
+        matches!(
+            skill,
+            "dj-implement" | "dj-hunt" | "dj-tdd" | "dj-script" | "dj-design"
+        )
     });
-    let summary = summarize_git_gate(task, project_root, route_requires_worktree);
+    let (current_worktree_root, main_worktree_root) = git_worktree_roots(runtime_location, task);
+    let summary = summarize_git_gate_with_runtime(
+        task,
+        runtime_location,
+        current_worktree_root,
+        main_worktree_root,
+        route_requires_worktree,
+    );
     WorkflowGitGate {
         state: summary.state.as_str().to_string(),
         branch: summary.branch,
@@ -758,6 +782,40 @@ fn workflow_git_gate(project_root: &Path, task: &TaskRecord) -> WorkflowGitGate 
         worktree_path: summary.worktree_path,
         note: summary.note,
     }
+}
+
+fn git_worktree_roots(
+    project_root: &Path,
+    task: &TaskRecord,
+) -> (Option<PathBuf>, Option<PathBuf>) {
+    let current_worktree_root = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(project_root)
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(|path| PathBuf::from(path.trim()));
+    let main_worktree_root = task.base_branch.as_deref().and_then(|branch| {
+        let output = std::process::Command::new("git")
+            .args(["worktree", "list", "--porcelain"])
+            .current_dir(project_root)
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let mut worktree = None;
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            if let Some(path) = line.strip_prefix("worktree ") {
+                worktree = Some(PathBuf::from(path));
+            } else if line == format!("branch refs/heads/{branch}") {
+                return worktree;
+            }
+        }
+        None
+    });
+    (current_worktree_root, main_worktree_root)
 }
 
 fn workflow_skill_manifests(task_context: &WorkflowTaskContext<'_>) -> Vec<WorkflowSkillManifest> {
@@ -815,12 +873,7 @@ fn format_skill_manifests(skill_manifests: &[WorkflowSkillManifest]) -> String {
 
     let entries = skill_manifests
         .iter()
-        .map(|manifest| {
-                format!(
-                    "{}({})",
-                    manifest.name, manifest.summary
-                )
-        })
+        .map(|manifest| format!("{}({})", manifest.name, manifest.summary))
         .collect::<Vec<_>>()
         .join(", ");
     format!("Skill Manifests：{}", entries)
@@ -916,8 +969,7 @@ fn workflow_loop_state(task_context: &WorkflowTaskContext<'_>) -> WorkflowLoopSt
     };
     let agent_focus = agent_focus(task, &dispatch, task_context, next_skill.as_deref());
     let resolved_agent = {
-        let capsule = summarize_route_gate(&task_context.effective_status, None)
-            .capsule;
+        let capsule = summarize_route_gate(&task_context.effective_status, None).capsule;
         let agent_name = crate::agent_manifest::resolve_agent(
             dispatch.task_type,
             dispatch.primary_intent,
@@ -1175,9 +1227,7 @@ mod tests {
         assert!(context_a.contains("Skill Manifests："));
         assert!(context_a.contains("dj-implement("));
         assert!(context_a.contains("dj-tdd("));
-        assert!(
-            context_a.contains("Target Skill：[dj-implement")
-        );
+        assert!(context_a.contains("Target Skill：[dj-implement"));
         assert!(context_a.contains("Loop：goal=Task A"));
         assert!(context_a.contains("progress=executing (实现与验证正在推进)"));
         assert!(context_a.contains("next_skill=dj-implement"));
