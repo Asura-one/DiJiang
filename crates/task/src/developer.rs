@@ -70,6 +70,11 @@ impl DeveloperContext {
         let workspace = workspace_dir(dijiang_dir, &name);
         let sessions = sessions_dir(dijiang_dir, &name);
         let journal = journal_path(dijiang_dir, &name);
-        DeveloperContext { name, workspace, sessions, journal }
+        DeveloperContext {
+            name,
+            workspace,
+            sessions,
+            journal,
+        }
     }
 }

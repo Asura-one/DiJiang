@@ -183,10 +183,10 @@ pub fn cmd_task_archive(name: &str) -> anyhow::Result<()> {
             );
             std::process::exit(1);
         }
-        Err(e) => {
-            eprintln!("Error archiving task: {e}");
-            std::process::exit(1);
+        Err(store::TaskError::ArchiveIneligible(reason)) => {
+            anyhow::bail!("Task is not eligible for archive: {reason}");
         }
+        Err(e) => return Err(e.into()),
     }
     Ok(())
 }

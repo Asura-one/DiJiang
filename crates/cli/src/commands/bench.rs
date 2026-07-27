@@ -12,7 +12,10 @@ pub fn cmd_bench_list() -> Result<()> {
     let bench_dir = scenarios_dir;
     let scenarios = dijiang_task::list_benchmark_scenarios(&bench_dir);
     if scenarios.is_empty() {
-        println!("No benchmark scenarios found in {:?}", bench_dir.join("scenarios"));
+        println!(
+            "No benchmark scenarios found in {:?}",
+            bench_dir.join("scenarios")
+        );
         return Ok(());
     }
 
@@ -101,22 +104,24 @@ pub fn cmd_bench_status() -> Result<()> {
     }
 
     match std::fs::read_to_string(&results_path) {
-        Ok(content) => {
-            match serde_json::from_str::<Vec<BenchmarkResult>>(&content) {
-                Ok(results) => {
-                    for result in &results {
-                        let status = if result.passed { "✓ PASSED" } else { "✗ FAILED" };
-                        println!("{}: {} at {}", result.scenario, status, result.timestamp);
-                        for check in &result.checks {
-                            println!("  {}", check.message);
-                        }
+        Ok(content) => match serde_json::from_str::<Vec<BenchmarkResult>>(&content) {
+            Ok(results) => {
+                for result in &results {
+                    let status = if result.passed {
+                        "✓ PASSED"
+                    } else {
+                        "✗ FAILED"
+                    };
+                    println!("{}: {} at {}", result.scenario, status, result.timestamp);
+                    for check in &result.checks {
+                        println!("  {}", check.message);
                     }
                 }
-                Err(e) => {
-                    eprintln!("Failed to parse benchmark results: {}", e);
-                }
             }
-        }
+            Err(e) => {
+                eprintln!("Failed to parse benchmark results: {}", e);
+            }
+        },
         Err(e) => {
             eprintln!("Failed to read benchmark results: {}", e);
         }

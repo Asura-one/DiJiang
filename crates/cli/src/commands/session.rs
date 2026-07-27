@@ -1,8 +1,8 @@
 use crate::util::require_dijiang_dir;
 use dijiang_task::developer::DeveloperContext;
+use std::fs;
 use std::io::Read;
 use std::path::Path;
-use std::fs;
 
 /// Add a session entry to the journal and update index.md.
 pub fn cmd_session_add(
@@ -20,18 +20,16 @@ pub fn cmd_session_add(
     // Resolve branch: CLI arg → active task → "(none)"
     let branch_str = match branch {
         Some(b) => b.to_string(),
-        None => {
-            match dijiang_task::store::read_active_task(&dijiang_dir)? {
-                Some(task_name) => {
-                    let tasks_dir = dijiang_dir.join("tasks");
-                    match dijiang_task::store::load_task(&tasks_dir, &task_name) {
-                        Ok(task) => task.branch.unwrap_or_else(|| "(none)".to_string()),
-                        Err(_) => "(none)".to_string(),
-                    }
+        None => match dijiang_task::store::read_active_task(&dijiang_dir)? {
+            Some(task_name) => {
+                let tasks_dir = dijiang_dir.join("tasks");
+                match dijiang_task::store::load_task(&tasks_dir, &task_name) {
+                    Ok(task) => task.branch.unwrap_or_else(|| "(none)".to_string()),
+                    Err(_) => "(none)".to_string(),
                 }
-                None => "(none)".to_string(),
             }
-        }
+            None => "(none)".to_string(),
+        },
     };
 
     // Read stdin content if --stdin
@@ -48,9 +46,7 @@ pub fn cmd_session_add(
 
     // ── Append to journal.md ────────────────────────────────────────
     let today = chrono::Local::now().format("%Y-%m-%d %H:%M").to_string();
-    let journal_entry = format!(
-        "\n## Session: {title}\n\n"
-    );
+    let journal_entry = format!("\n## Session: {title}\n\n");
     let mut journal_content = journal_entry.clone();
     journal_content.push_str(&format!("**Date**: {today}\n"));
     journal_content.push_str(&format!("**Branch**: `{branch_str}`\n\n"));
@@ -100,7 +96,10 @@ fn update_index(
     if content.contains("| Date | Title | Branch | Developer |") {
         // Append after the header separator
         if let Some(pos) = content.find("|---|---|") {
-            let insert_at = content[pos..].find('\n').map(|p| pos + p + 1).unwrap_or(content.len());
+            let insert_at = content[pos..]
+                .find('\n')
+                .map(|p| pos + p + 1)
+                .unwrap_or(content.len());
             content.insert_str(insert_at, &entry);
         } else {
             content.push_str(&entry);

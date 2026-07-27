@@ -6,7 +6,8 @@ fn ensure_project_root() -> anyhow::Result<std::path::PathBuf> {
     let cwd = std::env::current_dir()?;
     // If .dijiang/ exists, use its parent; otherwise use cwd
     if let Ok(dir) = require_dijiang_dir() {
-        Ok(dir.parent()
+        Ok(dir
+            .parent()
             .ok_or_else(|| anyhow::anyhow!("无法确定项目根目录"))?
             .to_path_buf())
     } else {
@@ -59,7 +60,9 @@ pub fn cmd_init(
             .ok()
             .and_then(|o| {
                 if o.status.success() {
-                    String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                    String::from_utf8(o.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
                 } else {
                     None
                 }
@@ -86,8 +89,14 @@ pub fn cmd_init(
             eprintln!("No installed platforms detected. Run without --auto-detect to select.");
             std::process::exit(1);
         }
-        println!("  Detected platforms: {}",
-            detected.iter().map(|p| p.display_name()).collect::<Vec<_>>().join(", "));
+        println!(
+            "  Detected platforms: {}",
+            detected
+                .iter()
+                .map(|p| p.display_name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         detected
     } else if let Some(p) = platforms {
         p.split(',')
@@ -120,7 +129,10 @@ pub fn cmd_init(
     }
 
     dijiang_configurator::init_project_with_platforms(
-        &cwd, &project_name, developer.as_deref(), &selected_platforms,
+        &cwd,
+        &project_name,
+        developer.as_deref(),
+        &selected_platforms,
     )?;
 
     let skills_written = dijiang_configurator::write_project_skills(&cwd, false)?;
@@ -133,7 +145,9 @@ pub fn cmd_init(
             if let Err(e) = global_mem.ensure_default_tactics() {
                 eprintln!("  Warning: Failed to initialize default tactics: {}", e);
             } else {
-                println!("  Initialized default tactics (cargo-test, typecheck, lint-fix, doc-update)");
+                println!(
+                    "  Initialized default tactics (cargo-test, typecheck, lint-fix, doc-update)"
+                );
             }
         }
         Err(e) => {

@@ -5,7 +5,6 @@
 ///
 /// 基准场景定义在 `crates/configurator/templates/benchmarks/scenarios/*.yaml` 中，
 /// 每个场景包含一组检查项，对当前 Git diff 运行验证。
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -43,10 +42,7 @@ pub enum BenchCheck {
     },
     /// 检查是否有新文件
     #[serde(rename = "git_diff_new_files")]
-    GitDiffNewFiles {
-        name: String,
-        description: String,
-    },
+    GitDiffNewFiles { name: String, description: String },
     /// 正则搜索文件内容
     #[serde(rename = "regex_search")]
     RegexSearch {
@@ -59,10 +55,7 @@ pub enum BenchCheck {
     },
     /// 琐碎变更检查
     #[serde(rename = "trivial_check")]
-    TrivialCheck {
-        name: String,
-        description: String,
-    },
+    TrivialCheck { name: String, description: String },
 }
 
 fn default_max_additions() -> u64 {
@@ -101,20 +94,21 @@ pub fn load_scenarios(benchmarks_dir: &Path) -> Vec<BenchmarkScenario> {
     if let Ok(entries) = fs::read_dir(&scenarios_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().map_or(false, |e| e == "yaml" || e == "yml") {
+            if path
+                .extension()
+                .map_or(false, |e| e == "yaml" || e == "yml")
+            {
                 match fs::read_to_string(&path) {
-                    Ok(content) => {
-                        match serde_yaml::from_str::<BenchmarkScenario>(&content) {
-                            Ok(scenario) => scenarios.push(scenario),
-                            Err(e) => {
-                                eprintln!(
-                                    "⚠  Benchmark scenario parse error ({}): {}",
-                                    path.display(),
-                                    e
-                                );
-                            }
+                    Ok(content) => match serde_yaml::from_str::<BenchmarkScenario>(&content) {
+                        Ok(scenario) => scenarios.push(scenario),
+                        Err(e) => {
+                            eprintln!(
+                                "⚠  Benchmark scenario parse error ({}): {}",
+                                path.display(),
+                                e
+                            );
                         }
-                    }
+                    },
                     Err(e) => {
                         eprintln!("⚠  Cannot read {}: {}", path.display(), e);
                     }
@@ -158,7 +152,11 @@ pub fn run_scenario(scenario: &BenchmarkScenario, project_root: &Path) -> Benchm
     }
 }
 
-fn run_check(check: &BenchCheck, project_root: &Path, _scenario: &BenchmarkScenario) -> CheckResult {
+fn run_check(
+    check: &BenchCheck,
+    project_root: &Path,
+    _scenario: &BenchmarkScenario,
+) -> CheckResult {
     match check {
         BenchCheck::GitDiffLoc {
             name,
@@ -180,7 +178,14 @@ fn run_check(check: &BenchCheck, project_root: &Path, _scenario: &BenchmarkScena
             path: search_path,
             includes,
             excludes,
-        } => run_regex_search(name, description, search_path, includes, excludes, project_root),
+        } => run_regex_search(
+            name,
+            description,
+            search_path,
+            includes,
+            excludes,
+            project_root,
+        ),
         BenchCheck::TrivialCheck { name, description } => {
             run_trivial_check(name, description, project_root)
         }
@@ -204,7 +209,10 @@ fn run_git_diff_loc(
             let last_line = stdout.lines().last().unwrap_or("");
             // Parse "N file changed, M insertions(+), D deletions(-)"
             let parts: Vec<&str> = last_line.split_whitespace().collect();
-            if let Some(idx) = parts.iter().position(|&p| p == "insertion" || p == "insertions" || p.ends_with("insertion")) {
+            if let Some(idx) = parts
+                .iter()
+                .position(|&p| p == "insertion" || p == "insertions" || p.ends_with("insertion"))
+            {
                 if idx >= 2 {
                     parts[idx - 1].parse::<u64>().unwrap_or(0)
                 } else {
@@ -218,10 +226,15 @@ fn run_git_diff_loc(
     };
 
     let passed = additions <= max_additions;
-    let detail = format!("{} insertions (max: {}){}",
+    let detail = format!(
+        "{} insertions (max: {}){}",
         additions,
         max_additions,
-        if let Some(g) = glob { format!(", glob: {}", g) } else { String::new() }
+        if let Some(g) = glob {
+            format!(", glob: {}", g)
+        } else {
+            String::new()
+        }
     );
 
     CheckResult {
@@ -230,7 +243,10 @@ fn run_git_diff_loc(
         message: if passed {
             format!("✓ {}: {}", name, description)
         } else {
-            format!("✗ {}: {} ({} insertions > {} max)", name, description, additions, max_additions)
+            format!(
+                "✗ {}: {} ({} insertions > {} max)",
+                name, description, additions, max_additions
+            )
         },
         detail,
     }
@@ -260,24 +276,27 @@ fn run_git_diff_files(
         message: if passed {
             format!("✓ {}: {}", name, description)
         } else {
-            format!("✗ {}: {} ({} files > {} max)", name, description, file_count, max_files)
+            format!(
+                "✗ {}: {} ({} files > {} max)",
+                name, description, file_count, max_files
+            )
         },
         detail: format!("{} files changed (max: {})", file_count, max_files),
     }
 }
 
-fn run_git_diff_new_files(
-    name: &str,
-    description: &str,
-    _project_root: &Path,
-) -> CheckResult {
+fn run_git_diff_new_files(name: &str, description: &str, _project_root: &Path) -> CheckResult {
     let mut cmd = std::process::Command::new("git");
     cmd.args(["diff", "--name-only", "--diff-filter=A"]);
 
     let new_files = match cmd.output() {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            let files: Vec<String> = stdout.lines().filter(|l| !l.is_empty()).map(|s| s.to_string()).collect();
+            let files: Vec<String> = stdout
+                .lines()
+                .filter(|l| !l.is_empty())
+                .map(|s| s.to_string())
+                .collect();
             files
         }
         Err(_) => vec![],
@@ -290,7 +309,12 @@ fn run_git_diff_new_files(
         message: if passed {
             format!("✓ {}: {}", name, description)
         } else {
-            format!("✗ {}: {} new files detected: {}", name, description, new_files.join(", "))
+            format!(
+                "✗ {}: {} new files detected: {}",
+                name,
+                description,
+                new_files.join(", ")
+            )
         },
         detail: if new_files.is_empty() {
             "No new files".to_string()
@@ -324,7 +348,8 @@ fn run_regex_search(
             if re.is_match(line) {
                 // 检查是否在排除列表中
                 let excluded = excludes.iter().any(|ex| {
-                    let ex_re = regex::Regex::new(ex).unwrap_or_else(|_| regex::Regex::new("").unwrap());
+                    let ex_re =
+                        regex::Regex::new(ex).unwrap_or_else(|_| regex::Regex::new("").unwrap());
                     ex_re.is_match(line)
                 });
                 if !excluded {
@@ -341,21 +366,26 @@ fn run_regex_search(
         message: if passed {
             format!("✓ {}: {}", name, description)
         } else {
-            format!("✗ {}: {} ({} matches found)", name, description, matched_lines.len())
+            format!(
+                "✗ {}: {} ({} matches found)",
+                name,
+                description,
+                matched_lines.len()
+            )
         },
         detail: if matched_lines.is_empty() {
             "No matches in diff".to_string()
         } else {
-            format!("{} match(es) in diff:\n{}", matched_lines.len(), matched_lines.join("\n"))
+            format!(
+                "{} match(es) in diff:\n{}",
+                matched_lines.len(),
+                matched_lines.join("\n")
+            )
         },
     }
 }
 
-fn run_trivial_check(
-    name: &str,
-    description: &str,
-    _project_root: &Path,
-) -> CheckResult {
+fn run_trivial_check(name: &str, description: &str, _project_root: &Path) -> CheckResult {
     let mut cmd = std::process::Command::new("git");
     cmd.args(["diff", "--stat"]);
 
@@ -364,7 +394,10 @@ fn run_trivial_check(
             let stdout = String::from_utf8_lossy(&output.stdout);
             let last_line = stdout.lines().last().unwrap_or("");
             let parts: Vec<&str> = last_line.split_whitespace().collect();
-            if let Some(idx) = parts.iter().position(|&p| p == "insertion" || p == "insertions" || p.ends_with("insertion")) {
+            if let Some(idx) = parts
+                .iter()
+                .position(|&p| p == "insertion" || p == "insertions" || p.ends_with("insertion"))
+            {
                 if idx >= 2 {
                     parts[idx - 1].parse::<u64>().unwrap_or(0)
                 } else {
@@ -383,10 +416,26 @@ fn run_trivial_check(
     CheckResult {
         name: name.to_string(),
         passed,
-        message: format!("ℹ {}: {} ({} insertions{})", name, description, additions,
-            if is_trivial { ", trivial change" } else { ", non-trivial" }),
-        detail: format!("{} insertion(s) — {}", additions,
-            if is_trivial { "trivial change, no test needed" } else { "non-trivial, test recommended" }),
+        message: format!(
+            "ℹ {}: {} ({} insertions{})",
+            name,
+            description,
+            additions,
+            if is_trivial {
+                ", trivial change"
+            } else {
+                ", non-trivial"
+            }
+        ),
+        detail: format!(
+            "{} insertion(s) — {}",
+            additions,
+            if is_trivial {
+                "trivial change, no test needed"
+            } else {
+                "non-trivial, test recommended"
+            }
+        ),
     }
 }
 
@@ -411,7 +460,12 @@ mod tests {
             .parent()
             .and_then(|p| p.parent())
             .unwrap_or(Path::new("."));
-        let bench_dir = project_root.join("crates").join("configurator").join("templates").join("benchmarks").join("scenarios");
+        let bench_dir = project_root
+            .join("crates")
+            .join("configurator")
+            .join("templates")
+            .join("benchmarks")
+            .join("scenarios");
         assert!(
             bench_dir.is_dir(),
             "Benchmark scenarios directory missing: {}",
@@ -426,7 +480,11 @@ mod tests {
             .parent()
             .and_then(|p| p.parent())
             .unwrap_or(Path::new("."));
-        let bench_dir = project_root.join("crates").join("configurator").join("templates").join("benchmarks");
+        let bench_dir = project_root
+            .join("crates")
+            .join("configurator")
+            .join("templates")
+            .join("benchmarks");
         let scenarios = load_scenarios(&bench_dir);
         let names: Vec<&str> = scenarios.iter().map(|s| s.name.as_str()).collect();
         assert!(
@@ -443,7 +501,11 @@ mod tests {
             .parent()
             .and_then(|p| p.parent())
             .unwrap_or(Path::new("."));
-        let bench_dir = project_root.join("crates").join("configurator").join("templates").join("benchmarks");
+        let bench_dir = project_root
+            .join("crates")
+            .join("configurator")
+            .join("templates")
+            .join("benchmarks");
         let scenarios = load_scenarios(&bench_dir);
         let names: Vec<&str> = scenarios.iter().map(|s| s.name.as_str()).collect();
         assert!(
@@ -460,7 +522,11 @@ mod tests {
             .parent()
             .and_then(|p| p.parent())
             .unwrap_or(Path::new("."));
-        let bench_dir = project_root.join("crates").join("configurator").join("templates").join("benchmarks");
+        let bench_dir = project_root
+            .join("crates")
+            .join("configurator")
+            .join("templates")
+            .join("benchmarks");
         let scenarios = load_scenarios(&bench_dir);
         for scenario in &scenarios {
             assert!(

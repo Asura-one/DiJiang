@@ -9,15 +9,21 @@ pub fn cmd_spec_sync_check() -> anyhow::Result<()> {
     }
     if !diff.new.is_empty() {
         println!(" 新增 specs:");
-        for p in &diff.new { println!("    + {p}"); }
+        for p in &diff.new {
+            println!("    + {p}");
+        }
     }
     if !diff.changed.is_empty() {
         println!(" 已更改 specs:");
-        for p in &diff.changed { println!("    ~ {p}"); }
+        for p in &diff.changed {
+            println!("    ~ {p}");
+        }
     }
     if !diff.deleted.is_empty() {
         println!(" 已删除 specs:");
-        for p in &diff.deleted { println!("    - {p}"); }
+        for p in &diff.deleted {
+            println!("    - {p}");
+        }
     }
     println!();
     println!("  提示: 运行 `dijiang spec-sync record` 更新 checksum 记录。");

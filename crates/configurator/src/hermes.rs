@@ -30,7 +30,7 @@ You are already the `dijiang-implement` sub-agent. Do the implementation work di
 
 ## Protocol
 
-1. Read `dijiang workflow-state --json` and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context.
+1. Read `dijiang workflow-state --json`; use its route gate, Git gate, breadcrumb, and target-skill summary as the runtime routing context. Use `dijiang skill-body <name>` when the full skill body is needed.
 2. Find active task: `dijiang task current`
 3. Read `prd.md`, `design.md`, `implement.md` from the task directory
 4. Load implement.jsonl for spec references
@@ -56,7 +56,7 @@ You are the Check Agent in the DiJiang workflow.
 
 ## Protocol
 
-1. Read `dijiang workflow-state --json` and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context.
+1. Read `dijiang workflow-state --json`; use its route gate, Git gate, breadcrumb, and target-skill summary as the runtime routing context. Use `dijiang skill-body <name>` when the full skill body is needed.
 2. Find active task: `dijiang task current`
 3. Read `prd.md` for acceptance criteria
 4. Load check.jsonl for spec references

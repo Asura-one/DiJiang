@@ -57,10 +57,7 @@ pub struct PackageContext {
 // ── Main entry point ────────────────────────────────────────────────
 
 /// Execute `dijiang context` with the given mode and optional JSON flag.
-pub fn cmd_context(
-    mode: Option<ContextMode>,
-    json: bool,
-) -> anyhow::Result<()> {
+pub fn cmd_context(mode: Option<ContextMode>, json: bool) -> anyhow::Result<()> {
     let mode = mode.unwrap_or(ContextMode::Status);
     let project_root = &std::env::current_dir()?;
 
@@ -68,15 +65,18 @@ pub fn cmd_context(
 
     // Developer / project name
     let dijiang_dir = project_root.join(".dijiang");
-    let developer = dijiang_dir.exists().then(|| {
-        util::read_developer(&dijiang_dir).unwrap_or_else(|_| "developer".into())
-    });
-    let project = dijiang_dir.exists().then(|| {
-        util::read_project_name(&dijiang_dir).unwrap_or_else(|_| "unknown".into())
-    });
+    let developer = dijiang_dir
+        .exists()
+        .then(|| util::read_developer(&dijiang_dir).unwrap_or_else(|_| "developer".into()));
+    let project = dijiang_dir
+        .exists()
+        .then(|| util::read_project_name(&dijiang_dir).unwrap_or_else(|_| "unknown".into()));
 
     // Git context
-    let show_git = matches!(mode, ContextMode::Git | ContextMode::All | ContextMode::Status | ContextMode::Record);
+    let show_git = matches!(
+        mode,
+        ContextMode::Git | ContextMode::All | ContextMode::Status | ContextMode::Record
+    );
     let git = if show_git {
         Some(collect_git_context(project_root))
     } else {
@@ -84,7 +84,10 @@ pub fn cmd_context(
     };
 
     // Tasks context
-    let show_tasks = matches!(mode, ContextMode::Tasks | ContextMode::All | ContextMode::Status | ContextMode::Record);
+    let show_tasks = matches!(
+        mode,
+        ContextMode::Tasks | ContextMode::All | ContextMode::Status | ContextMode::Record
+    );
     let active_task = if show_tasks {
         collect_active_task(project_root)
     } else {
@@ -92,7 +95,10 @@ pub fn cmd_context(
     };
 
     // Packages context
-    let show_packages = matches!(mode, ContextMode::Packages | ContextMode::All | ContextMode::Record);
+    let show_packages = matches!(
+        mode,
+        ContextMode::Packages | ContextMode::All | ContextMode::Record
+    );
     let packages = if show_packages {
         collect_packages(project_root)
     } else {
@@ -111,14 +117,22 @@ pub fn cmd_context(
     let show_ws = matches!(mode, ContextMode::Status | ContextMode::All);
     let workflow_state = if show_ws {
         dijiang_dir.exists().then(|| {
-            let state_bytes = std::process::Command::new(std::env::args().next().unwrap_or_else(|| "dijiang".into()))
-                .args(&["workflow-state"])
-                .current_dir(project_root)
-                .output()
-                .ok()
-                .and_then(|o| if o.status.success() { Some(o.stdout) } else { None })
-                .and_then(|b| String::from_utf8(b).ok())
-                .unwrap_or_else(|| "".into());
+            let state_bytes = std::process::Command::new(
+                std::env::args().next().unwrap_or_else(|| "dijiang".into()),
+            )
+            .args(&["workflow-state"])
+            .current_dir(project_root)
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    Some(o.stdout)
+                } else {
+                    None
+                }
+            })
+            .and_then(|b| String::from_utf8(b).ok())
+            .unwrap_or_else(|| "".into());
             state_bytes
         })
     } else {
@@ -151,16 +165,18 @@ pub fn cmd_context(
 fn collect_git_context(project_root: &Path) -> GitContext {
     let branch = util::git_current_branch(project_root).unwrap_or_else(|_| "unknown".into());
     let status = util::run_git(project_root, &["status", "--short"])
-        .map(|s| {
-            if s.is_empty() { "clean".into() } else { s }
-        })
+        .map(|s| if s.is_empty() { "clean".into() } else { s })
         .unwrap_or_else(|_| "unknown".into());
 
     let recent_commits = util::run_git(project_root, &["log", "--oneline", "-5"])
         .map(|s| s.lines().map(|l| l.to_string()).collect())
         .unwrap_or_default();
 
-    GitContext { branch, status, recent_commits }
+    GitContext {
+        branch,
+        status,
+        recent_commits,
+    }
 }
 
 // ── Task context ─────────────────────────────────────────────────────
@@ -212,7 +228,10 @@ fn collect_packages(project_root: &Path) -> Vec<PackageContext> {
                 let cargo_toml = path.join("Cargo.toml");
                 if cargo_toml.exists() {
                     packages.push(PackageContext {
-                        path: format!("crates/{}", path.file_name().unwrap_or_default().to_string_lossy()),
+                        path: format!(
+                            "crates/{}",
+                            path.file_name().unwrap_or_default().to_string_lossy()
+                        ),
                         name: extract_crate_name(&cargo_toml),
                     });
                 }
@@ -222,10 +241,13 @@ fn collect_packages(project_root: &Path) -> Vec<PackageContext> {
     // Also include workspace root Cargo.toml
     let root_toml = project_root.join("Cargo.toml");
     if root_toml.exists() {
-        packages.insert(0, PackageContext {
-            path: ".".into(),
-            name: extract_crate_name(&root_toml),
-        });
+        packages.insert(
+            0,
+            PackageContext {
+                path: ".".into(),
+                name: extract_crate_name(&root_toml),
+            },
+        );
     }
     packages.sort_by(|a, b| a.path.cmp(&b.path));
     packages

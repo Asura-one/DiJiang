@@ -47,7 +47,7 @@ Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
 
 ## Core Workflow
 
-1. **plan**: Start by reading `dijiang workflow-state --json`, and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context before reading `prd.md`, `design.md`, `implement.md`.
+1. **plan**: Start by reading `dijiang workflow-state --json`; use its route gate, Git gate, breadcrumb, and target-skill summary before reading `prd.md`, `design.md`, and `implement.md`. Use `dijiang skill-body <name>` when the full skill body is needed.
 2. **implement**: Write code following the runtime context and specs. Run `cargo build` to verify.
 3. **check**: Run `cargo test`, verify types, lint.
 4. **archive**: Commit changes when done.

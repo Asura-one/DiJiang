@@ -1,7 +1,7 @@
 use anyhow::Result;
 use dijiang_task::{
-    bucket_statistics, find_bucket_for_skill, get_bucket_info,
-    get_default_buckets, list_bucket_names, list_skills_by_bucket,
+    bucket_statistics, find_bucket_for_skill, get_bucket_info, get_default_buckets,
+    list_bucket_names, list_skills_by_bucket,
 };
 
 pub fn cmd_bucket_list(bucket_filter: Option<&str>, skill_filter: Option<&str>) -> Result<()> {
@@ -26,7 +26,10 @@ pub fn cmd_bucket_list(bucket_filter: Option<&str>, skill_filter: Option<&str>) 
         let skills = list_skills_by_bucket(&config, filter);
         if skills.is_empty() {
             println!("Bucket '{}' not found or empty.", filter);
-            println!("Available buckets: {}", list_bucket_names(&config).join(", "));
+            println!(
+                "Available buckets: {}",
+                list_bucket_names(&config).join(", ")
+            );
             return Ok(());
         }
         let (label, desc) = get_bucket_info(&config, filter).unwrap_or((filter, ""));
@@ -40,7 +43,10 @@ pub fn cmd_bucket_list(bucket_filter: Option<&str>, skill_filter: Option<&str>) 
     // Default: show all buckets
     println!("DiJiang Skill Buckets\n");
     for bucket in &config.buckets {
-        println!("{} ({}) — {}", bucket.name, bucket.label, bucket.description);
+        println!(
+            "{} ({}) — {}",
+            bucket.name, bucket.label, bucket.description
+        );
         for skill in &bucket.skills {
             println!("  {}", skill);
         }

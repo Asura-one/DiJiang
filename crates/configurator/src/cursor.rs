@@ -34,7 +34,7 @@ This project uses DiJiang, an AI-native development workflow framework.
 
 Task lifecycle follows `plan → implement → check → archive`:
 
-1. **plan** — Read `dijiang workflow-state --json` first, and treat injected `Skill Manifests` plus `<dijiang-target-skill ...>` as the primary runtime routing context before reading `prd.md` (requirements) + `design.md` (design) + `implement.md` (execution plan)
+1. **plan** — Read `dijiang workflow-state --json` first; use its route gate, Git gate, breadcrumb, and target-skill summary before reading `prd.md`, `design.md`, and `implement.md`. Use `dijiang skill-body <name>` when the full skill body is needed.
 2. **implement** — Write code, following runtime context and specs in `.dijiang/spec/`
 3. **check** — Run `cargo test`, verify types, lint, verify cross-layer consistency
 4. **archive** — Commit changes
@@ -51,7 +51,7 @@ Task lifecycle follows `plan → implement → check → archive`:
 
 ## Hooks
 
-Hooks call `dijiang workflow-state` to load session-scoped task context, including `Skill Manifests` and `<dijiang-target-skill ...>`.
+Hooks call `dijiang workflow-state` to load session-scoped task context: route/Git gates, breadcrumb, and target-skill summary.
 "#
     }
 
@@ -166,7 +166,6 @@ impl Configurator for CursorConfigurator {
             permissions.set_mode(0o755);
             fs::set_permissions(&hook_path, permissions)?;
         }
-
 
         Ok(())
     }

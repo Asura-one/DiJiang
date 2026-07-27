@@ -85,8 +85,10 @@ pub fn run_git(project_root: &Path, args: &[&str]) -> anyhow::Result<String> {
 }
 
 pub fn read_developer(dijiang_dir: &Path) -> anyhow::Result<String> {
-    Ok(dijiang_task::config::read_developer(dijiang_dir)
-        .unwrap_or_else(|| "developer".to_string()))
+    Ok(
+        dijiang_task::config::read_developer(dijiang_dir)
+            .unwrap_or_else(|| "developer".to_string()),
+    )
 }
 
 pub fn read_project_name(dijiang_dir: &Path) -> anyhow::Result<String> {

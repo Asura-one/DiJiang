@@ -94,7 +94,11 @@ impl HooksConfig {
     /// Get the command for a hook event, if configured and non-empty.
     pub fn command_for(&self, event: HookEvent) -> Option<&str> {
         let cmd = self.commands.get(event.config_key())?;
-        if cmd.is_empty() { None } else { Some(cmd.as_str()) }
+        if cmd.is_empty() {
+            None
+        } else {
+            Some(cmd.as_str())
+        }
     }
 
     /// Returns true if any hooks are configured.
@@ -117,7 +121,9 @@ impl HooksConfig {
 
 impl Default for HooksConfig {
     fn default() -> Self {
-        Self { commands: HashMap::new() }
+        Self {
+            commands: HashMap::new(),
+        }
     }
 }
 
@@ -125,7 +131,11 @@ fn parse_key_value(s: &str) -> Option<(String, String)> {
     let eq_idx = s.find('=')?;
     let key = s[..eq_idx].trim().to_string();
     let value = s[eq_idx + 1..].trim().to_string();
-    if key.is_empty() || value.is_empty() { None } else { Some((key, value)) }
+    if key.is_empty() || value.is_empty() {
+        None
+    } else {
+        Some((key, value))
+    }
 }
 
 /// Load hooks configuration from the project's config.toml.
@@ -141,24 +151,22 @@ pub fn load_hooks_config(dijiang_dir: &Path) -> HooksConfig {
 /// The environment variable `DIJIANG_TASK_JSON_PATH` is set to the task directory.
 ///
 /// Non-zero exit codes from hook commands are logged as warnings, not errors.
-pub fn run_task_hooks(
-    dijiang_dir: &Path,
-    event: HookEvent,
-    task_name: &str,
-) {
+pub fn run_task_hooks(dijiang_dir: &Path, event: HookEvent, task_name: &str) {
     let hooks = load_hooks_config(dijiang_dir);
-    let Some(cmd) = hooks.command_for(event) else { return };
+    let Some(cmd) = hooks.command_for(event) else {
+        return;
+    };
 
-    let task_json_path = dijiang_dir
-        .join("tasks")
-        .join(task_name)
-        .join("task.json");
+    let task_json_path = dijiang_dir.join("tasks").join(task_name).join("task.json");
 
     // Execute the hook as a shell command
     let output = std::process::Command::new("sh")
         .arg("-c")
         .arg(cmd)
-        .env("DIJIANG_TASK_JSON_PATH", task_json_path.to_string_lossy().as_ref())
+        .env(
+            "DIJIANG_TASK_JSON_PATH",
+            task_json_path.to_string_lossy().as_ref(),
+        )
         .output();
 
     match output {
@@ -210,7 +218,10 @@ after_task_start = ""
 "#;
         let config = HooksConfig::parse(toml);
         assert!(config.is_enabled());
-        assert_eq!(config.command_for(HookEvent::AfterTaskCreate), Some("echo hello"));
+        assert_eq!(
+            config.command_for(HookEvent::AfterTaskCreate),
+            Some("echo hello")
+        );
         // Empty command should be treated as disabled
         assert!(config.command_for(HookEvent::AfterTaskStart).is_none());
         // Unconfigured events should be None

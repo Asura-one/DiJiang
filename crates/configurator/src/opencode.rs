@@ -39,7 +39,7 @@ You are already the `dijiang-implementer` sub-agent. Do the implementation work 
 ## Context
 
 Before implementing, read:
-- `dijiang workflow-state --json` — Runtime route context, `Skill Manifests`, and `<dijiang-target-skill ...>`
+- `dijiang workflow-state --json` — Runtime route/Git gates, breadcrumb, and target-skill summary; use `dijiang skill-body <name>` when the full skill body is needed
 - `.dijiang/workflow.md` — Project workflow
 - `.dijiang/spec/` — Development guidelines
 - Task `prd.md` — Requirements document

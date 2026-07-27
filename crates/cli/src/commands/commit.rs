@@ -65,8 +65,7 @@ pub fn cmd_commit(opts: CommitOptions) -> anyhow::Result<()> {
 
     if opts.dry_run {
         // Show recent commits for reference anyway
-        let recent = run_git(project_root, &["log", "--oneline", "-5"])
-            .unwrap_or_default();
+        let recent = run_git(project_root, &["log", "--oneline", "-5"]).unwrap_or_default();
         if !recent.is_empty() {
             println!("── Recent commits (for style reference): ────");
             for line in recent.lines() {
@@ -89,8 +88,7 @@ pub fn cmd_commit(opts: CommitOptions) -> anyhow::Result<()> {
         Some(msg) => msg.clone(),
         None => {
             // Auto-detect commit style from recent history
-            let recent = run_git(project_root, &["log", "--oneline", "-5"])
-                .unwrap_or_default();
+            let recent = run_git(project_root, &["log", "--oneline", "-5"]).unwrap_or_default();
             if !recent.is_empty() {
                 println!("── Recent commits (for style reference): ────");
                 for line in recent.lines() {
@@ -122,12 +120,10 @@ pub fn cmd_commit(opts: CommitOptions) -> anyhow::Result<()> {
             // X = staging area, Y = working tree
             // A typical line: " M src/main.rs" or "M  src/main.rs"
             // Extract path after the two status chars + space
-            line.split_whitespace()
-                .nth(1)
-                .or_else(|| {
-                    // For renamed files: "R  old -> new"
-                    line.split(" -> ").nth(1)
-                })
+            line.split_whitespace().nth(1).or_else(|| {
+                // For renamed files: "R  old -> new"
+                line.split(" -> ").nth(1)
+            })
         })
         .collect();
 

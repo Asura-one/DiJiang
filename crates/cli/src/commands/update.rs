@@ -11,11 +11,20 @@ pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
         }
 
         let output = std::process::Command::new("git")
-            .args(["clone", "--depth", "1", "https://github.com/Asura-one/DiJiang.git", temp_dir.to_str().unwrap()])
+            .args([
+                "clone",
+                "--depth",
+                "1",
+                "https://github.com/Asura-one/DiJiang.git",
+                temp_dir.to_str().unwrap(),
+            ])
             .output()?;
 
         if !output.status.success() {
-            anyhow::bail!("从 GitHub 下载失败: {}", String::from_utf8_lossy(&output.stderr));
+            anyhow::bail!(
+                "从 GitHub 下载失败: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         println!("  下载完成，正在更新全局技能...");
@@ -26,7 +35,10 @@ pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
         std::fs::create_dir_all(&global_dir)?;
 
         let src_skills = temp_dir
-            .join("crates").join("configurator").join("templates").join("skills");
+            .join("crates")
+            .join("configurator")
+            .join("templates")
+            .join("skills");
         if src_skills.exists() {
             for entry in std::fs::read_dir(&src_skills)? {
                 let entry = entry?;
@@ -47,7 +59,8 @@ pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
         println!("  GitHub 更新完成。\n");
     }
 
-    let report = dijiang_configurator::update_project(&cwd, dijiang_configurator::UpdateOptions { force })?;
+    let report =
+        dijiang_configurator::update_project(&cwd, dijiang_configurator::UpdateOptions { force })?;
 
     let old_version = report.old_version.as_deref().unwrap_or("unknown");
     let version_changed = report.old_version.as_deref() != Some(&report.new_version);
@@ -124,9 +137,11 @@ pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
         if !report.warnings.is_empty() {
             summary.push(format!("{} 警告", report.warnings.len()));
         }
-        println!("  更新完成: {} ({} 个已是最新)",
+        println!(
+            "  更新完成: {} ({} 个已是最新)",
             summary.join(", "),
-            report.unchanged.len());
+            report.unchanged.len()
+        );
     } else {
         println!("  所有文件已是最新 ({} 个文件)", report.unchanged.len());
     }

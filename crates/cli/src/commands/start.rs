@@ -1,8 +1,8 @@
 use crate::util::require_dijiang_dir;
+use chrono;
 use dijiang_task::hooks::{self, HookEvent};
 use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
-use chrono;
 
 pub fn cmd_start(name: &str, title: Option<&str>) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
@@ -17,7 +17,10 @@ pub fn cmd_start(name: &str, title: Option<&str>) -> anyhow::Result<()> {
             }
             task.started_at = task.started_at.take().or(Some(now.to_rfc3339()));
             println!("  ✓ Task '{name}' updated");
-            println!("    Status: {was_status} → {status}", status = task.status.as_str());
+            println!(
+                "    Status: {was_status} → {status}",
+                status = task.status.as_str()
+            );
             task
         }
         Err(store::TaskError::NotFound(_)) => {

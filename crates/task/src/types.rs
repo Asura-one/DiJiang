@@ -107,7 +107,6 @@ impl TaskStatus {
     }
 }
 
-
 /// Canonical field order for the `task.json` file. Must match the 24-field
 /// `TASK_RECORD_FIELD_ORDER` defined in Trellis's `packages/core/src/task/schema.ts`
 /// and the `TaskData` TypedDict in Trellis's `scripts/common/types.py`. Field order is

@@ -115,7 +115,10 @@ pub fn find_bucket_for_skill<'a>(config: &'a BucketConfig, skill_name: &str) -> 
 }
 
 /// 获取桶的描述信息
-pub fn get_bucket_info<'a>(config: &'a BucketConfig, bucket_name: &str) -> Option<(&'a str, &'a str)> {
+pub fn get_bucket_info<'a>(
+    config: &'a BucketConfig,
+    bucket_name: &str,
+) -> Option<(&'a str, &'a str)> {
     config
         .buckets
         .iter()
@@ -150,7 +153,11 @@ mod tests {
     #[test]
     fn all_core_skills_have_correct_names() {
         let config = test_config();
-        let core = config.buckets.iter().find(|b| b.name == "core").expect("core bucket");
+        let core = config
+            .buckets
+            .iter()
+            .find(|b| b.name == "core")
+            .expect("core bucket");
         assert!(core.skills.contains(&"dj-grill".to_string()));
         assert!(core.skills.contains(&"dj-implement".to_string()));
         assert!(core.skills.contains(&"dj-check".to_string()));
@@ -160,7 +167,11 @@ mod tests {
     fn each_bucket_has_at_least_one_skill() {
         let config = test_config();
         for bucket in &config.buckets {
-            assert!(!bucket.skills.is_empty(), "Bucket '{}' has no skills", bucket.name);
+            assert!(
+                !bucket.skills.is_empty(),
+                "Bucket '{}' has no skills",
+                bucket.name
+            );
         }
     }
 
@@ -168,9 +179,15 @@ mod tests {
     fn find_bucket_for_skill_works() {
         let config = test_config();
         assert_eq!(find_bucket_for_skill(&config, "dj-grill"), Some("core"));
-        assert_eq!(find_bucket_for_skill(&config, "dj-hunt"), Some("specialized"));
+        assert_eq!(
+            find_bucket_for_skill(&config, "dj-hunt"),
+            Some("specialized")
+        );
         assert_eq!(find_bucket_for_skill(&config, "dj-remix"), Some("extended"));
-        assert_eq!(find_bucket_for_skill(&config, "dijiang-start"), Some("internal"));
+        assert_eq!(
+            find_bucket_for_skill(&config, "dijiang-start"),
+            Some("internal")
+        );
         assert_eq!(find_bucket_for_skill(&config, "nonexistent"), None);
     }
 

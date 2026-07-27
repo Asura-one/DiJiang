@@ -1,4 +1,4 @@
-use crate::util::{require_dijiang_dir, read_project_name, current_session_key};
+use crate::util::{current_session_key, read_project_name, require_dijiang_dir};
 use dijiang_task::store;
 use std::path::Path;
 
@@ -20,7 +20,10 @@ pub fn cmd_mem_findings(finding: &str) -> anyhow::Result<()> {
         scope: dijiang_mem::MemoryScope::Project,
     };
     mem.append_finding(&record)?;
-    println!("  Finding recorded to {}", mem.root().join("findings.jsonl").display());
+    println!(
+        "  Finding recorded to {}",
+        mem.root().join("findings.jsonl").display()
+    );
     Ok(())
 }
 
@@ -38,11 +41,22 @@ pub fn cmd_mem_learn(lesson: &str) -> anyhow::Result<()> {
         scope: dijiang_mem::MemoryScope::Project,
     };
     mem.append_learning(&record)?;
-    println!("  Lesson recorded to {}", mem.root().join("learnings.jsonl").display());
+    println!(
+        "  Lesson recorded to {}",
+        mem.root().join("learnings.jsonl").display()
+    );
     Ok(())
 }
 
-pub fn cmd_mem_correction(correction: &str, lesson: &str, scope: &str, source: &str, freshness: &str, conflict: &str, actionability: &str) -> anyhow::Result<()> {
+pub fn cmd_mem_correction(
+    correction: &str,
+    lesson: &str,
+    scope: &str,
+    source: &str,
+    freshness: &str,
+    conflict: &str,
+    actionability: &str,
+) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
     let active_task = store::read_active_task(&dijiang_dir)?;
     let (session_key, _) = current_session_key();
@@ -55,20 +69,28 @@ pub fn cmd_mem_correction(correction: &str, lesson: &str, scope: &str, source: &
         correction: correction.to_string(),
         lesson: lesson.to_string(),
         scope: scope.to_string(),
-        confidence: if source == "user" { "user-confirmed".to_string() } else { "observed".to_string() },
+        confidence: if source == "user" {
+            "user-confirmed".to_string()
+        } else {
+            "observed".to_string()
+        },
         freshness: freshness.to_string(),
         conflict: conflict.to_string(),
         actionability: actionability.to_string(),
     };
     mem.append_correction(&record)?;
-    println!("  Correction recorded to {}", mem.root().join("corrections.jsonl").display());
+    println!(
+        "  Correction recorded to {}",
+        mem.root().join("corrections.jsonl").display()
+    );
     Ok(())
 }
 
 pub fn cmd_mem_archive() -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
     let config_str = std::fs::read_to_string(dijiang_dir.join("config.toml"))?;
-    let developer = config_str.lines()
+    let developer = config_str
+        .lines()
         .find(|l| l.starts_with("developer"))
         .and_then(|l| l.split('=').nth(1))
         .map(|s| s.trim().trim_matches('\"').to_string())
@@ -92,7 +114,10 @@ pub fn cmd_mem_archive() -> anyhow::Result<()> {
 pub fn cmd_mem_tactic(name: &str, description: &str) -> anyhow::Result<()> {
     let mem = dijiang_mem::GlobalMemory::new()?;
     let tactic = mem.add_tactic(name, description, "cli")?;
-    println!("  Added tactic: {} (alpha={}, beta={})", tactic.name, tactic.alpha, tactic.beta);
+    println!(
+        "  Added tactic: {} (alpha={}, beta={})",
+        tactic.name, tactic.alpha, tactic.beta
+    );
     Ok(())
 }
 
@@ -101,7 +126,13 @@ pub fn cmd_mem_tactics(select: usize) -> anyhow::Result<()> {
     let tactics = mem.select_tactics(select)?;
     println!("  Top {} tactics (Thompson sampling):", select);
     for t in &tactics {
-        println!("    {} (win_rate={:.2}, a={}, b={})", t.name, t.win_rate(), t.alpha, t.beta);
+        println!(
+            "    {} (win_rate={:.2}, a={}, b={})",
+            t.name,
+            t.win_rate(),
+            t.alpha,
+            t.beta
+        );
     }
     Ok(())
 }
@@ -124,11 +155,16 @@ pub fn cmd_mem_pattern(name: &str, description: &str) -> anyhow::Result<()> {
     let pattern = dijiang_mem::Pattern {
         name: name.to_string(),
         description: description.to_string(),
-        steps: vec![], tags: vec![],
+        steps: vec![],
+        tags: vec![],
         created_at: chrono::Local::now().to_rfc3339(),
-        project: None, cadence: None, risk: None,
-        token_cost: None, week_one_mode: None,
-        human_gates: vec![], phases: vec![],
+        project: None,
+        cadence: None,
+        risk: None,
+        token_cost: None,
+        week_one_mode: None,
+        human_gates: vec![],
+        phases: vec![],
     };
     mem.add_pattern(&pattern)?;
     println!("  Added pattern: {}", name);
@@ -140,19 +176,34 @@ pub fn cmd_mem_patterns() -> anyhow::Result<()> {
     let mem = current_project_memory(&dijiang_dir)?;
     let patterns = mem.load_patterns()?;
     println!("  {} patterns:", patterns.len());
-    for p in &patterns { println!("    {} - {}", p.name, p.description); }
+    for p in &patterns {
+        println!("    {} - {}", p.name, p.description);
+    }
     Ok(())
 }
 
 pub fn cmd_mem_stats() -> anyhow::Result<()> {
     let global_mem = dijiang_mem::GlobalMemory::new()?;
     let tactics = global_mem.load_tactics()?;
-    let avg_win_rate = if tactics.is_empty() { 0.0 } else { tactics.iter().map(|t| t.win_rate()).sum::<f64>() / tactics.len() as f64 };
+    let avg_win_rate = if tactics.is_empty() {
+        0.0
+    } else {
+        tactics.iter().map(|t| t.win_rate()).sum::<f64>() / tactics.len() as f64
+    };
     let dijiang_dir = require_dijiang_dir().ok();
-    let (findings, learnings, corrections, sessions, patterns) = if let Some(dir) = dijiang_dir.as_ref() {
-        let pm = current_project_memory(dir)?;
-        (pm.load_findings()?.len(), pm.load_learnings()?.len(), pm.load_corrections()?.len(), pm.load_session_closures()?.len(), pm.load_patterns()?.len())
-    } else { (0, 0, 0, 0, 0) };
+    let (findings, learnings, corrections, sessions, patterns) =
+        if let Some(dir) = dijiang_dir.as_ref() {
+            let pm = current_project_memory(dir)?;
+            (
+                pm.load_findings()?.len(),
+                pm.load_learnings()?.len(),
+                pm.load_corrections()?.len(),
+                pm.load_session_closures()?.len(),
+                pm.load_patterns()?.len(),
+            )
+        } else {
+            (0, 0, 0, 0, 0)
+        };
     println!("  Memory Stats:");
     println!("    Session closures: {}", sessions);
     println!("    Findings: {}", findings);
@@ -165,8 +216,17 @@ pub fn cmd_mem_stats() -> anyhow::Result<()> {
         if let Ok(pm) = current_project_memory(dir) {
             if let Ok(all_findings) = pm.load_findings() {
                 let mut tag_counts = std::collections::BTreeMap::<String, usize>::new();
-                for f in &all_findings { for tag in &f.tags { *tag_counts.entry(tag.clone()).or_insert(0) += 1; } }
-                if !tag_counts.is_empty() { println!("\n    Tags distribution:"); for (tag, count) in &tag_counts { println!("      {}: {}", tag, count); } }
+                for f in &all_findings {
+                    for tag in &f.tags {
+                        *tag_counts.entry(tag.clone()).or_insert(0) += 1;
+                    }
+                }
+                if !tag_counts.is_empty() {
+                    println!("\n    Tags distribution:");
+                    for (tag, count) in &tag_counts {
+                        println!("      {}: {}", tag, count);
+                    }
+                }
             }
         }
     }
@@ -176,8 +236,11 @@ pub fn cmd_mem_stats() -> anyhow::Result<()> {
 pub fn cmd_mem_backup() -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
     let config_str = std::fs::read_to_string(dijiang_dir.join("config.toml"))?;
-    let project = config_str.lines().find(|l| l.starts_with("name"))
-        .and_then(|l| l.split('=').nth(1)).map(|s| s.trim().trim_matches('"').to_string())
+    let project = config_str
+        .lines()
+        .find(|l| l.starts_with("name"))
+        .and_then(|l| l.split('=').nth(1))
+        .map(|s| s.trim().trim_matches('"').to_string())
         .unwrap_or_else(|| "unknown".to_string());
     let global_mem = dijiang_mem::GlobalMemory::new()?;
     let project_mem = current_project_memory(&dijiang_dir)?;
@@ -196,20 +259,32 @@ pub fn cmd_mem_evolve() -> anyhow::Result<()> {
     let sessions = project_mem.load_session_closures()?;
     let global_mem = dijiang_mem::GlobalMemory::new()?;
     let mut tactics_created = 0;
-    let mut finding_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
-    for finding in &findings { *finding_counts.entry(finding.content.chars().take(50).collect()).or_insert(0) += 1; }
+    let mut finding_counts: std::collections::HashMap<String, u32> =
+        std::collections::HashMap::new();
+    for finding in &findings {
+        *finding_counts
+            .entry(finding.content.chars().take(50).collect())
+            .or_insert(0) += 1;
+    }
     for (pattern, count) in &finding_counts {
         if *count >= 3 {
             let existing = global_mem.load_tactics()?;
             if !existing.iter().any(|t| t.description.contains(pattern)) {
-                global_mem.add_tactic(pattern, &format!("Auto-detected from {} findings", count), &dijiang_dir.to_string_lossy())?;
+                global_mem.add_tactic(
+                    pattern,
+                    &format!("Auto-detected from {} findings", count),
+                    &dijiang_dir.to_string_lossy(),
+                )?;
                 tactics_created += 1;
             }
         }
     }
     let config_str = std::fs::read_to_string(dijiang_dir.join("config.toml"))?;
-    let project = config_str.lines().find(|l| l.starts_with("name"))
-        .and_then(|l| l.split('=').nth(1)).map(|s| s.trim().trim_matches('"').to_string())
+    let project = config_str
+        .lines()
+        .find(|l| l.starts_with("name"))
+        .and_then(|l| l.split('=').nth(1))
+        .map(|s| s.trim().trim_matches('"').to_string())
         .unwrap_or_else(|| "unknown".to_string());
     global_mem.backup_project(&project, &project_mem)?;
     println!("  Findings analyzed: {}", findings.len());
@@ -224,7 +299,10 @@ pub fn cmd_mem_finetune() -> anyhow::Result<()> {
     println!("  🧬 Slow-loop fine-tune: training on accumulated experience...");
     let global_mem = dijiang_mem::GlobalMemory::new()?;
     let tactics = global_mem.load_tactics()?;
-    if tactics.is_empty() { println!("  No tactics found. Run `dijiang mem evolve` first."); return Ok(()); }
+    if tactics.is_empty() {
+        println!("  No tactics found. Run `dijiang mem evolve` first.");
+        return Ok(());
+    }
     let total_tactics = tactics.len();
     let avg_win_rate = tactics.iter().map(|t| t.win_rate()).sum::<f64>() / total_tactics as f64;
     let high_performers: Vec<_> = tactics.iter().filter(|t| t.win_rate() > 0.7).collect();
@@ -233,11 +311,18 @@ pub fn cmd_mem_finetune() -> anyhow::Result<()> {
     println!("  Average win rate: {:.2}", avg_win_rate);
     println!("  High performers (>70%): {}", high_performers.len());
     println!("  Low performers (<30%): {}", low_performers.len());
-    if low_performers.len() > high_performers.len() { println!("  ⚠️  More low performers than high. Consider pruning."); }
-    else { println!("  ✅ Ratchet gate: PASS - system improving."); }
+    if low_performers.len() > high_performers.len() {
+        println!("  ⚠️  More low performers than high. Consider pruning.");
+    } else {
+        println!("  ✅ Ratchet gate: PASS - system improving.");
+    }
     let stats = dijiang_mem::MemoryStats {
-        total_findings: 0, total_learnings: 0, total_corrections: 0,
-        total_tactics: total_tactics as u64, total_patterns: 0, total_sessions: 0,
+        total_findings: 0,
+        total_learnings: 0,
+        total_corrections: 0,
+        total_tactics: total_tactics as u64,
+        total_patterns: 0,
+        total_sessions: 0,
         avg_tactic_win_rate: avg_win_rate,
         last_evolution: Some(chrono::Local::now().to_rfc3339()),
         last_finetune: Some(chrono::Local::now().to_rfc3339()),
@@ -250,7 +335,9 @@ pub fn cmd_mem_finetune() -> anyhow::Result<()> {
 pub fn cmd_mem_recall(query: &str, limit: usize, project: Option<&str>) -> anyhow::Result<()> {
     let mem = if let Some(p) = project {
         let path = std::path::Path::new(p);
-        if !path.join(".dijiang").exists() { anyhow::bail!("指定路径没有 .dijiang/ 目录: {p}"); }
+        if !path.join(".dijiang").exists() {
+            anyhow::bail!("指定路径没有 .dijiang/ 目录: {p}");
+        }
         let dijiang_dir = store::find_dijiang_dir(path)
             .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录"))?;
         current_project_memory(&dijiang_dir)?
@@ -258,8 +345,9 @@ pub fn cmd_mem_recall(query: &str, limit: usize, project: Option<&str>) -> anyho
         current_project_memory(&require_dijiang_dir()?)?
     };
     let results = mem.recall(query, limit)?;
-    if results.is_empty() { println!("  No matching memories found."); }
-    else {
+    if results.is_empty() {
+        println!("  No matching memories found.");
+    } else {
         println!("  Found {} result(s):\n", results.len());
         for (i, r) in results.iter().enumerate() {
             let pct = (r.score * 100.0) as u8;
@@ -308,14 +396,22 @@ pub fn cmd_mem_list() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    println!("  Providers: {} ({})", providers.join(" + "), registry.adapter_count());
+    println!(
+        "  Providers: {} ({})",
+        providers.join(" + "),
+        registry.adapter_count()
+    );
     println!();
 
     let total_sessions: usize = projects.iter().map(|p| p.sessions.len()).sum();
 
     for p in &projects {
         let total = p.sessions.len();
-        let active = p.sessions.iter().filter(|s| s.status == dijiang_mem::SessionStatus::Active).count();
+        let active = p
+            .sessions
+            .iter()
+            .filter(|s| s.status == dijiang_mem::SessionStatus::Active)
+            .count();
         let archived = total - active;
         let latest = p.last_active_at.as_deref().unwrap_or("-");
         println!("  {project}", project = p.project_id);
@@ -326,17 +422,30 @@ pub fn cmd_mem_list() -> anyhow::Result<()> {
             let task = s.task.as_deref().unwrap_or("(no task)");
             let truncated = if task.len() > 60 {
                 let mut end = 57;
-                while !task.is_char_boundary(end) { end += 1; }
+                while !task.is_char_boundary(end) {
+                    end += 1;
+                }
                 &task[..end]
-            } else { task };
-            let marker = if s.status == dijiang_mem::SessionStatus::Active { "[A]" } else { "[ ]" };
+            } else {
+                task
+            };
+            let marker = if s.status == dijiang_mem::SessionStatus::Active {
+                "[A]"
+            } else {
+                "[ ]"
+            };
             println!("    {marker:7} {truncated}");
         }
-        if p.sessions.len() > 3 { println!("    ... and {} more", p.sessions.len() - 3); }
+        if p.sessions.len() > 3 {
+            println!("    ... and {} more", p.sessions.len() - 3);
+        }
         println!();
     }
 
-    println!("  Total: {total_sessions} session(s)", total_sessions = total_sessions);
+    println!(
+        "  Total: {total_sessions} session(s)",
+        total_sessions = total_sessions
+    );
     println!();
     Ok(())
 }
@@ -375,7 +484,9 @@ pub fn cmd_mem_sync() -> anyhow::Result<()> {
 
     println!("  Synced: {} new sessions", synced);
     println!("  Skipped: {} already in store", skipped);
-    if synced > 0 { println!("  Location: ~/.dijiang/mem/sessions/"); }
+    if synced > 0 {
+        println!("  Location: ~/.dijiang/mem/sessions/");
+    }
     println!();
     Ok(())
 }
