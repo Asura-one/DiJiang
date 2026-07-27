@@ -10,7 +10,7 @@
 4. **一个规范 workflow** — CLI、skills、AGENTS、prompts 和 agents 都是这个模型的投影。
 5. **Session 身份隔离** — workflow hooks/runtime 在缺少稳定身份时保持 stateless，不读写共享的 active task、runtime 或 journal；终端 CLI lifecycle commands 为兼容性保留 legacy task pointer。
 6. **Context 路径受限** — task context 仅接受仓库内、存在的文件，且 action 仅限 `implement` 或 `check`。
-7. **模板一致性可验证** — skill registry、runtime manifest 和嵌入模板必须保持一一对应，漂移由测试和 `verify_skills.py` 拦截。
+7. **模板一致性可验证** — skill registry、runtime manifest 和嵌入模板必须保持一一对应，漂移由 Rust asset/registry tests 强制执行。
 8. **验证循环优先** — 把目标拆成可证明的命题，先建立 pass/fail 反馈回路，再让实现、审查和记忆围绕它收敛。
 9. **决策可持久追溯** — 重要取舍写 ADR，记录 why、状态和替代方案；设计文档描述当前形态并引用 ADR。
 10. **复利式学习** — AI 造成或发现的问题必须沉淀到 prompt、skill、spec 或 memory，让下一轮工作少犯同类错。
