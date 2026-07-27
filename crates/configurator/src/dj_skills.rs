@@ -34,72 +34,89 @@ fn global_skills_dir() -> Result<PathBuf> {
 /// from embedded resources. Force refresh rewrites managed global dj-* skills.
 pub fn ensure_global_skills(force: bool) -> Result<PathBuf> {
     let dir = global_skills_dir()?;
-
-    if !force && dir.exists() && dir.read_dir()?.next().is_some() {
-        return Ok(dir);
-    }
-
     fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
 
-    // Discover and copy all skills from the embedded template directory.
-    // Each skill is under `skills/<name>/SKILL.md` in the templates.
     for path in TemplateAssets::iter() {
         let path = path.as_ref();
-        if let Some(name) = path
-            .strip_prefix("skills/")
-            .and_then(|p| p.strip_suffix("/SKILL.md"))
-        {
-            if name.contains('/') || name.starts_with('.') {
-                continue; // Skip nested files and retired/hidden skills
-            }
-            let asset = TemplateAssets::get(path)
-                .expect("Embedded skill SKILL.md should exist after iter() returned it");
-            let content = std::str::from_utf8(asset.data.as_ref())
-                .context("Skill SKILL.md is not valid UTF-8")?;
-            let skill_dir = dir.join(name);
-            fs::create_dir_all(&skill_dir)?;
-            fs::write(skill_dir.join("SKILL.md"), content)?;
+        let Some(relative_path) = path.strip_prefix("skills/") else {
+            continue;
+        };
+        let Some((name, _)) = relative_path.split_once('/') else {
+            continue;
+        };
+        if name.starts_with('.') {
+            continue;
         }
+        let destination = dir.join(relative_path);
+        if destination.exists() && !force {
+            continue;
+        }
+        let asset = TemplateAssets::get(path)
+            .expect("Embedded skill asset should exist after iter() returned it");
+        let parent = destination
+            .parent()
+            .expect("Skill asset path must have a parent directory");
+        fs::create_dir_all(parent)?;
+        fs::write(destination, asset.data.as_ref())?;
     }
 
     Ok(dir)
 }
 
-/// Write dj-* skills from the global template directory into a project's
-/// `.pi/skills/` directory. Force refresh rewrites managed global templates
-/// and overwrites project copies of managed `dj-*` skills.
+/// Write managed skill directories from the global template directory into a
+/// project's `.pi/skills/` directory. Each directory, including references and
+/// scripts, is copied as one unit so init and update have identical assets.
 pub fn write_project_skills(project_dir: &Path, force: bool) -> Result<usize> {
     let global_dir = ensure_global_skills(force)?;
     let pi_skills = project_dir.join(".pi").join("skills");
-
     let mut written = 0usize;
 
-    if global_dir.exists() {
-        for entry in fs::read_dir(&global_dir)? {
-            let entry = entry?;
-            let name = entry.file_name();
-            let name_str = name.to_string_lossy().to_string();
-            if !entry.file_type()?.is_dir() || name_str.starts_with('.') {
-                continue;
-            }
-            let src = entry.path().join("SKILL.md");
-            if !src.exists() {
-                continue;
-            }
-            let dst_dir = pi_skills.join(&name_str);
-            let dst = dst_dir.join("SKILL.md");
-
-            if dst.exists() && !force {
-                continue;
-            }
-
-            fs::create_dir_all(&dst_dir)?;
-            fs::copy(&src, &dst)?;
-            written += 1;
+    for entry in fs::read_dir(&global_dir)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !entry.file_type()?.is_dir() || name.starts_with('.') {
+            continue;
         }
+        let source = entry.path();
+        if !source.join("SKILL.md").exists() {
+            continue;
+        }
+        let destination = pi_skills.join(name.as_ref());
+        if destination.exists() && !force {
+            continue;
+        }
+        copy_skill_dir(&source, &destination)?;
+        written += 1;
     }
 
     Ok(written)
+}
+
+fn copy_skill_dir(source: &Path, destination: &Path) -> Result<()> {
+    if destination.exists() {
+        fs::remove_dir_all(destination)?;
+    }
+    copy_dir_contents(source, destination)
+}
+
+fn copy_dir_contents(source: &Path, destination: &Path) -> Result<()> {
+    fs::create_dir_all(destination)?;
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if name.to_string_lossy().starts_with('.') {
+            continue;
+        }
+        let source_path = entry.path();
+        let destination_path = destination.join(name);
+        if entry.file_type()?.is_dir() {
+            copy_dir_contents(&source_path, &destination_path)?;
+        } else {
+            fs::copy(&source_path, &destination_path)?;
+        }
+    }
+    Ok(())
 }
 
 pub fn get_skill_content(name: &str) -> Option<String> {

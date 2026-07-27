@@ -17,6 +17,13 @@ type WorkflowStatePayload = {
   expectedWorktreePath?: string;
   guidance?: string;
 };
+
+type WorkflowStateJson = {
+  activeTask?: { id?: string; title?: string; status?: string };
+  routeGate?: { capsule?: string };
+  gitGate?: { state?: string; worktreePath?: string };
+  guidance?: string;
+};
 function errorContext(message: string): string {
   const session =
     process.env.DIJIANG_CONTEXT_ID ||
@@ -97,29 +104,20 @@ async function hasDirtyDiff(pi: ExtensionAPI): Promise<boolean> {
 
 async function getWorkflowState(pi: ExtensionAPI): Promise<WorkflowStatePayload | null> {
   try {
-    const result = await pi.exec("dijiang", ["workflow-state", "--json"]);
-    const payload = JSON.parse(result.stdout?.trim() || "{}");
-    const context = typeof payload.additionalContext === "string" ? payload.additionalContext : "";
-    if (!context) {
+    const result = await pi.exec("dijiang", ["workflow-state", "--json"], { timeout: 3000 });
+    const payload = JSON.parse(result.stdout?.trim() || "{}") as { state?: WorkflowStateJson };
+    const state = payload.state;
+    if (!state) {
       return null;
     }
-    const pick = (label: string): string | undefined => {
-      const match = context.match(new RegExp(`^${label}：(.+)$`, "m"));
-      return match?.[1]?.trim();
-    };
-    const routeGate = pick("Route Gate");
-    const gitGate = pick("Git Gate");
-    const capsuleMatch = routeGate?.match(/capsule=([^；]+)/);
-    const gitStateMatch = gitGate?.match(/state=([^；]+)/);
-    const worktreePathMatch = gitGate?.match(/worktreePath=([^；]+)/);
     return {
-      activeTaskId: pick("活跃任务"),
-      activeTaskTitle: pick("标题"),
-      activeTaskStatus: pick("状态"),
-      capsule: capsuleMatch?.[1]?.trim(),
-      gitGateState: gitStateMatch?.[1]?.trim(),
-      expectedWorktreePath: worktreePathMatch?.[1]?.trim(),
-      guidance: pick("指引"),
+      activeTaskId: state.activeTask?.id,
+      activeTaskTitle: state.activeTask?.title,
+      activeTaskStatus: state.activeTask?.status,
+      capsule: state.routeGate?.capsule,
+      gitGateState: state.gitGate?.state,
+      expectedWorktreePath: state.gitGate?.worktreePath,
+      guidance: state.guidance,
     };
   } catch {
     return null;
@@ -276,14 +274,10 @@ export default function (pi: ExtensionAPI) {
       },
     };
   }
-
   pi.on("before_agent_start", async (event) => {
     return maybeDispatchFromPrompt("before_agent_start", event.prompt);
   });
 
-  pi.on("user_prompt_submit", async (event) => {
-    return maybeDispatchFromPrompt("user_prompt_submit", event.prompt);
-  });
 
   pi.on("tool_call", async (event) => {
     const ev = event as ToolResultEvent;

@@ -128,18 +128,9 @@ mod tests {
 
     #[test]
     fn resolve_agent_returns_researcher_for_research_task() {
-        assert_eq!(
-            resolve_agent(Some("research"), None, "align"),
-            "researcher"
-        );
-        assert_eq!(
-            resolve_agent(Some("调研"), None, "align"),
-            "researcher"
-        );
-        assert_eq!(
-            resolve_agent(Some("调研对齐"), None, "align"),
-            "researcher"
-        );
+        assert_eq!(resolve_agent(Some("research"), None, "align"), "researcher");
+        assert_eq!(resolve_agent(Some("调研"), None, "align"), "researcher");
+        assert_eq!(resolve_agent(Some("调研对齐"), None, "align"), "researcher");
     }
 
     #[test]

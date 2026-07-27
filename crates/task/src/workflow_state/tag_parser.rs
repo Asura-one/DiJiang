@@ -1,11 +1,6 @@
-/// Parse `[workflow-state:TAG]...[/workflow-state:TAG]` blocks from a
-/// Markdown file (typically `.dijiang/workflow.md`).
-///
-/// This implements the Trellis "workflow.md is the runtime state machine"
-/// pattern: the workflow document is the single source of truth for
-/// per-turn breadcrumb text. When the file cannot be read or parsed,
-/// lookups return `None` so the caller can fall back to hardcoded guidance.
-
+/// Parse `[workflow-state:TAG]...[/workflow-state:TAG]` breadcrumb blocks
+/// from `.dijiang/workflow.md`. Runtime routing remains defined in Rust.
+/// Missing or malformed files intentionally yield no breadcrumb text.
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;

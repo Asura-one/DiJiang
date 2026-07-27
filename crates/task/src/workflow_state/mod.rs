@@ -346,56 +346,6 @@ fn memory_event_from_json(value: serde_json::Value) -> Option<WorkflowMemoryEven
     Some(WorkflowMemoryEvent { kind, detail, at })
 }
 
-fn format_memory(memory: &WorkflowMemory) -> String {
-    if memory.events.is_empty() {
-        return format!("最近记忆：{}", memory.summary);
-    }
-
-    // Fold consecutive events with identical detail text into a single
-    // line with a repeat count, keeping the context bounded.
-    let mut folded_events: Vec<String> = Vec::new();
-    let mut repeat_count: usize = 0;
-    let mut last_detail: Option<String> = None;
-
-    for event in &memory.events {
-        let detail_line = match &event.at {
-            Some(at) => format!("- [{}] {}", at, event.detail),
-            None => format!("- {}", event.detail),
-        };
-        // Normalize detail for dedup comparison (strip timestamps from
-        // injection counts to avoid false uniqueness)
-        let normalized = event.detail.replace("注入 #", "注入 #");
-
-        if let Some(last) = &last_detail {
-            if normalized == *last {
-                repeat_count += 1;
-                continue;
-            } else {
-                if repeat_count > 0 {
-                    if let Some(entry) = folded_events.last_mut() {
-                        *entry = format!("{} (×{})", entry, repeat_count + 1);
-                    }
-                }
-                folded_events.push(detail_line.clone());
-                last_detail = Some(normalized);
-                repeat_count = 0;
-            }
-        } else {
-            folded_events.push(detail_line.clone());
-            last_detail = Some(normalized);
-            repeat_count = 0;
-        }
-    }
-    // Flush last entry
-    if repeat_count > 0 {
-        if let Some(entry) = folded_events.last_mut() {
-            *entry = format!("{} (×{})", entry, repeat_count + 1);
-        }
-    }
-
-    format!("最近记忆：{}\n{}", memory.summary, folded_events.join("\n"))
-}
-
 /// Best-effort read-back of learned tactics (global) and patterns (project).
 ///
 /// Reads from the global tactic store (`~/.dijiang/memory/tactics.json`) and
@@ -601,36 +551,6 @@ fn load_peer_sessions(
     peers.sort_by(|left, right| right.last_seen_at.cmp(&left.last_seen_at));
     peers.truncate(limit);
     Ok(peers)
-}
-
-fn format_peer_sessions(peers: &[WorkflowPeerSession]) -> String {
-    if peers.is_empty() {
-        return "其他活跃窗口：none".to_string();
-    }
-
-    let sessions = peers
-        .iter()
-        .map(|peer| {
-            let task = peer
-                .current_task
-                .as_deref()
-                .or(peer.closed_task.as_deref())
-                .unwrap_or("none");
-            let state = if peer.current_task.is_some() {
-                "active"
-            } else if peer.closed_task.is_some() {
-                "closed"
-            } else {
-                "idle"
-            };
-            format!(
-                "- {} ({}) 任务={} 状态={} 注入={} 最近活跃={}",
-                peer.key, peer.source, task, state, peer.injection_count, peer.last_seen_at,
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("其他活跃窗口：{}\n{}", peers.len(), sessions)
 }
 
 fn read_developer(dijiang_dir: &Path) -> String {
@@ -866,19 +786,6 @@ fn format_git_gate(git_gate: &WorkflowGitGate) -> String {
     )
 }
 
-fn format_skill_manifests(skill_manifests: &[WorkflowSkillManifest]) -> String {
-    if skill_manifests.is_empty() {
-        return "Skill Manifests：none".to_string();
-    }
-
-    let entries = skill_manifests
-        .iter()
-        .map(|manifest| format!("{}({})", manifest.name, manifest.summary))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!("Skill Manifests：{}", entries)
-}
-
 fn workflow_loop_state(task_context: &WorkflowTaskContext<'_>) -> WorkflowLoopState {
     let task = task_context.task;
     let dispatch = dispatch_meta(task);
@@ -1084,46 +991,6 @@ fn next_skill_from_recommended_path(recommended_path: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-fn format_loop_state(loop_state: &WorkflowLoopState) -> String {
-    let stop_conditions = if loop_state.stop_conditions.is_empty() {
-        "none".to_string()
-    } else {
-        loop_state.stop_conditions.join(" | ")
-    };
-    let retry = format!(
-        "attempt={}; max={}; remaining={}; can_retry={}; last_failure={}",
-        loop_state.retry.attempt,
-        loop_state
-            .retry
-            .max_attempts
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| "unbounded".to_string()),
-        loop_state
-            .retry
-            .remaining_attempts
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| "unknown".to_string()),
-        loop_state.retry.can_retry,
-        loop_state.retry.last_failure.as_deref().unwrap_or("none"),
-    );
-    format!(
-        "Loop：goal={}；mode={}；progress={} ({})；next_skill={}；next_action={}；agent_focus={}；resolved_agent={}；memory_writeback=outcome:{}|next_tactic:{}|next_pattern:{}；stop_conditions={}；retry={}",
-        loop_state.goal,
-        loop_state.mode,
-        loop_state.progress.status,
-        loop_state.progress.signal,
-        loop_state.next_skill.as_deref().unwrap_or("none"),
-        loop_state.next_action,
-        loop_state.agent_focus,
-        loop_state.resolved_agent.as_deref().unwrap_or("none"),
-        loop_state.memory_writeback.outcome,
-        loop_state.memory_writeback.next_tactic,
-        loop_state.memory_writeback.next_pattern,
-        stop_conditions,
-        retry,
-    )
-}
-
 fn status_guidance(status: &TaskStatus) -> &'static str {
     match status {
         TaskStatus::Planning => {
@@ -1215,27 +1082,14 @@ mod tests {
         let state_b = build_for_session(&dijiang_dir, Some(&window_b)).unwrap();
         let context_b = state_b.additional_context();
 
-        assert!(context_a.contains("会话：dijiang_window-a（dijiang）"));
-        assert!(context_a.contains("注入：#1"));
-        assert!(context_a.contains("活跃任务是否变化：true"));
         assert!(context_a.contains("活跃任务：task-a"));
         assert!(context_a.contains("标题：Task A"));
         assert!(context_a.contains("Route Gate：capsule=implement"));
-        assert!(context_a.contains("default_skill=dj-implement"));
         assert!(context_a.contains("Git Gate：state=ready"));
-        assert!(context_a.contains("worktreePath=none"));
-        assert!(context_a.contains("Skill Manifests："));
-        assert!(context_a.contains("dj-implement("));
-        assert!(context_a.contains("dj-tdd("));
         assert!(context_a.contains("Target Skill：[dj-implement"));
-        assert!(context_a.contains("Loop：goal=Task A"));
-        assert!(context_a.contains("progress=executing (实现与验证正在推进)"));
-        assert!(context_a.contains("next_skill=dj-implement"));
-        assert!(context_a.contains("agent_focus=任务类型=未分类任务"));
-        assert!(context_a.contains("memory_writeback=outcome:execution_in_progress|next_tactic:dj-implement | continue current loop|next_pattern: | follow route gate"));
-        assert!(context_a.contains(
-            "retry=attempt=1; max=unbounded; remaining=unknown; can_retry=true; last_failure=none"
-        ));
+        assert!(!context_a.contains("Learned Memory (read-back)"));
+        assert!(!context_a.contains("Skill Manifests："));
+        assert!(!context_a.contains("Loop：goal=Task A"));
         assert!(context_b.contains("会话：dijiang_window-b（dijiang）"));
         assert!(context_b.contains("活跃任务：task-b"));
         assert!(context_b.contains("标题：Task B"));
@@ -1243,14 +1097,8 @@ mod tests {
         let next_a = build_for_session(&dijiang_dir, Some(&window_a))
             .unwrap()
             .additional_context();
+        assert!(next_a.contains("活跃任务：task-a"));
         assert!(next_a.contains("注入：#2"));
-        assert!(next_a.contains("活跃任务是否变化：false"));
-        assert!(
-            next_a.contains("下一步=继续当前 loop，并按 dj-implement 推进下一轮最小验证闭环")
-                || next_a.contains(
-                    "next_action=继续当前 loop，并按 dj-implement 推进下一轮最小验证闭环"
-                )
-        );
 
         let log = std::fs::read_to_string(dijiang_dir.join(".runtime/workflow-state.log")).unwrap();
         assert!(log.contains("workflow_state_injected"));
@@ -1259,7 +1107,6 @@ mod tests {
         assert!(log.contains("route_gate"));
         assert!(log.contains("skill_manifests"));
         assert!(log.contains("loop_state"));
-
         let journal_a = std::fs::read_to_string(
             dijiang_dir.join("workspace/tester/sessions/dijiang_window-a.jsonl"),
         )
@@ -1332,15 +1179,10 @@ mod tests {
         assert!(context.contains("Route Gate：capsule=align"));
         assert!(context.contains("default_skill=dj-grill"));
         assert!(context.contains("Git Gate：state=ready"));
-        assert!(context.contains("dj-grill("));
-        assert!(context.contains("dj-output"));
         assert!(context.contains("Target Skill：[dj-grill"));
-        assert!(context.contains("Loop：goal=Align Task"));
-        assert!(context.contains("progress=aligning (需求与验收标准仍需对齐)"));
-        assert!(context.contains("next_skill=dj-grill"));
-        assert!(context.contains("agent_focus=任务类型=未分类任务"));
+        assert!(!context.contains("Skill Manifests："));
+        assert!(!context.contains("Loop：goal=Align Task"));
     }
-
     #[test]
     fn paused_state_exposes_continue_route() {
         let dir = tempfile::tempdir().unwrap();
@@ -1366,10 +1208,9 @@ mod tests {
         assert!(context.contains("Route Gate：capsule=implement"));
         assert!(context.contains("default_skill=dj-implement"));
         assert!(context.contains("Git Gate：state=ready"));
-        assert!(context.contains("Skill Manifests："));
-        assert!(context.contains("Loop：goal=Paused Task"));
+        assert!(!context.contains("Skill Manifests："));
+        assert!(!context.contains("Loop：goal=Paused Task"));
     }
-
     #[test]
     fn archived_state_exposes_restart_requirement() {
         let dir = tempfile::tempdir().unwrap();
@@ -1395,10 +1236,8 @@ mod tests {
         assert!(context.contains("Route Gate：capsule=align"));
         assert!(context.contains("default_skill=dj-grill"));
         assert!(context.contains("Git Gate：state=ready"));
-        assert!(context.contains("dj-grill("));
         assert!(context.contains("Target Skill：[dj-grill"));
-        assert!(context.contains("progress=ready_to_restart"));
-        assert!(context.contains("先 restart 任务并按 planning 路径重新对齐"));
+        assert!(!context.contains("progress=ready_to_restart"));
     }
 
     #[test]
@@ -1509,13 +1348,7 @@ mod tests {
             .unwrap()
             .additional_context();
 
-        assert!(
-            context.contains("Learned Memory (read-back)："),
-            "context should surface read-back section: {context}"
-        );
-        assert!(
-            context.contains("loop-verified-and-archived"),
-            "context should read back the project pattern: {context}"
-        );
+        assert!(!context.contains("Learned Memory (read-back)："));
+        assert!(!context.contains("loop-verified-and-archived"));
     }
 }

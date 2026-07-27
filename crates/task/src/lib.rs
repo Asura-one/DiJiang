@@ -2,28 +2,37 @@ pub mod agent_manifest;
 pub mod benchmarks;
 pub mod buckets;
 pub mod capability_gate;
+pub mod circuit_breaker;
 pub mod config;
 pub mod context;
-pub mod circuit_breaker;
-pub mod doc_sync;
 pub mod developer;
+pub mod doc_sync;
 pub mod git_gate;
 pub mod hooks;
 pub mod route_gate;
+pub mod routing_registry;
 pub mod skill_manifest;
 pub mod spec_sync;
 pub mod store;
 pub use agent_manifest::{
-    AgentManifestEntry, agent_by_name, agent_body_by_name, all_agent_names, resolve_agent,
+    AgentManifestEntry, agent_body_by_name, agent_by_name, all_agent_names, resolve_agent,
 };
 pub use store::{
-    ContextEntry, activate_new_task, apply_completion_gate, apply_readiness_gate,
-    read_active_task_for_session, scaffold_task_docs, write_active_task_for_session,
-    add_checklist_item, set_checklist_item, remove_checklist_item, get_checklist,
-    is_checklist_complete,
+    ContextEntry, activate_new_task, add_checklist_item, apply_completion_gate,
+    apply_readiness_gate, ensure_finish_eligible, get_checklist, is_checklist_complete,
+    read_active_task_for_session, remove_checklist_item, scaffold_task_docs, set_checklist_item,
+    write_active_task_for_session,
 };
 pub mod types;
 pub mod workflow_state;
+pub use benchmarks::{
+    BenchmarkResult, CheckResult, find_scenario as find_benchmark_scenario,
+    list_scenarios as list_benchmark_scenarios, run_scenario as run_benchmark_scenario,
+};
+pub use buckets::{
+    BucketCategory, BucketConfig, bucket_statistics, find_bucket_for_skill, get_bucket_info,
+    get_default_buckets, list_bucket_names, list_skills_by_bucket,
+};
 pub use capability_gate::{
     CapabilityAction, CapabilityDecision, CapabilityTarget, evaluate_capability,
 };
@@ -32,40 +41,24 @@ pub use circuit_breaker::{
     PruneConfig, build_context_injection, check_circuit_breaker, error_signature, prune_ledger,
     summarize_attempts,
 };
+pub use config::{
+    Config, HooksSection, ProjectConfig, load_config, read_developer, read_hooks_config,
+    read_project_name, read_project_version,
+};
 pub use git_gate::{
     GitGateInput, GitGateState, GitGateSummary, GitRuntimeLocation, WorktreeReadiness,
     evaluate_worktree_readiness, summarize_git_gate, worktree_readiness,
 };
 pub use route_gate::{
-    RouteAction, RouteDecision, RouteGateSummary, RouteIntent, TaskComplexity, WorkflowCapsule, evaluate_route,
-    summarize_route_gate,
+    RouteAction, RouteDecision, RouteGateSummary, RouteIntent, TaskComplexity, WorkflowCapsule,
+    evaluate_route, summarize_route_gate,
 };
+pub use routing_registry::{SkillRoute, skill_route, skill_routes};
 pub use skill_manifest::{
     SelectedSkillBody, SkillBodyCache, SkillManifestEntry, manifest_by_name, manifests_for_capsule,
     render_selected_skill_bodies, select_skill_bodies, skill_body_by_name,
 };
 pub use types::{TASK_RECORD_FIELD_ORDER, TaskRecord, TaskStatus};
-pub use config::{
-    Config, ProjectConfig, HooksSection, load_config, read_developer, read_project_name,
-    read_project_version, read_hooks_config,
-};
-pub use benchmarks::{
-    BenchmarkResult,
-    CheckResult,
-    list_scenarios as list_benchmark_scenarios,
-    find_scenario as find_benchmark_scenario,
-    run_scenario as run_benchmark_scenario,
-};
-pub use buckets::{
-    BucketCategory,
-    BucketConfig,
-    find_bucket_for_skill,
-    get_bucket_info,
-    list_bucket_names,
-    list_skills_by_bucket,
-    get_default_buckets,
-    bucket_statistics,
-};
 
 mod tests {
     use super::*;

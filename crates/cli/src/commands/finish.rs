@@ -1281,6 +1281,10 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         ensure_finish_preconditions(&project_root, task_before_archive, options)?;
     ensure_finish_capabilities(task_before_archive, options)?;
     let version_update = apply_version_and_changelog_gates(&project_root, options.version_impact)?;
+    if let Some(target) = resolved_target.as_ref() {
+        dijiang_task::ensure_finish_eligible(&tasks_dir, &target.task_name)
+            .map_err(|reason| anyhow::anyhow!("finish-work blocked: {reason}"))?;
+    }
     let developer = dijiang_task::developer::resolve_developer(&dijiang_dir);
     let (session_key, source) = current_session_key();
     let task_label = resolved_target
@@ -1312,12 +1316,6 @@ pub fn cmd_finish_work(options: FinishWorkOptions<'_>) -> anyhow::Result<()> {
         options.allow_dirty,
     )?;
     let archive_status = if let Some(target) = resolved_target.as_ref() {
-        if target.task.status == TaskStatus::Planning {
-            store::update_status(&tasks_dir, &target.task_name, TaskStatus::InProgress)?;
-        }
-        if target.task.status != TaskStatus::Completed {
-            store::update_status(&tasks_dir, &target.task_name, TaskStatus::Completed)?;
-        }
         let task = store::archive_task(&tasks_dir, &target.task_name)?;
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskFinish, &target.task_name);
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskArchive, &target.task_name);
