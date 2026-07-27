@@ -13,14 +13,21 @@ pub struct WorkflowState {
     pub active_task: Option<WorkflowTask>,
     pub guidance: String,
     pub runtime: WorkflowRuntime,
+    #[serde(skip_serializing)]
     pub loop_state: Option<WorkflowLoopState>,
+    #[serde(skip_serializing)]
     pub memory: WorkflowMemory,
+    #[serde(skip_serializing)]
     pub peers: Vec<WorkflowPeerSession>,
     pub route_gate: Option<WorkflowRouteGate>,
     pub git_gate: Option<WorkflowGitGate>,
+    #[serde(skip_serializing)]
     pub skill_manifests: Vec<WorkflowSkillManifest>,
+    #[serde(skip_serializing)]
     pub workflow_tags: WorkflowTagMap,
+    #[serde(skip_serializing)]
     pub learned_memory: WorkflowLearnedMemory,
+    #[serde(skip_serializing)]
     pub circuit_breaker_status: Option<BreakerDecision>,
 }
 
@@ -247,9 +254,7 @@ impl ActiveTaskState {
 impl WorkflowState {
     pub fn additional_context(&self) -> String {
         use crate::workflow_state::{
-            format_learned_memory, format_loop_state, format_memory,
-            format_peer_sessions, format_route_gate, format_git_gate,
-            format_skill_manifests, format_target_skill_bodies,
+            format_git_gate, format_route_gate, format_target_skill_bodies,
         };
 
         let session_line = self
@@ -257,44 +262,29 @@ impl WorkflowState {
             .as_ref()
             .map(|session| format!("会话：{}（{}）", session.key, session.source))
             .unwrap_or_else(|| "会话：global fallback".to_string());
-        let previous = self
-            .runtime
-            .previous_active_task
-            .as_deref()
-            .unwrap_or("none");
         let runtime_line = format!(
-            "注入：#{}，时间：{}\n活跃任务是否变化：{}\n上一个活跃任务：{}\n运行日志：{}\n会话日志：{}",
+            "注入：#{}，活跃任务是否变化：{}，上一个活跃任务：{}",
             self.runtime.injection_count,
-            self.runtime.last_seen_at,
             self.runtime.active_task_changed,
-            previous,
-            self.runtime.log_path,
-            self.runtime.journal_path
+            self.runtime
+                .previous_active_task
+                .as_deref()
+                .unwrap_or("none"),
         );
-        let loop_line = self
-            .loop_state
-            .as_ref()
-            .map(format_loop_state)
-            .unwrap_or_else(|| "Loop：none".to_string());
-        let memory_line = format_memory(&self.memory);
-        let peers_line = format_peer_sessions(&self.peers);
-        let learned_line = format_learned_memory(&self.learned_memory);
-        let breaker_line = self
-            .circuit_breaker_status
-            .as_ref()
-            .map(|d| format!("Circuit Breaker：{}", d))
-            .unwrap_or_else(|| "Circuit Breaker：none".to_string());
-
         let tag_line = match &self.active_task {
             Some(task) => {
                 let status = &task.status;
-                match crate::workflow_state::tag_parser::tag_for_status(&self.workflow_tags, status) {
+                match crate::workflow_state::tag_parser::tag_for_status(&self.workflow_tags, status)
+                {
                     Some(text) => format!("Workflow 标签 [{}]:\n{}", status, text),
                     None => format!("Workflow 标签 [{}]: （无）", status),
                 }
             }
             None => {
-                match crate::workflow_state::tag_parser::tag_for_status(&self.workflow_tags, "no_task") {
+                match crate::workflow_state::tag_parser::tag_for_status(
+                    &self.workflow_tags,
+                    "no_task",
+                ) {
                     Some(text) => format!("Workflow 标签 [no_task]:\n{}", text),
                     None => String::new(),
                 }
@@ -303,7 +293,7 @@ impl WorkflowState {
 
         let Some(task) = &self.active_task else {
             return format!(
-                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n{tag_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
+                "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
                 self.guidance
             );
         };
@@ -318,31 +308,20 @@ impl WorkflowState {
             .as_ref()
             .map(format_git_gate)
             .unwrap_or_default();
-        let skill_manifest_line = format_skill_manifests(&self.skill_manifests);
         let target_skill_line = format_target_skill_bodies(
             self.route_gate.as_ref(),
             &self.skill_manifests,
             self.route_gate
-.as_ref()
-.map(|route_gate| route_gate.default_skill.as_str())
-.unwrap_or_default(),
+                .as_ref()
+                .map(|route_gate| route_gate.default_skill.as_str())
+                .unwrap_or_default(),
             self.route_gate
-.as_ref()
-.map(|route_gate| route_gate.recommended_path.as_str())
-.unwrap_or_default(),
+                .as_ref()
+                .map(|route_gate| route_gate.recommended_path.as_str())
+                .unwrap_or_default(),
         );
-
-        let agent_line = self.loop_state
-            .as_ref()
-            .and_then(|ls| ls.resolved_agent.as_ref())
-            .and_then(|name| {
-                let entry = crate::agent_manifest::agent_by_name(name)?;
-                Some(format!("<dijiang-agent name=\"{}\" summary=\"{}\" />", entry.name, entry.summary))
-            })
-            .unwrap_or_default();
-
         format!(
-            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n{loop_line}\n{learned_line}\n{breaker_line}\n{memory_line}\n{peers_line}\n{tag_line}\n{agent_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+            "<dijiang-workflow-state>\n{session_line}\n{runtime_line}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
             task.id,
             task.title,
             task.status,
@@ -350,9 +329,8 @@ impl WorkflowState {
             self.guidance,
             route_gate_line,
             git_gate_line,
-            skill_manifest_line,
+            tag_line,
             target_skill_line,
         )
+    }
 }
-}
-

@@ -23,12 +23,11 @@ pub enum TaskError {
     InvalidStatus(String),
 
     #[error("Invalid transition: {from} → {to}")]
-    InvalidTransition {
-        from: TaskStatus,
-        to: TaskStatus,
-    },
-}
+    InvalidTransition { from: TaskStatus, to: TaskStatus },
 
+    #[error("Task is not eligible for archive: {0}")]
+    ArchiveIneligible(String),
+}
 
 /// Find the `.dijiang/` directory by walking up from `cwd`.
 /// Falls back to `.trellis/` for backward compatibility with existing projects.
@@ -273,7 +272,11 @@ fn update_workspace_index(dijiang_dir: &Path, task: &TaskRecord) -> Result<(), T
     let content = fs::read_to_string(&index_path)?;
 
     // Update Active Developers table
-    let dev_name = if task.creator.is_empty() { "none" } else { &task.creator };
+    let dev_name = if task.creator.is_empty() {
+        "none"
+    } else {
+        &task.creator
+    };
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
 
     let dev_row = format!("| {} | {} | - | - |\n", dev_name, today);
@@ -287,7 +290,12 @@ fn update_workspace_index(dijiang_dir: &Path, task: &TaskRecord) -> Result<(), T
             dev_updated = true;
             continue;
         }
-        if !dev_updated && line.starts_with("| ") && line.contains("|") && !line.contains("---") && !line.contains("Developer") {
+        if !dev_updated
+            && line.starts_with("| ")
+            && line.contains("|")
+            && !line.contains("---")
+            && !line.contains("Developer")
+        {
             new_content.push_str(&dev_row);
             dev_updated = true;
             continue;
@@ -304,8 +312,14 @@ fn update_workspace_index(dijiang_dir: &Path, task: &TaskRecord) -> Result<(), T
     }
 
     // Append task entry
-    let entry = format!("| {} | `{}` | {} | {} | {} |\n",
-        task.created_at, task.name, task.title, task.status.as_str(), dev_name);
+    let entry = format!(
+        "| {} | `{}` | {} | {} | {} |\n",
+        task.created_at,
+        task.name,
+        task.title,
+        task.status.as_str(),
+        dev_name
+    );
 
     if let Some(pos) = new_content.rfind("## Task History") {
         let after_header = &new_content[pos..];
@@ -440,7 +454,11 @@ pub fn update_status(
 /// Archive a task: set status to Archived and record archived_at timestamp.
 pub fn archive_task(tasks_dir: &Path, task_name: &str) -> Result<TaskRecord, TaskError> {
     let mut task = load_task(tasks_dir, task_name)?;
-    // Allow Planning→Archived (abandon) or Completed→Archived (correct flow)
+    // Planning → Archived is an explicit abandonment path. A completed task
+    // must use the same checklist gate as finish-work before it can close.
+    if task.status == TaskStatus::Completed {
+        ensure_finish_eligible(tasks_dir, task_name).map_err(TaskError::ArchiveIneligible)?;
+    }
     let old_status = task.status.clone();
     if !old_status.is_valid_transition(&TaskStatus::Archived) {
         return Err(TaskError::InvalidTransition {
@@ -506,16 +524,14 @@ pub fn prune_tasks(tasks_dir: &Path, older_than_days: u64) -> Result<usize, Task
 
 /// Link a child task under a parent task. Updates both task.json records:
 /// sets `parent` on the child and appends the child's id to the parent's `children` list.
-pub fn link_tasks(
-    tasks_dir: &Path,
-    parent_name: &str,
-    child_name: &str,
-) -> Result<(), TaskError> {
+pub fn link_tasks(tasks_dir: &Path, parent_name: &str, child_name: &str) -> Result<(), TaskError> {
     let mut parent = load_task(tasks_dir, parent_name)?;
     let mut child = load_task(tasks_dir, child_name)?;
 
     if parent_name == child_name {
-        return Err(TaskError::InvalidStatus("parent and child must be different tasks".into()));
+        return Err(TaskError::InvalidStatus(
+            "parent and child must be different tasks".into(),
+        ));
     }
 
     // Set parent on child
@@ -531,10 +547,7 @@ pub fn link_tasks(
 
 /// Unlink a child from its parent. Clears the child's `parent` field and
 /// removes the child's id from the parent's `children` list.
-pub fn unlink_task(
-    tasks_dir: &Path,
-    child_name: &str,
-) -> Result<(), TaskError> {
+pub fn unlink_task(tasks_dir: &Path, child_name: &str) -> Result<(), TaskError> {
     let mut child = load_task(tasks_dir, child_name)?;
     let parent_id = match child.parent.take() {
         Some(id) => id,
@@ -543,7 +556,11 @@ pub fn unlink_task(
 
     // Find the parent task by id
     let tasks = list_tasks(tasks_dir)?;
-    if let Some(parent_task) = tasks.iter().find(|t| t.id == parent_id).map(|t| t.name.clone()) {
+    if let Some(parent_task) = tasks
+        .iter()
+        .find(|t| t.id == parent_id)
+        .map(|t| t.name.clone())
+    {
         let mut parent = load_task(tasks_dir, &parent_task)?;
         parent.children.retain(|c| c != &child.id);
         save_task(tasks_dir, &parent)?;
@@ -609,7 +626,8 @@ const PRD_TEMPLATE: &str = "# {title}\n\n## Goal\n\nTBD.\n\n## Requirements\n\n-
 
 const DESIGN_TEMPLATE: &str = "# {title} — Technical Design\n\n## Background\n\n<why this design is needed>\n\n## Solution\n\n<design decisions and trade-offs>\n\n## Impact Scope\n\n<affected modules/interfaces/data models>\n";
 
-const IMPLEMENT_TEMPLATE: &str = "# {title} — Implementation Plan\n\n## Steps\n\n- [ ] TBD\n\n## Verification\n\n- [ ] TBD\n";
+const IMPLEMENT_TEMPLATE: &str =
+    "# {title} — Implementation Plan\n\n## Steps\n\n- [ ] TBD\n\n## Verification\n\n- [ ] TBD\n";
 
 /// Create scaffolding documentation (prd.md, design.md, implement.md)
 /// for a task, if they don't already exist.
@@ -671,11 +689,7 @@ pub fn set_task_hooks(
 /// Run hooks for a given event on a task. Each hook command is executed
 /// via the shell (sh -c). Non-zero exit codes are logged to stderr but
 /// do not abort remaining hooks or return an error.
-pub fn run_task_hooks(
-    tasks_dir: &Path,
-    task_name: &str,
-    event: &str,
-) -> Result<(), TaskError> {
+pub fn run_task_hooks(tasks_dir: &Path, task_name: &str, event: &str) -> Result<(), TaskError> {
     let hooks = match get_task_hooks(tasks_dir, task_name)? {
         Some(h) => h,
         None => return Ok(()),
@@ -686,10 +700,7 @@ pub fn run_task_hooks(
     };
     for cmd in &cmds {
         eprintln!("⚡ Hook [{}] {}: {}", task_name, event, cmd);
-        let output = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(cmd)
-            .output();
+        let output = std::process::Command::new("sh").arg("-c").arg(cmd).output();
         match output {
             Ok(out) => {
                 if !out.status.success() {
@@ -704,9 +715,8 @@ pub fn run_task_hooks(
     }
     Ok(())
 }
-/// Verifies that `prd.md` exists for the task and that `.dijiang/spec/` contains
+/// Verifies that a task has a substantive PRD and that `.dijiang/spec/` contains
 /// at least one directory before allowing implementation skills.
-/// If either check fails, redirects to the appropriate skill.
 pub fn apply_readiness_gate(
     dijiang_dir: &Path,
     tasks_dir: &Path,
@@ -723,52 +733,97 @@ pub fn apply_readiness_gate(
     if !is_implementation {
         return decision.clone();
     }
-    // Pre-development spec gate: spec directory must exist and be non-empty
     let spec_dir = dijiang_dir.join("spec");
-    let has_specs = if spec_dir.exists() && spec_dir.is_dir() {
-        std::fs::read_dir(&spec_dir)
-            .map(|mut it| it.any(|e| e.is_ok() && e.as_ref().unwrap().path().is_dir()))
-            .unwrap_or(false)
-    } else {
-        false
-    };
+    let has_specs = spec_dir.is_dir()
+        && std::fs::read_dir(&spec_dir)
+            .map(|entries| entries.flatten().any(|entry| entry.path().is_dir()))
+            .unwrap_or(false);
     if !has_specs {
-        return crate::route_gate::RouteDecision {
-            task_status: decision.task_status.clone(),
-            capsule: decision.capsule,
-            requested_intent: decision.requested_intent.clone(),
-            requested_skill: decision.requested_skill.clone(),
-            resolved_skill: "dj-spec-bootstrap",
-            action: crate::route_gate::RouteAction::Redirect,
-            reason: "spec directory (.dijiang/spec/) is missing or empty -- run dj-spec-bootstrap first".to_string(),
-            next_action: "run dj-spec-bootstrap to initialize project specs".to_string(),
-            requires_alignment_artifact: true,
-            complexity: decision.complexity,
-        };
+        return readiness_redirect(
+            decision,
+            "dj-spec-bootstrap",
+            "spec directory (.dijiang/spec/) is missing or empty -- run dj-spec-bootstrap first",
+            "run dj-spec-bootstrap to initialize project specs",
+        );
     }
-    let task_dir = tasks_dir.join(task_name);
-    let prd_path = task_dir.join("prd.md");
-    if !prd_path.exists() {
-        // For child tasks, check if parent has a prd.md to inherit from
-        if let Ok(task) = load_task(tasks_dir, task_name) {
-            if let Some(parent_name) = &task.parent {
-                let parent_prd = tasks_dir.join(parent_name).join("prd.md");
-                if parent_prd.exists() {
-                    return decision.clone();
-                }
-            }
+    if has_task_or_parent_prd(tasks_dir, task_name) {
+        return decision.clone();
+    }
+    readiness_redirect(
+        decision,
+        "dj-output",
+        "task PRD is missing or incomplete -- complete its goal, requirements, and acceptance criteria first",
+        "run dj-output to produce a substantive prd.md before implementation",
+    )
+}
+
+fn readiness_redirect(
+    decision: &RouteDecision,
+    resolved_skill: &'static str,
+    reason: &str,
+    next_action: &str,
+) -> RouteDecision {
+    RouteDecision {
+        task_status: decision.task_status.clone(),
+        capsule: decision.capsule,
+        requested_intent: decision.requested_intent.clone(),
+        requested_skill: decision.requested_skill.clone(),
+        resolved_skill,
+        action: RouteAction::Redirect,
+        reason: reason.to_string(),
+        next_action: next_action.to_string(),
+        requires_alignment_artifact: true,
+        complexity: decision.complexity,
+    }
+}
+
+fn has_task_or_parent_prd(tasks_dir: &Path, task_name: &str) -> bool {
+    let task_prd = tasks_dir.join(task_name).join("prd.md");
+    if has_substantive_prd(&task_prd) {
+        return true;
+    }
+    load_task(tasks_dir, task_name)
+        .ok()
+        .and_then(|task| task.parent)
+        .is_some_and(|parent| has_substantive_prd(&tasks_dir.join(parent).join("prd.md")))
+}
+
+fn has_substantive_prd(path: &Path) -> bool {
+    let Ok(content) = fs::read_to_string(path) else {
+        return false;
+    };
+    has_section_content(&content, "## Goal", |line| {
+        !matches!(line, "TBD." | "TBD" | "<why this design is needed>")
+    }) && has_section_content(&content, "## Requirements", |line| {
+        line.starts_with("- ") && !matches!(line, "- TBD" | "- [ ] TBD")
+    }) && has_section_content(&content, "## Acceptance Criteria", |line| {
+        (line.starts_with("- [ ] ") || line.starts_with("- [x] "))
+            && !matches!(line, "- [ ] TBD" | "- [x] TBD")
+    })
+}
+
+fn has_section_content(content: &str, heading: &str, predicate: impl Fn(&str) -> bool) -> bool {
+    let mut in_section = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed == heading {
+            in_section = true;
+            continue;
+        }
+        if in_section && trimmed.starts_with("## ") {
+            return false;
+        }
+        if in_section && !trimmed.is_empty() && predicate(trimmed) {
+            return true;
         }
     }
-    decision.clone()
+    false
 }
 
 // ── Task hierarchy (parent / children) ────────────────────────────────────
 
 /// Get the parent task record, if one exists.
-pub fn get_parent_task(
-    tasks_dir: &Path,
-    task_name: &str,
-) -> Result<Option<TaskRecord>, TaskError> {
+pub fn get_parent_task(tasks_dir: &Path, task_name: &str) -> Result<Option<TaskRecord>, TaskError> {
     let task = load_task(tasks_dir, task_name)?;
     match task.parent {
         Some(parent_name) => load_task(tasks_dir, &parent_name).map(Some),
@@ -777,10 +832,7 @@ pub fn get_parent_task(
 }
 
 /// Get all child task records.
-pub fn get_child_tasks(
-    tasks_dir: &Path,
-    task_name: &str,
-) -> Result<Vec<TaskRecord>, TaskError> {
+pub fn get_child_tasks(tasks_dir: &Path, task_name: &str) -> Result<Vec<TaskRecord>, TaskError> {
     let task = load_task(tasks_dir, task_name)?;
     task.children
         .iter()
@@ -826,12 +878,14 @@ pub struct ChecklistItem {
 /// A completion checklist for a task.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionChecklist {
-    pub criteria: Vec<ChecklistItem>
+    pub criteria: Vec<ChecklistItem>,
 }
 
 impl Default for CompletionChecklist {
     fn default() -> Self {
-        Self { criteria: Vec::new() }
+        Self {
+            criteria: Vec::new(),
+        }
     }
 }
 
@@ -852,7 +906,11 @@ pub fn get_checklist(tasks_dir: &Path, task_name: &str) -> Result<CompletionChec
     }
 }
 
-fn save_checklist(tasks_dir: &Path, task_name: &str, checklist: &CompletionChecklist) -> Result<(), TaskError> {
+fn save_checklist(
+    tasks_dir: &Path,
+    task_name: &str,
+    checklist: &CompletionChecklist,
+) -> Result<(), TaskError> {
     let path = checklist_path(tasks_dir, task_name);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -863,7 +921,11 @@ fn save_checklist(tasks_dir: &Path, task_name: &str, checklist: &CompletionCheck
 }
 
 /// Add a new checklist item (unmet by default).
-pub fn add_checklist_item(tasks_dir: &Path, task_name: &str, description: &str) -> Result<(), TaskError> {
+pub fn add_checklist_item(
+    tasks_dir: &Path,
+    task_name: &str,
+    description: &str,
+) -> Result<(), TaskError> {
     let mut checklist = get_checklist(tasks_dir, task_name)?;
     checklist.criteria.push(ChecklistItem {
         description: description.to_string(),
@@ -873,7 +935,12 @@ pub fn add_checklist_item(tasks_dir: &Path, task_name: &str, description: &str) 
 }
 
 /// Mark a checklist item as met or unmet by index.
-pub fn set_checklist_item(tasks_dir: &Path, task_name: &str, index: usize, met: bool) -> Result<(), TaskError> {
+pub fn set_checklist_item(
+    tasks_dir: &Path,
+    task_name: &str,
+    index: usize,
+    met: bool,
+) -> Result<(), TaskError> {
     let mut checklist = get_checklist(tasks_dir, task_name)?;
     if index >= checklist.criteria.len() {
         return Err(TaskError::NotFound(format!(
@@ -887,7 +954,11 @@ pub fn set_checklist_item(tasks_dir: &Path, task_name: &str, index: usize, met: 
 }
 
 /// Remove a checklist item by index.
-pub fn remove_checklist_item(tasks_dir: &Path, task_name: &str, index: usize) -> Result<(), TaskError> {
+pub fn remove_checklist_item(
+    tasks_dir: &Path,
+    task_name: &str,
+    index: usize,
+) -> Result<(), TaskError> {
     let mut checklist = get_checklist(tasks_dir, task_name)?;
     if index >= checklist.criteria.len() {
         return Err(TaskError::NotFound(format!(
@@ -906,7 +977,7 @@ pub fn is_checklist_complete(tasks_dir: &Path, task_name: &str) -> Result<bool, 
     Ok(!checklist.criteria.is_empty() && checklist.criteria.iter().all(|c| c.met))
 }
 
-/// Completion gate: block Finish action if checklist is incomplete or empty.
+/// Completion gate: block Finish action unless the task is eligible to archive.
 pub fn apply_completion_gate(
     tasks_dir: &Path,
     task_name: Option<&str>,
@@ -918,21 +989,40 @@ pub fn apply_completion_gate(
     if decision.capsule != WorkflowCapsule::Finish {
         return decision.clone();
     }
-    match is_checklist_complete(tasks_dir, task_name) {
-        Ok(true) => decision.clone(),
-        Ok(false) | Err(_) => RouteDecision {
+    match ensure_finish_eligible(tasks_dir, task_name) {
+        Ok(()) => decision.clone(),
+        Err(reason) => RouteDecision {
             task_status: decision.task_status.clone(),
             capsule: WorkflowCapsule::Finish,
             requested_intent: decision.requested_intent,
             requested_skill: decision.requested_skill.clone(),
             resolved_skill: "",
             action: RouteAction::Block,
-            reason: format!("Task '{}' has incomplete or empty completion checklist. Add items with `dijiang task checklist add <desc>` and mark them done with `dijiang task checklist check <index>`.", task_name),
+            reason,
             next_action: String::new(),
             requires_alignment_artifact: false,
             complexity: decision.complexity,
         },
     }
+}
+
+/// Verifies the status and checklist required before `finish-work` archives a task.
+pub fn ensure_finish_eligible(tasks_dir: &Path, task_name: &str) -> Result<(), String> {
+    let task = load_task(tasks_dir, task_name).map_err(|error| error.to_string())?;
+    if task.status != TaskStatus::Completed {
+        return Err(format!(
+            "Task '{}' is {}. Mark it completed through the verified workflow before finish-work.",
+            task_name,
+            task.status.as_str()
+        ));
+    }
+    if !is_checklist_complete(tasks_dir, task_name).map_err(|error| error.to_string())? {
+        return Err(format!(
+            "Task '{}' has an incomplete or empty completion checklist.",
+            task_name
+        ));
+    }
+    Ok(())
 }
 
 // ── Task Queue ────────────────────────────────────────────────────
@@ -1046,9 +1136,116 @@ mod tests {
         let archived = archive_task(&tasks_dir, "test-archive-status").unwrap();
         assert_eq!(archived.status, TaskStatus::Archived);
         assert!(archived.archived_at.is_some(), "archived_at should be set");
-        // Verify on disk too
         let reloaded = load_task(&tasks_dir, "test-archive-status").unwrap();
         assert_eq!(reloaded.status, TaskStatus::Archived);
+    }
+
+    fn allowed_implementation_decision() -> RouteDecision {
+        RouteDecision {
+            task_status: TaskStatus::InProgress,
+            capsule: WorkflowCapsule::Implement,
+            requested_intent: crate::route_gate::RouteIntent::Implement,
+            requested_skill: Some("dj-implement".to_string()),
+            resolved_skill: "dj-implement",
+            action: RouteAction::Allow,
+            reason: String::new(),
+            next_action: String::new(),
+            requires_alignment_artifact: false,
+            complexity: crate::route_gate::TaskComplexity::Complex,
+        }
+    }
+
+    fn write_substantive_prd(tasks_dir: &Path, task_name: &str) {
+        let task_dir = tasks_dir.join(task_name);
+        fs::create_dir_all(&task_dir).unwrap();
+        fs::write(
+            task_dir.join("prd.md"),
+            "# Task\n\n## Goal\n\nPrevent invalid task completion.\n\n## Requirements\n\n- Require verified task artifacts.\n\n## Acceptance Criteria\n\n- [ ] Invalid tasks are blocked.\n",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn readiness_redirects_when_prd_is_missing_or_template() {
+        let (dir, tasks_dir) = setup_temp_tasks();
+        let dijiang_dir = dir.path().join(".dijiang");
+        fs::create_dir_all(dijiang_dir.join("spec").join("task")).unwrap();
+        let task = create_task("task", "Task");
+        save_task(&tasks_dir, &task).unwrap();
+        let decision = allowed_implementation_decision();
+        assert_eq!(
+            apply_readiness_gate(&dijiang_dir, &tasks_dir, "task", &decision).resolved_skill,
+            "dj-output"
+        );
+        fs::write(
+            tasks_dir.join("task").join("prd.md"),
+            "# Task\n\n## Goal\n\nTBD.\n\n## Requirements\n\n- TBD\n\n## Acceptance Criteria\n\n- [ ] TBD\n",
+        )
+        .unwrap();
+        assert_eq!(
+            apply_readiness_gate(&dijiang_dir, &tasks_dir, "task", &decision).resolved_skill,
+            "dj-output"
+        );
+    }
+
+    #[test]
+    fn readiness_allows_substantive_task_or_parent_prd() {
+        let (dir, tasks_dir) = setup_temp_tasks();
+        let dijiang_dir = dir.path().join(".dijiang");
+        fs::create_dir_all(dijiang_dir.join("spec").join("task")).unwrap();
+        let task = create_task("task", "Task");
+        save_task(&tasks_dir, &task).unwrap();
+        write_substantive_prd(&tasks_dir, "task");
+        let decision = allowed_implementation_decision();
+        assert_eq!(
+            apply_readiness_gate(&dijiang_dir, &tasks_dir, "task", &decision).action,
+            RouteAction::Allow
+        );
+        let mut child = create_task("child", "Child");
+        child.parent = Some("task".to_string());
+        save_task(&tasks_dir, &child).unwrap();
+        assert_eq!(
+            apply_readiness_gate(&dijiang_dir, &tasks_dir, "child", &decision).action,
+            RouteAction::Allow
+        );
+    }
+
+    #[test]
+    fn finish_eligibility_requires_completed_task_and_complete_checklist() {
+        let (_dir, tasks_dir) = setup_temp_tasks();
+        let task = create_task("task", "Task");
+        save_task(&tasks_dir, &task).unwrap();
+        assert!(ensure_finish_eligible(&tasks_dir, "task").is_err());
+        update_status(&tasks_dir, "task", TaskStatus::InProgress).unwrap();
+        update_status(&tasks_dir, "task", TaskStatus::Completed).unwrap();
+        assert!(ensure_finish_eligible(&tasks_dir, "task").is_err());
+        add_checklist_item(&tasks_dir, "task", "Verified").unwrap();
+        assert!(ensure_finish_eligible(&tasks_dir, "task").is_err());
+        set_checklist_item(&tasks_dir, "task", 0, true).unwrap();
+        assert!(ensure_finish_eligible(&tasks_dir, "task").is_ok());
+    }
+
+    #[test]
+    fn completion_gate_blocks_ineligible_finish() {
+        let (_dir, tasks_dir) = setup_temp_tasks();
+        let task = create_task("task", "Task");
+        save_task(&tasks_dir, &task).unwrap();
+        let decision = RouteDecision {
+            task_status: TaskStatus::Planning,
+            capsule: WorkflowCapsule::Finish,
+            requested_intent: crate::route_gate::RouteIntent::Finish,
+            requested_skill: Some("dijiang-finish-work".to_string()),
+            resolved_skill: "dijiang-finish-work",
+            action: RouteAction::Allow,
+            reason: String::new(),
+            next_action: String::new(),
+            requires_alignment_artifact: false,
+            complexity: crate::route_gate::TaskComplexity::Complex,
+        };
+        assert_eq!(
+            apply_completion_gate(&tasks_dir, Some("task"), &decision).action,
+            RouteAction::Block
+        );
     }
 
     #[test]
@@ -1059,16 +1256,24 @@ mod tests {
         save_task(&tasks_dir, &task).unwrap();
 
         // Step 1: set to InProgress (like start would)
-        let in_progress = update_status(&tasks_dir, "test-complete-archive", TaskStatus::InProgress).unwrap();
+        let in_progress =
+            update_status(&tasks_dir, "test-complete-archive", TaskStatus::InProgress).unwrap();
         assert_eq!(in_progress.status, TaskStatus::InProgress);
 
         // Step 2: set to Completed (like finish-work now does before archiving)
         task.status = TaskStatus::Completed;
         save_task(&tasks_dir, &task).unwrap();
         let loaded = load_task(&tasks_dir, "test-complete-archive").unwrap();
-        assert_eq!(loaded.status, TaskStatus::Completed, "should pass through Completed");
+        assert_eq!(
+            loaded.status,
+            TaskStatus::Completed,
+            "should pass through Completed"
+        );
 
-        // Step 3: archive (like finish-work does after completing)
+        add_checklist_item(&tasks_dir, "test-complete-archive", "verification complete").unwrap();
+        set_checklist_item(&tasks_dir, "test-complete-archive", 0, true).unwrap();
+
+        // Step 3: archive only after the shared finish eligibility gate passes.
         let archived = archive_task(&tasks_dir, "test-complete-archive").unwrap();
         assert_eq!(archived.status, TaskStatus::Archived);
         let reloaded = load_task(&tasks_dir, "test-complete-archive").unwrap();

@@ -17,6 +17,19 @@ pub struct DispatchRoute {
     pub complexity: dijiang_task::TaskComplexity,
 }
 
+fn route_from_registry(skill: &str) -> Option<DispatchRoute> {
+    let route = dijiang_task::skill_route(skill)?;
+    Some(DispatchRoute {
+        task_type: route.task_type,
+        primary_intent: route.primary_intent,
+        skill: route.name,
+        recommended_path: route.recommended_path,
+        status: route.status.clone(),
+        intent: route.intent,
+        complexity: route.complexity,
+    })
+}
+
 #[derive(Debug, Clone)]
 pub struct WorktreeDecision {
     pub readiness: dijiang_task::WorktreeReadiness,
@@ -102,103 +115,31 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
         has_specific_failure_signal || lower.contains("bug") && !has_vague_bug_intent;
 
     if has_hunt_intent {
-        return DispatchRoute {
-            task_type: "排查调试",
-            primary_intent: "排查根因",
-            skill: "dj-hunt",
-            recommended_path: "dj-hunt → dj-implement → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Debug,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-hunt").expect("registered skill");
     }
     if has_vague_feature_intent {
-        return DispatchRoute {
-            task_type: "调研对齐",
-            primary_intent: "需求澄清",
-            skill: "dj-grill",
-            recommended_path: "dj-grill → dj-output/dj-implement",
-            status: TaskStatus::Planning,
-            intent: dijiang_task::RouteIntent::Align,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-grill").expect("registered skill");
     }
     if has_any(&["审计", "安全", "扫描", "体检", "audit", "security"]) {
-        return DispatchRoute {
-            task_type: "审计代码",
-            primary_intent: "代码审计",
-            skill: "dj-audit",
-            recommended_path: "dj-audit → dj-implement → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Check,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-audit").expect("registered skill");
     }
     if has_any(&["调研", "research", "资料", "技术方案对比"]) {
-        return DispatchRoute {
-            task_type: "技术调研",
-            primary_intent: "调研收集信息",
-            skill: "dj-research",
-            recommended_path: "dj-research → dj-output/dj-implement",
-            status: TaskStatus::Planning,
-            intent: dijiang_task::RouteIntent::Research,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-research").expect("registered skill");
     }
     if has_any(&["方案", "对比", "url", "网页", "compare"]) {
-        return DispatchRoute {
-            task_type: "调研对齐",
-            primary_intent: "调研并对齐",
-            skill: "dj-grill",
-            recommended_path: "dj-grill → dj-output/dj-tdd",
-            status: TaskStatus::Planning,
-            intent: dijiang_task::RouteIntent::Align,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-grill").expect("registered skill");
     }
     if has_any(&["文档", "prd", "设计文档", "润色", "document", "write"]) {
-        return DispatchRoute {
-            task_type: "写文档",
-            primary_intent: "文档产出",
-            skill: "dj-output",
-            recommended_path: "dj-output",
-            status: TaskStatus::Planning,
-            intent: dijiang_task::RouteIntent::Document,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-output").expect("registered skill");
     }
     if has_any(&["脚本", "工具", "自动化", "script", "cli", "tool"]) {
-        return DispatchRoute {
-            task_type: "脚本工具",
-            primary_intent: "脚本或工具实现",
-            skill: "dj-script",
-            recommended_path: "dj-script → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Implement,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-script").expect("registered skill");
     }
     if has_any(&["ui", "页面", "样式", "布局", "组件", "design", "style"]) {
-        return DispatchRoute {
-            task_type: "设计 UI",
-            primary_intent: "UI 设计实现",
-            skill: "dj-design",
-            recommended_path: "dj-design → dj-implement → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Implement,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-design").expect("registered skill");
     }
     if has_any(&["测试", "tdd", "test"]) {
-        return DispatchRoute {
-            task_type: "测试开发",
-            primary_intent: "测试驱动开发",
-            skill: "dj-tdd",
-            recommended_path: "dj-tdd → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Implement,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-tdd").expect("registered skill");
     }
     if has_any(&[
         "实现",
@@ -212,185 +153,30 @@ pub fn dispatch_route(prompt: &str) -> DispatchRoute {
         "refactor",
         "add",
     ]) {
-        return DispatchRoute {
-            task_type: "代码开发",
-            primary_intent: "实现变更",
-            skill: "dj-implement",
-            recommended_path: "dj-implement → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Implement,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        };
+        return route_from_registry("dj-implement").expect("registered skill");
     }
-    DispatchRoute {
-        task_type: "调研对齐",
-        primary_intent: "需求澄清",
-        skill: "dj-grill",
-        recommended_path: "dj-grill → dj-output/dj-implement",
-        status: TaskStatus::Planning,
-        intent: dijiang_task::RouteIntent::Unknown,
-        complexity: dijiang_task::TaskComplexity::Complex,
-    }
+    route_from_registry("dj-grill").expect("registered skill")
 }
 
 pub fn dispatch_route_from_skill(skill: &str) -> Option<DispatchRoute> {
-    match skill {
-        "dj-hunt" => Some(DispatchRoute {
-            task_type: "排查调试",
-            primary_intent: "继续排查",
-            skill: "dj-hunt",
-            recommended_path: "dj-hunt → dj-implement → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Debug,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dj-implement" => Some(DispatchRoute {
-            task_type: "代码开发",
-            primary_intent: "继续实现",
-            skill: "dj-implement",
-            recommended_path: "dj-implement → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Implement,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dj-script" => Some(DispatchRoute {
-            task_type: "脚本工具",
-            primary_intent: "继续实现脚本或工具",
-            skill: "dj-script",
-            recommended_path: "dj-script → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Implement,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dj-tdd" => Some(DispatchRoute {
-            task_type: "测试开发",
-            primary_intent: "继续 TDD",
-            skill: "dj-tdd",
-            recommended_path: "dj-tdd → dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Implement,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dj-check" => Some(DispatchRoute {
-            task_type: "代码审查",
-            primary_intent: "质量检查",
-            skill: "dj-check",
-            recommended_path: "dj-check",
-            status: TaskStatus::InProgress,
-            intent: dijiang_task::RouteIntent::Check,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dj-output" => Some(DispatchRoute {
-            task_type: "写文档",
-            primary_intent: "文档产出",
-            skill: "dj-output",
-            recommended_path: "dj-output",
-            status: TaskStatus::Planning,
-            intent: dijiang_task::RouteIntent::Document,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dj-grill" => Some(DispatchRoute {
-            task_type: "调研对齐",
-            primary_intent: "需求澄清",
-            skill: "dj-grill",
-            recommended_path: "dj-grill → dj-output/dj-implement",
-            status: TaskStatus::Planning,
-            intent: dijiang_task::RouteIntent::Align,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dj-research" => Some(DispatchRoute {
-            task_type: "调研对齐",
-            primary_intent: "需求澄清",
-            skill: "dj-grill",
-            recommended_path: "dj-grill → dj-output/dj-implement",
-            status: TaskStatus::Planning,
-            intent: dijiang_task::RouteIntent::Align,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dijiang-finish-work" => Some(DispatchRoute {
-            task_type: "收尾归档",
-            primary_intent: "完成工作",
-            skill: "dijiang-finish-work",
-            recommended_path: "dijiang-finish-work",
-            status: TaskStatus::Completed,
-            intent: dijiang_task::RouteIntent::Finish,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dijiang-continue" => Some(DispatchRoute {
-            task_type: "恢复上下文",
-            primary_intent: "继续暂停任务",
-            skill: "dijiang-continue",
-            recommended_path: "dijiang-continue",
-            status: TaskStatus::Paused,
-            intent: dijiang_task::RouteIntent::Resume,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        "dijiang-start" => Some(DispatchRoute {
-            task_type: "恢复上下文",
-            primary_intent: "重新激活归档任务",
-            skill: "dijiang-start",
-            recommended_path: "dijiang-start",
-            status: TaskStatus::Archived,
-            intent: dijiang_task::RouteIntent::Resume,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        }),
-        _ => None,
-    }
+    route_from_registry(skill)
 }
 
 pub fn dispatch_route_for_active_task(task: &TaskRecord) -> DispatchRoute {
     match task.status {
-        TaskStatus::Planning => DispatchRoute {
-            task_type: "调研对齐",
-            primary_intent: "需求澄清",
-            skill: "dj-grill",
-            recommended_path: "dj-grill → dj-output/dj-implement",
-            status: TaskStatus::Planning,
-            intent: dijiang_task::RouteIntent::Align,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        },
+        TaskStatus::Planning => route_from_registry("dj-grill").expect("registered skill"),
         TaskStatus::InProgress => task
             .meta
             .get("dispatch")
             .and_then(|dispatch| dispatch.get("skill"))
             .and_then(|skill| skill.as_str())
             .and_then(dispatch_route_from_skill)
-            .unwrap_or(DispatchRoute {
-                task_type: "代码开发",
-                primary_intent: "继续实现",
-                skill: "dj-implement",
-                recommended_path: "dj-implement → dj-check",
-                status: TaskStatus::InProgress,
-                intent: dijiang_task::RouteIntent::Implement,
-                complexity: dijiang_task::TaskComplexity::Complex,
-            }),
-        TaskStatus::Completed => DispatchRoute {
-            task_type: "收尾归档",
-            primary_intent: "完成工作",
-            skill: "dijiang-finish-work",
-            recommended_path: "dijiang-finish-work",
-            status: TaskStatus::Completed,
-            intent: dijiang_task::RouteIntent::Finish,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        },
-        TaskStatus::Paused => DispatchRoute {
-            task_type: "恢复上下文",
-            primary_intent: "继续暂停任务",
-            skill: "dijiang-continue",
-            recommended_path: "dijiang-continue",
-            status: TaskStatus::Paused,
-            intent: dijiang_task::RouteIntent::Resume,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        },
-        TaskStatus::Archived => DispatchRoute {
-            task_type: "恢复上下文",
-            primary_intent: "重新激活归档任务",
-            skill: "dijiang-start",
-            recommended_path: "dijiang-start",
-            status: TaskStatus::Archived,
-            intent: dijiang_task::RouteIntent::Resume,
-            complexity: dijiang_task::TaskComplexity::Complex,
-        },
+            .unwrap_or_else(|| route_from_registry("dj-implement").expect("registered skill")),
+        TaskStatus::Completed => {
+            route_from_registry("dijiang-finish-work").expect("registered skill")
+        }
+        TaskStatus::Paused => route_from_registry("dijiang-continue").expect("registered skill"),
+        TaskStatus::Archived => route_from_registry("dijiang-start").expect("registered skill"),
     }
 }
 
@@ -479,19 +265,13 @@ pub fn unique_task_name(tasks_dir: &Path, base: &str) -> String {
 }
 
 pub fn route_requires_worktree(route: &DispatchRoute) -> bool {
-    matches!(
-        route.skill,
-        "dj-implement" | "dj-hunt" | "dj-tdd" | "dj-script" | "dj-design"
-    )
+    dijiang_task::skill_route(route.skill).is_some_and(|skill| skill.requires_worktree)
 }
 
 pub fn branch_prefix(route: &DispatchRoute) -> &'static str {
-    match route.skill {
-        "dj-hunt" => "fix",
-        "dj-tdd" => "test",
-        "dj-script" => "chore",
-        _ => "feat",
-    }
+    dijiang_task::skill_route(route.skill)
+        .map(|skill| skill.branch_prefix)
+        .unwrap_or("feat")
 }
 
 fn git_has_head(project_root: &Path) -> anyhow::Result<bool> {
@@ -609,51 +389,14 @@ pub fn ensure_task_worktree(
     }))
 }
 
-pub fn dispatch_skill_manifests_text(capsule: dijiang_task::WorkflowCapsule) -> String {
-    let manifests = dijiang_task::manifests_for_capsule(capsule);
-    if manifests.is_empty() {
-        return "<dijiang-skill-manifests>\nnone\n</dijiang-skill-manifests>".to_string();
-    }
-    let lines = manifests
-        .into_iter()
-        .map(|manifest| {
-            format!(
-                "- {} | {} | phases={} | risk={}",
-                manifest.name,
-                manifest.summary,
-                manifest.phases.join(","),
-                manifest.risk
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+pub fn dispatch_target_skill_summary(dispatch: &DispatchDecision) -> String {
+    let summary = dijiang_task::manifest_by_name(dispatch.route.skill)
+        .map(|manifest| manifest.summary)
+        .unwrap_or("target skill is not registered");
     format!(
-        "<dijiang-skill-manifests>\n{}\n</dijiang-skill-manifests>",
-        lines
+        "目标 skill：{}（{}）。完整正文按需读取：`dijiang skill-body {}`。",
+        dispatch.route.skill, summary, dispatch.route.skill
     )
-}
-
-pub fn dispatch_target_skill_bodies(
-    capsule: dijiang_task::WorkflowCapsule,
-    primary_skill: &str,
-    recommended_path: &str,
-) -> String {
-    let selected = dijiang_task::select_skill_bodies(capsule, primary_skill, recommended_path);
-    if selected.is_empty() {
-        return String::new();
-    }
-    let mut cache = dijiang_task::SkillBodyCache::default();
-    dijiang_task::render_selected_skill_bodies(&selected, &mut cache)
-}
-
-pub fn dispatch_runtime_skill_context(dispatch: &DispatchDecision) -> String {
-    let manifests = dispatch_skill_manifests_text(dispatch.decision.capsule.clone());
-    let targets = dispatch_target_skill_bodies(
-        dispatch.decision.capsule,
-        dispatch.route.skill,
-        dispatch.route.recommended_path,
-    );
-    format!("{}\n{}", manifests, targets)
 }
 
 pub fn dispatch_context(
@@ -696,7 +439,7 @@ pub fn dispatch_context(
             skill = route.skill,
         ),
     };
-    let skill_context = dispatch_runtime_skill_context(dispatch);
+    let skill_context = dispatch_target_skill_summary(dispatch);
     let status_hint = if let Some(status) = original_status {
         let legal: Vec<&str> = status
             .legal_transitions()
@@ -729,9 +472,47 @@ pub fn cmd_dispatch(
     force_new: bool,
     json: bool,
     hook_event: &str,
+    classify_only: bool,
+    active_task: Option<&str>,
 ) -> anyhow::Result<()> {
     let dijiang_dir = require_dijiang_dir()?;
     let tasks_dir = dijiang_dir.join("tasks");
+    if classify_only {
+        let route = active_task
+            .map(|name| {
+                let task = store::load_task(&tasks_dir, name)?;
+                let candidate = dispatch_route(prompt);
+                let gated = apply_route_gate(
+                    &task.status,
+                    candidate,
+                    Some(prompt),
+                    &dijiang_dir,
+                    &tasks_dir,
+                    Some(&task.name),
+                );
+                Ok::<_, anyhow::Error>(gated.route)
+            })
+            .transpose()?
+            .unwrap_or_else(|| dispatch_route(prompt));
+        let payload = serde_json::json!({
+            "task_type": route.task_type,
+            "primary_intent": route.primary_intent,
+            "skill": route.skill,
+            "recommended_path": route.recommended_path,
+            "status": route.status.as_str(),
+            "intent": route.intent.as_str(),
+            "complexity": "complex",
+        });
+        if json {
+            println!("{}", serde_json::to_string(&payload)?);
+        } else {
+            println!(
+                "<dijiang-dispatch>\n任务类型：{}\n主要意图：{}\n路线：{}\n推荐路径：{}\n</dijiang-dispatch>",
+                route.task_type, route.primary_intent, route.skill, route.recommended_path
+            );
+        }
+        return Ok(());
+    }
 
     // `--force-new` ignores the current task and replaces the active pointer
     // only after the new task has been persisted.
@@ -794,6 +575,10 @@ pub fn cmd_dispatch(
         new_task.status = dispatch.route.status.clone();
         new_task.meta = serde_json::json!({
             "hookEventName": hook_event,
+            "dispatch": {
+                "skill": dispatch.route.skill,
+                "recommended_path": dispatch.route.recommended_path,
+            },
             "route": {
                 "skill": dispatch.route.skill,
                 "recommended_path": dispatch.route.recommended_path,
@@ -806,10 +591,25 @@ pub fn cmd_dispatch(
         hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskCreate, &unique_name);
         (unique_name, title, new_task)
     };
-    // Sync task status with route status via transition validation
-    // Capture original status for transition hints
+    // Provision the worktree before advancing a planning task. A failed provision
+    // must leave the task in planning so retrying dispatch remains safe.
     let original_status = task.status.clone();
-    if task.status != dispatch.route.status {
+    let main_worktree_root = crate::commands::finish::git_main_worktree(project_root, "main").ok();
+    let worktree_decision = ensure_task_worktree(
+        project_root,
+        &tasks_dir,
+        &mut task,
+        &dispatch.route,
+        &cwd,
+        worktree_root.as_deref(),
+        main_worktree_root.as_deref(),
+    )?;
+
+    let worktree_blocks_transition = worktree_decision.as_ref().is_some_and(|decision| {
+        decision.readiness.state == dijiang_task::GitGateState::Blocked
+            && decision.readiness.needs_provision
+    });
+    if task.status != dispatch.route.status && !worktree_blocks_transition {
         task = match store::update_status(&tasks_dir, &task_name, dispatch.route.status.clone()) {
             Ok(updated) => updated,
             Err(store::TaskError::InvalidTransition { from, to }) => {
@@ -827,24 +627,27 @@ pub fn cmd_dispatch(
             }
             Err(e) => return Err(e.into()),
         };
+        if let Some(meta) = task.meta.as_object_mut() {
+            meta.insert(
+                "dispatch".to_string(),
+                serde_json::json!({
+                    "skill": dispatch.route.skill,
+                    "recommended_path": dispatch.route.recommended_path,
+                }),
+            );
+            meta.insert(
+                "route".to_string(),
+                serde_json::json!({
+                    "skill": dispatch.route.skill,
+                    "recommended_path": dispatch.route.recommended_path,
+                    "action": dispatch.decision.action.as_str(),
+                    "reason": dispatch.decision.reason,
+                    "nextAction": dispatch.decision.next_action,
+                }),
+            );
+        }
+        store::save_task(&tasks_dir, &task)?;
     }
-
-    // Worktree decision (for both existing and new tasks)
-    let main_worktree_root = crate::commands::finish::git_main_worktree(project_root, "main").ok();
-    let worktree_decision = ensure_task_worktree(
-        project_root,
-        &tasks_dir,
-        &mut task,
-        &dispatch.route,
-        &cwd,
-        worktree_root.as_deref(),
-        main_worktree_root.as_deref(),
-    )?;
-
-    // No fallback implement-route provision: worktrees are only created when the
-    // active route itself requires one (route_requires_worktree). Status
-    // planning→in_progress alone must not invent a worktree for check/docs routes.
-
     // Build state_context from workflow state
     let state_context = match dijiang_task::workflow_state::build(&dijiang_dir) {
         Ok(state) => state.additional_context(),

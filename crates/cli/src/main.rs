@@ -49,6 +49,12 @@ enum Commands {
         /// hook event name（JSON 输出时使用）
         #[arg(long, default_value = "UserPromptSubmit")]
         hook_event: String,
+        /// 仅分类请求，不创建或更新任务
+        #[arg(long)]
+        classify_only: bool,
+        /// 仅分类时使用指定任务状态，不修改任务
+        #[arg(long)]
+        active_task: Option<String>,
     },
     /// 底层任务管理（原子状态操作）
     Task {
@@ -714,7 +720,16 @@ fn main() -> anyhow::Result<()> {
             force_new,
             json,
             hook_event,
-        } => commands::dispatch::cmd_dispatch(&prompt.join(" "), force_new, json, &hook_event),
+            classify_only,
+            active_task,
+        } => commands::dispatch::cmd_dispatch(
+            &prompt.join(" "),
+            force_new,
+            json,
+            &hook_event,
+            classify_only,
+            active_task.as_deref(),
+        ),
         Commands::Status { compat } => commands::status::cmd_status(compat),
         Commands::Init {
             name,
@@ -1044,7 +1059,7 @@ fn main() -> anyhow::Result<()> {
 mod tests {
     use crate::commands::dispatch::{
         apply_route_gate, dispatch_context, dispatch_route, dispatch_route_for_active_task,
-        dispatch_runtime_skill_context,
+        dispatch_target_skill_summary,
     };
     use dijiang_task::store;
     use dijiang_task::types::TaskStatus;
@@ -1235,14 +1250,12 @@ mod tests {
     }
 
     #[test]
-    fn test_dispatch_runtime_skill_context_exposes_manifests_and_target_body() {
+    fn test_dispatch_target_skill_summary_uses_lazy_skill_body_contract() {
         let route = dispatch_route("补测试");
         let dir = tempfile::tempdir().unwrap();
         let tasks_dir = dir.path().join("tasks");
         let task_name = "test-task";
-        let task_dir = tasks_dir.join(task_name);
-        std::fs::create_dir_all(&task_dir).unwrap();
-        std::fs::write(task_dir.join("prd.md"), "# test PRD").unwrap();
+        std::fs::create_dir_all(tasks_dir.join(task_name)).unwrap();
         let dispatch = apply_route_gate(
             &TaskStatus::InProgress,
             route,
@@ -1251,22 +1264,16 @@ mod tests {
             &tasks_dir,
             Some(task_name),
         );
-        let context = dispatch_runtime_skill_context(&dispatch);
+        let context = dispatch_target_skill_summary(&dispatch);
 
-        assert!(context.contains("<dijiang-skill-manifests>"));
-        assert!(context.contains("dj-implement | 功能实现与局部代码变更"));
-        assert!(context.contains(&format!(
-            "<dijiang-target-skill role=\"primary\" name=\"{}\">",
-            dispatch.route.skill
-        )));
-        assert!(context.contains("summary: "));
-        if dispatch.route.recommended_path.contains("-> dj-check") {
-            assert!(context.contains("<dijiang-target-skill role=\"next\" name=\"dj-check\">"));
-        }
+        assert!(context.contains("目标 skill：dj-tdd"));
+        assert!(context.contains("dijiang skill-body dj-tdd"));
+        assert!(!context.contains("<dijiang-skill-manifests>"));
+        assert!(!context.contains("<dijiang-target-skill"));
     }
 
     #[test]
-    fn test_dispatch_context_keeps_header_and_adds_target_skill_body() {
+    fn test_dispatch_context_keeps_header_and_adds_target_skill_summary() {
         let route = dispatch_route("新增一个导出按钮");
         let dispatch = apply_route_gate(
             &TaskStatus::Planning,
@@ -1287,11 +1294,8 @@ mod tests {
         );
 
         assert!(context.contains("<dijiang-dispatch>"));
-        assert!(context.contains("action：redirect"));
-        assert!(context.contains("路线：dj-grill"));
-        assert!(context.contains("<dijiang-skill-manifests>"));
-        assert!(context.contains("dj-grill | 需求对齐、范围澄清、问题收敛"));
-        assert!(context.contains("<dijiang-target-skill role=\"primary\" name=\"dj-grill\">"));
-        assert!(context.contains("<dijiang-workflow-state>state</dijiang-workflow-state>"));
+        assert!(context.contains("目标 skill：dj-implement"));
+        assert!(!context.contains("<dijiang-skill-manifests>"));
+        assert!(!context.contains("<dijiang-target-skill"));
     }
 }

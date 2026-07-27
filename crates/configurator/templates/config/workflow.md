@@ -32,8 +32,7 @@ DiJiang 使用 `dijiang` CLI 管理项目状态，使用 `dj-*` skills 执行具
 
 当前已有一层 runtime hard gate 管 active task 的 workflow route。它不是 skill prose 的建议，而是 CLI/task runtime 的真实约束。
 
-- `planning` active task 只能放行 `dj-grill` 或 `dj-output`；实现、排查、检查类请求会被 redirect 到 `dj-grill`。
-
+- `planning` active task 可进行 `dj-grill`、`dj-output`、`dj-reason`、`dj-research`。实现、排查、检查类请求会先经过 readiness 校验：有效 PRD/spec 时 CLI provision/确认 task worktree 并推进至 `in_progress`；不满足时 redirect 到 `dj-output` 或 `dj-spec-bootstrap`。
 - `paused` active task 会 redirect 到 `dijiang-continue`。
 
 - `archived` active task 会 block 到 `dijiang-start`。
@@ -60,9 +59,9 @@ DiJiang 使用 `dijiang` CLI 管理项目状态，使用 `dj-*` skills 执行具
 
 ## Progressive Skill Loading
 
-当前 Progressive Skill Loading 已部分落地：`dispatch` 与 `workflow-state` 两个 agent-facing runtime 入口都会先暴露 capsule-scoped skill manifests，再按 route 目标延迟展开单个或少量顺序/分叉 skill body；Pi/Codex/OpenCode/Hermes 的 agent prompt 也已统一改成优先消费这套 runtime context，并补上了 risk/capsule 驱动的最小展开阈值。另一个兼容优先的执行期通路是 `dijiang skill-body`，可在不改变现有注入形态的前提下按 skill 名按需取 body。
+默认 runtime injection 保持轻量：`workflow-state` 提供 task/status/route/Git gate/breadcrumb；`dispatch` 提供 route、worktree 和 target skill summary。完整 skill body 仅在 agent 确有需要时由 `dijiang skill-body <name>` 获取。
 
-这还不等于 Phase 3 全链路完成。当前尚未覆盖的部分只剩：默认预注 body 的全链路切换。
+Pi 在 `before_agent_start` 调用 stateful dispatch；不再在 `user_prompt_submit` 重复注入同一请求。
 
 Phase 4 已开始最小闭环：当前先覆盖 `finish-work --integrate`、`finish-work --push` 与 merge 后 cleanup（worktree remove / branch delete）这几条高风险路径，要求显式 approval 后才允许继续 merge / push / cleanup。它还不是完整 capability system；后续仍要扩到更广泛的高风险动作。
 

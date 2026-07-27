@@ -121,7 +121,11 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     // Enumerate ALL files under .dijiang/references/ in the temp dir
     let dijiang_references = temp.path().join(".dijiang/references");
     if dijiang_references.exists() {
-        collect_managed_files(&dijiang_references, ".dijiang/references", &mut managed_files);
+        collect_managed_files(
+            &dijiang_references,
+            ".dijiang/references",
+            &mut managed_files,
+        );
     }
     // Enumerate ALL files under .dijiang/spec/ in the temp dir
     let dijiang_spec = temp.path().join(".dijiang/spec");
@@ -315,7 +319,6 @@ fn managed_files_for_platforms(platforms: &[PlatformKind]) -> Vec<ManagedFile> {
     }
     files
 }
-
 
 fn managed(path: &str) -> ManagedFile {
     ManagedFile {
@@ -521,7 +524,7 @@ impl Drop for GeneratedProject {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.path);
     }
-    }
+}
 
 fn chrono_like_timestamp() -> u128 {
     std::time::SystemTime::now()
@@ -533,29 +536,30 @@ fn chrono_like_timestamp() -> u128 {
 /// embedded versions. Also copies per-skill reference files (e.g. references/*.md).
 fn copy_template_skills(src: &Path, temp_dir: &Path) -> Result<(), ConfigError> {
     let dst_base = temp_dir.join(".pi/skills");
-    for entry in fs::read_dir(src).map_err(|e| {
-        ConfigError::Serialize(format!("failed to read template skills dir: {e}"))
-    })? {
+    for entry in fs::read_dir(src)
+        .map_err(|e| ConfigError::Serialize(format!("failed to read template skills dir: {e}")))?
+    {
         let entry = entry.map_err(|e| {
             ConfigError::Serialize(format!("failed to read entry in template skills dir: {e}"))
         })?;
         let skill_name = entry.file_name();
         let skill_name = skill_name.to_string_lossy();
-        if skill_name.starts_with('.') { continue; }
+        if skill_name.starts_with('.') {
+            continue;
+        }
         let src_dir = entry.path();
-        if !src_dir.is_dir() { continue; }
+        if !src_dir.is_dir() {
+            continue;
+        }
         let dst_dir = dst_base.join(&*skill_name);
         copy_dir_contents(&src_dir, &dst_dir)?;
     }
     Ok(())
 }
 
-
 /// Skip Python bytecode caches that should never be managed/synced.
 fn is_python_cache_entry(name: &str) -> bool {
-    name == "__pycache__"
-        || name.ends_with(".pyc")
-        || name.ends_with(".pyo")
+    name == "__pycache__" || name.ends_with(".pyc") || name.ends_with(".pyo")
 }
 
 /// Recursively copy all files from src_dir to dst_dir, preserving relative paths.
@@ -567,16 +571,19 @@ fn copy_dir_contents(src_dir: &Path, dst_dir: &Path) -> Result<(), ConfigError> 
         ConfigError::Serialize(format!("failed to read dir {}: {e}", src_dir.display()))
     })? {
         let entry = entry.map_err(|e| {
-            ConfigError::Serialize(format!("failed to read entry in {}: {e}", src_dir.display()))
+            ConfigError::Serialize(format!(
+                "failed to read entry in {}: {e}",
+                src_dir.display()
+            ))
         })?;
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
         if is_python_cache_entry(&name_str) {
             continue;
         }
-        let file_type = entry.file_type().map_err(|e| {
-            ConfigError::Serialize(format!("failed to get file type: {e}"))
-        })?;
+        let file_type = entry
+            .file_type()
+            .map_err(|e| ConfigError::Serialize(format!("failed to get file type: {e}")))?;
         if file_type.is_dir() {
             let sub_src = entry.path();
             let sub_dst = dst_dir.join(&name);
@@ -619,7 +626,9 @@ fn collect_managed_files_inner(
         };
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
-        if name_str.starts_with('.') && name_str != ".gitkeep" { continue; }
+        if name_str.starts_with('.') && name_str != ".gitkeep" {
+            continue;
+        }
         if is_python_cache_entry(&name_str) {
             continue;
         }
@@ -673,10 +682,12 @@ fn remove_stale_inner(
     for entry in entries {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
-        if name_str.starts_with('.') && name_str != ".gitkeep" { continue; }
-        let file_type = entry.file_type().map_err(|e| {
-            ConfigError::Serialize(format!("failed to get file type: {e}"))
-        })?;
+        if name_str.starts_with('.') && name_str != ".gitkeep" {
+            continue;
+        }
+        let file_type = entry
+            .file_type()
+            .map_err(|e| ConfigError::Serialize(format!("failed to get file type: {e}")))?;
         let ref_path = reference_dir.join(&name);
         // Always drop Python caches from managed trees even if a template source still has them.
         if is_python_cache_entry(&name_str) || !ref_path.exists() {
@@ -695,15 +706,16 @@ fn remove_stale_inner(
             report.removed.push(relative);
         } else if file_type.is_dir() {
             // Recurse into subdirectories that still exist
-            remove_stale_inner(&entry.path(), &ref_path, &format!("{prefix}/{name_str}"), report)?;
+            remove_stale_inner(
+                &entry.path(),
+                &ref_path,
+                &format!("{prefix}/{name_str}"),
+                report,
+            )?;
         }
     }
     // Clean up now-empty direcories in the project dir
-    let remaining: Vec<_> = fs::read_dir(dir)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .collect();
+    let remaining: Vec<_> = fs::read_dir(dir).into_iter().flatten().flatten().collect();
     if remaining.is_empty() {
         let _ = fs::remove_dir(dir);
     }
@@ -744,7 +756,8 @@ fn install_git_hook(project_root: &Path) -> Result<(), ConfigError> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = hook_path.metadata()
+        let mut perms = hook_path
+            .metadata()
             .map_err(|e| ConfigError::Serialize(format!("读取 hook 权限失败: {e}")))?
             .permissions();
         perms.set_mode(perms.mode() | 0o111);
@@ -813,6 +826,26 @@ mod tests {
         assert!(hook.contains("workflow_state.py"));
     }
 
+    #[test]
+    fn update_preserves_companion_skill_assets() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        crate::init_project_with_platforms(tmp.path(), "skill-assets", None, &[PlatformKind::Pi])
+            .unwrap();
+
+        let companion = tmp
+            .path()
+            .join(".pi/skills/dj-output/references/doc-template.md");
+        fs::remove_file(&companion).unwrap();
+        assert!(!companion.exists());
+
+        let report = update_project(tmp.path(), UpdateOptions { force: false }).unwrap();
+        assert!(companion.exists());
+        assert!(
+            report
+                .updated
+                .contains(&".pi/skills/dj-output/references/doc-template.md".to_string())
+        );
+    }
     #[test]
     fn update_project_force_overwrites_conflicts_and_records_hashes() {
         let tmp = tempfile::TempDir::new().unwrap();
@@ -895,7 +928,8 @@ version = "0.1.0"
         .unwrap();
 
         // If this project tree has template scripts, plant cache next to a real script source.
-        let templates_common = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates/scripts/common");
+        let templates_common =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates/scripts/common");
         let planted_cache = templates_common.join("__pycache__");
         let planted = if templates_common.exists() {
             fs::create_dir_all(&planted_cache).unwrap();
@@ -921,7 +955,9 @@ version = "0.1.0"
         let mut managed = Vec::new();
         collect_managed_files(&synth_src, ".dijiang/scripts", &mut managed);
         assert!(
-            managed.iter().all(|m| !m.path.contains("__pycache__") && !m.path.ends_with(".pyc")),
+            managed
+                .iter()
+                .all(|m| !m.path.contains("__pycache__") && !m.path.ends_with(".pyc")),
             "managed files must not include python caches: {managed:?}"
         );
 
@@ -939,13 +975,7 @@ version = "0.1.0"
         fs::write(project_scripts.join("common/__pycache__/y.pyc"), b"y").unwrap();
 
         let mut report = UpdateReport::default();
-        remove_stale_files(
-            tmp.path(),
-            &temp_ref,
-            &[".dijiang/scripts"],
-            &mut report,
-        )
-        .unwrap();
+        remove_stale_files(tmp.path(), &temp_ref, &[".dijiang/scripts"], &mut report).unwrap();
         assert!(
             !project_scripts.join("common/__pycache__").exists(),
             "residual __pycache__ should be removed"

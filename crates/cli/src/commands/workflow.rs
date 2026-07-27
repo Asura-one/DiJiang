@@ -8,6 +8,7 @@ pub fn cmd_workflow_state(json: bool, hook_event: &str) -> anyhow::Result<()> {
         let payload = serde_json::json!({
             "hookEventName": hook_event,
             "additionalContext": state.additional_context(),
+            "state": state,
         });
         println!("{}", serde_json::to_string(&payload)?);
     } else {

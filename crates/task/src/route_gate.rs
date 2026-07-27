@@ -163,43 +163,51 @@ pub fn evaluate_route(
                 "continue with dj-research to investigate technical questions",
                 false,
             ),
-RouteIntent::Implement
-| RouteIntent::Debug
-| RouteIntent::Check
-| RouteIntent::Unknown
-| RouteIntent::Resume => {
-    if effective_complexity.is_lightweight() {
-        let resolved = requested_skill_name(requested_skill.as_deref())
-            .unwrap_or(match requested_intent {
-                RouteIntent::Debug => "dj-hunt",
-                RouteIntent::Check => "dj-check",
-                _ => "dj-implement",
-            });
-        decision(
-            task_status.clone(),
-            WorkflowCapsule::Implement,
-            requested_intent,
-            requested_skill,
-            resolved,
-            RouteAction::Allow,
-            "lightweight task: prd.md is sufficient before implementation",
-            "continue with the requested implementation skill",
-            true,
-        )
-    } else {
-        decision(
-            task_status.clone(),
-            WorkflowCapsule::Align,
-            requested_intent,
-            requested_skill,
-            "dj-grill",
-            RouteAction::Redirect,
-            "planning tasks are hard-gated to alignment before implementation-oriented work",
-            "continue with dj-grill to produce a confirmed requirement summary",
-            true,
-        )
-    }
-},
+            RouteIntent::Implement
+            | RouteIntent::Debug
+            | RouteIntent::Check
+            | RouteIntent::Unknown
+            | RouteIntent::Resume => {
+                if effective_complexity.is_lightweight() {
+                    let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or(
+                        match requested_intent {
+                            RouteIntent::Debug => "dj-hunt",
+                            RouteIntent::Check => "dj-check",
+                            _ => "dj-implement",
+                        },
+                    );
+                    decision(
+                        task_status.clone(),
+                        WorkflowCapsule::Implement,
+                        requested_intent,
+                        requested_skill,
+                        resolved,
+                        RouteAction::Allow,
+                        "lightweight task: prd.md is sufficient before implementation",
+                        "continue with the requested implementation skill",
+                        true,
+                    )
+                } else {
+                    let resolved = requested_skill_name(requested_skill.as_deref()).unwrap_or(
+                        match requested_intent {
+                            RouteIntent::Debug => "dj-hunt",
+                            RouteIntent::Check => "dj-check",
+                            _ => "dj-implement",
+                        },
+                    );
+                    decision(
+                        task_status.clone(),
+                        WorkflowCapsule::Implement,
+                        requested_intent,
+                        requested_skill,
+                        resolved,
+                        RouteAction::Allow,
+                        "planning implementation requests may enter the verified implementation transition",
+                        "verify readiness, provision the task worktree, then continue with the requested implementation skill",
+                        true,
+                    )
+                }
+            }
         },
         TaskStatus::InProgress => match requested_intent {
             RouteIntent::Debug => decision(
@@ -213,17 +221,20 @@ RouteIntent::Implement
                 "continue with dj-hunt and keep RED/REPRO evidence",
                 true,
             ),
-            RouteIntent::Check => decision(
-                task_status.clone(),
-                WorkflowCapsule::Check,
-                requested_intent,
-                requested_skill,
-                "dj-check",
-                RouteAction::Allow,
-                "in_progress tasks may enter verification directly",
-                "continue with dj-check and record validation scope",
-                false,
-            ),
+            RouteIntent::Check => {
+                let resolved = check_skill_name(requested_skill.as_deref());
+                decision(
+                    task_status.clone(),
+                    WorkflowCapsule::Check,
+                    requested_intent,
+                    requested_skill,
+                    resolved,
+                    RouteAction::Allow,
+                    "in_progress tasks may enter verification directly",
+                    "continue with the requested check skill and record validation scope",
+                    false,
+                )
+            }
             RouteIntent::Document => {
                 let resolved =
                     requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-output");
@@ -238,7 +249,7 @@ RouteIntent::Implement
                     "continue with dj-output for task artifacts or dj-gov for knowledge governance",
                     false,
                 )
-            },
+            }
             RouteIntent::Finish => decision(
                 task_status.clone(),
                 WorkflowCapsule::Check,
@@ -304,17 +315,20 @@ RouteIntent::Implement
                 "continue with dijiang-finish-work and archive the session once verified",
                 false,
             ),
-            RouteIntent::Check => decision(
-                task_status.clone(),
-                WorkflowCapsule::Check,
-                requested_intent,
-                requested_skill,
-                "dj-check",
-                RouteAction::Allow,
-                "completed tasks may still run verification or review",
-                "continue with dj-check if more validation evidence is needed",
-                false,
-            ),
+            RouteIntent::Check => {
+                let resolved = check_skill_name(requested_skill.as_deref());
+                decision(
+                    task_status.clone(),
+                    WorkflowCapsule::Check,
+                    requested_intent,
+                    requested_skill,
+                    resolved,
+                    RouteAction::Allow,
+                    "completed tasks may still run verification or review",
+                    "continue with the requested check skill if more validation evidence is needed",
+                    false,
+                )
+            }
             RouteIntent::Document => {
                 let resolved =
                     requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-output");
@@ -329,7 +343,7 @@ RouteIntent::Implement
                     "continue with dj-output for task artifacts or dj-gov for knowledge governance",
                     false,
                 )
-            },
+            }
             RouteIntent::Align => {
                 let resolved =
                     requested_skill_name(requested_skill.as_deref()).unwrap_or("dj-grill");
@@ -441,7 +455,7 @@ pub fn summarize_route_gate(
         TaskStatus::InProgress => RouteGateSummary {
             capsule: WorkflowCapsule::Implement,
             complexity: effective_complexity,
-            allowed_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dj-output", "dj-grill", "dj-gov", "dj-reason", "dj-research"],
+            allowed_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dj-review", "dj-audit", "dj-health", "dj-output", "dj-grill", "dj-gov", "dj-reason", "dj-research"],
             default_skill: "dj-implement",
             blocked_skills: vec!["dijiang-finish-work"],
             note: "in_progress tasks stay in the implementation lane, but finish-work remains gated behind verification.".to_string(),
@@ -449,7 +463,7 @@ pub fn summarize_route_gate(
         TaskStatus::Completed => RouteGateSummary {
             capsule: WorkflowCapsule::Finish,
             complexity: effective_complexity,
-            allowed_skills: vec!["dijiang-finish-work", "dj-gov", "dj-check", "dj-output", "dj-grill", "dj-reason", "dj-research"],
+            allowed_skills: vec!["dijiang-finish-work", "dj-gov", "dj-check", "dj-review", "dj-audit", "dj-health", "dj-output", "dj-grill", "dj-reason", "dj-research"],
             default_skill: "dijiang-finish-work",
             blocked_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt"],
             note: "completed tasks may finish or document, but implementation requests must re-open alignment first.".to_string(),
@@ -474,21 +488,14 @@ pub fn summarize_route_gate(
 }
 
 fn requested_skill_name(skill: Option<&str>) -> Option<&'static str> {
-    match skill {
-        Some("dj-implement") => Some("dj-implement"),
-        Some("dj-script") => Some("dj-script"),
-        Some("dj-tdd") => Some("dj-tdd"),
-        Some("dj-hunt") => Some("dj-hunt"),
-        Some("dj-check") => Some("dj-check"),
-        Some("dj-output") => Some("dj-output"),
-        Some("dj-grill") => Some("dj-grill"),
-        Some("dj-reason") => Some("dj-reason"),
-        Some("dj-research") => Some("dj-research"),
-        Some("dj-gov") => Some("dj-gov"),
-        Some("dijiang-finish-work") => Some("dijiang-finish-work"),
-        Some("dijiang-continue") => Some("dijiang-continue"),
-        _ => None,
-    }
+    skill.and_then(|skill| crate::skill_route(skill).map(|route| route.name))
+}
+fn check_skill_name(skill: Option<&str>) -> &'static str {
+    skill
+        .and_then(crate::skill_route)
+        .filter(|route| matches!(route.name, "dj-review" | "dj-audit" | "dj-health"))
+        .map(|route| route.name)
+        .unwrap_or("dj-check")
 }
 
 fn decision(
@@ -521,16 +528,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn planning_implement_redirects_to_grill() {
+    fn planning_implement_is_allowed_for_verified_transition() {
         let decision = evaluate_route(
             &TaskStatus::Planning,
             RouteIntent::Implement,
             Some("dj-implement"),
             None,
         );
-        assert_eq!(decision.action, RouteAction::Redirect);
-        assert_eq!(decision.resolved_skill, "dj-grill");
-        assert_eq!(decision.capsule, WorkflowCapsule::Align);
+        assert_eq!(decision.action, RouteAction::Allow);
+        assert_eq!(decision.resolved_skill, "dj-implement");
+        assert_eq!(decision.capsule, WorkflowCapsule::Implement);
         assert!(decision.requires_alignment_artifact);
         assert!(!decision.reason.is_empty());
         assert!(!decision.next_action.is_empty());
@@ -538,21 +545,27 @@ mod tests {
 
     #[test]
     fn planning_reason_is_allowed() {
-        let decision = evaluate_route(&TaskStatus::Planning, RouteIntent::Align, Some("dj-reason"), None);
+        let decision = evaluate_route(
+            &TaskStatus::Planning,
+            RouteIntent::Align,
+            Some("dj-reason"),
+            None,
+        );
         assert_eq!(decision.action, RouteAction::Allow);
         assert_eq!(decision.resolved_skill, "dj-reason");
         assert_eq!(decision.capsule, WorkflowCapsule::Align);
     }
+
     #[test]
-    fn planning_script_redirects_to_grill() {
+    fn planning_script_is_allowed_for_verified_transition() {
         let decision = evaluate_route(
             &TaskStatus::Planning,
             RouteIntent::Implement,
             Some("dj-script"),
             None,
         );
-        assert_eq!(decision.action, RouteAction::Redirect);
-        assert_eq!(decision.resolved_skill, "dj-grill");
+        assert_eq!(decision.action, RouteAction::Allow);
+        assert_eq!(decision.resolved_skill, "dj-script");
     }
 
     #[test]
@@ -592,6 +605,20 @@ mod tests {
     }
 
     #[test]
+    fn in_progress_check_preserves_read_only_review_skills() {
+        for skill in ["dj-review", "dj-audit", "dj-health"] {
+            let decision = evaluate_route(
+                &TaskStatus::InProgress,
+                RouteIntent::Check,
+                Some(skill),
+                None,
+            );
+            assert_eq!(decision.action, RouteAction::Allow);
+            assert_eq!(decision.resolved_skill, skill);
+        }
+    }
+
+    #[test]
     fn in_progress_finish_redirects_to_check() {
         let decision = evaluate_route(
             &TaskStatus::InProgress,
@@ -614,6 +641,20 @@ mod tests {
         );
         assert_eq!(decision.action, RouteAction::Allow);
         assert_eq!(decision.resolved_skill, "dijiang-finish-work");
+    }
+
+    #[test]
+    fn completed_check_preserves_read_only_review_skills() {
+        for skill in ["dj-review", "dj-audit", "dj-health"] {
+            let decision = evaluate_route(
+                &TaskStatus::Completed,
+                RouteIntent::Check,
+                Some(skill),
+                None,
+            );
+            assert_eq!(decision.action, RouteAction::Allow);
+            assert_eq!(decision.resolved_skill, skill);
+        }
     }
 
     #[test]
@@ -666,10 +707,10 @@ mod tests {
     }
 
     #[test]
-    fn planning_unknown_redirects_to_grill() {
+    fn planning_unknown_is_allowed_for_verified_transition() {
         let decision = evaluate_route(&TaskStatus::Planning, RouteIntent::Unknown, None, None);
-        assert_eq!(decision.action, RouteAction::Redirect);
-        assert_eq!(decision.resolved_skill, "dj-grill");
+        assert_eq!(decision.action, RouteAction::Allow);
+        assert_eq!(decision.resolved_skill, "dj-implement");
     }
 
     #[test]
@@ -712,16 +753,16 @@ mod tests {
     }
 
     #[test]
-    fn planning_complex_implement_still_redirects() {
+    fn planning_complex_implement_is_allowed_for_verified_transition() {
         let decision = evaluate_route(
             &TaskStatus::Planning,
             RouteIntent::Implement,
             Some("dj-implement"),
             Some(TaskComplexity::Complex),
         );
-        assert_eq!(decision.action, RouteAction::Redirect);
-        assert_eq!(decision.resolved_skill, "dj-grill");
-        assert_eq!(decision.capsule, WorkflowCapsule::Align);
+        assert_eq!(decision.action, RouteAction::Allow);
+        assert_eq!(decision.resolved_skill, "dj-implement");
+        assert_eq!(decision.capsule, WorkflowCapsule::Implement);
         assert!(decision.requires_alignment_artifact);
     }
 }

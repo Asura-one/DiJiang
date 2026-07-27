@@ -154,31 +154,76 @@ pub(crate) fn write_dijiang_infrastructure(
         // Populate spec directory from embedded Chinese templates
         let spec_templates: &[(&str, &str)] = &[
             ("guides/index.md", "spec/guides/index.md"),
-            ("guides/verification-loop-guide.md", "spec/guides/verification-loop-guide.md"),
-            ("guides/cross-layer-thinking-guide.md", "spec/guides/cross-layer-thinking-guide.md"),
-            ("guides/code-reuse-thinking-guide.md", "spec/guides/code-reuse-thinking-guide.md"),
-            ("guides/memory-lifecycle-guide.md", "spec/guides/memory-lifecycle-guide.md"),
-            ("guides/tool-preferences.md", "spec/guides/tool-preferences.md"),
+            (
+                "guides/verification-loop-guide.md",
+                "spec/guides/verification-loop-guide.md",
+            ),
+            (
+                "guides/cross-layer-thinking-guide.md",
+                "spec/guides/cross-layer-thinking-guide.md",
+            ),
+            (
+                "guides/code-reuse-thinking-guide.md",
+                "spec/guides/code-reuse-thinking-guide.md",
+            ),
+            (
+                "guides/memory-lifecycle-guide.md",
+                "spec/guides/memory-lifecycle-guide.md",
+            ),
+            (
+                "guides/tool-preferences.md",
+                "spec/guides/tool-preferences.md",
+            ),
             ("backend/index.md", "spec/backend/index.md"),
-            ("backend/quality-guidelines.md", "spec/backend/quality-guidelines.md"),
-            ("backend/error-handling.md", "spec/backend/error-handling.md"),
-            ("backend/logging-guidelines.md", "spec/backend/logging-guidelines.md"),
-            ("backend/directory-structure.md", "spec/backend/directory-structure.md"),
-            ("backend/database-guidelines.md", "spec/backend/database-guidelines.md"),
+            (
+                "backend/quality-guidelines.md",
+                "spec/backend/quality-guidelines.md",
+            ),
+            (
+                "backend/error-handling.md",
+                "spec/backend/error-handling.md",
+            ),
+            (
+                "backend/logging-guidelines.md",
+                "spec/backend/logging-guidelines.md",
+            ),
+            (
+                "backend/directory-structure.md",
+                "spec/backend/directory-structure.md",
+            ),
+            (
+                "backend/database-guidelines.md",
+                "spec/backend/database-guidelines.md",
+            ),
             ("frontend/index.md", "spec/frontend/index.md"),
-            ("frontend/quality-guidelines.md", "spec/frontend/quality-guidelines.md"),
+            (
+                "frontend/quality-guidelines.md",
+                "spec/frontend/quality-guidelines.md",
+            ),
             ("frontend/type-safety.md", "spec/frontend/type-safety.md"),
-            ("frontend/state-management.md", "spec/frontend/state-management.md"),
-            ("frontend/component-guidelines.md", "spec/frontend/component-guidelines.md"),
-            ("frontend/directory-structure.md", "spec/frontend/directory-structure.md"),
-            ("frontend/hook-guidelines.md", "spec/frontend/hook-guidelines.md"),
+            (
+                "frontend/state-management.md",
+                "spec/frontend/state-management.md",
+            ),
+            (
+                "frontend/component-guidelines.md",
+                "spec/frontend/component-guidelines.md",
+            ),
+            (
+                "frontend/directory-structure.md",
+                "spec/frontend/directory-structure.md",
+            ),
+            (
+                "frontend/hook-guidelines.md",
+                "spec/frontend/hook-guidelines.md",
+            ),
             ("meta/index.md", "spec/meta/index.md"),
             ("meta/adr.md", "spec/meta/adr.md"),
             ("meta/contributing.md", "spec/meta/contributing.md"),
         ];
         for (rel_path, tmpl_name) in spec_templates {
-            let content = templates::render(tmpl_name, &[])
-                .map_err(crate::ConfigError::Serialize)?;
+            let content =
+                templates::render(tmpl_name, &[]).map_err(crate::ConfigError::Serialize)?;
             let file_path = spec_root.join(rel_path);
             if let Some(parent) = file_path.parent() {
                 std::fs::create_dir_all(parent)?;
@@ -234,13 +279,12 @@ pub(crate) fn write_dijiang_infrastructure(
                 if rel_path.contains("/.") || rel_path.contains("__pycache__") {
                     continue;
                 }
-                let content = templates::render(asset_path, &[])
-                    .map_err(crate::ConfigError::Serialize)?;
+                let content =
+                    templates::render(asset_path, &[]).map_err(crate::ConfigError::Serialize)?;
                 std::fs::write(scripts_root.join(rel_path), content)?;
             }
         }
     }
-
 
     // workflow.md — from embedded template (block-insert under Merge)
     let workflow =
@@ -312,12 +356,13 @@ pub fn init_project_with_platforms(
     // Use registry for platform-specific config
     let registry = crate::ConfiguratorRegistry::with_all();
     let results = registry.configure(cwd, platforms);
-
     for (platform, result) in results {
         if let Err(e) = result {
             eprintln!("  warning: platform config failed for {platform:?}: {e}");
         }
     }
+    crate::write_project_skills(cwd, false)
+        .map_err(|e| crate::ConfigError::Serialize(e.to_string()))?;
     println!("\n[OK] Initialized DiJiang project: {name}");
     println!("  ├── .dijiang/config.toml");
     println!("  ├── .dijiang/workflow.md");
@@ -447,5 +492,16 @@ mod tests {
         );
         // Exactly one DiJiang block, not two
         assert_eq!(after_second.matches(DIJIANG_BLOCK_BEGIN).count(), 1);
+    }
+
+    #[test]
+    fn fresh_init_installs_complete_skill_directories() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        init_project_with_platforms(tmp.path(), "skill-assets", None, &[PlatformKind::Pi]).unwrap();
+
+        let skills = tmp.path().join(".pi/skills");
+        assert!(skills.join("dj-output/SKILL.md").exists());
+        assert!(skills.join("dj-output/references/doc-template.md").exists());
+        assert!(skills.join("dj-gov/scripts/audit-inventory.sh").exists());
     }
 }
