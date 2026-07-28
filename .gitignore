@@ -4,6 +4,7 @@ target/
 .dijiang/
 .pi
 .pi/
+.pi-subagents/
 .claude/
 .codex/
 .cursor/
