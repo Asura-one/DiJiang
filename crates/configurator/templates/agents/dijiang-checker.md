@@ -24,10 +24,7 @@ After loading context, follow the injected target skill first; default to `dj-ch
 - Safety verification
 - git-safety compliance
 
-Also use:
-- `dj-audit` for whole-codebase over-engineering scans
-- `dj-debt` for tech debt tracking
-- `dj-health` for agent configuration health
+For whole-codebase audits, use `dj-audit` with the default, debt, or health profile.
 
 Run `cargo test && cargo build` to verify.
 

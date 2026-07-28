@@ -54,7 +54,7 @@ risk: low
 | "实现/写代码/做功能/加个接口" | `dj-implement` 或 `dj-tdd` |
 | "复刻/仿站/对标/clone" | `dj-remix` |
 | "原型/验证一下/探一下" | `dj-prototype` |
-| "极简/少写/简单点" | `dj-ponytail` + 对应的技能 |
+| "极简/少写/简单点" | 对应实现 skill，并应用 workflow 的最小变更约束 |
 | "写个脚本/做个小工具" | `dj-script` |
 | "拆分任务、切任务、分批做" | `dj-split` |
 | "模式/重复/抽象" | `dj-pattern` |
@@ -66,9 +66,8 @@ risk: low
 | "审查/帮我看看代码" | `dj-review` |
 | "检查/验收/质量门禁" | `dj-check` |
 | "审计/扫一下/过度工程" | `dj-audit` |
-| "债务/技术债/标记" | `dj-debt` |
-| "健康检查/配置检查" | `dj-health` |
-| "代码规则/纪律/karpathy" | `dj-karpathy` |
+| "债务/技术债/标记/健康检查/配置检查" | `dj-audit`（选择 debt 或 health profile） |
+| "代码规则/纪律/karpathy" | 对应实现或审查 skill，并应用 workflow 通用约束 |
 | "文档/写文档/PRD/说明" | `dj-output` |
 
 ### Content（内容进出）
@@ -111,14 +110,14 @@ risk: low
 | **需求→实现** | `dj-grill` → 用户说"实现" → `dj-implement` → 用户说"检查" → `dj-check` |
 | **分析→实现** | `dj-reason` 出方案 → 用户说"实现" → 按方案实施 |
 | **排错→检查** | `dj-hunt` 修 bug → 用户说"发布" → `dj-check` 做发布前检查 |
-| **极简→任意** | `dj-ponytail` 裁剪原则 + 对应技能 |
+| **极简→任意** | 对应 skill 遵守 workflow 的最小变更和验证约束 |
 
 ## 边界
 
 - 不处理需要用户身份确认的操作（发消息、删除、推送——这些要在技能中显式提示）
 - 不主动执行只读检查之外的代码修改
 - 不确定时默认路由到 `dj-grill` 对齐
-- 低置信度时（匹配不足时），推荐用户调用 `/dj-ask` 进行对话式路由选择
+- 低置信度时直接路由到 `dj-grill` 对话式澄清
 
 参考规范：`.dijiang/references/anti-patterns.md`（跨技能行为约束）。
 

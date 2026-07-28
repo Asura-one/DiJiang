@@ -455,7 +455,7 @@ pub fn summarize_route_gate(
         TaskStatus::InProgress => RouteGateSummary {
             capsule: WorkflowCapsule::Implement,
             complexity: effective_complexity,
-            allowed_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dj-review", "dj-audit", "dj-health", "dj-output", "dj-grill", "dj-gov", "dj-reason", "dj-research"],
+            allowed_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt", "dj-check", "dj-review", "dj-audit", "dj-output", "dj-grill", "dj-gov", "dj-reason", "dj-research"],
             default_skill: "dj-implement",
             blocked_skills: vec!["dijiang-finish-work"],
             note: "in_progress tasks stay in the implementation lane, but finish-work remains gated behind verification.".to_string(),
@@ -463,7 +463,7 @@ pub fn summarize_route_gate(
         TaskStatus::Completed => RouteGateSummary {
             capsule: WorkflowCapsule::Finish,
             complexity: effective_complexity,
-            allowed_skills: vec!["dijiang-finish-work", "dj-gov", "dj-check", "dj-review", "dj-audit", "dj-health", "dj-output", "dj-grill", "dj-reason", "dj-research"],
+            allowed_skills: vec!["dijiang-finish-work", "dj-gov", "dj-check", "dj-review", "dj-audit", "dj-output", "dj-grill", "dj-reason", "dj-research"],
             default_skill: "dijiang-finish-work",
             blocked_skills: vec!["dj-implement", "dj-script", "dj-tdd", "dj-hunt"],
             note: "completed tasks may finish or document, but implementation requests must re-open alignment first.".to_string(),
@@ -493,7 +493,7 @@ fn requested_skill_name(skill: Option<&str>) -> Option<&'static str> {
 fn check_skill_name(skill: Option<&str>) -> &'static str {
     skill
         .and_then(crate::skill_route)
-        .filter(|route| matches!(route.name, "dj-review" | "dj-audit" | "dj-health"))
+        .filter(|route| matches!(route.name, "dj-review" | "dj-audit"))
         .map(|route| route.name)
         .unwrap_or("dj-check")
 }
@@ -606,7 +606,7 @@ mod tests {
 
     #[test]
     fn in_progress_check_preserves_read_only_review_skills() {
-        for skill in ["dj-review", "dj-audit", "dj-health"] {
+        for skill in ["dj-review", "dj-audit"] {
             let decision = evaluate_route(
                 &TaskStatus::InProgress,
                 RouteIntent::Check,
@@ -642,10 +642,9 @@ mod tests {
         assert_eq!(decision.action, RouteAction::Allow);
         assert_eq!(decision.resolved_skill, "dijiang-finish-work");
     }
-
     #[test]
     fn completed_check_preserves_read_only_review_skills() {
-        for skill in ["dj-review", "dj-audit", "dj-health"] {
+        for skill in ["dj-review", "dj-audit"] {
             let decision = evaluate_route(
                 &TaskStatus::Completed,
                 RouteIntent::Check,

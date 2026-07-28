@@ -62,8 +62,12 @@ function commandHasDijiangContext(command: string): boolean {
     /^env\s+.*DIJIANG_CONTEXT_ID=/.test(trimmed);
 }
 
-function isValidationCommand(command: string): boolean {
-  return /\b(test|typecheck|lint|build|check|cargo\s+test|cargo\s+check|pnpm\s+test|npm\s+test|vitest|tsc)\b/i.test(command);
+function validationCommand(command: string): string | undefined {
+  const normalized = command
+    .replace(/^\s*(?:export\s+DIJIANG_CONTEXT_ID='[^']*';\s*)?/, "")
+    .trim();
+  const match = normalized.match(/^(?:cargo\s+(?:test|check|build)|npm\s+test|pnpm\s+test|yarn\s+test|vitest(?:\s|$)|tsc(?:\s|$)|(?:npm|pnpm|yarn)\s+run\s+(?:lint|typecheck|build))(?:\s|$)/i);
+  return match?.[0].trim();
 }
 
 function exitCode(details: unknown): number | undefined {
@@ -74,7 +78,6 @@ function exitCode(details: unknown): number | undefined {
   const code = record.code ?? record.exitCode ?? record.status;
   return typeof code === "number" ? code : undefined;
 }
-
 function failedToolResult(event: ToolResultEvent): boolean {
   if (event.isError) {
     return true;
@@ -235,7 +238,6 @@ async function injectWorkflowState(pi: ExtensionAPI, eventName: string) {
 }
 
 export default function (pi: ExtensionAPI) {
-  let lastHuntInjection = "";
   let lastDocsInjection = "";
 
   pi.registerCommand("dijiang", {
@@ -313,30 +315,11 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-
-    if (failedToolResult(ev)) {
-      const key = `${contextKey(event)}:${command}:hunt`;
-      if (key !== lastHuntInjection) {
-        lastHuntInjection = key;
-        const context = routeMessage(
-          "dj-hunt",
-          `bash command failed: ${command}`,
-          "stop normal implementation, diagnose root cause, fix, then return to dj-check.",
-        );
-        pi.appendEntry("dijiang_route", { route: "dj-hunt", command, context });
-        pi.sendMessage({
-          customType: "dijiang_route",
-          content: context,
-          display: false,
-          details: { route: "dj-hunt", command },
-        }, { deliverAs: "steer" });
-      }
+    const validation = validationCommand(command);
+    if (!validation || failedToolResult(ev)) {
       return;
     }
 
-    if (!isValidationCommand(command)) {
-      return;
-    }
 
     if (await hasDirtyDiff(pi)) {
       const key = `${contextKey(event)}:${command}:docs`;
