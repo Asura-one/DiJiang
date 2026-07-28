@@ -53,7 +53,7 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
             "未找到 .dijiang/ 目录。请先运行 `dijiang init`。".to_string(),
         ));
     }
-
+    crate::init::ensure_glossary(&dijiang_dir)?;
     let config = read_existing_config(cwd);
     let platforms = configured_platforms(cwd, config.as_ref());
     let temp = GeneratedProject::new()?;
@@ -145,7 +145,6 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
         path: ".dijiang/workflow.md".to_string(),
         policy: UpdatePolicy::HashProtected,
     });
-
     let mut hashes = load_hashes(&dijiang_dir)?;
     let mut report = UpdateReport::default();
     record_duplicate_skill_dirs(cwd, &mut report, options.force)?;
@@ -825,6 +824,24 @@ mod tests {
             fs::read_to_string(tmp.path().join(".codex/hooks/inject-workflow-state.py")).unwrap();
         assert!(hook.contains("workflow_state.py"));
     }
+    #[test]
+    fn update_restores_missing_glossary_without_overwriting_existing_entries() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        crate::init_project_with_platforms(tmp.path(), "legacy-project", None, &[PlatformKind::Pi])
+            .unwrap();
+
+        let glossary = tmp.path().join(".dijiang/glossary.md");
+        fs::remove_file(&glossary).unwrap();
+        update_project(tmp.path(), UpdateOptions { force: false }).unwrap();
+        assert!(glossary.exists());
+
+        fs::write(&glossary, "# Project Glossary\n\n- **Kept**: user term\n").unwrap();
+        update_project(tmp.path(), UpdateOptions { force: false }).unwrap();
+        assert_eq!(
+            fs::read_to_string(glossary).unwrap(),
+            "# Project Glossary\n\n- **Kept**: user term\n"
+        );
+    }
 
     #[test]
     fn update_preserves_companion_skill_assets() {
@@ -840,11 +857,9 @@ mod tests {
 
         let report = update_project(tmp.path(), UpdateOptions { force: false }).unwrap();
         assert!(companion.exists());
-        assert!(
-            report
-                .updated
-                .contains(&".pi/skills/dj-output/references/doc-template.md".to_string())
-        );
+        assert!(report
+            .updated
+            .contains(&".pi/skills/dj-output/references/doc-template.md".to_string()));
     }
     #[test]
     fn update_project_force_overwrites_conflicts_and_records_hashes() {
@@ -914,16 +929,14 @@ version = "0.1.0"
             report.conflicts.is_empty(),
             "unexpected conflicts: {report:?}"
         );
-        assert!(
-            tmp.path()
-                .join(".codex/hooks/inject-workflow-state.py")
-                .exists()
-        );
-        assert!(
-            tmp.path()
-                .join(".cursor/hooks/inject-workflow-state.py")
-                .exists()
-        );
+        assert!(tmp
+            .path()
+            .join(".codex/hooks/inject-workflow-state.py")
+            .exists());
+        assert!(tmp
+            .path()
+            .join(".cursor/hooks/inject-workflow-state.py")
+            .exists());
         let config = fs::read_to_string(tmp.path().join(".dijiang/config.toml")).unwrap();
         assert!(config.contains("codex"));
         assert!(config.contains("cursor"));
