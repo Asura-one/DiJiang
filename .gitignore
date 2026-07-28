@@ -2,6 +2,7 @@ test-prompts.json
 results.tsv
 target/
 .dijiang/
+.pi
 .pi/
 .claude/
 .codex/
