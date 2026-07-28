@@ -3,6 +3,7 @@
 //! These tests build and run the `dijiang` binary as a subprocess,
 //! simulating real user workflows: init, task lifecycle, template commands.
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -2201,6 +2202,48 @@ fn test_e2e_task_current_from_worktree_without_local_dijiang() {
         current.contains("cross-wt"),
         "task current from task worktree should resolve main .dijiang: {current}"
     );
+}
+
+#[test]
+fn test_e2e_update_from_worktree_refreshes_shared_pi_runtime() {
+    let (tmp, project_dir) = init_project();
+    Command::new("git")
+        .args(["branch", "-m", "master", "main"])
+        .current_dir(&project_dir)
+        .output()
+        .ok();
+
+    let worktree_dir = tmp.path().join("update-runtime-worktree");
+    Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "feat/update-runtime-worktree",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&project_dir)
+        .output()
+        .expect("git worktree add");
+    assert!(!worktree_dir.join(".dijiang").exists());
+
+    let extension = project_dir.join(".pi/extensions/dijiang/index.ts");
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(&extension)
+        .unwrap()
+        .write_all(b"\npi.on(\"user_prompt_submit\", async () => {});\n")
+        .unwrap();
+
+    let output = dijang(&["update", "--force"], &worktree_dir).unwrap();
+    assert!(
+        output.contains(".pi/extensions/dijiang/index.ts"),
+        "force update should report refreshed extension: {output}"
+    );
+
+    let extension = std::fs::read_to_string(extension).unwrap();
+    assert_eq!(extension.matches("pi.on(\"before_agent_start\"").count(), 1);
+    assert_eq!(extension.matches("pi.on(\"user_prompt_submit\"").count(), 0);
 }
 
 #[test]
