@@ -49,7 +49,7 @@ dijiang workflow-state --json
 
 ```bash
 test -d .dijiang/spec && find .dijiang/spec -maxdepth 2 -type f | sort
-test -f .dijiang/spec/index.md && cat .dijiang/spec/index.md
+test -f .dijiang/spec/guides/index.md && cat .dijiang/spec/guides/index.md
 # Check for stale specs (spec changes since last recorded)
 dijiang spec-sync check 2>/dev/null || true
 ```

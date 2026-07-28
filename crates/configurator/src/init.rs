@@ -1,5 +1,5 @@
-use crate::PlatformKind;
 use crate::templates;
+use crate::PlatformKind;
 use std::path::Path;
 
 /// Policy for handling pre-existing `.dijiang/` content when `init` runs.
@@ -147,90 +147,19 @@ pub(crate) fn write_dijiang_infrastructure(
         std::fs::create_dir_all(dijiang_dir.join("workspace").join(dev))?;
     }
 
-    // spec/ — coding guidelines with Chinese-first templates
+    // spec/ — coding guidelines from embedded templates. Existing spec trees
+    // are user-owned under Merge, so only a fresh tree is populated here.
     if !report.has_spec_dir {
-        let spec_root = dijiang_dir.join("spec");
-        std::fs::create_dir_all(&spec_root)?;
-        // Populate spec directory from embedded Chinese templates
-        let spec_templates: &[(&str, &str)] = &[
-            ("guides/index.md", "spec/guides/index.md"),
-            (
-                "guides/verification-loop-guide.md",
-                "spec/guides/verification-loop-guide.md",
-            ),
-            (
-                "guides/cross-layer-thinking-guide.md",
-                "spec/guides/cross-layer-thinking-guide.md",
-            ),
-            (
-                "guides/code-reuse-thinking-guide.md",
-                "spec/guides/code-reuse-thinking-guide.md",
-            ),
-            (
-                "guides/memory-lifecycle-guide.md",
-                "spec/guides/memory-lifecycle-guide.md",
-            ),
-            (
-                "guides/tool-preferences.md",
-                "spec/guides/tool-preferences.md",
-            ),
-            ("backend/index.md", "spec/backend/index.md"),
-            (
-                "backend/quality-guidelines.md",
-                "spec/backend/quality-guidelines.md",
-            ),
-            (
-                "backend/error-handling.md",
-                "spec/backend/error-handling.md",
-            ),
-            (
-                "backend/logging-guidelines.md",
-                "spec/backend/logging-guidelines.md",
-            ),
-            (
-                "backend/directory-structure.md",
-                "spec/backend/directory-structure.md",
-            ),
-            (
-                "backend/database-guidelines.md",
-                "spec/backend/database-guidelines.md",
-            ),
-            ("frontend/index.md", "spec/frontend/index.md"),
-            (
-                "frontend/quality-guidelines.md",
-                "spec/frontend/quality-guidelines.md",
-            ),
-            ("frontend/type-safety.md", "spec/frontend/type-safety.md"),
-            (
-                "frontend/state-management.md",
-                "spec/frontend/state-management.md",
-            ),
-            (
-                "frontend/component-guidelines.md",
-                "spec/frontend/component-guidelines.md",
-            ),
-            (
-                "frontend/directory-structure.md",
-                "spec/frontend/directory-structure.md",
-            ),
-            (
-                "frontend/hook-guidelines.md",
-                "spec/frontend/hook-guidelines.md",
-            ),
-            ("meta/index.md", "spec/meta/index.md"),
-            ("meta/adr.md", "spec/meta/adr.md"),
-            ("meta/contributing.md", "spec/meta/contributing.md"),
-        ];
-        for (rel_path, tmpl_name) in spec_templates {
-            let content =
-                templates::render(tmpl_name, &[]).map_err(crate::ConfigError::Serialize)?;
-            let file_path = spec_root.join(rel_path);
-            if let Some(parent) = file_path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            std::fs::write(file_path, content)?;
-        }
+        write_embedded_files("spec/", &dijiang_dir.join("spec"), false)?;
     }
+
+    // Shared references are required by the managed skills. Preserve local
+    // edits while adding any missing bundled reference on init or re-init.
+    write_embedded_files("references/", &dijiang_dir.join("references"), false)?;
+
+    // The glossary is user-owned but is a required skill dependency. Seed it
+    // only when absent so init and update never replace collected terminology.
+    ensure_glossary(&dijiang_dir)?;
 
     // agents/ — persona definitions for AI agent roles
     // (see write_agents_md in pi.rs for .pi/agents/; this is for .dijiang/agents/)
@@ -305,6 +234,45 @@ pub(crate) fn write_dijiang_infrastructure(
     } else if !report.has_workflow_md || policy == ConflictPolicy::Overwrite {
         // No existing file, or Overwrite policy: write fresh.
         std::fs::write(workflow_path, workflow)?;
+    }
+
+    Ok(())
+}
+pub(crate) fn ensure_glossary(dijiang_dir: &Path) -> Result<(), crate::ConfigError> {
+    let glossary_path = dijiang_dir.join("glossary.md");
+    if glossary_path.exists() {
+        return Ok(());
+    }
+
+    let glossary =
+        templates::render("config/glossary.md", &[]).map_err(crate::ConfigError::Serialize)?;
+    std::fs::write(glossary_path, glossary)?;
+    Ok(())
+}
+
+fn write_embedded_files(
+    prefix: &str,
+    destination: &Path,
+    overwrite: bool,
+) -> Result<(), crate::ConfigError> {
+    for asset_path in templates::TemplateAssets::iter() {
+        let asset_path = asset_path.as_ref();
+        let Some(relative_path) = asset_path.strip_prefix(prefix) else {
+            continue;
+        };
+        if relative_path.contains("/.") || relative_path.contains("__pycache__") {
+            continue;
+        }
+
+        let file_path = destination.join(relative_path);
+        if file_path.exists() && !overwrite {
+            continue;
+        }
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let content = templates::render(asset_path, &[]).map_err(crate::ConfigError::Serialize)?;
+        std::fs::write(file_path, content)?;
     }
 
     Ok(())
@@ -503,5 +471,13 @@ mod tests {
         assert!(skills.join("dj-output/SKILL.md").exists());
         assert!(skills.join("dj-output/references/doc-template.md").exists());
         assert!(skills.join("dj-gov/scripts/audit-inventory.sh").exists());
+        for required in [
+            ".dijiang/glossary.md",
+            ".dijiang/references/decision-ladder.md",
+            ".dijiang/references/code-task-contract.md",
+            ".dijiang/spec/guides/index.md",
+        ] {
+            assert!(tmp.path().join(required).exists(), "missing {required}");
+        }
     }
 }

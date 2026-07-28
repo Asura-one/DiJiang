@@ -64,8 +64,6 @@ dijiang channel stop <id>
 
 ## 参考文件
 
-- `.dijiang/spec/mcp-server/index.md` — MCP 协议和通道交互协议
-- `.dijiang/spec/cli/dispatch-logic.md` — 通道与路由系统的关系
 - `dijiang channel --help` — 所有子命令的最新参考
 
 ## 不属于此 skill 的内容
