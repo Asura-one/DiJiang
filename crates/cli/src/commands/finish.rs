@@ -841,6 +841,45 @@ fn update_workspace_version(project_root: &Path, impact: &str) -> anyhow::Result
         Ok(None)
     }
 }
+fn update_package_json_version(
+    project_root: &Path,
+    impact: &str,
+) -> anyhow::Result<Option<String>> {
+    let path = project_root.join("package.json");
+    let content = std::fs::read_to_string(&path)?;
+    let current = read_package_json_version(&content)
+        .ok_or_else(|| anyhow::anyhow!("package.json 缺少有效 version 字段"))?;
+    let target = bump_semver(&current, impact)?;
+    let marker = format!("\"version\"");
+    let start = content
+        .find(&marker)
+        .ok_or_else(|| anyhow::anyhow!("package.json 缺少 version 字段"))?;
+    let value_start = content[start + marker.len()..]
+        .find('"')
+        .map(|offset| start + marker.len() + offset + 1)
+        .ok_or_else(|| anyhow::anyhow!("package.json 的 version 格式无效"))?;
+    let value_end = content[value_start..]
+        .find('"')
+        .map(|offset| value_start + offset)
+        .ok_or_else(|| anyhow::anyhow!("package.json 的 version 格式无效"))?;
+    let updated = format!(
+        "{}{}{}",
+        &content[..value_start],
+        target,
+        &content[value_end..]
+    );
+    std::fs::write(path, updated)?;
+    sync_version_file(project_root, &target)?;
+    Ok(Some(format!("{current} -> {target}")))
+}
+
+fn update_version_file(project_root: &Path, impact: &str) -> anyhow::Result<Option<String>> {
+    let path = project_root.join("VERSION");
+    let current = std::fs::read_to_string(&path)?.trim().to_string();
+    let target = bump_semver(&current, impact)?;
+    std::fs::write(path, format!("{target}\n"))?;
+    Ok(Some(format!("{current} -> {target}")))
+}
 
 fn apply_version_and_changelog_gates(
     project_root: &Path,
@@ -856,23 +895,13 @@ fn apply_version_and_changelog_gates(
              请提供 Cargo.toml [workspace.package].version、根 package.json 的 version，或 VERSION 文件。"
         );
     };
-    let version_update = if source == VersionSource::CargoWorkspace {
-        update_workspace_version(project_root, impact)?
-    } else {
-        let target = bump_semver(&current, impact)?;
-        Some(format!(
-            "{current} -> {target} (authority not Cargo; bump not applied)"
-        ))
-    };
-    let target = if source == VersionSource::CargoWorkspace {
-        read_authority_version(project_root)
-            .map(|(v, _)| v)
-            .unwrap_or(bump_semver(&current, impact)?)
-    } else {
-        bump_semver(&current, impact)?
-    };
+    let target = bump_semver(&current, impact)?;
     ensure_changelog_gate(project_root, &target)?;
-    Ok(version_update)
+    match source {
+        VersionSource::CargoWorkspace => update_workspace_version(project_root, impact),
+        VersionSource::PackageJson => update_package_json_version(project_root, impact),
+        VersionSource::VersionFile => update_version_file(project_root, impact),
+    }
 }
 
 fn ensure_finish_preconditions(
@@ -1473,7 +1502,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn test_version_heading_matches_bracket_and_bare() {
         assert!(version_heading_matches(
             "## [0.13.5] — 2026-07-23",
@@ -1531,6 +1559,57 @@ mod tests {
         let (v, src) = read_authority_version(dir.path()).expect("version");
         assert_eq!(v, "2.0.0");
         assert_eq!(src, VersionSource::PackageJson);
+    }
+
+    #[test]
+    fn package_json_authority_is_updated_after_changelog_validation() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("package.json"),
+            r#"{"name":"x","version":"2.0.0"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("CHANGELOG.md"),
+            "## [2.0.1]\n\n### Fixed\n\n- Correct release metadata\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            apply_version_and_changelog_gates(dir.path(), "patch")
+                .unwrap()
+                .as_deref(),
+            Some("2.0.0 -> 2.0.1")
+        );
+        assert_eq!(
+            read_package_json_version(
+                &std::fs::read_to_string(dir.path().join("package.json")).unwrap()
+            )
+            .as_deref(),
+            Some("2.0.1")
+        );
+    }
+
+    #[test]
+    fn version_file_authority_is_updated_after_changelog_validation() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("VERSION"), "3.1.4\n").unwrap();
+        std::fs::write(
+            dir.path().join("CHANGELOG.md"),
+            "## [3.1.5]\n\n### Changed\n\n- Update release metadata\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            apply_version_and_changelog_gates(dir.path(), "patch")
+                .unwrap()
+                .as_deref(),
+            Some("3.1.4 -> 3.1.5")
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("VERSION")).unwrap(),
+            "3.1.5\n"
+        );
     }
 
     #[test]

@@ -59,7 +59,7 @@
 
 | impact | 行为 |
 |--------|------|
-| `major` / `minor` / `patch` | 解析权威版本 →（仅 Cargo workspace 时）自动 bump 并同步 `VERSION` → **强制**根 `CHANGELOG.md` 含目标版本的 Keep a Changelog 条目 |
+| `major` / `minor` / `patch` | 解析权威版本 → 验证根 `CHANGELOG.md` 的目标版本 Keep a Changelog 条目 → 写回命中的权威面；存在根 `VERSION` 时同步该文件 |
 | `none` | 不 bump；若工作区权威版本相对 `HEAD` 已变则 **失败** |
 
 ### 版本读取顺序
@@ -68,7 +68,7 @@
 2. 根 `package.json` 的 `"version"`
 3. 根 `VERSION` 文件
 
-读不到且 impact ≠ none → 失败。非 Cargo 项目只用于校验目标版本，**不**自动改 package.json / VERSION。
+读不到且 impact ≠ none → 失败。Cargo workspace、package.json 与 VERSION 任一权威面都会在 CHANGELOG 门禁通过后由 CLI 自动写回。
 
 ### CHANGELOG 结构要求
 

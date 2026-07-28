@@ -180,6 +180,16 @@ pub fn dispatch_route_for_active_task(task: &TaskRecord) -> DispatchRoute {
     }
 }
 
+fn dispatch_route_for_active_task_with_config(
+    task: &TaskRecord,
+    dijiang_dir: &Path,
+) -> DispatchRoute {
+    dijiang_task::workflow_default_skill(dijiang_dir, task.status.as_str())
+        .as_deref()
+        .and_then(dispatch_route_from_skill)
+        .unwrap_or_else(|| dispatch_route_for_active_task(task))
+}
+
 pub fn apply_route_gate(
     status: &TaskStatus,
     route: DispatchRoute,
@@ -566,7 +576,7 @@ pub fn cmd_dispatch(
     // Route the prompt
     let dispatch = match &existing_task {
         Some(task) if matches!(hook_event, "session:start" | "session_start") => {
-            let route = dispatch_route_for_active_task(task);
+            let route = dispatch_route_for_active_task_with_config(task, &dijiang_dir);
             apply_route_gate(
                 &task.status,
                 route,

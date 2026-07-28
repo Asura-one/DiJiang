@@ -42,8 +42,8 @@ pub use circuit_breaker::{
     summarize_attempts,
 };
 pub use config::{
-    Config, HooksSection, ProjectConfig, load_config, read_developer, read_hooks_config,
-    read_project_name, read_project_version,
+    Config, HooksSection, ProjectConfig, WorkflowConfig, grill_mode, load_config, read_developer,
+    read_hooks_config, read_project_name, read_project_version, workflow_default_skill,
 };
 pub use git_gate::{
     GitGateInput, GitGateState, GitGateSummary, GitRuntimeLocation, WorktreeReadiness,
