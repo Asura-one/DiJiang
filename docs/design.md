@@ -132,16 +132,17 @@ dropped           archived（与 "未完成即结束" 合并）
 
 **决策**：Pi Extension（`.pi/extensions/dijiang/index.ts`）在 agent 生命周期事件中自动注入 DiJiang 路由上下文。agent 应消费注入的 `<dijiang-workflow-state>` 和 `<dijiang-route>`，而非主动频繁调用 `dijiang dispatch`。
 
-**实现**：扩展注册 6 个 Pi lifecycle hooks：
+**实现**：扩展注册 5 个 Pi lifecycle hooks：
 
-- `before_agent_start` / `user_prompt_submit`：调用 `dijiang workflow-state` 和 `dijiang dispatch --json --hook-event`，刷新 UI 并将路由上下文注入 agent 提示
+- `before_agent_start`：唯一的 prompt dispatch/injection hook。它只调用 `dijiang dispatch --json --hook-event` 并注入路由上下文。
   | `tool_call`：向 bash 命令注入 `DIJIANG_CONTEXT_ID`
-  | `tool_result`：失败路由到 `dj-hunt`，通过验证且有脏 diff 路由到 `dj-output`
+  | `tool_result`：刷新状态栏和 widget；失败路由到 `dj-hunt`，通过验证且有脏 diff 路由到 `dj-output`
   | `session_start` / `session_shutdown`：刷新状态栏和 widget
 
-**理由**：agent 主动调用 dispatch 有两个问题：1）时机不可控 —— agent 可能在错误的状态片段中调用 dispatch，路由到错误方向；2）增加延迟 —— 每次 dispatch 需要 CLI 启动和 gate 评估。Extension hook 在正确的生命周期事件中自动触发，时机确定且与 UI 刷新绑定。
+**理由**：agent 主动调用 dispatch 有两个问题：1）时机不可控 —— agent 可能在错误的状态片段中调用 dispatch，路由到错误方向；2）增加延迟 —— 每次 dispatch 需要 CLI 启动和 gate 评估。`before_agent_start` 在实际 agent 启动前触发，既提供确定的分类时机，也避免 `user_prompt_submit` 与 agent 启动重复注入。
 
-**候选方案**：agent 在收到每个输入时自动调用 `dijiang dispatch`。弃用原因：agent 无法可靠判断当前是否是分类时机（可能是在 review 途中想查个资料，但 dispatch 误以为是一个新实现请求）。Extension 的 `user_prompt_submit` hook 由 Pi 平台稳定触发。
+**候选方案**：agent 在收到每个输入时自动调用 `dijiang dispatch`。弃用原因：agent 无法可靠判断当前是否是分类时机（可能是在 review 途中想查个资料，但 dispatch 误以为是一个新实现请求）。由 Pi 平台触发的 `before_agent_start` 提供稳定的唯一 dispatch 时机。
+
 
 ## 12. 路由上下文注入（自动注入而非主动请求）
 

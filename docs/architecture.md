@@ -297,15 +297,14 @@ DiJiang 在 Pi 中通过 `.pi/extensions/dijiang/index.ts` 扩展实现运行时
 
 | Hook | 触发时机 | 扩展行为 |
 |------|---------|----------|
-| before_agent_start | agent 启动前 | 1. 通过 `dijiang workflow-state` 刷新状态栏和 widget |
-| | | 2. 通过 `dijiang dispatch --json --hook-event` 分类提示 |
-| user_prompt_submit | 用户提交提示 | 同上 |
+| before_agent_start | agent 启动前 | 通过 `dijiang dispatch --json --hook-event` 分类提示并注入工作流与路由上下文 |
 | tool_call | 任意工具调用 | 向 bash 命令注入 `DIJIANG_CONTEXT_ID` 环境变量 |
 | tool_result | 工具返回结果 | 1. 刷新状态栏和 widget |
 | | | 2. bash 命令失败 → 注入 `<dijiang-route>` 路由到 dj-hunt |
 | | | 3. 验证命令通过且有脏 diff → 注入 `<dijiang-route>` 路由到 dj-output |
 | session_start | session 开始 | 刷新状态栏和 widget |
 | session_shutdown | session 关闭 | 刷新状态栏和 widget |
+
 
 ### UI 组件
 

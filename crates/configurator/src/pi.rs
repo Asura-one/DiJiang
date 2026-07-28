@@ -311,14 +311,16 @@ mod tests {
                 .join("dijiang-reason.md")
                 .exists()
         );
-        assert!(
+        let extension = std::fs::read_to_string(
             tmp.path()
                 .join(".pi")
                 .join("extensions")
                 .join("dijiang")
-                .join("index.ts")
-                .exists()
-        );
+                .join("index.ts"),
+        )
+        .unwrap();
+        assert_eq!(extension.matches("pi.on(\"before_agent_start\"").count(), 1);
+        assert_eq!(extension.matches("pi.on(\"user_prompt_submit\"").count(), 0);
     }
     #[test]
     fn test_write_agents_md_new() {

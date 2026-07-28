@@ -855,7 +855,16 @@ mod tests {
         fs::create_dir_all(edited_skill.parent().unwrap()).unwrap();
         fs::write(&edited_skill, "# local edit").unwrap();
         fs::create_dir_all(tmp.path().join(".pi/skills/dj-dj-check")).unwrap();
-
+        let extension = tmp.path().join(".pi/extensions/dijiang/index.ts");
+        let mut extension_file = fs::OpenOptions::new()
+            .append(true)
+            .open(&extension)
+            .unwrap();
+        std::io::Write::write_all(
+            &mut extension_file,
+            b"\npi.on(\"user_prompt_submit\", async () => {});\n",
+        )
+        .unwrap();
         let report = update_project(tmp.path(), UpdateOptions { force: true }).unwrap();
         assert!(report.conflicts.is_empty(), "force should not conflict");
         assert!(
@@ -874,6 +883,15 @@ mod tests {
         assert!(tmp.path().join(".dijiang/.template-hashes.json").exists());
         let skill = fs::read_to_string(tmp.path().join(".pi/skills/dj-check/SKILL.md")).unwrap();
         assert_ne!(skill, "# local edit");
+        assert!(
+            report
+                .updated
+                .contains(&".pi/extensions/dijiang/index.ts".to_string()),
+            "force should update stale extension: {report:?}"
+        );
+        let extension = fs::read_to_string(extension).unwrap();
+        assert_eq!(extension.matches("pi.on(\"before_agent_start\"").count(), 1);
+        assert_eq!(extension.matches("pi.on(\"user_prompt_submit\"").count(), 0);
     }
 
     #[test]

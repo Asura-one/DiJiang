@@ -1,7 +1,10 @@
 pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    let _dijiang_dir = crate::util::resolve_dijiang_dir(&cwd)
+    let dijiang_dir = crate::util::resolve_dijiang_dir(&cwd)
         .ok_or_else(|| anyhow::anyhow!("未找到 .dijiang/ 目录。请先运行 `dijiang init`。"))?;
+    let project_root = dijiang_dir
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("无法确定项目根目录"))?;
 
     if from_github {
         println!("  正在从 GitHub 下载最新版本...");
@@ -59,8 +62,10 @@ pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
         println!("  GitHub 更新完成。\n");
     }
 
-    let report =
-        dijiang_configurator::update_project(&cwd, dijiang_configurator::UpdateOptions { force })?;
+    let report = dijiang_configurator::update_project(
+        project_root,
+        dijiang_configurator::UpdateOptions { force },
+    )?;
 
     let old_version = report.old_version.as_deref().unwrap_or("unknown");
     let version_changed = report.old_version.as_deref() != Some(&report.new_version);
