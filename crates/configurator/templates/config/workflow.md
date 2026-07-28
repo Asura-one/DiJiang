@@ -74,14 +74,13 @@ Phase 4 已开始最小闭环：当前先覆盖 `finish-work --integrate`、`fin
 |----------|--------|----------|
 | 路由 | `dj-dispatch` | 分类和路由；不直接实现 |
 | 对齐 | `dj-grill` | 需求对齐；不写代码 |
-| 实现 | `dj-implement`, `dj-tdd`, `dj-hunt`, `dj-prototype`, `dj-script`, `dj-design` | 写代码或调查根因
-| 复刻 | `dj-remix` | 系统化复刻站点/App并做差异化改造 |
 | 实现 | `dj-implement`, `dj-tdd`, `dj-hunt`, `dj-prototype`, `dj-script`, `dj-design` | 写代码或调查根因 |
+| 复刻 | `dj-remix` | 系统化复刻站点/App并做差异化改造 |
 | 质量门禁 | `dj-check` | 验证 diff 质量、完整性、安全性和回归 |
 | 审查视角 | `dj-review` | 轻量只读 review；不运行测试、不改代码、不替代 `dj-check` |
-| 分析报告 | `dj-audit`, `dj-debt`, `dj-health`, `dj-pattern`, `dj-gov` | 产出报告；不是默认交付门禁 |
+| 审计报告 | `dj-audit` | 用 default、debt 或 health profile 产出只读报告；不是默认交付门禁 |
 | 推理增强 | `dj-reason` | 复杂判断、系统透镜和认知校准；只分析，不改变 workflow state |
-| 风格叠加 | `dj-ponytail`, `dj-karpathy` | 给其他 workflow 路径增加约束 |
+| 通用实现约束 | 最小变更、先读后改、成功标准和可验证反馈回路 | 适用于所有实现、审查和重构；不作为独立 skill 路由 |
 | 写作润色 | `dj-write` | 润色文本；不负责工程文档生命周期 |
 | 会话交接 | `dj-handoff` | 准备 handoff；不替代 finish-work journal |
 | 会话包装器 | `dijiang-start`, `dijiang-continue`, `dijiang-finish-work` | 加载上下文、路由和关闭会话；skill 执行不同于 prompt checklist 注入 |
@@ -217,16 +216,15 @@ Exception: <none，或无法自动化/纯机械变更/环境不可用的具体�
 | Code review / quality gate | `dj-check` |
 | Lightweight read-only review | `dj-review` |
 | Whole-codebase audit | `dj-audit` |
-| Technical debt assessment | `dj-debt` |
-| Codebase health report | `dj-health` |
+| Repository audit, technical debt, or health check | `dj-audit` with the matching profile |
 | Documentation / specs | `dj-output` |
 | Handoff between sessions | `dj-handoff` |
-| Minimal focused changes | `dj-ponytail` |
+| Minimal focused implementation | the applicable implementation skill |
 | Prototype | `dj-prototype` |
 | UI design | `dj-design` |
 | Script / tool | `dj-script` |
 | Pattern research | `dj-pattern` |
 | Reasoning / system lens | `dj-reason` |
 | Writing polish | `dj-write` |
-| Long code discussion | `dj-karpathy` |
+| Long code discussion | the applicable analysis or implementation skill |
 | Session findings or lessons | `dijiang mem findings` / `dijiang mem learn` |

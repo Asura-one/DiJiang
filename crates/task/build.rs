@@ -21,10 +21,10 @@ fn main() {
         ("dj-implement", "功能实现与局部代码变更"),
         ("dj-tdd", "测试驱动实现与行为回归保护"),
         ("dj-hunt", "bug、回归和根因排查"),
-        ("dj-health", "综合代码库健康检查：构建、测试、Git、依赖、lint、agent 配置"),
+        ("dj-health", "兼容入口：dj-audit health profile"),
         ("dj-script", "脚本或工具实现"),
         ("dj-design", "UI/UX 主导的设计实现"),
-        ("dj-debt", "技术债评估与追踪：多源聚合 ponytail/TODO/依赖/死代码债务"),
+        ("dj-debt", "兼容入口：dj-audit debt profile"),
         ("dj-absorb", "有选择地从外部目标中吸收融合设计模式、交互或视觉元素到自有项目中"),
         ("dj-check", "质量门禁、验证 diff、回归审查"),
         ("dj-audit", "全仓扫描：过度工程检查 + 安全性扫描。只报告，不修改。"),
@@ -39,9 +39,7 @@ fn main() {
         ("dj-domain-modeling", "统一语言：检查术语一致性，更新共享术语表"),
         ("dj-git-guardrails", "Git 操作安全护栏：防止危险操作，保护 main 分支"),
         ("dj-handoff", "Session 交接：将当前对话压缩为结构化交接文档"),
-        ("dj-karpathy", "LLM 编码行为准则：减少常见错误，避免过度工程"),
         ("dj-pattern", "模式识别：发现可复用抽象和需要改进的反模式"),
-        ("dj-ponytail", "极简编码模式：只写任务需要的最少代码"),
         ("dj-prototype", "造废品验证设计：用可运行代码回答方案可行性"),
         ("dj-remix", "系统化复刻网站或 App 的界面与功能"),
         ("dj-split", "将 PRD 文档拆分为独立可执行的 task"),
@@ -50,7 +48,6 @@ fn main() {
         ("dijiang-start", "重新激活 archived task 或启动新任务"),
         ("dijiang-finish-work", "执行收尾、验证汇总、归档与提交前检查"),
         ("dj-dispatch", "通用任务分类器：识别任务类型，路由到对应 skill 执行"),
-        ("dj-ask", "不知道用哪个 dj-* skill 时的入口。告诉我你想做什么，我推荐对口的 skill。"),
     ]
     .into();
 

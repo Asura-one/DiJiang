@@ -29,11 +29,17 @@ pub struct SkillBodyCache {
 }
 
 include!("skill_manifest.gen.rs");
+const COMPATIBILITY_SKILLS: &[&str] = &["dj-debt", "dj-health"];
+
+fn is_compatibility_skill(name: &str) -> bool {
+    COMPATIBILITY_SKILLS.contains(&name)
+}
 
 pub fn manifests_for_capsule(capsule: WorkflowCapsule) -> Vec<SkillManifestEntry> {
     let phase = capsule.as_str();
     SKILL_MANIFESTS
         .iter()
+        .filter(|entry| !is_compatibility_skill(entry.name))
         .filter(|entry| entry.phases.iter().any(|candidate| candidate == &phase))
         .cloned()
         .collect()
@@ -50,7 +56,7 @@ pub fn skill_body_by_name(name: &str) -> Option<&'static str> {
     manifest_by_name(name).map(|entry| entry.body)
 }
 
-/// Verify generated manifests and embedded templates have the same skill names.
+/// Verify generated manifests and embedded templates match routing ownership.
 pub fn validate_manifest_templates() -> Result<(), String> {
     let mut errors = Vec::new();
     for route in crate::routing_registry::skill_routes() {
@@ -59,7 +65,9 @@ pub fn validate_manifest_templates() -> Result<(), String> {
         }
     }
     for manifest in SKILL_MANIFESTS {
-        if crate::routing_registry::skill_route(manifest.name).is_none() {
+        if !is_compatibility_skill(manifest.name)
+            && crate::routing_registry::skill_route(manifest.name).is_none()
+        {
             errors.push(format!("manifest {} has no route", manifest.name));
         }
         let declared_name = manifest
@@ -247,6 +255,8 @@ mod tests {
         assert!(manifests.iter().any(|entry| entry.name == "dj-output"));
         assert!(manifests.iter().any(|entry| entry.name == "dj-reason"));
         assert!(!manifests.iter().any(|entry| entry.name == "dj-check"));
+        assert!(!manifests.iter().any(|entry| entry.name == "dj-debt"));
+        assert!(!manifests.iter().any(|entry| entry.name == "dj-health"));
     }
 
     #[test]

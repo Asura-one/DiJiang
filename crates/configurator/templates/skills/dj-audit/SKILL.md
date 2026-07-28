@@ -1,15 +1,12 @@
 ---
 name: dj-audit
 description: >
-  全仓扫描：过度工程检查 + 安全性扫描。只报告，不修改。
-  Use when the user wants to audit the codebase for over-engineering, bloat, dead code, or security issues.
-  触发词：审计、扫一下、过度工程、安全扫描、audit、代码大检查。
-summary: 全仓扫描：过度工程检查 + 安全性扫描。只报告，不修改。
+  全仓审计：默认扫描过度工程和安全性；可按 debt 或 health profile 补充技术债或仓库健康检查。只报告，不修改。
+  Use when the user wants to audit the codebase for over-engineering, bloat, dead code, security issues, technical debt, or repository health.
+  触发词：审计、扫一下、过度工程、安全扫描、技术债、健康检查、audit、代码大检查。
+summary: 全仓审计：安全、过度工程、技术债或仓库健康检查。只报告，不修改。
 phases: [check, finish]
 risk: low
-  全仓扫描：过度工程检查 + 安全性扫描。只报告，不修改。
-  Use when the user wants to audit the codebase for over-engineering, bloat, dead code, or security issues.
-  触发词：审计、扫一下、过度工程、安全扫描、audit、代码大检查。
 ---
 
 参考规范：`.dijiang/references/decision-ladder.md`（扫描时评估代码必要性）。
@@ -25,7 +22,14 @@ risk: low
 
 # Audit: 全仓扫描
 
-扫描代码库的过度工程和安全问题。只报告，不修改。
+扫描代码库的过度工程、安全、技术债或仓库健康问题。只报告，不修改。
+
+## 审计 Profile
+
+- 默认：过度工程和安全扫描。
+- `debt`：TODO/FIXME/HACK、弃用代码、依赖、测试和构建债务，并按严重度排序。
+- `health`：构建、测试、Git、依赖、格式、agent 配置和 CI 状态。
+- `dj-debt` 与 `dj-health` 仅是兼容入口；它们委派到这里，不能参与路由、状态决策或 runtime 注入。
 
 ## 工作流
 

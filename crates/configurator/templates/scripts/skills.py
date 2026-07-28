@@ -24,8 +24,6 @@ from common.paths import get_repo_root
 
 KNOWN_SKILLS: list[dict[str, str]] = [
     {"name": "dj-output", "summary": "产出或同步 PRD、design、implement 等任务文档"},
-    {"name": "dj-health", "summary": "综合代码库健康检查：构建、测试、Git、依赖、lint、agent 配置"},
-    {"name": "dj-debt", "summary": "技术债评估与追踪：多源聚合 ponytail/TODO/依赖/死代码债务"},
     {"name": "dj-channel", "summary": "多 agent 协作通道：生成、监控和管理 AI agent 通道"},
     {"name": "dj-reason", "summary": "推理增强、系统透镜和复杂判断校准"},
     {"name": "dj-research", "summary": "技术调研与信息收集"},
@@ -44,9 +42,7 @@ KNOWN_SKILLS: list[dict[str, str]] = [
     {"name": "dj-domain-modeling", "summary": "领域建模"},
     {"name": "dj-git-guardrails", "summary": "Git 操作安全护栏"},
     {"name": "dj-handoff", "summary": "会话交接与上下文传递"},
-    {"name": "dj-karpathy", "summary": "长篇代码讨论"},
     {"name": "dj-pattern", "summary": "模式研究与识别"},
-    {"name": "dj-ponytail", "summary": "最小聚焦改动"},
     {"name": "dj-prototype", "summary": "快速原型开发"},
     {"name": "dj-remix", "summary": "网站/App 复刻与站点再造"},
     {"name": "dj-split", "summary": "任务分解与拆分"},

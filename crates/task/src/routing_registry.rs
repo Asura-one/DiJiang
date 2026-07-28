@@ -159,28 +159,6 @@ const ROUTES: &[SkillRoute] = &[
         branch_prefix: "feat",
     },
     SkillRoute {
-        name: "dj-health",
-        task_type: "代码库健康检查",
-        primary_intent: "健康检查",
-        recommended_path: "dj-health",
-        status: TaskStatus::InProgress,
-        intent: RouteIntent::Check,
-        complexity: TaskComplexity::Complex,
-        requires_worktree: false,
-        branch_prefix: "feat",
-    },
-    SkillRoute {
-        name: "dj-ask",
-        task_type: "需求对齐",
-        primary_intent: "选择执行路线",
-        recommended_path: "dj-ask → dj-grill",
-        status: TaskStatus::Planning,
-        intent: RouteIntent::Align,
-        complexity: TaskComplexity::Complex,
-        requires_worktree: false,
-        branch_prefix: "feat",
-    },
-    SkillRoute {
         name: "dj-absorb",
         task_type: "资料吸收",
         primary_intent: "提炼外部材料",
@@ -209,17 +187,6 @@ const ROUTES: &[SkillRoute] = &[
         recommended_path: "dj-codebase-design → dj-output",
         status: TaskStatus::Planning,
         intent: RouteIntent::Align,
-        complexity: TaskComplexity::Complex,
-        requires_worktree: false,
-        branch_prefix: "feat",
-    },
-    SkillRoute {
-        name: "dj-debt",
-        task_type: "技术债评估",
-        primary_intent: "审查技术债",
-        recommended_path: "dj-debt → dj-output",
-        status: TaskStatus::InProgress,
-        intent: RouteIntent::Check,
         complexity: TaskComplexity::Complex,
         requires_worktree: false,
         branch_prefix: "feat",
@@ -269,17 +236,6 @@ const ROUTES: &[SkillRoute] = &[
         branch_prefix: "feat",
     },
     SkillRoute {
-        name: "dj-karpathy",
-        task_type: "编码准则",
-        primary_intent: "校准编码行为",
-        recommended_path: "dj-karpathy",
-        status: TaskStatus::Planning,
-        intent: RouteIntent::Align,
-        complexity: TaskComplexity::Complex,
-        requires_worktree: false,
-        branch_prefix: "feat",
-    },
-    SkillRoute {
         name: "dj-meta",
         task_type: "架构自省",
         primary_intent: "理解 DiJiang 架构",
@@ -300,17 +256,6 @@ const ROUTES: &[SkillRoute] = &[
         complexity: TaskComplexity::Complex,
         requires_worktree: false,
         branch_prefix: "feat",
-    },
-    SkillRoute {
-        name: "dj-ponytail",
-        task_type: "最小聚焦改动",
-        primary_intent: "实施小范围改动",
-        recommended_path: "dj-ponytail → dj-check",
-        status: TaskStatus::InProgress,
-        intent: RouteIntent::Implement,
-        complexity: TaskComplexity::Lightweight,
-        requires_worktree: true,
-        branch_prefix: "fix",
     },
     SkillRoute {
         name: "dj-prototype",
@@ -441,18 +386,16 @@ mod tests {
     }
 
     #[test]
-    fn registry_covers_all_managed_skill_names() {
+    fn registry_covers_routable_skill_names() {
         for skill in [
             "dijiang-continue",
             "dijiang-finish-work",
             "dijiang-start",
             "dj-absorb",
-            "dj-ask",
             "dj-audit",
             "dj-channel",
             "dj-check",
             "dj-codebase-design",
-            "dj-debt",
             "dj-design",
             "dj-dispatch",
             "dj-domain-modeling",
@@ -460,14 +403,11 @@ mod tests {
             "dj-gov",
             "dj-grill",
             "dj-handoff",
-            "dj-health",
             "dj-hunt",
             "dj-implement",
-            "dj-karpathy",
             "dj-meta",
             "dj-output",
             "dj-pattern",
-            "dj-ponytail",
             "dj-prototype",
             "dj-reason",
             "dj-remix",
@@ -481,6 +421,13 @@ mod tests {
             "dj-write",
         ] {
             assert!(skill_route(skill).is_some(), "missing route for {skill}");
+        }
+    }
+
+    #[test]
+    fn compatibility_skills_are_not_routable() {
+        for skill in ["dj-debt", "dj-health"] {
+            assert!(skill_route(skill).is_none(), "{skill} must not own routing");
         }
     }
 }

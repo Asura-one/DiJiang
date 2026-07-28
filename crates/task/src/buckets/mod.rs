@@ -36,7 +36,6 @@ pub fn get_default_buckets() -> BucketConfig {
                     "dj-check".into(),
                     "dj-split".into(),
                     "dj-output".into(),
-                    "dj-ponytail".into(),
                     "dj-dispatch".into(),
                     "dj-tdd".into(),
                 ],
@@ -49,8 +48,6 @@ pub fn get_default_buckets() -> BucketConfig {
                     "dj-hunt".into(),
                     "dj-audit".into(),
                     "dj-review".into(),
-                    "dj-debt".into(),
-                    "dj-health".into(),
                     "dj-research".into(),
                     "dj-pattern".into(),
                     "dj-prototype".into(),
@@ -68,10 +65,8 @@ pub fn get_default_buckets() -> BucketConfig {
                     "dj-design".into(),
                     "dj-script".into(),
                     "dj-write".into(),
-                    "dj-karpathy".into(),
                     "dj-absorb".into(),
                     "dj-meta".into(),
-                    "dj-ask".into(),
                 ],
             },
             BucketCategory {
@@ -196,7 +191,7 @@ mod tests {
         let config = test_config();
         let stats = bucket_statistics(&config);
         let total: usize = stats.iter().map(|(_, c)| c).sum();
-        assert_eq!(total, 32, "Expected 32 total skills across all buckets");
+        assert_eq!(total, 27, "Expected 27 routable skills across all buckets");
     }
 
     #[test]
@@ -215,7 +210,7 @@ mod tests {
         let core_skills = list_skills_by_bucket(&config, "core");
         assert!(core_skills.contains(&"dj-grill".to_string()));
         assert!(core_skills.contains(&"dj-tdd".to_string()));
-        assert_eq!(core_skills.len(), 8);
+        assert_eq!(core_skills.len(), 7);
 
         let bad = list_skills_by_bucket(&config, "nonexistent");
         assert!(bad.is_empty());
@@ -238,9 +233,9 @@ mod tests {
     fn bucket_statistics_counts_match() {
         let config = test_config();
         let stats = bucket_statistics(&config);
-        assert!(stats.iter().any(|(n, c)| *n == "core" && *c == 8));
-        assert!(stats.iter().any(|(n, c)| *n == "specialized" && *c == 11));
-        assert!(stats.iter().any(|(n, c)| *n == "extended" && *c == 8));
+        assert!(stats.iter().any(|(n, c)| *n == "core" && *c == 7));
+        assert!(stats.iter().any(|(n, c)| *n == "specialized" && *c == 9));
+        assert!(stats.iter().any(|(n, c)| *n == "extended" && *c == 6));
         assert!(stats.iter().any(|(n, c)| *n == "internal" && *c == 5));
     }
 }

@@ -822,7 +822,8 @@ mod tests {
         );
         let hook =
             fs::read_to_string(tmp.path().join(".codex/hooks/inject-workflow-state.py")).unwrap();
-        assert!(hook.contains("workflow_state.py"));
+        assert!(hook.contains("workflow-state"));
+        assert!(!hook.contains("workflow_state.py"));
     }
     #[test]
     fn update_restores_missing_glossary_without_overwriting_existing_entries() {

@@ -27,11 +27,11 @@ const originalPath = process.env.PATH;
 
 function workflowState(gate) {
   return JSON.stringify({
-    additionalContext: [
-      "活跃任务：pi-contract",
-      "Route Gate：capsule=implement；default_skill=dj-implement",
-      `Git Gate：state=${gate}；worktreePath=/tmp/dijiang-task-worktree`,
-    ].join("\n"),
+    state: {
+      activeTask: { id: "pi-contract", title: "Pi contract", status: "in_progress" },
+      routeGate: { capsule: "implement" },
+      gitGate: { state: gate, worktreePath: "/tmp/dijiang-task-worktree" },
+    },
   });
 }
 
@@ -46,9 +46,11 @@ function event(toolName, input) {
 
 try {
   mkdirSync(binDir);
-  writeFileSync(fakeDijiang, `#!/bin/sh\nprintf '%s\\n' "$DIJIANG_PI_CONTRACT_STATE"\n`);
+  writeFileSync(fakeDijiang, `#!/bin/sh\nprintf '%s\n' "$DIJIANG_PI_CONTRACT_STATE"\n`);
   chmodSync(fakeDijiang, 0o755);
   process.env.PATH = `${binDir}:${originalPath}`;
+  execFileSync("git", ["init", "-q"], { cwd: tempRoot });
+  writeFileSync(join(tempRoot, "dirty.txt"), "dirty\n");
 
   const loaded = await loadExtensions([extensionPath], tempRoot);
   assert.deepEqual(loaded.errors, [], "Pi must load the generated DiJiang extension without runtime errors");
@@ -91,10 +93,13 @@ try {
       getSystemPromptOptions: () => ({ cwd: tempRoot }),
     },
   );
+  const extensionErrors = [];
+  runner.onError((error) => extensionErrors.push(error));
 
   process.env.DIJIANG_PI_CONTRACT_STATE = workflowState("blocked");
 
   const blockedWrite = await runner.emitToolCall(event("write", { path: "src/main.rs", content: "x" }));
+  assert.deepEqual(extensionErrors, [], `Pi extension handler errors: ${JSON.stringify(extensionErrors)}`);
   assert.equal(blockedWrite?.block, true, "blocked Git Gate must block write tool calls");
   assert.match(blockedWrite?.reason ?? "", /Git Gate/);
 
@@ -147,12 +152,50 @@ try {
   assert.equal(chainedControl?.block, true, "shell chaining must not bypass the dispatch control-command allowlist");
 
   process.env.DIJIANG_PI_CONTRACT_STATE = workflowState("ready");
+  process.env.DIJIANG_PI_CONTRACT_GIT_STATUS = " M src/main.rs";
   assert.equal(
     await runner.emitToolCall(event("write", { path: "src/main.rs", content: "x" })),
     undefined,
     "ready Git Gate must allow task-worktree writes",
   );
 
+  const routeMessages = [];
+  runner.bindCore(
+    {
+      sendMessage: (message) => routeMessages.push(message),
+      sendUserMessage: () => {},
+      appendEntry: () => {},
+      setSessionName: () => {},
+      getSessionName: () => undefined,
+      setLabel: () => {},
+      getActiveTools: () => [],
+      getAllTools: () => [],
+      setActiveTools: () => {},
+      refreshTools: () => {},
+      getCommands: () => [],
+      setModel: async () => {},
+      getThinkingLevel: () => undefined,
+      setThinkingLevel: () => {},
+    },
+    {
+      getModel: () => undefined,
+      isIdle: () => true,
+      isProjectTrusted: () => true,
+      getSignal: () => undefined,
+      abort: () => {},
+      hasPendingMessages: () => false,
+      shutdown: () => {},
+      getContextUsage: () => undefined,
+      compact: () => {},
+      getSystemPrompt: () => "",
+      getSystemPromptOptions: () => ({ cwd: tempRoot }),
+    },
+  );
+
+  await runner.emitToolResult({ ...event("bash", { command: "find . -type f -print" }), isError: false });
+  await runner.emitToolResult({ ...event("bash", { command: "cargo test -p dijiang-task" }), isError: false });
+  assert.equal(routeMessages.length, 1, "only explicit successful validation commands may inject documentation routing");
+  assert.match(routeMessages[0].content, /dj-output/);
   console.log("Pi extension tool_call contract passed");
 } finally {
   process.env.PATH = originalPath;

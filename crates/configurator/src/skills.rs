@@ -62,9 +62,8 @@ appropriate `dj-*` skill:
 | Bug / regression / crash | `dj-hunt` (systematic investigation) |
 | Code review / quality check | `dj-check` |
 | Documentation / PRD / design | `dj-output` |
-| Refactoring / code quality | `dj-ponytail` |
-| Prototype / spike | `dj-prototype` |
-| Tech debt tracking | `dj-debt` |
+| Refactoring / code quality | `dj-implement` or `dj-tdd` |
+| Repository audit, technical debt, or health | `dj-audit` |
 | UI design | `dj-design` |
 | Script / tooling | `dj-script` |
 
