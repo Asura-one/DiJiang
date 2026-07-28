@@ -323,6 +323,39 @@ fn unique_worktree_path(project_root: &Path, task_name: &str) -> PathBuf {
     ))
 }
 
+#[cfg(unix)]
+fn symlink_dir(source: &Path, destination: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(source, destination)
+}
+
+#[cfg(windows)]
+fn symlink_dir(source: &Path, destination: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_dir(source, destination)
+}
+
+fn link_task_pi_dir(project_root: &Path, worktree_path: &Path) -> anyhow::Result<()> {
+    let source = project_root.join(".pi");
+    if !source.exists() {
+        return Ok(());
+    }
+
+    let destination = worktree_path.join(".pi");
+    if destination.exists() {
+        anyhow::bail!(
+            "任务 worktree 的 .pi 路径已存在，无法创建链接：{}",
+            destination.display()
+        );
+    }
+
+    symlink_dir(&source, &destination).map_err(|error| {
+        anyhow::anyhow!(
+            "无法将 {} 链接到 {}：{error}",
+            source.display(),
+            destination.display()
+        )
+    })
+}
+
 pub fn ensure_task_worktree(
     project_root: &Path,
     tasks_dir: &Path,
@@ -372,6 +405,14 @@ pub fn ensure_task_worktree(
         project_root,
         &["worktree", "add", &path_string, "-b", &branch, &base_branch],
     )?;
+    if let Err(error) = link_task_pi_dir(project_root, &path) {
+        let _ = run_git(
+            project_root,
+            &["worktree", "remove", "--force", &path_string],
+        );
+        let _ = run_git(project_root, &["branch", "-D", &branch]);
+        return Err(error);
+    }
 
     task.branch = Some(branch);
     task.base_branch = Some(base_branch);

@@ -1,5 +1,11 @@
 # 变更日志
 
+## [0.13.7] — 2026-07-27
+
+### 修复
+
+- 为 provisioned task worktree 链接项目已安装的 `.pi` runtime，保证 Pi extension 与 skills 在 implementation worktree 可用。
+
 ## [0.13.6] — 2026-07-23
 
 ### 新增

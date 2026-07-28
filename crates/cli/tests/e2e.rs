@@ -591,6 +591,15 @@ fn test_e2e_dispatch_specific_feature_routes_to_implement() {
     )
     .unwrap();
     assert!(task_json.contains(r#""status": "in_progress""#));
+    let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
+    let worktree_path = PathBuf::from(task["worktreePath"].as_str().unwrap());
+    let worktree_extension = worktree_path.join(".pi/extensions/dijiang/index.ts");
+    let root_extension = project_dir.join(".pi/extensions/dijiang/index.ts");
+    assert!(worktree_extension.exists());
+    assert_eq!(
+        worktree_extension.canonicalize().unwrap(),
+        root_extension.canonicalize().unwrap()
+    );
 }
 
 #[test]
