@@ -31,6 +31,20 @@ DiJiang 使用 `dijiang` CLI 管理项目状态，使用 `dj-*` skills 执行具
 | `archived` | closed | 只读，或用 `dijiang start <task>` 重启 | 已归档任务无 active work |
 | `paused` | resume | `dijiang-continue` | 恢复上下文，然后回到 `planning` 或 `in_progress` |
 
+## 自定义 Workflow
+
+项目可在 `.dijiang/config.toml` 配置默认入口，无需修改 DiJiang 源码或 skill 模板：
+
+```toml
+[workflow]
+planning_default_skill = "dj-grill"
+in_progress_default_skill = "dj-tdd"
+completed_default_skill = "dijiang-finish-work"
+grill_mode = "adaptive" # adaptive | grill-me | grill-with-doc
+```
+
+默认技能必须是已安装的 DiJiang skill，并且必须属于该状态的 route gate 允许列表；无效配置自动回退内置默认值。配置只改变恢复与 runtime 注入时的默认入口，状态转换、readiness、Git、检查和 finish-work 门禁仍由 CLI 强制执行。`grill_mode` 控制 `dj-grill` 的收敛方式：`adaptive` 仅追问阻塞问题，`grill-me` 用单问题探索，`grill-with-doc` 先从已有材料提取事实并补齐关键缺口。
+
 ## Runtime Route Gate
 
 当前已有一层 runtime hard gate 管 active task 的 workflow route。它不是 skill prose 的建议，而是 CLI/task runtime 的真实约束。

@@ -74,6 +74,10 @@ pub struct DijiangConfig {
     /// DiJiang version that last initialized or updated this project
     #[serde(default = "dijiang_version_default")]
     pub dijiang_version: String,
+
+    /// Optional project-specific route defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow: Option<WorkflowConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,6 +98,18 @@ pub struct ProjectConfig {
     pub version: String,
 }
 
+/// Runtime workflow defaults users may customize in `.dijiang/config.toml`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct WorkflowConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub planning_default_skill: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub in_progress_default_skill: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_default_skill: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grill_mode: Option<String>,
+}
 fn default_tasks_dir() -> String {
     ".dijiang/tasks".to_string()
 }
@@ -123,6 +139,7 @@ impl Default for DijiangConfig {
             spec_dir: default_spec_dir(),
             workspace_dir: default_workspace_dir(),
             dijiang_version: dijiang_version_default(),
+            workflow: None,
         }
     }
 }

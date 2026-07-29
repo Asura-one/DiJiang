@@ -138,12 +138,12 @@ git diff --name-only HEAD
 1. 选定 `--version-impact major|minor|patch|none`（不可省略）
 2. 若 impact ≠ `none`：
    - 先在根 `CHANGELOG.md` 写好 **目标版本** 条目（Keep a Changelog：版本标题 + 至少一个标准 section 含非空 bullet；中英 section 均可）
-   - 目标版本 = 当前权威版本按 impact 递增后的结果（CLI 会 bump Cargo workspace；你必须先写 CHANGELOG 再 finish）
+   - 目标版本 = 当前权威版本按 impact 递增后的结果；你必须先写 CHANGELOG，CLI 验证通过后再写回权威版本
    - 缺文件 / 缺条目时 CLI **拒绝** finish，并给出最小模板
 3. 若 impact = `none`：不要改权威版本号；已改则 CLI 拒绝
 4. 不要改 `crates/configurator/src/changelog.md` 冒充产品 CHANGELOG（那是 `dijiang update` 展示用）
 
-版本权威读取顺序：Cargo workspace → package.json → VERSION。自动 bump 仅 Cargo workspace，并同步已有 `VERSION` 文件。
+版本权威读取顺序：Cargo workspace → package.json → VERSION。CLI 会写回命中的权威面；若根 `VERSION` 同时存在，也会同步为目标版本。
 
 
 gate 必须说明 docs/spec 决策和原因：产物变化时使用 `updated; reason=<files>`，变更工作无需文档更新时使用 `none; reason=<checked scope>`，只有清洁状态才使用 `skipped; reason=no changed files`。

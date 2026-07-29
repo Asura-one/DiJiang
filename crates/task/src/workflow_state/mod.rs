@@ -83,10 +83,9 @@ pub fn build_for_session(
     let guidance = status_guidance(&task.status).to_string();
     let task_context = workflow_task_context(&task);
     let active_task = Some(workflow_task(dijiang_dir, task_context.task));
-    let route_gate = Some(workflow_route_gate(
-        task_context.recommended_path,
-        &task_context,
-    ));
+    let mut route_gate = workflow_route_gate(task_context.recommended_path, &task_context);
+    apply_configured_default_skill(dijiang_dir, &task_context.effective_status, &mut route_gate);
+    let route_gate = Some(route_gate);
     let git_gate = Some(workflow_git_gate(
         project_root,
         &runtime_location,
@@ -165,7 +164,8 @@ fn record_runtime_injection(
     });
     let route_gate_event = active_task.map(|task| {
         let task_context = workflow_task_context(task);
-        let gate = workflow_route_gate(task_context.recommended_path, &task_context);
+        let mut gate = workflow_route_gate(task_context.recommended_path, &task_context);
+        apply_configured_default_skill(dijiang_dir, &task_context.effective_status, &mut gate);
         serde_json::json!({
             "capsule": gate.capsule,
             "default_skill": gate.default_skill,
@@ -659,6 +659,23 @@ fn workflow_route_gate(
             .collect(),
         recommended_path: recommended_path.to_string(),
         note: summary.note,
+    }
+}
+
+fn apply_configured_default_skill(
+    dijiang_dir: &Path,
+    status: &TaskStatus,
+    route_gate: &mut WorkflowRouteGate,
+) {
+    let Some(skill) = crate::workflow_default_skill(dijiang_dir, status.as_str()) else {
+        return;
+    };
+    if route_gate
+        .allowed_skills
+        .iter()
+        .any(|allowed| allowed == &skill)
+    {
+        route_gate.default_skill = skill;
     }
 }
 
@@ -1198,6 +1215,31 @@ mod tests {
         assert!(!context.contains("Skill Manifests："));
         assert!(!context.contains("Loop：goal=Align Task"));
     }
+
+    #[test]
+    fn configured_workflow_default_is_injected_for_allowed_status() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(dijiang_dir.join("tasks")).unwrap();
+        std::fs::write(
+            dijiang_dir.join("config.toml"),
+            "[workflow]\nplanning_default_skill = \"dj-reason\"\n",
+        )
+        .unwrap();
+
+        let mut planning = task("configured-align", "Configured Align");
+        planning.status = TaskStatus::Planning;
+        store::save_task(&dijiang_dir.join("tasks"), &planning).unwrap();
+        let window = store::SessionIdentity::new("dijiang", "configured-align").unwrap();
+        store::write_active_task_for_session(&dijiang_dir, "configured-align", Some(&window))
+            .unwrap();
+
+        let context = build_for_session(&dijiang_dir, Some(&window))
+            .unwrap()
+            .additional_context();
+        assert!(context.contains("default_skill=dj-reason"));
+    }
+
     #[test]
     fn paused_state_exposes_continue_route() {
         let dir = tempfile::tempdir().unwrap();
