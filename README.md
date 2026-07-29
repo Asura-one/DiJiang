@@ -33,6 +33,30 @@ paused
 
 `review` 不是 DiJiang 的正式 task status，也没有独立 CLI 入口。质量闸门统一由 `dj-check` 承担；轻量只读审查使用 `dj-review` skill。
 
+### 自定义 Workflow
+
+在项目的 `.dijiang/config.toml` 添加 `[workflow]`，即可调整 runtime 注入和恢复任务时优先推荐的 skill，无需修改 DiJiang 源码或 skill 模板：
+
+```toml
+[workflow]
+planning_default_skill = "dj-grill"
+in_progress_default_skill = "dj-tdd"
+completed_default_skill = "dijiang-finish-work"
+grill_mode = "adaptive"
+```
+
+三个 `*_default_skill` 分别对应 `planning`、`in_progress`、`completed` 任务状态。skill 必须已安装且属于该状态 Route Gate 的允许列表；遗漏、未知或不允许的值都会自动回退到内置默认值。配置只影响默认入口，不会跳过状态转换、readiness、Git Gate、`dj-check` 或 `finish-work` 门禁。
+
+`grill_mode` 控制 `dj-grill` 如何收敛需求，而不改变其任务产物要求：
+
+| 模式 | 适合场景 | 行为 |
+|---|---|---|
+| `adaptive`（默认） | 需求已经较明确或希望减少问答 | 先阅读任务和已有材料，只追问会阻塞范围、验收或关键约束的问题。 |
+| `grill-me` | 需要与 agent 逐步探索方案 | 每次只问一个信息价值最高的问题；答案不再改变范围、方案或验收时停止。 |
+| `grill-with-doc` | 已有 PRD、issue、设计稿或需要留下决策记录 | 先从材料提取事实、假设与冲突，仅追问阻塞缺口，并写入任务文档。 |
+
+修改配置后，后续 runtime 注入会使用新设置。未配置或 `grill_mode` 取值无效时均使用 `adaptive`。
+
 ### Runtime Route Gate
 
 DiJiang 现在已经把一部分 workflow 规则从 skill 文本提升到了 runtime gate。当前已实现的是 Phase 1 Route Gate：

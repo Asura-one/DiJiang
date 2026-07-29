@@ -43,7 +43,17 @@ completed_default_skill = "dijiang-finish-work"
 grill_mode = "adaptive" # adaptive | grill-me | grill-with-doc
 ```
 
-默认技能必须是已安装的 DiJiang skill，并且必须属于该状态的 route gate 允许列表；无效配置自动回退内置默认值。配置只改变恢复与 runtime 注入时的默认入口，状态转换、readiness、Git、检查和 finish-work 门禁仍由 CLI 强制执行。`grill_mode` 控制 `dj-grill` 的收敛方式：`adaptive` 仅追问阻塞问题，`grill-me` 用单问题探索，`grill-with-doc` 先从已有材料提取事实并补齐关键缺口。
+三个 `*_default_skill` 分别对应 `planning`、`in_progress`、`completed` 任务状态。默认技能必须是已安装的 DiJiang skill，并且必须属于该状态的 Route Gate 允许列表；无效配置自动回退内置默认值。配置只改变恢复与 runtime 注入时的默认入口，状态转换、readiness、Git、检查和 finish-work 门禁仍由 CLI 强制执行。
+
+`grill_mode` 仅控制 `dj-grill` 的收敛方式：
+
+| 模式 | 适用情形 | 行为 |
+|---|---|---|
+| `adaptive`（默认） | 需求已较明确，或希望减少问答 | 只追问阻塞范围、验收或关键约束的问题。 |
+| `grill-me` | 需要逐步探索方案 | 每次提出一个信息价值最高的问题。 |
+| `grill-with-doc` | 已有 PRD、issue、设计稿或需要记录决策 | 先阅读材料，只追问阻塞缺口并写入任务文档。 |
+
+未配置或取值无效时使用 `adaptive`。上述偏好不绕过 Route Gate、Git/readiness、检查或 finish-work 的强制门禁。
 
 ## Runtime Route Gate
 
