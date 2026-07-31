@@ -34,8 +34,8 @@ This project uses DiJiang for task management and workflow.
 | `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>` | 通过验证、docs/spec 证据、版本决策、可选 commit/集成、journal 和归档完成当前工作；删除任务 worktree 时传 `--approve-cleanup` |
 | `dijiang task list` | 列出 active tasks |
 | `dijiang task current` | 显示 active task |
-| `dijiang task start <name> --unsafe-without-worktree` | 低层维护入口；显式绕过 worktree gate 创建并激活任务记录 |
-| `dijiang task status <name> <status>` | 更新非实现状态；进入 `in_progress` 必须通过 `dispatch` 或显式 `--unsafe-without-worktree` |
+| `dijiang task start <name> --unsafe-without-worktree` | 低层维护入口；仅创建并激活 `planning` 任务，不能绕过 readiness 或 grilling gate |
+| `dijiang task status <name> <status>` | 更新非实现状态；进入 `in_progress` 时即使使用 `--unsafe-without-worktree` 仍必须满足 PRD、spec 与结构化 grilling evidence |
 | `dijiang task archive <name>` | 归档任务 |
 | `dijiang task prune --days N` | 清理旧的已归档任务 |
 | `dijiang mem list` | 列出平台 sessions |

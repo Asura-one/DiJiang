@@ -171,6 +171,9 @@ fn init_project_with_env(envs: &[(&str, &str)]) -> (tempfile::TempDir, PathBuf) 
 }
 
 fn complete_task_for_finish(project_dir: &Path, task_name: &str) {
+    write_substantive_prd(project_dir, task_name);
+    std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+    record_confirmed_grilling(project_dir, task_name);
     dijang(
         &[
             "task",
@@ -193,6 +196,9 @@ fn complete_task_for_finish(project_dir: &Path, task_name: &str) {
 
 fn complete_task_for_finish_with_context(project_dir: &Path, task_name: &str, context_id: &str) {
     let environment = [("DIJIANG_CONTEXT_ID", context_id)];
+    write_substantive_prd(project_dir, task_name);
+    std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+    record_confirmed_grilling(project_dir, task_name);
     dijang_with_env(
         &[
             "task",
@@ -235,6 +241,26 @@ fn write_substantive_prd(project_dir: &Path, task_name: &str) {
         "# Task\n\n## Goal\n\nValidate the task worktree gate.\n\n## Requirements\n\n- Protect implementation routes.\n\n## Acceptance Criteria\n\n- [ ] The worktree gate blocks main checkout execution.\n",
     )
     .unwrap();
+}
+
+fn record_confirmed_grilling(project_dir: &Path, task_name: &str) {
+    let task_json = project_dir
+        .join(".dijiang/tasks")
+        .join(task_name)
+        .join("task.json");
+    let mut task: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&task_json).unwrap()).unwrap();
+    task["meta"]["grilling"] = serde_json::json!({
+        "startedAt": "2026-07-30T08:00:00Z",
+        "questions": [{
+            "prompt": "Which acceptance criterion is highest risk?",
+            "recommendation": "Define one observable outcome.",
+            "answer": "Exported files must preserve column order."
+        }],
+        "confirmedAt": "2026-07-30T08:01:00Z",
+        "confirmation": "I confirm we share this understanding."
+    });
+    std::fs::write(task_json, serde_json::to_string_pretty(&task).unwrap()).unwrap();
 }
 
 #[test]
@@ -413,7 +439,10 @@ fn test_e2e_task_lifecycle() {
         "current task should be 'e2e-task': {current_out}"
     );
 
-    // 4. Update status
+    // 4. Low-level progression still requires all readiness evidence.
+    write_substantive_prd(&project_dir, "e2e-task");
+    std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+    record_confirmed_grilling(&project_dir, "e2e-task");
     dijang(
         &[
             "task",
@@ -467,15 +496,15 @@ fn test_e2e_task_queue_next_requires_worktree_override() {
         "failed activation must retain queue item: {queued}"
     );
 
-    dijang(
+    let out = dijang(
         &["task", "queue", "next", "--unsafe-without-worktree"],
         &project_dir,
     )
     .unwrap();
+    assert!(out.contains("Activated in planning"));
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(current.contains("queued-task"));
 }
-
 #[test]
 fn test_e2e_dispatch_creates_task_from_natural_language() {
     let (_tmp, project_dir) = init_project();
@@ -492,7 +521,7 @@ fn test_e2e_dispatch_creates_task_from_natural_language() {
     )
     .unwrap();
     assert!(out.contains("dijiang-dispatch"), "dispatch output: {out}");
-    assert!(out.contains("路线：dj-hunt"), "dispatch output: {out}");
+    assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
 
     let current = dijang(&["task", "current"], &project_dir).unwrap();
     assert!(!current.contains("(none)"), "current output: {current}");
@@ -506,9 +535,10 @@ fn test_e2e_dispatch_creates_task_from_natural_language() {
     )
     .unwrap();
     assert!(task_json.contains("排查登录接口报错并修复"));
-    assert!(task_json.contains("dj-hunt"));
-    assert!(task_json.contains("in_progress"));
+    assert!(task_json.contains("dj-grill"));
+    assert!(task_json.contains("planning"));
 }
+
 #[test]
 fn test_e2e_dispatch_force_new_replaces_active_task() {
     let (_tmp, project_dir) = init_project();
@@ -522,11 +552,9 @@ fn test_e2e_dispatch_force_new_replaces_active_task() {
 
     let active_task = dijang(&["task", "current"], &project_dir).unwrap();
     assert_ne!(active_task.trim(), "existing-task");
-    assert!(
-        project_dir
-            .join(".dijiang/tasks/existing-task/task.json")
-            .exists()
-    );
+    assert!(project_dir
+        .join(".dijiang/tasks/existing-task/task.json")
+        .exists());
 }
 
 #[test]
@@ -574,14 +602,10 @@ fn test_e2e_dispatch_specific_feature_routes_to_implement() {
     )
     .unwrap();
 
-    assert!(out.contains("路线：dj-implement"), "dispatch output: {out}");
+    assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
     assert!(out.contains("action：allow"), "dispatch output: {out}");
     assert!(
-        out.contains("nextAction：continue with the requested skill for the new task"),
-        "dispatch output: {out}"
-    );
-    assert!(
-        out.contains("Git 工作流：Git Gate=provisioned；已创建任务 worktree"),
+        out.contains("run dj-grill, answer one decision question"),
         "dispatch output: {out}"
     );
     let task_name = dijang(&["task", "current"], &project_dir).unwrap();
@@ -592,16 +616,7 @@ fn test_e2e_dispatch_specific_feature_routes_to_implement() {
             .join("task.json"),
     )
     .unwrap();
-    assert!(task_json.contains(r#""status": "in_progress""#));
-    let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
-    let worktree_path = PathBuf::from(task["worktreePath"].as_str().unwrap());
-    let worktree_extension = worktree_path.join(".pi/extensions/dijiang/index.ts");
-    let root_extension = project_dir.join(".pi/extensions/dijiang/index.ts");
-    assert!(worktree_extension.exists());
-    assert_eq!(
-        worktree_extension.canonicalize().unwrap(),
-        root_extension.canonicalize().unwrap()
-    );
+    assert!(task_json.contains(r#""status": "planning""#));
 }
 
 #[test]
@@ -611,6 +626,7 @@ fn test_e2e_dispatch_advances_aligned_planning_task_to_implementation() {
     dijang(&["start", "route-gate", "Route Gate"], &project_dir).unwrap();
     write_substantive_prd(&project_dir, "route-gate");
     std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+    record_confirmed_grilling(&project_dir, "route-gate");
 
     let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
 
@@ -627,21 +643,34 @@ fn test_e2e_dispatch_advances_aligned_planning_task_to_implementation() {
 }
 
 #[test]
+fn test_e2e_debug_and_check_requests_require_grilling_evidence() {
+    for request in ["排查登录接口报错并修复", "检查现有导出功能"] {
+        let (_tmp, project_dir) = init_project();
+        dijang(&["start", "intent-gate", "Intent Gate"], &project_dir).unwrap();
+        write_substantive_prd(&project_dir, "intent-gate");
+        std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+
+        let out = dijang(&["dispatch", request], &project_dir).unwrap();
+
+        assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
+        let task_json =
+            std::fs::read_to_string(project_dir.join(".dijiang/tasks/intent-gate/task.json"))
+                .unwrap();
+        let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
+        assert_eq!(task["status"], "planning");
+        assert!(task["worktreePath"].is_null());
+    }
+}
+
+#[test]
 fn test_e2e_dispatch_paused_task_redirects_to_continue() {
     let (_tmp, project_dir) = init_project();
 
     dijang(&["start", "paused-task", "Paused Task"], &project_dir).unwrap();
-    dijang(
-        &[
-            "task",
-            "status",
-            "paused-task",
-            "in_progress",
-            "--unsafe-without-worktree",
-        ],
-        &project_dir,
-    )
-    .unwrap();
+    write_substantive_prd(&project_dir, "paused-task");
+    std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+    record_confirmed_grilling(&project_dir, "paused-task");
+    dijang(&["dispatch", "实现已对齐任务"], &project_dir).unwrap();
     dijang(&["task", "status", "paused-task", "paused"], &project_dir).unwrap();
     let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
 
@@ -669,9 +698,9 @@ fn test_e2e_dispatch_archived_task_creates_new_task() {
     let out = dijang(&["dispatch", "新增一个导出按钮"], &project_dir).unwrap();
 
     // After archiving, active task pointer is cleared.
-    // Dispatch creates a new in_progress task instead of blocking.
+    // A new implementation request must begin with grilling.
     assert!(out.contains("action：allow"), "dispatch output: {out}");
-    assert!(out.contains("路线：dj-implement"), "dispatch output: {out}");
+    assert!(out.contains("路线：dj-grill"), "dispatch output: {out}");
 }
 
 #[test]
@@ -697,6 +726,10 @@ fn test_e2e_dispatch_blocks_implement_route_from_main_checkout_when_task_worktre
     .unwrap();
     let task_name = dijang(&["task", "current"], &project_dir).unwrap();
     let task_name = task_name.trim();
+    write_substantive_prd(&project_dir, task_name);
+    std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+    record_confirmed_grilling(&project_dir, task_name);
+    dijang(&["dispatch", "实现一个导出按钮"], &project_dir).unwrap();
     let task_json = std::fs::read_to_string(
         project_dir
             .join(".dijiang")
@@ -708,7 +741,6 @@ fn test_e2e_dispatch_blocks_implement_route_from_main_checkout_when_task_worktre
     let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
     let worktree_path = task["worktreePath"].as_str().unwrap();
     assert!(Path::new(worktree_path).exists());
-    write_substantive_prd(&project_dir, task_name);
     let out = dijang(&["dispatch", "实现一个导出按钮"], &project_dir).unwrap();
     assert!(out.contains("Git Gate=blocked"), "dispatch output: {out}");
     assert!(
@@ -1378,6 +1410,7 @@ fn test_e2e_finish_work_commit_failure_preserves_active_task() {
             "--commit",
             "--commit-message",
             "test(cli): commit message without cjk",
+            "--approve-cleanup",
         ],
         &project_dir,
     )
@@ -1486,6 +1519,7 @@ fn test_e2e_finish_work_commit_archives_and_commits_diff() {
             "--commit",
             "--commit-message",
             "test(cli): 测试 finish work 提交",
+            "--approve-cleanup",
         ],
         &project_dir,
     )
@@ -1643,11 +1677,9 @@ fn test_e2e_workflow_state_json_exposes_structured_runtime_gate() {
     assert_eq!(state["routeGate"]["capsule"], "align");
     assert_eq!(state["routeGate"]["defaultSkill"], "dj-grill");
     assert_eq!(state["gitGate"]["state"], "ready");
-    assert!(
-        value["additionalContext"]
-            .as_str()
-            .is_some_and(|context| context.contains("Target Skill：[dj-grill"))
-    );
+    assert!(value["additionalContext"]
+        .as_str()
+        .is_some_and(|context| context.contains("Target Skill：[dj-grill")));
     assert!(state.get("skillManifests").is_none());
     assert!(state.get("loopState").is_none());
 }
@@ -1681,6 +1713,20 @@ fn test_e2e_task_archive_rejects_completed_task_without_finish_eligibility() {
     let (_tmp, project_dir) = init_project();
     dijang(
         &["task", "start", "archive-gate", "--unsafe-without-worktree"],
+        &project_dir,
+    )
+    .unwrap();
+    write_substantive_prd(&project_dir, "archive-gate");
+    std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+    record_confirmed_grilling(&project_dir, "archive-gate");
+    dijang(
+        &[
+            "task",
+            "status",
+            "archive-gate",
+            "in_progress",
+            "--unsafe-without-worktree",
+        ],
         &project_dir,
     )
     .unwrap();
@@ -1970,7 +2016,7 @@ fn test_e2e_task_status_in_progress_requires_explicit_unsafe_override() {
     .unwrap_err();
     assert!(error.contains("bypasses dispatch and its worktree gate"));
 
-    dijang(
+    let unsafe_error = dijang(
         &[
             "task",
             "status",
@@ -1980,15 +2026,91 @@ fn test_e2e_task_status_in_progress_requires_explicit_unsafe_override() {
         ],
         &project_dir,
     )
-    .unwrap();
+    .unwrap_err();
+    assert!(unsafe_error.contains("PRD is missing or incomplete"));
 
     let task_json =
         std::fs::read_to_string(project_dir.join(".dijiang/tasks/status-no-wt/task.json")).unwrap();
     let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
-    assert_eq!(task["status"], "in_progress");
+    assert_eq!(task["status"], "planning");
     assert!(task["worktreePath"].is_null());
 }
 
+#[test]
+fn test_e2e_task_status_in_progress_requires_grilling_after_prd_and_spec() {
+    let (_tmp, project_dir) = init_project();
+    dijang(
+        &["start", "status-needs-grilling", "Status Needs Grilling"],
+        &project_dir,
+    )
+    .unwrap();
+    write_substantive_prd(&project_dir, "status-needs-grilling");
+    std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+
+    let error = dijang(
+        &[
+            "task",
+            "status",
+            "status-needs-grilling",
+            "in_progress",
+            "--unsafe-without-worktree",
+        ],
+        &project_dir,
+    )
+    .unwrap_err();
+    assert!(
+        error.contains("task grilling is incomplete"),
+        "error: {error}"
+    );
+
+    let task_json =
+        std::fs::read_to_string(project_dir.join(".dijiang/tasks/status-needs-grilling/task.json"))
+            .unwrap();
+    let task: serde_json::Value = serde_json::from_str(&task_json).unwrap();
+    assert_eq!(task["status"], "planning");
+    assert!(task["worktreePath"].is_null());
+}
+
+#[test]
+fn test_e2e_dispatch_returns_ungrilled_legacy_task_to_planning() {
+    let (_tmp, project_dir) = init_project();
+    dijang(&["start", "legacy-task", "Legacy Task"], &project_dir).unwrap();
+    write_substantive_prd(&project_dir, "legacy-task");
+    std::fs::create_dir_all(project_dir.join(".dijiang/spec/core")).unwrap();
+    record_confirmed_grilling(&project_dir, "legacy-task");
+    dijang(
+        &[
+            "task",
+            "status",
+            "legacy-task",
+            "in_progress",
+            "--unsafe-without-worktree",
+        ],
+        &project_dir,
+    )
+    .unwrap();
+
+    let task_path = project_dir.join(".dijiang/tasks/legacy-task/task.json");
+    let mut task: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&task_path).unwrap()).unwrap();
+    task["meta"].as_object_mut().unwrap().remove("grilling");
+    std::fs::write(&task_path, serde_json::to_string_pretty(&task).unwrap()).unwrap();
+
+    let output = dijang(&["dispatch", "继续实现导出功能"], &project_dir).unwrap();
+    assert!(
+        output.contains("路线：dj-grill"),
+        "dispatch output: {output}"
+    );
+    assert!(
+        output.contains("当前状态=planning"),
+        "dispatch output: {output}"
+    );
+
+    let task: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&task_path).unwrap()).unwrap();
+    assert_eq!(task["status"], "planning");
+    assert!(task["meta"]["grillingMigration"]["returnedToPlanningAt"].is_string());
+}
 #[test]
 fn test_e2e_finish_work_commit_removes_task_worktree() {
     let (tmp, project_dir) = init_project();
@@ -2245,6 +2367,15 @@ fn test_e2e_update_from_worktree_refreshes_shared_pi_runtime() {
     let extension = std::fs::read_to_string(extension).unwrap();
     assert_eq!(extension.matches("pi.on(\"before_agent_start\"").count(), 1);
     assert_eq!(extension.matches("pi.on(\"user_prompt_submit\"").count(), 0);
+
+    let workflow = std::fs::read_to_string(project_dir.join(".dijiang/workflow.md")).unwrap();
+    assert!(workflow.contains("grill-me"));
+    assert!(workflow.contains("回退至 `planning/dj-grill`"));
+
+    let grill = std::fs::read_to_string(project_dir.join(".pi/skills/dj-grill/SKILL.md")).unwrap();
+    assert!(grill.contains("grill-with-doc"));
+    assert!(grill.contains("{task_dir}/adr/NNN-title.md"));
+    assert!(grill.contains(".dijiang/glossary.md"));
 }
 
 #[test]
