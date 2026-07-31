@@ -87,18 +87,13 @@ This project uses DiJiang for task management and workflow.
 | Bug / regression | `dj-hunt` |
 | Code review / 质量门禁 | `dj-check` |
 | 轻量只读 review | `dj-review` |
-| 全仓审计 | `dj-audit` |
-| 技术债评估 | `dj-debt` |
-| 代码库健康报告 | `dj-health` |
-| Pattern 研究 | `dj-pattern` |
-| 推理增强 / 系统透镜 | `dj-reason` |
-| 最小聚焦改动 | `dj-ponytail` |
+| 全仓审计、技术债或健康检查 | `dj-audit`（选择对应 profile） |
 | Prototype | `dj-prototype` |
 | UI design | `dj-design` |
 | 网站/App 复刻 / 仿站 / 站点再造 | `dj-remix` |
 | Script / tool | `dj-script` |
 | 写作润色 | `dj-write` |
-| 长篇代码讨论 | `dj-karpathy` |
+| 长篇代码讨论 | 对应分析或实现 skill |
 | Session handoff | `dj-handoff` |
 | Session findings / lessons | `dijiang mem findings` / `dijiang mem learn` |
 | 知识治理收尾 | `dj-gov` |
@@ -111,7 +106,6 @@ This project uses DiJiang for task management and workflow.
 | Spec 初始生成 | `dj-spec-bootstrap` |
 | PRD 拆分 | `dj-split` |
 | 产出/同步任务文档 | `dj-output` |
-| 入口推荐 skill | `dj-ask` |
 | 多 agent 通道 | `dj-channel` |
 | 架构自省 / meta | `dj-meta` |
 | Session 包装：start | `dijiang-start` |
