@@ -157,15 +157,14 @@ pub fn workflow_default_skill(dijiang_dir: &Path, status: &str) -> Option<String
         None
     }
 }
-
-/// Return the configured grill convergence mode, falling back to `adaptive`.
+/// Return the configured grill convergence mode, falling back to `grill-me`.
 pub fn grill_mode(dijiang_dir: &Path) -> String {
     match load_config(dijiang_dir)
         .workflow
         .and_then(|workflow| workflow.grill_mode)
     {
         Some(mode) if matches!(mode.as_str(), "adaptive" | "grill-me" | "grill-with-doc") => mode,
-        _ => "adaptive".to_string(),
+        _ => "grill-me".to_string(),
     }
 }
 
@@ -187,6 +186,12 @@ pub fn read_hooks_config(dijiang_dir: &Path) -> Option<HooksSection> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn grill_mode_defaults_to_grill_me() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(grill_mode(dir.path()), "grill-me");
+    }
 
     #[test]
     fn configured_workflow_defaults_accept_registered_skills() {
@@ -226,6 +231,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(workflow_default_skill(dir.path(), "planning"), None);
-        assert_eq!(grill_mode(dir.path()), "adaptive");
+        assert_eq!(grill_mode(dir.path()), "grill-me");
     }
 }

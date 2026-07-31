@@ -1263,6 +1263,20 @@ mod tests {
             "## Goal\n\nKeep the test route available.\n\n## Requirements\n\n- A substantive test task requirement.\n\n## Acceptance Criteria\n\n- [ ] The task route remains test driven.",
         )
         .unwrap();
+        let mut task = dijiang_task::store::create_task(task_name, "Test task");
+        task.meta = serde_json::json!({
+            "grilling": {
+                "startedAt": "2026-07-30T08:00:00Z",
+                "questions": [{
+                    "prompt": "Which acceptance criterion is highest risk?",
+                    "recommendation": "Define one observable outcome.",
+                    "answer": "Exported files must preserve column order."
+                }],
+                "confirmedAt": "2026-07-30T08:01:00Z",
+                "confirmation": "I confirm we share this understanding."
+            }
+        });
+        dijiang_task::store::save_task(&tasks_dir, &task).unwrap();
         let dispatch = apply_route_gate(
             &TaskStatus::InProgress,
             route,

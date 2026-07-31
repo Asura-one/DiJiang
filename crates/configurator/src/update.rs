@@ -47,6 +47,14 @@ struct ManagedFile {
 struct TemplateHashes(BTreeMap<String, String>);
 
 pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport, ConfigError> {
+    update_project_from_source(cwd, cwd, options)
+}
+
+pub fn update_project_from_source(
+    cwd: &Path,
+    source_dir: &Path,
+    options: UpdateOptions,
+) -> Result<UpdateReport, ConfigError> {
     let dijiang_dir = cwd.join(".dijiang");
     if !dijiang_dir.exists() {
         return Err(ConfigError::InvalidPath(
@@ -80,15 +88,21 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     crate::write_project_skills(temp.path(), options.force)
         .map_err(|e| ConfigError::Serialize(e.to_string()))?;
 
-    // Override embedded skills and per-skill references with filesystem template sources
-    // if the project has a crates/configurator/templates/ directory.
-    let templates_skills_dir = cwd.join("crates/configurator/templates/skills");
+    // Override embedded managed content with source-tree templates when this
+    // command runs from a DiJiang checkout. This makes `dijiang update` test
+    // and install the same runtime assets that a developer just changed.
+    let templates_config_dir = source_dir.join("crates/configurator/templates/config");
+    if templates_config_dir.exists() {
+        copy_template_config(&templates_config_dir, temp.path())?;
+    }
+
+    let templates_skills_dir = source_dir.join("crates/configurator/templates/skills");
     if templates_skills_dir.exists() {
         copy_template_skills(&templates_skills_dir, temp.path())?;
     }
 
     // Sync shared references (templates/references/) if available
-    let templates_references_dir = cwd.join("crates/configurator/templates/references");
+    let templates_references_dir = source_dir.join("crates/configurator/templates/references");
     if templates_references_dir.exists() {
         let dst_references = temp.path().join(".dijiang/references");
         fs::create_dir_all(&dst_references)?;
@@ -96,7 +110,7 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     }
 
     // Sync spec guides and meta (templates/spec/) if available
-    let templates_spec_dir = cwd.join("crates/configurator/templates/spec");
+    let templates_spec_dir = source_dir.join("crates/configurator/templates/spec");
     if templates_spec_dir.exists() {
         let dst_spec = temp.path().join(".dijiang/spec");
         fs::create_dir_all(&dst_spec)?;
@@ -104,7 +118,7 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     }
 
     // Sync Python scripts (templates/scripts/) if available
-    let templates_scripts_dir = cwd.join("crates/configurator/templates/scripts");
+    let templates_scripts_dir = source_dir.join("crates/configurator/templates/scripts");
     if templates_scripts_dir.exists() {
         let dst_scripts = temp.path().join(".dijiang/scripts");
         fs::create_dir_all(&dst_scripts)?;
@@ -137,10 +151,6 @@ pub fn update_project(cwd: &Path, options: UpdateOptions) -> Result<UpdateReport
     if dijiang_scripts.exists() {
         collect_managed_files(&dijiang_scripts, ".dijiang/scripts", &mut managed_files);
     }
-    managed_files.push(ManagedFile {
-        path: "AGENTS.md".to_string(),
-        policy: UpdatePolicy::Managed,
-    });
     managed_files.push(ManagedFile {
         path: ".dijiang/workflow.md".to_string(),
         policy: UpdatePolicy::HashProtected,
@@ -532,7 +542,24 @@ fn chrono_like_timestamp() -> u128 {
         .unwrap_or(0)
 }
 
-/// embedded versions. Also copies per-skill reference files (e.g. references/*.md).
+/// Copy the source-tree workflow template into the generated project.
+fn copy_template_config(src: &Path, temp_dir: &Path) -> Result<(), ConfigError> {
+    let source = src.join("workflow.md");
+    if !source.exists() {
+        return Ok(());
+    }
+    let destination = temp_dir.join(".dijiang/workflow.md");
+    fs::copy(&source, &destination).map_err(|e| {
+        ConfigError::Serialize(format!(
+            "failed to copy {} -> {}: {e}",
+            source.display(),
+            destination.display()
+        ))
+    })?;
+    Ok(())
+}
+
+/// Copy source-tree skill templates into the generated project runtime.
 fn copy_template_skills(src: &Path, temp_dir: &Path) -> Result<(), ConfigError> {
     let dst_base = temp_dir.join(".pi/skills");
     for entry in fs::read_dir(src)

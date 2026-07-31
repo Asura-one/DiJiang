@@ -671,7 +671,7 @@ pub fn scaffold_task_docs(tasks_dir: &Path, task_name: &str, title: &str) -> Res
 
 // Context manifest management moved to `crate::context`.
 // Re-exports for backward compatibility.
-pub use crate::context::{ContextEntry, add_context_entry, list_context_entries};
+pub use crate::context::{add_context_entry, list_context_entries, ContextEntry};
 
 // ── Lifecycle Hooks ────────────────────────────────────────────────
 
@@ -735,11 +735,13 @@ pub fn apply_readiness_gate(
     if decision.action != RouteAction::Allow {
         return decision.clone();
     }
-    let is_implementation = matches!(
-        decision.resolved_skill,
-        "dj-implement" | "dj-script" | "dj-tdd" | "dj-hunt"
+    let requires_readiness = matches!(
+        decision.requested_intent,
+        crate::route_gate::RouteIntent::Implement
+            | crate::route_gate::RouteIntent::Debug
+            | crate::route_gate::RouteIntent::Check
     );
-    if !is_implementation {
+    if !requires_readiness {
         return decision.clone();
     }
     let spec_dir = dijiang_dir.join("spec");
@@ -755,14 +757,22 @@ pub fn apply_readiness_gate(
             "run dj-spec-bootstrap to initialize project specs",
         );
     }
-    if has_task_or_parent_prd(tasks_dir, task_name) {
+    if !has_task_or_parent_prd(tasks_dir, task_name) {
+        return readiness_redirect(
+            decision,
+            "dj-output",
+            "task PRD is missing or incomplete -- complete its goal, requirements, and acceptance criteria first",
+            "run dj-output to produce a substantive prd.md before implementation",
+        );
+    }
+    if has_confirmed_grilling(tasks_dir, task_name) {
         return decision.clone();
     }
     readiness_redirect(
         decision,
-        "dj-output",
-        "task PRD is missing or incomplete -- complete its goal, requirements, and acceptance criteria first",
-        "run dj-output to produce a substantive prd.md before implementation",
+        "dj-grill",
+        "task grilling is incomplete -- answer at least one decision question and confirm shared understanding first",
+        "run dj-grill, answer one decision question, and explicitly confirm shared understanding before implementation",
     )
 }
 
@@ -784,6 +794,48 @@ fn readiness_redirect(
         requires_alignment_artifact: true,
         complexity: decision.complexity,
     }
+}
+/// Returns whether a task has the complete local grilling record required by
+/// the compatibility gate. This checks record shape only; it does not verify
+/// that a Pi UI or another protected issuer obtained the confirmation.
+pub fn has_confirmed_grilling(tasks_dir: &Path, task_name: &str) -> bool {
+    load_task(tasks_dir, task_name).ok().is_some_and(|task| {
+        let Some(grilling) = task.meta.get("grilling") else {
+            return false;
+        };
+        let started_at = grilling
+            .get("startedAt")
+            .and_then(|value| value.as_str())
+            .is_some_and(|value| !value.trim().is_empty());
+        let confirmed_at = grilling
+            .get("confirmedAt")
+            .and_then(|value| value.as_str())
+            .is_some_and(|value| !value.trim().is_empty());
+        let confirmation = grilling
+            .get("confirmation")
+            .and_then(|value| value.as_str())
+            .is_some_and(|value| !value.trim().is_empty());
+        let answered_question = grilling
+            .get("questions")
+            .and_then(|value| value.as_array())
+            .is_some_and(|questions| {
+                questions.iter().any(|question| {
+                    question
+                        .get("prompt")
+                        .and_then(|value| value.as_str())
+                        .is_some_and(|value| !value.trim().is_empty())
+                        && question
+                            .get("recommendation")
+                            .and_then(|value| value.as_str())
+                            .is_some_and(|value| !value.trim().is_empty())
+                        && question
+                            .get("answer")
+                            .and_then(|value| value.as_str())
+                            .is_some_and(|value| !value.trim().is_empty())
+                })
+            });
+        started_at && answered_question && confirmed_at && confirmation
+    })
 }
 
 fn has_task_or_parent_prd(tasks_dir: &Path, task_name: &str) -> bool {
@@ -1174,6 +1226,18 @@ mod tests {
         .unwrap();
     }
 
+    fn confirmed_grilling() -> serde_json::Value {
+        serde_json::json!({
+            "startedAt": "2026-07-30T08:00:00Z",
+            "questions": [{
+                "prompt": "Which acceptance criterion is highest risk?",
+                "recommendation": "Define one observable outcome.",
+                "answer": "Exported files must preserve column order."
+            }],
+            "confirmedAt": "2026-07-30T08:01:00Z",
+            "confirmation": "I confirm we share this understanding."
+        })
+    }
     #[test]
     fn readiness_redirects_when_prd_is_missing_or_template() {
         let (dir, tasks_dir) = setup_temp_tasks();
@@ -1198,11 +1262,75 @@ mod tests {
     }
 
     #[test]
-    fn readiness_allows_substantive_task_or_parent_prd() {
+    fn readiness_requires_answered_and_confirmed_grilling() {
         let (dir, tasks_dir) = setup_temp_tasks();
         let dijiang_dir = dir.path().join(".dijiang");
         fs::create_dir_all(dijiang_dir.join("spec").join("task")).unwrap();
         let task = create_task("task", "Task");
+        save_task(&tasks_dir, &task).unwrap();
+        write_substantive_prd(&tasks_dir, "task");
+        let decision = allowed_implementation_decision();
+
+        let blocked = apply_readiness_gate(&dijiang_dir, &tasks_dir, "task", &decision);
+        assert_eq!(blocked.action, RouteAction::Redirect);
+        assert_eq!(blocked.resolved_skill, "dj-grill");
+
+        let mut answered = load_task(&tasks_dir, "task").unwrap();
+        answered.meta = serde_json::json!({
+            "grilling": {
+                "startedAt": "2026-07-30T08:00:00Z",
+                "questions": [{
+                    "prompt": "Which acceptance criterion is highest risk?",
+                    "recommendation": "Define one observable outcome.",
+                    "answer": "Exported files must preserve column order."
+                }]
+            }
+        });
+        save_task(&tasks_dir, &answered).unwrap();
+        let still_blocked = apply_readiness_gate(&dijiang_dir, &tasks_dir, "task", &decision);
+        assert_eq!(still_blocked.action, RouteAction::Redirect);
+        assert_eq!(still_blocked.resolved_skill, "dj-grill");
+
+        answered.meta = serde_json::json!({ "grilling": confirmed_grilling() });
+        save_task(&tasks_dir, &answered).unwrap();
+        assert_eq!(
+            apply_readiness_gate(&dijiang_dir, &tasks_dir, "task", &decision).action,
+            RouteAction::Allow
+        );
+    }
+
+    #[test]
+    fn readiness_applies_to_every_implementation_intent() {
+        let (dir, tasks_dir) = setup_temp_tasks();
+        let dijiang_dir = dir.path().join(".dijiang");
+        fs::create_dir_all(dijiang_dir.join("spec").join("task")).unwrap();
+        let mut task = create_task("task", "Task");
+        task.meta = serde_json::json!({ "grilling": confirmed_grilling() });
+        save_task(&tasks_dir, &task).unwrap();
+        write_substantive_prd(&tasks_dir, "task");
+
+        for intent in [
+            crate::route_gate::RouteIntent::Implement,
+            crate::route_gate::RouteIntent::Debug,
+            crate::route_gate::RouteIntent::Check,
+        ] {
+            let mut decision = allowed_implementation_decision();
+            decision.requested_intent = intent;
+            decision.resolved_skill = "dj-channel";
+            assert_eq!(
+                apply_readiness_gate(&dijiang_dir, &tasks_dir, "task", &decision).action,
+                RouteAction::Allow
+            );
+        }
+    }
+
+    #[test]
+    fn readiness_allows_parent_prd_after_task_grilling_is_confirmed() {
+        let (dir, tasks_dir) = setup_temp_tasks();
+        let dijiang_dir = dir.path().join(".dijiang");
+        fs::create_dir_all(dijiang_dir.join("spec").join("task")).unwrap();
+        let mut task = create_task("task", "Task");
+        task.meta = serde_json::json!({ "grilling": confirmed_grilling() });
         save_task(&tasks_dir, &task).unwrap();
         write_substantive_prd(&tasks_dir, "task");
         let decision = allowed_implementation_decision();
@@ -1212,6 +1340,7 @@ mod tests {
         );
         let mut child = create_task("child", "Child");
         child.parent = Some("task".to_string());
+        child.meta = serde_json::json!({ "grilling": confirmed_grilling() });
         save_task(&tasks_dir, &child).unwrap();
         assert_eq!(
             apply_readiness_gate(&dijiang_dir, &tasks_dir, "child", &decision).action,
@@ -1303,11 +1432,9 @@ mod tests {
         let dijiang_dir = dir.path().join(".dijiang");
         fs::create_dir(&dijiang_dir).unwrap();
 
-        assert!(
-            read_active_task_for_session(&dijiang_dir, None)
-                .unwrap()
-                .is_none()
-        );
+        assert!(read_active_task_for_session(&dijiang_dir, None)
+            .unwrap()
+            .is_none());
 
         let identity = SessionIdentity::new("codex", "window-a").unwrap();
         write_active_task_for_session(&dijiang_dir, "my-task", Some(&identity)).unwrap();

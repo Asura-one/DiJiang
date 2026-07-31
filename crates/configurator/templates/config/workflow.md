@@ -40,33 +40,32 @@ DiJiang 使用 `dijiang` CLI 管理项目状态，使用 `dj-*` skills 执行具
 planning_default_skill = "dj-grill"
 in_progress_default_skill = "dj-tdd"
 completed_default_skill = "dijiang-finish-work"
-grill_mode = "adaptive" # adaptive | grill-me | grill-with-doc
+grill_mode = "grill-me" # adaptive | grill-me | grill-with-doc
 ```
 
 三个 `*_default_skill` 分别对应 `planning`、`in_progress`、`completed` 任务状态。默认技能必须是已安装的 DiJiang skill，并且必须属于该状态的 Route Gate 允许列表；无效配置自动回退内置默认值。配置只改变恢复与 runtime 注入时的默认入口，状态转换、readiness、Git、检查和 finish-work 门禁仍由 CLI 强制执行。
 
-`grill_mode` 仅控制 `dj-grill` 的收敛方式：
+`grill_mode` 仅控制 `dj-grill` 的提问策略；所有模式都必须在非琐碎任务实现前完成至少一题逐轮拷问，并由用户明确确认共享理解。完整 PRD 只能减少问题数量，不能绕过门禁。
 
 | 模式 | 适用情形 | 行为 |
 |---|---|---|
-| `adaptive`（默认） | 需求已较明确，或希望减少问答 | 只追问阻塞范围、验收或关键约束的问题。 |
-| `grill-me` | 需要逐步探索方案 | 每次提出一个信息价值最高的问题。 |
-| `grill-with-doc` | 已有 PRD、issue、设计稿或需要记录决策 | 先阅读材料，只追问阻塞缺口并写入任务文档。 |
-
-未配置或取值无效时使用 `adaptive`。上述偏好不绕过 Route Gate、Git/readiness、检查或 finish-work 的强制门禁。
+| `grill-me`（默认） | 需要逐步探索方案 | 按决策依赖每次提出一个问题，并附推荐答案。 |
+| `adaptive` | 需求材料充分 | 先调查材料，仍须提出一个最高信息量的决策题。 |
+| `grill-with-doc` | 已有 PRD、issue、设计稿或需要记录决策 | 先阅读材料，至少追问一个决策题；术语即时写入 `.dijiang/glossary.md`，仅对难逆且存在真实权衡的决定在 `{task_dir}/adr/` 创建 ADR。 |
+未配置或取值无效时使用 `grill-me`。三种模式均要求 `meta.grilling` 记录访谈开始时间、至少一条含问题/推荐答案/用户回答的记录、用户确认时间与确认原话；证据缺失时 readiness gate 会重定向到 `dj-grill`。该记录是 runtime 可检查的声明性门禁，不是 Pi UI 签发或不可伪造的确认凭证。已有 `in_progress` task 若缺少此记录，会在下一次 dispatch 前回退至 `planning/dj-grill`。
 
 ## Runtime Route Gate
 
 当前已有一层 runtime hard gate 管 active task 的 workflow route。它不是 skill prose 的建议，而是 CLI/task runtime 的真实约束。
 
-- `planning` active task 可进行 `dj-grill`、`dj-output`、`dj-reason`、`dj-research`。实现、排查、检查类请求会先经过 readiness 校验：有效 PRD/spec 时 CLI provision/确认 task worktree 并推进至 `in_progress`；不满足时 redirect 到 `dj-output` 或 `dj-spec-bootstrap`。
+- `planning` active task 可进行 `dj-grill`、`dj-output`、`dj-reason`、`dj-research`。所有实现、排查、检查类请求必须先通过 readiness：实质 PRD/spec，以及完整的逐轮访谈记录与用户明确确认；缺失时依次 redirect 到 `dj-spec-bootstrap`、`dj-output` 或 `dj-grill`。只有全部通过后 CLI 才会 provision/确认 task worktree 并推进至 `in_progress`。
 - `paused` active task 会 redirect 到 `dijiang-continue`。
 
 - `archived` active task 会 block 到 `dijiang-start`。
 
 - `completed` active task 默认面向 `dj-check` 或 `dijiang-finish-work`。
 
-- 新建任务保留 classifier 分流，不强行套用 active-task route gate。
+- 新建的实现、排查、检查类请求也先创建为 `planning/dj-grill`；它们不得直接 provision worktree 或进入 `in_progress`。
 
 当前 gate 的事实源在 `crates/task/src/route_gate.rs`，可视化注入在 `crates/task/src/workflow_state.rs`，CLI 消费点在 `crates/cli/src/main.rs`。
 
@@ -193,8 +192,8 @@ Exception: <none，或无法自动化/纯机械变更/环境不可用的具体�
 | `dijiang dispatch <prompt>` | 从自然语言请求创建或复用 active task，并输出路由上下文 |
 | `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>` | 在验证、文档/spec 同步证据、版本决策、范围一致的提交/发布决策、journal 记录后完成当前工作并归档 |
 | `dijiang task list` | 列出所有任务 |
-| `dijiang task start <name> --unsafe-without-worktree` | 低层维护入口；显式绕过 worktree gate 创建并激活任务记录 |
-| `dijiang task status <name> <status>` | 更新非实现状态；进入 `in_progress` 必须通过 `dispatch` 或显式 `--unsafe-without-worktree` |
+| `dijiang task start <name> --unsafe-without-worktree` | 低层维护入口；仅创建并激活 `planning` 任务，不能绕过 readiness 或 grilling gate |
+| `dijiang task status <name> <status>` | 更新非实现状态；进入 `in_progress` 时即使使用 `--unsafe-without-worktree` 仍必须满足 PRD、spec 与结构化 grilling evidence |
 | `dijiang task archive <name>` | 归档任务 |
 | `dijiang task prune --days N` | 删除早于 N 天的已归档任务 |
 | `dijiang mem list` | 列出平台会话 |

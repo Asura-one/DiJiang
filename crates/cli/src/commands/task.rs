@@ -1,8 +1,11 @@
 use crate::util::require_dijiang_dir;
-use dijiang_task::TaskRecord;
 use dijiang_task::hooks::{self, HookEvent};
+use dijiang_task::route_gate::{
+    RouteAction, RouteDecision, RouteIntent, TaskComplexity, WorkflowCapsule,
+};
 use dijiang_task::store;
 use dijiang_task::types::TaskStatus;
+use dijiang_task::TaskRecord;
 use std::collections::HashMap;
 
 pub fn cmd_task_list() -> anyhow::Result<()> {
@@ -69,12 +72,12 @@ pub fn cmd_task_start(
             std::process::exit(1);
         }
     }
-    // Use update_status for transition validation
-    store::update_status(&tasks_dir, name, TaskStatus::InProgress)?;
+    // Low-level maintenance creation may activate a planning task, but it may
+    // never advance the task into implementation without dispatch readiness.
     store::write_active_task(&dijiang_dir, name)?;
     hooks::run_task_hooks(&dijiang_dir, HookEvent::AfterTaskStart, name);
     println!("✓ Current task set to: .dijiang/tasks/{name}");
-    println!("  Status: planning → in_progress");
+    println!("  Status: planning");
     Ok(())
 }
 
@@ -99,10 +102,13 @@ pub fn cmd_task_status(
     };
 
     let tasks_dir = dijiang_dir.join("tasks");
-    if new_status == TaskStatus::InProgress && !unsafe_without_worktree {
-        anyhow::bail!(
-            "task status in_progress bypasses dispatch and its worktree gate; use `dijiang dispatch <request>` or pass `--unsafe-without-worktree` for maintenance work"
-        );
+    if new_status == TaskStatus::InProgress {
+        if !unsafe_without_worktree {
+            anyhow::bail!(
+                "task status in_progress bypasses dispatch and its worktree gate; use `dijiang dispatch <request>` or pass `--unsafe-without-worktree` for maintenance work"
+            );
+        }
+        ensure_maintenance_readiness(&dijiang_dir, &tasks_dir, name)?;
     }
 
     match store::update_status(&tasks_dir, name, new_status) {
@@ -532,6 +538,30 @@ pub fn cmd_task_queue_remove(name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn ensure_maintenance_readiness(
+    dijiang_dir: &std::path::Path,
+    tasks_dir: &std::path::Path,
+    task_name: &str,
+) -> anyhow::Result<()> {
+    let decision = RouteDecision {
+        task_status: TaskStatus::InProgress,
+        capsule: WorkflowCapsule::Implement,
+        requested_intent: RouteIntent::Implement,
+        requested_skill: None,
+        resolved_skill: "dj-implement",
+        action: RouteAction::Allow,
+        reason: String::new(),
+        next_action: String::new(),
+        requires_alignment_artifact: false,
+        complexity: TaskComplexity::Complex,
+    };
+    let readiness = store::apply_readiness_gate(dijiang_dir, tasks_dir, task_name, &decision);
+    if readiness.action == RouteAction::Allow {
+        return Ok(());
+    }
+    anyhow::bail!("task status in_progress blocked: {}", readiness.reason)
+}
+
 pub fn cmd_task_queue_next(unsafe_without_worktree: bool) -> anyhow::Result<()> {
     let dijiang_dir = crate::util::require_dijiang_dir()?;
     if !unsafe_without_worktree {
@@ -542,14 +572,8 @@ pub fn cmd_task_queue_next(unsafe_without_worktree: bool) -> anyhow::Result<()> 
     match store::queue_pop(&dijiang_dir) {
         Some(task) => {
             println!("Next task: {task}");
-            let tasks_dir = dijiang_dir.join("tasks");
-            store::update_status(
-                &tasks_dir,
-                &task,
-                dijiang_task::types::TaskStatus::InProgress,
-            )?;
             store::write_active_task(&dijiang_dir, &task)?;
-            println!("  Activated: {task}");
+            println!("  Activated in planning: {task}");
         }
         None => {
             println!("Queue is empty.");

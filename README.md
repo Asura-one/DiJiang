@@ -42,20 +42,20 @@ paused
 planning_default_skill = "dj-grill"
 in_progress_default_skill = "dj-tdd"
 completed_default_skill = "dijiang-finish-work"
-grill_mode = "adaptive"
+grill_mode = "grill-me"
 ```
 
 三个 `*_default_skill` 分别对应 `planning`、`in_progress`、`completed` 任务状态。skill 必须已安装且属于该状态 Route Gate 的允许列表；遗漏、未知或不允许的值都会自动回退到内置默认值。配置只影响默认入口，不会跳过状态转换、readiness、Git Gate、`dj-check` 或 `finish-work` 门禁。
 
-`grill_mode` 控制 `dj-grill` 如何收敛需求，而不改变其任务产物要求：
+`grill_mode` 控制 `dj-grill` 的提问策略。所有模式都要求非琐碎任务在实现前完成至少一题逐轮拷问，并取得用户对共享理解的明确确认；已有完整 PRD 只能减少问题数量，不能跳过门禁。
 
 | 模式 | 适合场景 | 行为 |
 |---|---|---|
-| `adaptive`（默认） | 需求已经较明确或希望减少问答 | 先阅读任务和已有材料，只追问会阻塞范围、验收或关键约束的问题。 |
-| `grill-me` | 需要与 agent 逐步探索方案 | 每次只问一个信息价值最高的问题；答案不再改变范围、方案或验收时停止。 |
-| `grill-with-doc` | 已有 PRD、issue、设计稿或需要留下决策记录 | 先从材料提取事实、假设与冲突，仅追问阻塞缺口，并写入任务文档。 |
+| `grill-me`（默认） | 需要与 agent 逐步探索方案 | 按决策依赖每次提出一个问题，并给出推荐答案。 |
+| `adaptive` | 需求材料充分 | 先调查材料，仍提出一个最高信息量的决策题。 |
+| `grill-with-doc` | 已有 PRD、issue、设计稿或需要留下决策记录 | 先从材料提取事实、假设与冲突，至少追问一个决策题；术语即时写入 `.dijiang/glossary.md`，仅对难逆且存在真实权衡的决定在 `{task_dir}/adr/` 创建 ADR。 |
 
-修改配置后，后续 runtime 注入会使用新设置。未配置或 `grill_mode` 取值无效时均使用 `adaptive`。
+未配置或 `grill_mode` 取值无效时均使用 `grill-me`。readiness gate 要求 `meta.grilling` 记录访谈开始时间、至少一条含问题/推荐答案/用户回答的记录、用户确认时间与确认原话；证据缺失时，dispatch 会重定向到 `dj-grill`。既有 `in_progress` task 缺少这项记录时，会在下一次 dispatch 前回退至 `planning/dj-grill`。这些都是可由 runtime 检查的声明性记录，不是 Pi UI 签发、不可伪造的用户确认凭证。
 
 ### Runtime Route Gate
 

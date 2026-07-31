@@ -1,3 +1,8 @@
+fn source_checkout_root(cwd: &std::path::Path) -> Option<&std::path::Path> {
+    let source_root = cwd.join("crates/configurator/templates");
+    source_root.exists().then_some(cwd)
+}
+
 pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let dijiang_dir = crate::util::resolve_dijiang_dir(&cwd)
@@ -62,8 +67,10 @@ pub fn cmd_update(force: bool, from_github: bool) -> anyhow::Result<()> {
         println!("  GitHub 更新完成。\n");
     }
 
-    let report = dijiang_configurator::update_project(
+    let runtime_source = source_checkout_root(&cwd).unwrap_or(project_root);
+    let report = dijiang_configurator::update_project_from_source(
         project_root,
+        runtime_source,
         dijiang_configurator::UpdateOptions { force },
     )?;
 

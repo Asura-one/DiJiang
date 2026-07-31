@@ -179,7 +179,6 @@ pub fn dispatch_route_for_active_task(task: &TaskRecord) -> DispatchRoute {
         TaskStatus::Archived => route_from_registry("dijiang-start").expect("registered skill"),
     }
 }
-
 fn dispatch_route_for_active_task_with_config(
     task: &TaskRecord,
     dijiang_dir: &Path,
@@ -188,6 +187,29 @@ fn dispatch_route_for_active_task_with_config(
         .as_deref()
         .and_then(dispatch_route_from_skill)
         .unwrap_or_else(|| dispatch_route_for_active_task(task))
+}
+
+fn return_ungrilled_legacy_task_to_planning(
+    tasks_dir: &Path,
+    mut task: TaskRecord,
+) -> anyhow::Result<TaskRecord> {
+    if task.status != TaskStatus::InProgress || store::has_confirmed_grilling(tasks_dir, &task.name)
+    {
+        return Ok(task);
+    }
+
+    task.status = TaskStatus::Planning;
+    if let Some(meta) = task.meta.as_object_mut() {
+        meta.insert(
+            "grillingMigration".to_string(),
+            serde_json::json!({
+                "returnedToPlanningAt": chrono::Utc::now().to_rfc3339(),
+                "reason": "in_progress task lacks the required grilling record"
+            }),
+        );
+    }
+    store::save_task(tasks_dir, &task)?;
+    Ok(task)
 }
 
 pub fn apply_route_gate(
@@ -572,6 +594,8 @@ pub fn cmd_dispatch(
     } else {
         store::read_active_task(&dijiang_dir)?
             .and_then(|name| store::load_task(&tasks_dir, &name).ok())
+            .map(|task| return_ungrilled_legacy_task_to_planning(&tasks_dir, task))
+            .transpose()?
     };
     // Route the prompt
     let dispatch = match &existing_task {
@@ -599,11 +623,25 @@ pub fn cmd_dispatch(
         }
         None => {
             let route = dispatch_route(prompt);
+            let is_implementation = matches!(
+                route.intent,
+                dijiang_task::RouteIntent::Implement
+                    | dijiang_task::RouteIntent::Debug
+                    | dijiang_task::RouteIntent::Check
+            );
+            let route = if is_implementation {
+                route_from_registry("dj-grill").expect("registered skill")
+            } else {
+                route
+            };
             let gate_status = &route.status.clone();
             let mut dispatch =
                 apply_route_gate(gate_status, route, None, &dijiang_dir, &tasks_dir, None);
-            dispatch.decision.next_action =
-                "continue with the requested skill for the new task".to_string();
+            dispatch.decision.next_action = if is_implementation {
+                "run dj-grill, answer one decision question, and explicitly confirm shared understanding before implementation".to_string()
+            } else {
+                "continue with the requested skill for the new task".to_string()
+            };
             dispatch
         }
     };
