@@ -52,6 +52,12 @@ impl MemAdapter for OpenCodeAdapter {
     async fn get_session(&self, session_id: &str) -> Result<SessionRecord, MemError> {
         Err(MemError::NotFound(session_id.to_string()))
     }
+
+    async fn get_dialogue(&self, session_id: &str) -> Result<Vec<DialogueEntry>, MemError> {
+        Err(MemError::Unsupported(format!(
+            "opencode dialogue retrieval for session {session_id} requires SQLite support"
+        )))
+    }
 }
 
 #[cfg(test)]
@@ -70,5 +76,12 @@ mod tests {
         let adapter = OpenCodeAdapter::new();
         let result = futures::executor::block_on(adapter.get_session("any"));
         assert!(matches!(result, Err(MemError::NotFound(_))));
+    }
+
+    #[test]
+    fn dialogue_is_explicitly_unsupported() {
+        let adapter = OpenCodeAdapter::new();
+        let result = futures::executor::block_on(adapter.get_dialogue("any"));
+        assert!(matches!(result, Err(MemError::Unsupported(_))));
     }
 }

@@ -188,7 +188,7 @@ DiJiang 通过 Pi Extension（`.pi/extensions/dijiang/index.ts`）与 Pi 平台�
 4. **每次 bash 工具调用时**：自动注入 `DIJIANG_CONTEXT_ID` 环境变量，用于标识来源 session。
 5. **session 开始/关闭时**：自动刷新状态栏和 widget。
 
-路由注入有去重机制——同一 session 中同一命令不重复注入。
+路由注入有去重机制——同一 session 中同一命令不重复注入。模型可见的自动注入上下文默认限制为 32768 个 Unicode 字符；可通过 `DIJIANG_CONTEXT_MAX_CHARS` 调整为 1024–262144。非法值会回退默认上限，截断时保留任务、route、Git Gate 和目标 skill 等核心信息，并附带省略标记。
 
 ### 子 Agent 系统
 

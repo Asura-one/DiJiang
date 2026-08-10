@@ -96,6 +96,38 @@ try {
   const extensionErrors = [];
   runner.onError((error) => extensionErrors.push(error));
 
+  process.env.DIJIANG_CONTEXT_MAX_CHARS = "1024";
+  process.env.DIJIANG_PI_CONTRACT_STATE = JSON.stringify({
+    hookEventName: "before_agent_start",
+    additionalContext: `${"界".repeat(1500)}</dijiang-workflow-state>`,
+  });
+  const budgeted = await runner.emitBeforeAgentStart(
+    "budget contract",
+    undefined,
+    "",
+    { cwd: tempRoot },
+  );
+  assert.equal(Array.from(budgeted?.messages?.[0]?.content ?? "").length, 1024, "Pi dispatch context must honor the Unicode character budget");
+  assert.match(budgeted?.messages?.[0]?.content ?? "", /省略 \d+ 个字符/);
+  assert.match(budgeted?.messages?.[0]?.content ?? "", /<\/dijiang-workflow-state>$/);
+  process.env.DIJIANG_CONTEXT_MAX_CHARS = "1024junk";
+  process.env.DIJIANG_PI_CONTRACT_STATE = JSON.stringify({
+    hookEventName: "before_agent_start",
+    additionalContext: "界".repeat(1500),
+  });
+  const invalidBudget = await runner.emitBeforeAgentStart(
+    "invalid budget contract",
+    undefined,
+    "",
+    { cwd: tempRoot },
+  );
+  assert.equal(
+    Array.from(invalidBudget?.messages?.[0]?.content ?? "").length,
+    1500,
+    "invalid character budgets must fall back to the default instead of accepting a numeric prefix",
+  );
+  delete process.env.DIJIANG_CONTEXT_MAX_CHARS;
+
   process.env.DIJIANG_PI_CONTRACT_STATE = workflowState("blocked");
 
   const blockedWrite = await runner.emitToolCall(event("write", { path: "src/main.rs", content: "x" }));

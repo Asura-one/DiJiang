@@ -253,6 +253,10 @@ impl ActiveTaskState {
 
 impl WorkflowState {
     pub fn additional_context(&self) -> String {
+        self.additional_context_with_budget(crate::workflow_state::context_max_chars())
+    }
+
+    pub(crate) fn additional_context_with_budget(&self, budget: usize) -> String {
         use crate::workflow_state::{
             format_git_gate, format_route_gate, format_target_skill_bodies,
         };
@@ -297,9 +301,12 @@ impl WorkflowState {
         };
 
         let Some(task) = &self.active_task else {
-            return format!(
-                "<dijiang-workflow-state>\n{header_lines}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
-                self.guidance
+            return crate::workflow_state::limit_context_chars(
+                &format!(
+                    "<dijiang-workflow-state>\n{header_lines}\n活跃任务：none\n下一步：{}\n</dijiang-workflow-state>",
+                    self.guidance
+                ),
+                budget,
             );
         };
 
@@ -325,17 +332,18 @@ impl WorkflowState {
                 .map(|route_gate| route_gate.recommended_path.as_str())
                 .unwrap_or_default(),
         );
-        format!(
-            "<dijiang-workflow-state>\n{header_lines}\n活跃任务：{}\n标题：{}\n状态：{}\n任务路径：{}\n指引：{}\n{}\n{}\n{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
+        let context = format!(
+            "<dijiang-workflow-state>\n{header_lines}\n活跃任务：{}\n状态：{}\n{}\n{}\n{}\n标题：{}\n任务路径：{}\n指引：{}\n{}\n加载上下文：读取 task.json；如果存在，也读取 prd.md/design.md/implement.md/check 产物。\n</dijiang-workflow-state>",
             task.id,
-            task.title,
             task.status,
-            task.task_path,
-            self.guidance,
             route_gate_line,
             git_gate_line,
-            tag_line,
             target_skill_line,
-        )
+            task.title,
+            task.task_path,
+            self.guidance,
+            tag_line,
+        );
+        crate::workflow_state::limit_context_chars(&context, budget)
     }
 }

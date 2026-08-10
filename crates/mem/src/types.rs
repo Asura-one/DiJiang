@@ -80,6 +80,9 @@ pub enum MemError {
     #[error("Provider error: {0}")]
     Provider(String),
 
+    #[error("Unsupported operation: {0}")]
+    Unsupported(String),
+
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 }
@@ -327,7 +330,7 @@ pub struct Baseline {
 /// A scored memory result from recall.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoredMemory {
-    pub source: String,       // "findings" / "learnings" / "patterns"
+    pub source: String, // "findings" / "learnings" / "patterns"
     pub content: String,
     pub score: f64,
     pub timestamp: String,

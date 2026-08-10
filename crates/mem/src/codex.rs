@@ -17,15 +17,9 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Deserialize)]
 struct CodexPayload {
     #[serde(default)]
-    id: String,
-    #[serde(default)]
     timestamp: String,
     #[serde(default)]
     cwd: String,
-    #[serde(default)]
-    originator: Option<String>,
-    #[serde(default)]
-    cli_version: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -169,6 +163,70 @@ impl MemAdapter for CodexAdapter {
 
         Err(MemError::NotFound(session_id.to_string()))
     }
+
+    async fn get_dialogue(&self, session_id: &str) -> Result<Vec<DialogueEntry>, MemError> {
+        let record = self.get_session(session_id).await?;
+        let path = record
+            .source_path
+            .ok_or_else(|| MemError::NotFound(session_id.to_string()))?;
+        let mut entries = Vec::new();
+        let mut replacement_mirrors = std::collections::HashMap::<(String, String), usize>::new();
+        let mut mirror_window_open = false;
+        for event in crate::dialogue::read_events(Path::new(&path))? {
+            let timestamp = event
+                .get("timestamp")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
+            let kind = event
+                .get("type")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
+            let payload = event.get("payload").unwrap_or(&event);
+            if kind == "response_item"
+                && payload.get("type").and_then(serde_json::Value::as_str) == Some("message")
+            {
+                let mirrored = mirror_window_open
+                    && crate::dialogue::message_key(payload)
+                        .and_then(|key| replacement_mirrors.get_mut(&key))
+                        .is_some_and(|remaining| {
+                            if *remaining > 0 {
+                                *remaining -= 1;
+                                true
+                            } else {
+                                false
+                            }
+                        });
+                if !mirrored {
+                    mirror_window_open = false;
+                    replacement_mirrors.clear();
+                    crate::dialogue::push_message(&mut entries, session_id, timestamp, payload);
+                }
+            }
+            if kind == "compacted"
+                && let Some(history) = payload
+                    .get("replacement_history")
+                    .and_then(serde_json::Value::as_array)
+            {
+                entries.clear();
+                replacement_mirrors.clear();
+                mirror_window_open = true;
+                for item in history {
+                    let message = item.get("payload").unwrap_or(item);
+                    if message.get("type").and_then(serde_json::Value::as_str) == Some("message")
+                        && let Some(key) = crate::dialogue::push_message(
+                            &mut entries,
+                            session_id,
+                            timestamp,
+                            message,
+                        )
+                    {
+                        *replacement_mirrors.entry(key).or_default() += 1;
+                    }
+                }
+            }
+        }
+        Ok(entries)
+    }
 }
 
 #[cfg(test)]
@@ -213,5 +271,70 @@ mod tests {
         assert_eq!(sessions[0].session_id, session_id);
         assert_eq!(sessions[0].provider, "codex");
         assert_eq!(sessions[0].project_id, "/tmp/test-project");
+    }
+
+    #[test]
+    fn dialogue_reads_replacement_history_and_deduplicates_stream_events() {
+        let tmp = TempDir::new().unwrap();
+        let sessions = tmp.path().join("sessions/2026/01/01");
+        std::fs::create_dir_all(&sessions).unwrap();
+        let path = sessions.join("rollout-2026-01-01T00-00-00-compact.jsonl");
+        std::fs::write(&path, concat!(
+            "{\"type\":\"session_meta\",\"timestamp\":\"t0\",\"payload\":{\"timestamp\":\"t0\",\"cwd\":\"/tmp/project\"}}\n",
+            "{\"type\":\"compacted\",\"timestamp\":\"t1\",\"payload\":{\"replacement_history\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"before\"}]},{\"type\":\"summary\",\"text\":\"ignore\"}]}}\n",
+            "{\"type\":\"response_item\",\"timestamp\":\"t2\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"before\"}]}}\n",
+            "{\"type\":\"response_item\",\"timestamp\":\"t3\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"after\"}]}}\n",
+        )).unwrap();
+        let adapter = CodexAdapter::new_at(tmp.path().join("sessions"));
+        let turns = futures::executor::block_on(adapter.get_dialogue("compact")).unwrap();
+        assert_eq!(
+            turns
+                .iter()
+                .map(|turn| turn.content.as_str())
+                .collect::<Vec<_>>(),
+            ["before", "after"]
+        );
+    }
+
+    #[test]
+    fn dialogue_replaces_preceding_stream_history_without_duplicates() {
+        let turns = dialogue_from_events(concat!(
+            "{\"type\":\"response_item\",\"timestamp\":\"t1\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"same\"}}\n",
+            "{\"type\":\"compacted\",\"timestamp\":\"t2\",\"payload\":{\"replacement_history\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"same\"}]}}\n",
+        ));
+
+        assert_eq!(turns, ["same"]);
+    }
+
+    #[test]
+    fn dialogue_keeps_same_content_after_compaction_mirror_window() {
+        let turns = dialogue_from_events(concat!(
+            "{\"type\":\"compacted\",\"timestamp\":\"t1\",\"payload\":{\"replacement_history\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"same\"}]}}\n",
+            "{\"type\":\"response_item\",\"timestamp\":\"t2\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"same\"}}\n",
+            "{\"type\":\"response_item\",\"timestamp\":\"t3\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":\"boundary\"}}\n",
+            "{\"type\":\"response_item\",\"timestamp\":\"t4\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"same\"}}\n",
+        ));
+
+        assert_eq!(turns, ["same", "boundary", "same"]);
+    }
+
+    fn dialogue_from_events(events: &str) -> Vec<String> {
+        let tmp = TempDir::new().unwrap();
+        let sessions = tmp.path().join("sessions/2026/01/01");
+        std::fs::create_dir_all(&sessions).unwrap();
+        let path = sessions.join("rollout-2026-01-01T00-00-00-ordering.jsonl");
+        std::fs::write(
+            path,
+            format!(
+                "{{\"type\":\"session_meta\",\"timestamp\":\"t0\",\"payload\":{{\"timestamp\":\"t0\",\"cwd\":\"/tmp/project\"}}}}\n{events}"
+            ),
+        )
+        .unwrap();
+        let adapter = CodexAdapter::new_at(tmp.path().join("sessions"));
+        futures::executor::block_on(adapter.get_dialogue("ordering"))
+            .unwrap()
+            .into_iter()
+            .map(|turn| turn.content)
+            .collect()
     }
 }

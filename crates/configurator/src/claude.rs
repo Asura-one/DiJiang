@@ -180,6 +180,15 @@ impl Configurator for ClaudeConfigurator {
         Ok(())
     }
 
+    fn managed_artifacts(&self) -> &'static [crate::ManagedArtifact] {
+        const ARTIFACTS: &[crate::ManagedArtifact] = &[
+            crate::ManagedArtifact::hash_protected("CLAUDE.md"),
+            crate::ManagedArtifact::managed(".claude/settings.json"),
+            crate::ManagedArtifact::managed(".claude/hooks/inject-workflow-state.py"),
+        ];
+        ARTIFACTS
+    }
+
     fn has_hooks(&self) -> bool {
         true
     }

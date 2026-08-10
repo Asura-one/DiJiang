@@ -528,7 +528,7 @@ pub fn dispatch_context(
         String::new()
     };
     format!(
-        "<dijiang-dispatch>\n任务：{task_name}\n标题：{title}\n任务类型：{task_type}\n主要意图：{primary_intent}\n路线：{skill}\n推荐路径：{recommended_path}\naction：{action}\nreason：{reason}\nnextAction：{next_action}{status_hint}\n{worktree_line}\n</dijiang-dispatch>\n{skill_context}\n{state_context}",
+        "<dijiang-dispatch>\n任务：{task_name}\n路线：{skill}\n推荐路径：{recommended_path}\naction：{action}{status_hint}\n{worktree_line}\n</dijiang-dispatch>\n{skill_context}\n<dijiang-dispatch-details>\n标题：{title}\n任务类型：{task_type}\n主要意图：{primary_intent}\nreason：{reason}\nnextAction：{next_action}\n</dijiang-dispatch-details>\n{state_context}",
         task_type = route.task_type,
         primary_intent = route.primary_intent,
         skill = route.skill,
@@ -744,13 +744,16 @@ pub fn cmd_dispatch(
     };
 
     // Build dispatch context
-    let context = dispatch_context(
-        &task_name,
-        &title,
-        &dispatch,
-        &state_context,
-        worktree_decision.as_ref(),
-        Some(&original_status),
+    let context = dijiang_task::workflow_state::limit_context_chars(
+        &dispatch_context(
+            &task_name,
+            &title,
+            &dispatch,
+            &state_context,
+            worktree_decision.as_ref(),
+            Some(&original_status),
+        ),
+        dijiang_task::workflow_state::context_max_chars(),
     );
 
     if json {

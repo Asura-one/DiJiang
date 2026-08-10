@@ -18,6 +18,62 @@ use dijiang_mem::{GlobalMemory, ProjectMemory};
 mod types;
 pub use types::*;
 
+/// Maximum model-visible context in Unicode scalar values.
+pub const DEFAULT_CONTEXT_MAX_CHARS: usize = 32_768;
+pub const MIN_CONTEXT_MAX_CHARS: usize = 1_024;
+pub const MAX_CONTEXT_MAX_CHARS: usize = 262_144;
+
+pub fn context_max_chars() -> usize {
+    std::env::var("DIJIANG_CONTEXT_MAX_CHARS")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .filter(|value: &usize| (MIN_CONTEXT_MAX_CHARS..=MAX_CONTEXT_MAX_CHARS).contains(value))
+        .unwrap_or(DEFAULT_CONTEXT_MAX_CHARS)
+}
+
+pub fn limit_context_chars(text: &str, budget: usize) -> String {
+    if text.chars().count() <= budget {
+        return text.to_string();
+    }
+    let closing = "</dijiang-workflow-state>";
+    let suffix = if text.ends_with(closing) { closing } else { "" };
+    let original_len = text.chars().count();
+    let suffix_len = suffix.chars().count();
+    if budget <= suffix_len {
+        return suffix
+            .chars()
+            .rev()
+            .take(budget)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+    }
+    let mut omitted = original_len.saturating_sub(suffix_len);
+    let marker_len = loop {
+        let marker_len = format!("\n[…省略 {omitted} 个字符…]\n").chars().count();
+        let prefix_len = budget.saturating_sub(marker_len + suffix_len);
+        let next_omitted = original_len.saturating_sub(prefix_len + suffix_len);
+        if next_omitted == omitted {
+            break marker_len;
+        }
+        omitted = next_omitted;
+    };
+    if budget < marker_len + suffix_len {
+        return suffix
+            .chars()
+            .rev()
+            .take(budget)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+    }
+    let prefix_len = budget.saturating_sub(marker_len + suffix_len);
+    let prefix: String = text.chars().take(prefix_len).collect();
+    format!("{prefix}\n[…省略 {omitted} 个字符…]\n{suffix}")
+}
+
 mod tag_parser;
 
 pub fn build(dijiang_dir: &Path) -> Result<WorkflowState, TaskError> {
@@ -1030,6 +1086,37 @@ mod tests {
     use crate::store;
     use crate::types::TaskRecord;
 
+    #[test]
+    fn context_budget_is_unicode_safe_and_keeps_closing_tag() {
+        let input = format!("{}{}", "界".repeat(2_000), "</dijiang-workflow-state>");
+        let output = limit_context_chars(&input, 1_024);
+        assert_eq!(output.chars().count(), 1_024);
+        assert!(output.contains("省略"));
+        assert!(output.ends_with("</dijiang-workflow-state>"));
+    }
+
+    #[test]
+    fn context_budget_leaves_short_input_byte_identical() {
+        let input = "模型 context unchanged";
+        assert_eq!(
+            limit_context_chars(input, 1_024).as_bytes(),
+            input.as_bytes()
+        );
+    }
+
+    #[test]
+    fn context_budget_never_exceeds_small_direct_api_budgets() {
+        let input = format!("{}{}", "界".repeat(100), "</dijiang-workflow-state>");
+
+        for budget in [0, 1, 12, 25, 30] {
+            let output = limit_context_chars(&input, budget);
+            assert!(output.chars().count() <= budget, "budget={budget}");
+            if budget > 0 {
+                assert!("</dijiang-workflow-state>".ends_with(&output));
+            }
+        }
+    }
+
     fn task(name: &str, title: &str) -> TaskRecord {
         TaskRecord {
             id: name.to_string(),
@@ -1214,6 +1301,37 @@ mod tests {
         assert!(context.contains("Target Skill：[dj-grill"));
         assert!(!context.contains("Skill Manifests："));
         assert!(!context.contains("Loop：goal=Align Task"));
+    }
+
+    #[test]
+    fn context_budget_preserves_route_and_target_skill_before_optional_tags() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        std::fs::create_dir_all(&dijiang_dir).unwrap();
+        std::fs::write(
+            dijiang_dir.join("config.toml"),
+            "[project]\ndeveloper = \"tester\"\n",
+        )
+        .unwrap();
+        let tasks_dir = dijiang_dir.join("tasks");
+        std::fs::create_dir_all(&tasks_dir).unwrap();
+        let mut planning = task("budget-task", &"x".repeat(4_000));
+        planning.status = TaskStatus::Planning;
+        store::save_task(&tasks_dir, &planning).unwrap();
+        let window = store::SessionIdentity::new("dijiang", "budget-window").unwrap();
+        store::write_active_task_for_session(&dijiang_dir, "budget-task", Some(&window)).unwrap();
+
+        let context = build_for_session(&dijiang_dir, Some(&window))
+            .unwrap()
+            .additional_context_with_budget(MIN_CONTEXT_MAX_CHARS);
+
+        assert_eq!(context.chars().count(), MIN_CONTEXT_MAX_CHARS);
+        assert!(context.contains("活跃任务：budget-task"));
+        assert!(context.contains("Route Gate：capsule=align"));
+        assert!(context.contains("Git Gate：state=ready"));
+        assert!(context.contains("Target Skill：[dj-grill"));
+        assert!(context.contains("省略"));
+        assert!(context.ends_with("</dijiang-workflow-state>"));
     }
 
     #[test]

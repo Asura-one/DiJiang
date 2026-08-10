@@ -41,23 +41,11 @@ struct ClaudeIndex {
 }
 
 #[derive(Debug, Deserialize)]
-struct ClaudeMessage {
-    #[serde(default)]
-    role: Option<String>,
-    #[serde(default)]
-    content: Option<serde_json::Value>,
-}
-
-#[derive(Debug, Deserialize)]
 struct ClaudeEvent {
-    #[serde(default)]
-    r#type: String,
     #[serde(default)]
     cwd: Option<String>,
     #[serde(default)]
     timestamp: Option<String>,
-    #[serde(default)]
-    message: Option<ClaudeMessage>,
 }
 
 /// Claude Code platform adapter.
@@ -261,6 +249,31 @@ impl MemAdapter for ClaudeAdapter {
 
         Err(MemError::NotFound(session_id.to_string()))
     }
+
+    async fn get_dialogue(&self, session_id: &str) -> Result<Vec<DialogueEntry>, MemError> {
+        let record = self.get_session(session_id).await?;
+        let path = record
+            .source_path
+            .ok_or_else(|| MemError::NotFound(session_id.to_string()))?;
+        let mut entries = Vec::new();
+        for event in crate::dialogue::read_events(Path::new(&path))? {
+            let kind = event
+                .get("type")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
+            if !matches!(kind, "user" | "assistant") {
+                continue;
+            }
+            let timestamp = event
+                .get("timestamp")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
+            if let Some(message) = event.get("message") {
+                crate::dialogue::push_message(&mut entries, session_id, timestamp, message);
+            }
+        }
+        Ok(entries)
+    }
 }
 
 #[cfg(test)]
@@ -315,5 +328,27 @@ mod tests {
         assert_eq!(sessions[0].provider, "claude");
         assert_eq!(sessions[0].project_id, "/tmp/test");
         assert_eq!(sessions[0].task.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn dialogue_ignores_compact_summary_and_reads_text_blocks() {
+        let tmp = TempDir::new().unwrap();
+        let project = tmp.path().join("projects/test");
+        std::fs::create_dir_all(&project).unwrap();
+        let path = project.join("compact.jsonl");
+        std::fs::write(&path, concat!(
+            "{\"type\":\"user\",\"cwd\":\"/tmp/test\",\"timestamp\":\"t1\",\"message\":{\"role\":\"user\",\"content\":\"before\"}}\n",
+            "{\"type\":\"compact_boundary\",\"timestamp\":\"t2\",\"message\":{\"role\":\"user\",\"content\":\"summary\"}}\n",
+            "{\"type\":\"assistant\",\"timestamp\":\"t3\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"text\":\"hidden\"},{\"type\":\"text\",\"text\":\"after\"}]}}\n",
+        )).unwrap();
+        let adapter = ClaudeAdapter::new_at(tmp.path().join("projects"));
+        let turns = futures::executor::block_on(adapter.get_dialogue("compact")).unwrap();
+        assert_eq!(
+            turns
+                .iter()
+                .map(|turn| turn.content.as_str())
+                .collect::<Vec<_>>(),
+            ["before", "after"]
+        );
     }
 }
