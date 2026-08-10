@@ -18,6 +18,34 @@ pub enum ConfigError {
 ///
 /// Each platform has its own configurator that generates
 /// the necessary configuration files for that platform.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpdatePolicy {
+    Managed,
+    HashProtected,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ManagedArtifact {
+    pub path: &'static str,
+    pub policy: UpdatePolicy,
+}
+
+impl ManagedArtifact {
+    pub const fn managed(path: &'static str) -> Self {
+        Self {
+            path,
+            policy: UpdatePolicy::Managed,
+        }
+    }
+
+    pub const fn hash_protected(path: &'static str) -> Self {
+        Self {
+            path,
+            policy: UpdatePolicy::HashProtected,
+        }
+    }
+}
+
 pub trait Configurator: Send + Sync {
     /// Platform kind.
     fn platform(&self) -> PlatformKind;
@@ -25,6 +53,9 @@ pub trait Configurator: Send + Sync {
     /// Configure a DiJiang project at `cwd`.
     /// Creates/updates platform-specific config files.
     fn configure(&self, cwd: &Path) -> Result<(), ConfigError>;
+
+    /// Files generated and maintained by this platform configurator.
+    fn managed_artifacts(&self) -> &'static [ManagedArtifact];
 
     /// Returns true if the platform supports auto-injection (class-1).
     fn has_hooks(&self) -> bool {

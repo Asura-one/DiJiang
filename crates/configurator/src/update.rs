@@ -1,9 +1,11 @@
-use crate::{ConfigError, ConfiguratorRegistry, DijiangConfig, PlatformKind};
+use crate::{
+    ConfigError, ConfiguratorRegistry, DijiangConfig, ManagedArtifact, PlatformKind, UpdatePolicy,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const HASHES_FILE: &str = ".template-hashes.json";
 
@@ -31,16 +33,19 @@ impl UpdateReport {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UpdatePolicy {
-    Managed,
-    HashProtected,
-}
-
 #[derive(Debug)]
 struct ManagedFile {
     path: String,
     policy: UpdatePolicy,
+}
+
+impl From<ManagedArtifact> for ManagedFile {
+    fn from(artifact: ManagedArtifact) -> Self {
+        Self {
+            path: artifact.path.to_string(),
+            policy: artifact.policy,
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -125,7 +130,11 @@ pub fn update_project_from_source(
         copy_dir_contents(&templates_scripts_dir, &dst_scripts)?;
     }
 
-    let mut managed_files = managed_files_for_platforms(&platforms);
+    let mut managed_files: Vec<ManagedFile> = registry
+        .managed_artifacts(&platforms)
+        .into_iter()
+        .map(ManagedFile::from)
+        .collect();
     // Enumerate ALL files under .pi/skills/ in the temp dir (SKILL.md + references)
     // instead of using a static list, so new template files are picked up automatically.
     let pi_skills_dir = temp.path().join(".pi/skills");
@@ -151,6 +160,14 @@ pub fn update_project_from_source(
     if dijiang_scripts.exists() {
         collect_managed_files(&dijiang_scripts, ".dijiang/scripts", &mut managed_files);
     }
+    managed_files.extend(
+        crate::init::DIJIANG_AGENT_TEMPLATES
+            .iter()
+            .map(|(filename, _)| ManagedFile {
+                path: format!(".dijiang/agents/{filename}"),
+                policy: UpdatePolicy::Managed,
+            }),
+    );
     managed_files.push(ManagedFile {
         path: ".dijiang/workflow.md".to_string(),
         policy: UpdatePolicy::HashProtected,
@@ -270,76 +287,6 @@ fn platform_name(platform: PlatformKind) -> &'static str {
         PlatformKind::Codex => "codex",
         PlatformKind::OpenCode => "opencode",
         PlatformKind::Hermes => "hermes",
-    }
-}
-
-fn managed_files_for_platforms(platforms: &[PlatformKind]) -> Vec<ManagedFile> {
-    let mut files = Vec::new();
-    for platform in platforms {
-        match platform {
-            PlatformKind::Pi => files.extend([
-                managed(".pi/settings.json"),
-                managed(".pi/prompts/dijiang-start.md"),
-                managed(".pi/prompts/dijiang-finish-work.md"),
-                managed(".pi/prompts/dijiang-reason.md"),
-                managed(".pi/extensions/dijiang/index.ts"),
-                protected(".pi/agents/dijiang-implementer.md"),
-                protected(".pi/agents/dijiang-checker.md"),
-                protected(".pi/agents/dijiang-researcher.md"),
-                protected(".pi/agents/dijiang-architect.md"),
-                protected(".pi/agents/dijiang-planner.md"),
-                managed(".dijiang/agents/architect.md"),
-                managed(".dijiang/agents/planner.md"),
-                managed(".dijiang/agents/implementer.md"),
-                managed(".dijiang/agents/checker.md"),
-                managed(".dijiang/agents/researcher.md"),
-            ]),
-            PlatformKind::Cursor => files.extend([
-                managed(".cursor/rules/dijiang.mdc"),
-                managed(".cursor/hooks.json"),
-                managed(".cursor/hooks/inject-workflow-state.py"),
-            ]),
-            PlatformKind::Claude => files.extend([
-                protected("CLAUDE.md"),
-                managed(".claude/settings.json"),
-                managed(".claude/hooks/inject-workflow-state.py"),
-            ]),
-            PlatformKind::Codex => files.extend([
-                protected(".codex/agents/dijiang-implementer.toml"),
-                protected(".codex/agents/dijiang-checker.toml"),
-                managed(".codex/hooks/inject-workflow-state.py"),
-                managed(".codex/hooks.json"),
-                managed(".codex/config.toml"),
-            ]),
-            PlatformKind::OpenCode => files.extend([
-                protected(".opencode/agents/dijiang-implementer.md"),
-                protected(".opencode/agents/dijiang-checker.md"),
-                managed(".opencode/plugins/session-start.js"),
-                managed(".opencode/lib/dijiang-context.js"),
-                managed(".opencode/lib/session-utils.js"),
-                managed(".opencode/package.json"),
-            ]),
-            PlatformKind::Hermes => files.extend([
-                protected(".hermes/agents/dijiang-implementer.md"),
-                protected(".hermes/agents/dijiang-checker.md"),
-                managed(".hermes/hooks.json"),
-            ]),
-        }
-    }
-    files
-}
-
-fn managed(path: &str) -> ManagedFile {
-    ManagedFile {
-        path: path.to_string(),
-        policy: UpdatePolicy::Managed,
-    }
-}
-
-fn protected(path: &str) -> ManagedFile {
-    ManagedFile {
-        path: path.to_string(),
-        policy: UpdatePolicy::HashProtected,
     }
 }
 
@@ -507,41 +454,24 @@ fn set_executable_if_script(path: &Path) -> Result<(), ConfigError> {
 }
 
 struct GeneratedProject {
-    path: PathBuf,
+    temp_dir: tempfile::TempDir,
 }
 
 impl GeneratedProject {
     fn new() -> Result<Self, ConfigError> {
-        let path = std::env::temp_dir().join(format!(
-            "dijiang-update-{}-{}",
-            std::process::id(),
-            chrono_like_timestamp()
-        ));
-        if path.exists() {
-            fs::remove_dir_all(&path)?;
-        }
-        fs::create_dir_all(&path)?;
-        Ok(Self { path })
+        let temp_dir = tempfile::Builder::new()
+            .prefix("dijiang-update-")
+            .tempdir()
+            .map_err(|error| {
+                ConfigError::Serialize(format!("failed to create generated project: {error}"))
+            })?;
+        Ok(Self { temp_dir })
     }
 
     fn path(&self) -> &Path {
-        &self.path
+        self.temp_dir.path()
     }
 }
-
-impl Drop for GeneratedProject {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
-    }
-}
-
-fn chrono_like_timestamp() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_millis())
-        .unwrap_or(0)
-}
-
 /// Copy the source-tree workflow template into the generated project.
 fn copy_template_config(src: &Path, temp_dir: &Path) -> Result<(), ConfigError> {
     let source = src.join("workflow.md");
@@ -688,8 +618,7 @@ fn remove_stale_files(
         if !project_root.exists() || !temp_root.exists() {
             continue;
         }
-        let relative_from = if root.starts_with('.') { root } else { root };
-        remove_stale_inner(&project_root, &temp_root, relative_from, report)?;
+        remove_stale_inner(&project_root, &temp_root, root, report)?;
     }
     Ok(())
 }
@@ -795,8 +724,25 @@ fn install_git_hook(project_root: &Path) -> Result<(), ConfigError> {
     Ok(())
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_projects_are_unique_under_parallel_creation() {
+        let projects: Vec<_> = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..64)
+                .map(|_| scope.spawn(|| GeneratedProject::new().unwrap()))
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect()
+        });
+        let paths: BTreeSet<_> = projects.iter().map(|project| project.path()).collect();
+
+        assert_eq!(paths.len(), projects.len());
+    }
 
     #[test]
     fn update_project_refreshes_hooks_and_preserves_skill_conflicts() {
@@ -885,10 +831,44 @@ mod tests {
 
         let report = update_project(tmp.path(), UpdateOptions { force: false }).unwrap();
         assert!(companion.exists());
-        assert!(report
-            .updated
-            .contains(&".pi/skills/dj-output/references/doc-template.md".to_string()));
+        assert!(
+            report
+                .updated
+                .contains(&".pi/skills/dj-output/references/doc-template.md".to_string())
+        );
     }
+    #[test]
+    fn update_restores_shared_dijiang_agents() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        crate::init_project_with_platforms(tmp.path(), "shared-agents", None, &[PlatformKind::Pi])
+            .unwrap();
+        let checker = tmp.path().join(".dijiang/agents/checker.md");
+        fs::remove_file(&checker).unwrap();
+
+        let report = update_project(tmp.path(), UpdateOptions { force: false }).unwrap();
+
+        assert!(checker.exists());
+        assert!(
+            report
+                .updated
+                .contains(&".dijiang/agents/checker.md".to_string())
+        );
+
+        fs::write(&checker, "user edit").unwrap();
+        let report = update_project(tmp.path(), UpdateOptions { force: false }).unwrap();
+        assert_ne!(fs::read_to_string(&checker).unwrap(), "user edit");
+        assert!(
+            report
+                .updated
+                .contains(&".dijiang/agents/checker.md".to_string())
+        );
+        assert!(
+            !report
+                .conflicts
+                .contains(&".dijiang/agents/checker.md".to_string())
+        );
+    }
+
     #[test]
     fn update_project_force_overwrites_conflicts_and_records_hashes() {
         let tmp = tempfile::TempDir::new().unwrap();
@@ -957,14 +937,16 @@ version = "0.1.0"
             report.conflicts.is_empty(),
             "unexpected conflicts: {report:?}"
         );
-        assert!(tmp
-            .path()
-            .join(".codex/hooks/inject-workflow-state.py")
-            .exists());
-        assert!(tmp
-            .path()
-            .join(".cursor/hooks/inject-workflow-state.py")
-            .exists());
+        assert!(
+            tmp.path()
+                .join(".codex/hooks/inject-workflow-state.py")
+                .exists()
+        );
+        assert!(
+            tmp.path()
+                .join(".cursor/hooks/inject-workflow-state.py")
+                .exists()
+        );
         let config = fs::read_to_string(tmp.path().join(".dijiang/config.toml")).unwrap();
         assert!(config.contains("codex"));
         assert!(config.contains("cursor"));
@@ -986,20 +968,7 @@ version = "0.1.0"
         )
         .unwrap();
 
-        // If this project tree has template scripts, plant cache next to a real script source.
-        let templates_common =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates/scripts/common");
-        let planted_cache = templates_common.join("__pycache__");
-        let planted = if templates_common.exists() {
-            fs::create_dir_all(&planted_cache).unwrap();
-            fs::write(planted_cache.join("planted.cpython-314.pyc"), b"planted").unwrap();
-            true
-        } else {
-            false
-        };
-
-        // Run update from a cwd that may include this repo's templates (when tests run in-tree).
-        // Always also exercise pure copy helpers via a synthetic tree under temp.
+        // Exercise cache filtering entirely inside the test's temporary tree.
         let synth_src = tmp.path().join("_synth_src");
         let synth_dst = tmp.path().join("_synth_dst");
         fs::create_dir_all(synth_src.join("common/__pycache__")).unwrap();
@@ -1043,9 +1012,5 @@ version = "0.1.0"
             report.removed.iter().any(|p| p.contains("__pycache__")),
             "report should record cache removal: {report:?}"
         );
-
-        if planted {
-            let _ = fs::remove_dir_all(&planted_cache);
-        }
     }
 }

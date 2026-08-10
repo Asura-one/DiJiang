@@ -94,6 +94,8 @@ cli ──→ task ──→ （独立，不依赖 DiJiang 其他 crate）
 | `jsonl` | JSONL 文件 I/O 工具 |
 | `registry` | 平台记忆发现和路由 |
 
+`MemoryAdapter::get_dialogue` 返回平台源存储中可恢复的真实 user/assistant turns。Pi、Claude 和 Codex 会保留 compaction 前后的原始对话并过滤 summary/tool/thinking 事件；OpenCode 1.2+ 使用 SQLite，当前明确返回 `Unsupported`，不以空对话表示成功。
+
 ### `configurator`（库：`dijiang-configurator`）
 
 项目初始化、模板管理、平台配置、自更新。
@@ -107,7 +109,7 @@ cli ──→ task ──→ （独立，不依赖 DiJiang 其他 crate）
 | `templates` | init 使用的内置模板内容 |
 | `dj_skills` | init 时生成 `dj-*` skill 文件 |
 | `pi` / `claude` / `codex` / `cursor` / `opencode` / `hermes` | 平台特定配置生成 |
-| `update` | 自更新机制（hash 比较 + GitHub 下载） |
+| `update` | 自更新机制（hash 比较 + GitHub 下载），通过各平台 `managed_artifacts` inventory 复用 configure 的受管文件事实源 |
 | `changelog` | CLI 中显示变更日志 |
 
 ## 数据流

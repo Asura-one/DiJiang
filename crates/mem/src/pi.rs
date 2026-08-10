@@ -256,7 +256,38 @@ impl MemAdapter for PiMemAdapter {
             return Ok(record);
         }
 
+        if let Some(record) = Self::scan_pi_agent_dir(&self.pi_agent_dir)
+            .into_iter()
+            .find(|record| record.session_id == session_id)
+        {
+            return Ok(record);
+        }
+
         Err(MemError::NotFound(session_id.to_string()))
+    }
+
+    async fn get_dialogue(&self, session_id: &str) -> Result<Vec<DialogueEntry>, MemError> {
+        let record = self.get_session(session_id).await?;
+        let path = record
+            .source_path
+            .filter(|path| path.ends_with(".jsonl"))
+            .ok_or_else(|| MemError::Unsupported("pi dialogue source is not JSONL".to_string()))?;
+        let mut entries = Vec::new();
+        for event in crate::dialogue::read_events(Path::new(&path))? {
+            let timestamp = event
+                .get("timestamp")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
+            let kind = event
+                .get("type")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
+            if matches!(kind, "message" | "user" | "assistant") {
+                let message = event.get("message").unwrap_or(&event);
+                crate::dialogue::push_message(&mut entries, session_id, timestamp, message);
+            }
+        }
+        Ok(entries)
     }
 }
 
@@ -321,5 +352,33 @@ Some content"#;
         let content = "---\n---\nbody";
         let fm = parse_front_matter(content).unwrap();
         assert!(fm.is_empty());
+    }
+
+    #[test]
+    fn dialogue_preserves_pi_turns_across_compaction() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let dir = tmp.path().join("--tmp-project--");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("2026-01-01T00-00-00_compact.jsonl");
+        std::fs::write(&path, concat!(
+            "{\"type\":\"session\",\"timestamp\":\"t0\"}\n",
+            "{\"type\":\"message\",\"timestamp\":\"t1\",\"message\":{\"role\":\"user\",\"content\":\"before\"}}\n",
+            "{\"type\":\"compaction\",\"summary\":\"do not expose\"}\n",
+            "{\"type\":\"message\",\"timestamp\":\"t2\",\"message\":{\"role\":\"assistant\",\"content\":\"after\"}}\n",
+            "{\"type\":\"message\",\"timestamp\":\"t3\",\"message\":{\"role\":\"user\",\"content\":\"before\"}}\n",
+        )).unwrap();
+        let adapter = PiMemAdapter {
+            muse_dir: tmp.path().join("muse"),
+            dijiang_dir: tmp.path().join("mem"),
+            pi_agent_dir: tmp.path().to_path_buf(),
+        };
+        let turns = futures::executor::block_on(adapter.get_dialogue("compact")).unwrap();
+        assert_eq!(
+            turns
+                .iter()
+                .map(|turn| turn.content.as_str())
+                .collect::<Vec<_>>(),
+            ["before", "after", "before"]
+        );
     }
 }

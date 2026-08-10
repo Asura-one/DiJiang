@@ -148,6 +148,15 @@ impl Configurator for CursorConfigurator {
         Ok(())
     }
 
+    fn managed_artifacts(&self) -> &'static [crate::ManagedArtifact] {
+        const ARTIFACTS: &[crate::ManagedArtifact] = &[
+            crate::ManagedArtifact::managed(".cursor/rules/dijiang.mdc"),
+            crate::ManagedArtifact::managed(".cursor/hooks.json"),
+            crate::ManagedArtifact::managed(".cursor/hooks/inject-workflow-state.py"),
+        ];
+        ARTIFACTS
+    }
+
     fn has_hooks(&self) -> bool {
         true
     }

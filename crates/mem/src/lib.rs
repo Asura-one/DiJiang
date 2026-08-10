@@ -1,6 +1,7 @@
 pub mod adapter;
 pub mod claude;
 pub mod codex;
+mod dialogue;
 pub mod hermes;
 pub mod jsonl;
 pub mod memory;

@@ -115,6 +115,15 @@ impl Configurator for HermesConfigurator {
         Ok(())
     }
 
+    fn managed_artifacts(&self) -> &'static [crate::ManagedArtifact] {
+        const ARTIFACTS: &[crate::ManagedArtifact] = &[
+            crate::ManagedArtifact::hash_protected(".hermes/agents/dijiang-implement.md"),
+            crate::ManagedArtifact::hash_protected(".hermes/agents/dijiang-check.md"),
+            crate::ManagedArtifact::managed(".hermes/hooks.json"),
+        ];
+        ARTIFACTS
+    }
+
     fn has_hooks(&self) -> bool {
         true
     }

@@ -173,6 +173,17 @@ impl Configurator for CodexConfigurator {
         Ok(())
     }
 
+    fn managed_artifacts(&self) -> &'static [crate::ManagedArtifact] {
+        const ARTIFACTS: &[crate::ManagedArtifact] = &[
+            crate::ManagedArtifact::hash_protected(".codex/agents/dijiang-implementer.toml"),
+            crate::ManagedArtifact::hash_protected(".codex/agents/dijiang-checker.toml"),
+            crate::ManagedArtifact::managed(".codex/hooks/inject-workflow-state.py"),
+            crate::ManagedArtifact::managed(".codex/hooks.json"),
+            crate::ManagedArtifact::managed(".codex/config.toml"),
+        ];
+        ARTIFACTS
+    }
+
     fn has_hooks(&self) -> bool {
         true
     }

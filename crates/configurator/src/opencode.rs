@@ -301,6 +301,18 @@ impl Configurator for OpenCodeConfigurator {
         Ok(())
     }
 
+    fn managed_artifacts(&self) -> &'static [crate::ManagedArtifact] {
+        const ARTIFACTS: &[crate::ManagedArtifact] = &[
+            crate::ManagedArtifact::hash_protected(".opencode/agents/dijiang-implementer.md"),
+            crate::ManagedArtifact::hash_protected(".opencode/agents/dijiang-checker.md"),
+            crate::ManagedArtifact::managed(".opencode/plugins/session-start.js"),
+            crate::ManagedArtifact::managed(".opencode/lib/dijiang-context.js"),
+            crate::ManagedArtifact::managed(".opencode/lib/session-utils.js"),
+            crate::ManagedArtifact::managed(".opencode/package.json"),
+        ];
+        ARTIFACTS
+    }
+
     fn has_hooks(&self) -> bool {
         false
     }

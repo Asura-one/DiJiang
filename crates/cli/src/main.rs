@@ -1319,4 +1319,34 @@ mod tests {
         assert!(!context.contains("<dijiang-skill-manifests>"));
         assert!(!context.contains("<dijiang-target-skill"));
     }
+
+    #[test]
+    fn test_dispatch_context_budget_preserves_core_sections_after_long_title() {
+        let route = dispatch_route("新增一个导出按钮");
+        let dispatch = apply_route_gate(
+            &TaskStatus::Planning,
+            route,
+            Some("新增一个导出按钮"),
+            Path::new(""),
+            Path::new(""),
+            None,
+        );
+        let context = dijiang_task::workflow_state::limit_context_chars(
+            &dispatch_context(
+                "task-1",
+                &"界".repeat(4_000),
+                &dispatch,
+                "<dijiang-workflow-state>state</dijiang-workflow-state>",
+                None,
+                Some(&TaskStatus::Planning),
+            ),
+            1_024,
+        );
+
+        assert_eq!(context.chars().count(), 1_024);
+        assert!(context.contains("路线：dj-implement"));
+        assert!(context.contains("Git 工作流："));
+        assert!(context.contains("目标 skill：dj-implement"));
+        assert!(context.ends_with("</dijiang-workflow-state>"));
+    }
 }

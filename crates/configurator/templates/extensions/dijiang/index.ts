@@ -24,6 +24,35 @@ type WorkflowStateJson = {
   gitGate?: { state?: string; worktreePath?: string };
   guidance?: string;
 };
+const DEFAULT_CONTEXT_MAX_CHARS = 32768;
+const MIN_CONTEXT_MAX_CHARS = 1024;
+const MAX_CONTEXT_MAX_CHARS = 262144;
+
+function contextMaxChars(): number {
+  const raw = process.env.DIJIANG_CONTEXT_MAX_CHARS || "";
+  const parsed = /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
+  return Number.isInteger(parsed) && parsed >= MIN_CONTEXT_MAX_CHARS && parsed <= MAX_CONTEXT_MAX_CHARS
+    ? parsed
+    : DEFAULT_CONTEXT_MAX_CHARS;
+}
+
+function limitContext(text: string, budget = contextMaxChars()): string {
+  const chars = Array.from(text);
+  if (chars.length <= budget) return text;
+  const closing = "</dijiang-workflow-state>";
+  const suffix = text.endsWith(closing) ? Array.from(closing) : [];
+  let omitted = chars.length - budget;
+  for (;;) {
+    const marker = Array.from(`\n[…省略 ${omitted} 个字符…]\n`);
+    const prefix = chars.slice(0, Math.max(0, budget - marker.length - suffix.length));
+    const actualOmitted = chars.length - prefix.length - suffix.length;
+    const output = [...prefix, ...marker, ...suffix].join("");
+    if (Array.from(output).length <= budget && actualOmitted === omitted) return output;
+    omitted = actualOmitted;
+    if (Array.from(output).length <= budget) return output;
+  }
+}
+
 function errorContext(message: string): string {
   const session =
     process.env.DIJIANG_CONTEXT_ID ||
@@ -173,7 +202,8 @@ async function dispatchContext(pi: ExtensionAPI, eventName: string, prompt: stri
       eventName,
     ]);
     const payload = JSON.parse(result.stdout?.trim() || "{}");
-    const context = payload.additionalContext?.trim();
+    const rawContext = payload.additionalContext;
+    const context = typeof rawContext === "string" ? limitContext(rawContext.trim()) : "";
     if (context) {
       pi.appendEntry("dijiang_dispatch", { context, eventName });
       return context;

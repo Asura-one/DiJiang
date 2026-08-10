@@ -64,6 +64,16 @@ impl ConfiguratorRegistry {
             .map(|c| c.as_ref())
     }
 
+    /// Managed artifacts for the requested platforms, in platform priority order.
+    pub fn managed_artifacts(&self, platforms: &[PlatformKind]) -> Vec<ManagedArtifact> {
+        platforms
+            .iter()
+            .filter_map(|platform| self.get(*platform))
+            .flat_map(Configurator::managed_artifacts)
+            .copied()
+            .collect()
+    }
+
     /// Detect which installed platforms are available on this system.
     pub fn auto_detect(&self) -> Vec<PlatformKind> {
         let mut detected: Vec<PlatformKind> = self
@@ -206,6 +216,44 @@ mod tests {
         assert!(opencode_plugin.contains("--hook-event"));
         assert!(opencode_plugin.contains("OPENCODE_SESSION_ID"));
         assert!(opencode_plugin.contains("Hook 错误:"));
+    }
+
+    fn generated_files(root: &Path) -> std::collections::BTreeSet<String> {
+        fn walk(root: &Path, dir: &Path, files: &mut std::collections::BTreeSet<String>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    walk(root, &path, files);
+                } else {
+                    files.insert(
+                        path.strip_prefix(root)
+                            .unwrap()
+                            .to_string_lossy()
+                            .replace('\\', "/"),
+                    );
+                }
+            }
+        }
+        let mut files = std::collections::BTreeSet::new();
+        walk(root, root, &mut files);
+        files
+    }
+
+    #[test]
+    fn inventories_match_each_configurators_generated_files() {
+        let reg = ConfiguratorRegistry::with_all();
+        for platform in PlatformKind::all() {
+            let tmp = tempfile::TempDir::new().unwrap();
+            let configurator = reg.get(platform).unwrap();
+            configurator.configure(tmp.path()).unwrap();
+            let actual = generated_files(tmp.path());
+            let declared = configurator
+                .managed_artifacts()
+                .iter()
+                .map(|artifact| artifact.path.to_string())
+                .collect::<std::collections::BTreeSet<_>>();
+            assert_eq!(declared, actual, "inventory drift for {platform:?}");
+        }
     }
 
     #[test]

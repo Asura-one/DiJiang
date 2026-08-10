@@ -274,6 +274,26 @@ impl Configurator for PiConfigurator {
         Ok(())
     }
 
+    fn managed_artifacts(&self) -> &'static [ManagedArtifact] {
+        const ARTIFACTS: &[ManagedArtifact] = &[
+            ManagedArtifact::managed(".pi/settings.json"),
+            ManagedArtifact::managed(".pi/prompts/dijiang-start.md"),
+            ManagedArtifact::managed(".pi/prompts/dijiang-finish-work.md"),
+            ManagedArtifact::managed(".pi/prompts/dijiang-reason.md"),
+            ManagedArtifact::managed(".pi/extensions/dijiang/index.ts"),
+            ManagedArtifact::managed(".pi/skills/.dijiang_owned"),
+            ManagedArtifact::managed(".pi/skills/dijiang-start/SKILL.md"),
+            ManagedArtifact::managed(".pi/skills/dijiang-continue/SKILL.md"),
+            ManagedArtifact::managed(".pi/skills/dijiang-finish-work/SKILL.md"),
+            ManagedArtifact::hash_protected(".pi/agents/dijiang-architect.md"),
+            ManagedArtifact::hash_protected(".pi/agents/dijiang-planner.md"),
+            ManagedArtifact::hash_protected(".pi/agents/dijiang-implementer.md"),
+            ManagedArtifact::hash_protected(".pi/agents/dijiang-checker.md"),
+            ManagedArtifact::hash_protected(".pi/agents/dijiang-researcher.md"),
+        ];
+        ARTIFACTS
+    }
+
     fn is_installed(&self) -> bool {
         true
     }

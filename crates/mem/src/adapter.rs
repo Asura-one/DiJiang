@@ -18,10 +18,11 @@ pub trait MemAdapter: Send + Sync {
 
     /// Get dialogue entries for a given session.
     ///
-    /// Default implementation returns empty — override if the provider
-    /// stores conversational history.
+    /// Providers must override this when they expose stable conversational history.
     async fn get_dialogue(&self, session_id: &str) -> Result<Vec<DialogueEntry>, MemError> {
-        let _ = session_id;
-        Ok(Vec::new())
+        Err(MemError::Unsupported(format!(
+            "{} dialogue retrieval for session {session_id}",
+            self.provider()
+        )))
     }
 }

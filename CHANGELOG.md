@@ -1,5 +1,17 @@
 # 变更日志
 
+## [0.14.0] — 2026-08-10
+
+### 新增
+
+- 为 workflow-state、dispatch 与 Pi extension 增加统一 Unicode 字符预算，支持 `DIJIANG_CONTEXT_MAX_CHARS` 配置并优先保留核心路由信息。
+- 为六个平台增加 managed artifact inventory，统一 configurator 生成物与 update 受管文件来源。
+- 为 Pi、Codex、Claude 增加 compaction 后真实 dialogue 恢复；OpenCode 对未支持的恢复能力返回明确错误。
+
+### 修复
+
+- 使用原子唯一临时目录生成 update 参考项目，消除并行 update 的目录碰撞。
+
 ## [0.13.7] — 2026-07-27
 
 ### 修复
