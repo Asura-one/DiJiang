@@ -56,6 +56,8 @@
 | `archived` | 无 | 只读，需 `dijiang start <task>` 重新激活 |
 | `paused` | `dijiang-continue` | 恢复后回到 planning 或 in_progress |
 
+`dj-review` 是只读的双维度审查：spec 匹配度与代码质量必须分别完成后再汇总。平台有并行执行能力时可并行，没有时按相同输入串行执行，不能因工具能力不同而省略任一维度。
+
 ## 常见工作流
 
 ### 场景 A：开始一个新功能
@@ -244,6 +246,21 @@ dijiang task archive <name>
 dijiang task prune --days 30
 ```
 
+### 任务 Context Manifest
+
+Context manifest 为当前任务声明 implement 或 check 阶段需要读取的项目文件。路径必须相对项目根目录，且文件必须已经存在。
+
+```bash
+dijiang task context add docs/architecture.md --action implement --reason "架构约束"
+dijiang task context add docs/test-criteria.md --action check --reason "验收标准"
+dijiang task context list
+dijiang task context list --action check
+```
+
+条目分别写入当前任务目录的 `implement.jsonl` 或 `check.jsonl`。每行包含 `action`、`file` 和 `reason`；空行兼容保留，损坏的 JSONL 会报告 manifest 路径和行号，不会静默忽略。
+
+Context 文件必须位于项目根目录内。CLI 在读取前拒绝 `.env*`、包含 `credential` 的路径组件，以及 `secrets`、`.ssh`、`.aws`、`.gnupg`、`.config` 等敏感目录；symlink 的真实目标也执行相同检查。不要通过 context manifest 传递凭据或本地配置。
+
 ### Dispatch（核心入口）
 
 ```bash
@@ -283,9 +300,12 @@ dijiang channel list                # 查看状态
 
 ```bash
 dijiang template list
-dijiang skills --sync
+dijiang skills --sync       # 将 managed skills 同步到当前项目
+dijiang skills --validate   # 只读校验内置模板 schema 与 task runtime registry
 dijiang update
 ```
+
+`--sync` 和 `--validate` 互斥。Validation 要求每个 managed skill 的 YAML frontmatter 具有与目录一致的 `name` 和非空 `description`，校验可选字段类型，并确认内置模板名称与 task 编译时 manifest 一致。
 
 ## 排查指南
 
