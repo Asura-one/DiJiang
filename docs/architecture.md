@@ -112,6 +112,7 @@ cli ──→ task ──→ （独立，不依赖 DiJiang 其他 crate）
 | `update` | 自更新机制（hash 比较 + GitHub 下载），通过各平台 `managed_artifacts` inventory 复用 configure 的受管文件事实源 |
 | `changelog` | CLI 中显示变更日志 |
 
+远程 template manifest 的文件路径只接受规范相对路径。Registry 在 cache 同一文件系统内使用唯一 staging 和 backup 目录，所有文件下载成功后才替换正式缓存；失败时保留旧缓存，避免目录穿越、并发临时目录碰撞和部分更新。
 ## 数据流
 
 ### 任务生命周期

@@ -40,6 +40,7 @@ risk: medium
   ```
 - 通知用户 worktree 路径，后续测试在 worktree 目录中执行（Makefile 等已有文件继承自仓库）。
 - 遵守 **Code Task TDD Contract**：先固定行为和回归边界，再实现。
+- 非平凡改动先声明 scope：列出必须改变的行为、允许修改的模块，以及明确不处理的相邻问题。
 - 固定行为边界：先写一个失败测试（RED/Repro evidence）、复现步骤或人工复核清单。
 - 确认测试环境可用，或记录不可用原因。
 - 若任务仍为 `planning`，使用原始用户请求重新运行 `dijiang dispatch "<user request>"`；不要通过 `dijiang task status ... in_progress` 绕过 worktree gate。

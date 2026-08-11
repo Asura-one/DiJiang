@@ -420,6 +420,7 @@ breadcrumb = build_breadcrumb(tags, active_task)
 
 当前 DiJiang 使用 `DIJIANG_CONTEXT_ID` 环境变量 + workspace session 文件。Trellis 的 `active_task.py` 实现了多平台 session 身份解析（自动检测 Claude/Cursor/Codex/Gemini 等 15+ 平台）。
 
+Active-task reference 只接受单一正常路径组件。Session/global pointer 的读写、task 加载/保存和文档脚手架都会重复验证；实际 task 目录还需通过 canonical parent containment，历史污染值和指向项目外的 symlink 不能越过 `.dijiang/tasks/`。
 **价值**：
 - 支持多窗口并行开发
 - 跨平台 session 身份自动识别
