@@ -1,5 +1,18 @@
 # 变更日志
 
+## [0.14.2] — 2026-08-11
+
+### 新增
+
+- 增加 `dijiang skills --validate`，使用 YAML schema 校验内置 managed skill 的 frontmatter、目录名和字段类型。
+- 扩展 `make ci`，统一执行 patch hygiene、workspace check/tests、Pi extension contract 和 managed skill validation。
+
+### 修复
+
+- Context manifest 默认拒绝 `.env*`、credential、secrets 及高风险配置目录，损坏 JSONL 返回带文件行号的错误。
+- 未闭合的 embedded skill context 保留为普通用户文本，避免截断真实请求并改变路由。
+- `dj-review` 改用 capability 契约：保留两个独立审查维度，并在缺少并行工具时串行退化。
+
 ## [0.14.1] — 2026-08-11
 
 ### 变更

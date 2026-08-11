@@ -92,11 +92,14 @@ enum Commands {
         #[command(subcommand)]
         command: TemplateCommands,
     },
-    /// 管理 dj-* 技能（列出、同步到项目）
+    /// 管理 dj-* 技能（列出、同步或验证）
     Skills {
         /// 同步技能到当前项目
-        #[arg(long)]
+        #[arg(long, conflicts_with = "validate")]
         sync: bool,
+        /// 验证内置 managed skill schema 与 registry
+        #[arg(long, conflicts_with = "sync")]
+        validate: bool,
     },
     /// 输出当前 session 的 workflow state（供 hook/agent 注入使用）
     WorkflowState {
@@ -940,7 +943,7 @@ fn main() -> anyhow::Result<()> {
             TemplateCommands::Pull { source } => commands::template::cmd_template_pull(&source),
             TemplateCommands::Validate { path } => commands::template::cmd_template_validate(&path),
         },
-        Commands::Skills { sync } => commands::skills::cmd_skills(sync),
+        Commands::Skills { sync, validate } => commands::skills::cmd_skills(sync, validate),
         Commands::Migrate => commands::migrate::cmd_migrate(),
         Commands::WorkflowState { json, hook_event } => {
             commands::workflow::cmd_workflow_state(json, &hook_event)

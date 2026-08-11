@@ -1,17 +1,13 @@
 ---
 name: dj-review
 description: >
-  代码评审辅助：对变更进行并行审查，同时检查 spec 匹配度和代码质量。
-  使用 delegate_task 并行执行两个独立维度的审查，最后汇总。
+  代码评审辅助：分别检查 spec 匹配度和代码质量，再汇总为一份报告。
+  有并行执行能力时并行审查，否则串行执行两个独立维度。
   Use when reviewing PRs, inspecting diffs, before committing, or after code changes.
   触发词：review、审查、检查代码、审一下、code review、帮我看一下代码。
 summary: 轻量只读审查
 phases: [check]
 risk: low
-  代码评审辅助：对变更进行并行审查，同时检查 spec 匹配度和代码质量。
-  使用 delegate_task 并行执行两个独立维度的审查，最后汇总。
-  Use when reviewing PRs, inspecting diffs, before committing, or after code changes.
-  触发词：review、审查、检查代码、审一下、code review、帮我看一下代码。
 ---
 
 ## Outcome Contract
@@ -19,13 +15,13 @@ risk: low
 | 项目 | 内容 |
 |---|---|
 | **Outcome** | 两个维度（spec 匹配度 + 代码质量）的审查汇总报告 |
-| **Done when** | 两个子 agent 都完成审查并汇总 |
+| **Done when** | 两个独立维度都完成审查并汇总 |
 | **Evidence** | 审查日志、问题列表 |
 | **Output** | 结构化审查报告（问题列表 + 严重度 + 所属维度） |
 
-# Review: 并行代码审查
+# Review: 双维度代码审查
 
-使用 `delegate_task` 并行执行两个维度的审查，最后汇总。两个子 agent 独立运行，互不污染上下文。
+分别执行两个维度的审查，最后汇总。平台提供并行执行能力时并行运行；否则串行运行，但两个维度的输入与发现保持独立。
 
 ## 流程
 
@@ -38,9 +34,9 @@ git log --oneline -5
 
 确认变更范围、涉及的 PRD / issue 引用。
 
-### 1. 并行审查（delegate_task）
+### 1. 独立审查
 
-同时提交两个子任务：
+形成两个独立审查任务：
 
 **子任务 A — Spec 匹配度**
 ```goal
@@ -68,7 +64,7 @@ git log --oneline -5
 
 ### 2. 汇总
 
-两个子任务完成后，汇总为一份审查报告：
+两个维度完成后，汇总为一份审查报告：
 
 ```text
 ## 审查：<变更描述>
@@ -96,7 +92,7 @@ git log --oneline -5
 
 | ❌ 不要做 | ✅ 正确做法 |
 |---|---|
-| 串行审查两个维度 | 用 delegate_task 并行执行 |
+| 因平台缺少并行工具而省略一个维度 | 串行执行两个完整维度 |
 | 改人家的代码 | 只报告问题 |
 | 引入自己的风格偏好 | 按项目现有模式判断 |
 参考规范：`.dijiang/references/anti-patterns.md`（跨技能行为约束）。
@@ -105,14 +101,14 @@ git log --oneline -5
 
 1. 不修改代码——只报告审查结果
 2. 不深度架构评审——那是 dj-pattern 的职责范围
-3. 两个维度的子 agent 并行执行，互不引用
+3. 两个审查维度保持独立；并行能力不可用时串行执行
 4. 每个问题必须标注严重度：严重/中等/建议
 
 ## Gotchas
 
 | Gotcha | 后果 | 预防 |
 |---|---|---|
-| 串行审查两个维度 | 时间翻倍 | 用 delegate_task 并行 |
+| 平台缺少并行工具 | 执行时间增加 | 串行完成两个独立维度 |
 | 改人家的代码 | 行为越界 | 只报告问题清单 |
 | 引入自己的风格偏好 | 主观审查 | 按项目现有模式判断 |
 | 只报问题不给建议 | reviewer 没有价值 | 问题 + 建议方向 |

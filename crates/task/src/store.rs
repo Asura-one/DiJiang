@@ -34,6 +34,13 @@ pub enum TaskError {
     #[error("Invalid context path: {0}")]
     InvalidContextPath(String),
 
+    #[error("Invalid context manifest {path}:{line}: {source}")]
+    InvalidContextManifest {
+        path: String,
+        line: usize,
+        source: serde_json::Error,
+    },
+
     #[error("Invalid task reference: {0}")]
     InvalidTaskReference(String),
 }

@@ -1,4 +1,4 @@
-.PHONY: build release install uninstall clean test test-pi-extension
+.PHONY: build release install uninstall clean test test-pi-extension validate-skills fmt check ci
 
 # 默认构建
 build:
@@ -26,19 +26,27 @@ clean:
 
 # 运行测试
 test:
-	cargo test --test e2e
+	cargo test --workspace
 
 test-pi-extension:
 	node crates/configurator/tests/pi_extension_contract.mjs "$(CURDIR)/crates/configurator/templates/extensions/dijiang/index.ts"
 
+validate-skills: build
+	./target/debug/dijiang skills --validate
+
 # 格式化代码
 fmt:
-	cargo fmt
+	cargo fmt --all
 
 # 代码检查
 check:
-	cargo check
+	cargo check --workspace
 
-# 完整检查（格式化 + 检查 + 测试）
-ci: fmt check test
+# 完整检查（patch hygiene + 检查 + 全仓测试 + 扩展/技能契约）
+ci: build
+	git diff --check
+	cargo check --workspace
+	cargo test --workspace
+	$(MAKE) test-pi-extension
+	./target/debug/dijiang skills --validate
 	@echo "✅ 所有检查通过"

@@ -33,11 +33,24 @@ fn validate_context_action(action: &str) -> Result<&str, TaskError> {
     }
 }
 
+fn is_sensitive_context_path(path: &Path) -> bool {
+    path.components().any(|component| {
+        let component = component.as_os_str().to_string_lossy().to_ascii_lowercase();
+        component.starts_with(".env")
+            || matches!(
+                component.as_str(),
+                "secrets" | ".ssh" | ".aws" | ".gnupg" | ".config"
+            )
+            || component.contains("credential")
+    })
+}
+
 /// Resolve a context path only when it remains inside the project root.
 pub fn resolve_context_file(repo_root: &Path, file: &str) -> Result<PathBuf, TaskError> {
     let path = Path::new(file);
     if path.is_absolute()
         || file.is_empty()
+        || is_sensitive_context_path(path)
         || path
             .components()
             .any(|component| matches!(component, std::path::Component::ParentDir))
@@ -52,7 +65,10 @@ pub fn resolve_context_file(repo_root: &Path, file: &str) -> Result<PathBuf, Tas
     let canonical_candidate = candidate
         .canonicalize()
         .map_err(|_| TaskError::InvalidContextPath(file.to_string()))?;
-    if !canonical_candidate.starts_with(&canonical_root) {
+    let canonical_relative = canonical_candidate
+        .strip_prefix(&canonical_root)
+        .map_err(|_| TaskError::InvalidContextPath(file.to_string()))?;
+    if is_sensitive_context_path(canonical_relative) {
         return Err(TaskError::InvalidContextPath(file.to_string()));
     }
     Ok(canonical_candidate)
@@ -111,11 +127,19 @@ pub fn list_context_entries(
         return Ok(vec![]);
     }
     let content = fs::read_to_string(&path)?;
-    let entries: Vec<ContextEntry> = content
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .filter_map(|l| serde_json::from_str(l).ok())
-        .collect();
+    let mut entries = Vec::new();
+    for (index, line) in content.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let entry =
+            serde_json::from_str(line).map_err(|source| TaskError::InvalidContextManifest {
+                path: path.display().to_string(),
+                line: index + 1,
+                source,
+            })?;
+        entries.push(entry);
+    }
     Ok(entries)
 }
 
@@ -130,6 +154,9 @@ mod tests {
         let tasks_dir = dijiang_dir.join("tasks");
         fs::create_dir_all(tasks_dir.join("task")).unwrap();
         fs::write(root.path().join("spec.md"), "spec").unwrap();
+        fs::create_dir_all(root.path().join("docs/gh")).unwrap();
+        fs::write(root.path().join("docs/gh/guide.md"), "guide").unwrap();
+        resolve_context_file(root.path(), "docs/gh/guide.md").unwrap();
 
         let valid = ContextEntry {
             action: "implement".to_string(),
@@ -165,10 +192,71 @@ mod tests {
                 add_context_entry(&tasks_dir, "task", &symlinked),
                 Err(TaskError::InvalidContextPath(_))
             ));
+            fs::write(root.path().join(".env"), "placeholder").unwrap();
+            std::os::unix::fs::symlink(root.path().join(".env"), root.path().join("public.md"))
+                .unwrap();
+            let sensitive_symlink = ContextEntry {
+                file: "public.md".to_string(),
+                ..valid.clone()
+            };
+            assert!(matches!(
+                add_context_entry(&tasks_dir, "task", &sensitive_symlink),
+                Err(TaskError::InvalidContextPath(_))
+            ));
         }
         assert!(matches!(
             context_manifest_path(&tasks_dir, "task", "other"),
             Err(TaskError::InvalidContextAction(_))
         ));
+    }
+
+    #[test]
+    fn context_entries_reject_sensitive_paths() {
+        let root = tempfile::tempdir().unwrap();
+        let dijiang_dir = root.path().join(".dijiang");
+        let tasks_dir = dijiang_dir.join("tasks");
+        fs::create_dir_all(tasks_dir.join("task")).unwrap();
+
+        for file in [
+            ".env",
+            ".env.local",
+            ".envrc",
+            "config/credentials.json",
+            "secrets/key.txt",
+            ".ssh/id_ed25519",
+            ".aws/config",
+            ".gnupg/pubring.kbx",
+            ".config/gh/hosts.yml",
+        ] {
+            let path = root.path().join(file);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, "placeholder").unwrap();
+            let entry = ContextEntry {
+                action: "implement".to_string(),
+                file: file.to_string(),
+                reason: "must not be attached".to_string(),
+            };
+            assert!(matches!(
+                add_context_entry(&tasks_dir, "task", &entry),
+                Err(TaskError::InvalidContextPath(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn context_manifest_reports_invalid_json_line() {
+        let root = tempfile::tempdir().unwrap();
+        let tasks_dir = root.path().join(".dijiang/tasks");
+        let task_dir = tasks_dir.join("task");
+        fs::create_dir_all(&task_dir).unwrap();
+        fs::write(
+            task_dir.join("implement.jsonl"),
+            "{\"action\":\"implement\",\"file\":\"spec.md\",\"reason\":\"ok\"}\n{broken\n",
+        )
+        .unwrap();
+
+        let error = list_context_entries(&tasks_dir, "task", "implement")
+            .expect_err("invalid JSONL must not be silently discarded");
+        assert!(error.to_string().contains("implement.jsonl:2"));
     }
 }
