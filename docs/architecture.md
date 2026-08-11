@@ -72,6 +72,7 @@ cli ──→ task ──→ （独立，不依赖 DiJiang 其他 crate）
 |------|------|
 | `types` | `TaskRecord`、`TaskStatus` — 状态模型，保持 Trellis 向后兼容 |
 | `store` | JSON 任务持久化至 `./.dijiang/tasks/<id>/task.json` |
+| `context` | Context manifest 路径 containment、敏感路径拒绝和 JSONL 完整性校验 |
 | `route_gate` | 工况 capsule 检测和路由约束（`evaluate_route`） |
 | `git_gate` | Worktree 就绪评估（`evaluate_worktree_readiness`） |
 | `capability_gate` | 高风险操作批准（integrate/push/cleanup） |
@@ -113,6 +114,8 @@ cli ──→ task ──→ （独立，不依赖 DiJiang 其他 crate）
 | `changelog` | CLI 中显示变更日志 |
 
 远程 template manifest 的文件路径只接受规范相对路径。Registry 在 cache 同一文件系统内使用唯一 staging 和 backup 目录，所有文件下载成功后才替换正式缓存；失败时保留旧缓存，避免目录穿越、并发临时目录碰撞和部分更新。
+
+Managed skill registry 使用 YAML frontmatter schema 验证目录名、必需的 `name`/`description` 及可选字段类型；`dijiang skills --validate` 与 `make ci` 复用同一 validator，并对比 task 编译时 manifest，避免内置模板、运行时清单和部署文件之间漂移。
 ## 数据流
 
 ### 任务生命周期
@@ -219,6 +222,7 @@ DiJiang 有两层 skill：`dj-*` skill（原子工作能力）和 `dijiang-*` sk
 2. **清单**：`dijiang skills` 列出所有可用 `dj-*` skill；`dijiang workflow-state --json` 将当前 capsule 对应的 skill 清单注入 agent 提示。
 3. **懒加载**：默认只注入 skill 清单（名称 + 描述 + 风险等级）。完整 SKILL.md body 在路由引擎选定目标 skill 后才按需加载，通过 `dijiang skill-body <name>` 获取。
 4. **同步**：`dijiang skills --sync` 将内置 skill 模板同步到 `.pi/skills/`。
+5. **验证**：`dijiang skills --validate` 解析内置 skill YAML frontmatter，校验目录名、必需的 `name`/`description`、可选字段类型，并与 task 编译时 manifest 对比。
 
 ### Skill 的路由目标
 

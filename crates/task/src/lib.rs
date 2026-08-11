@@ -55,8 +55,8 @@ pub use route_gate::{
 };
 pub use routing_registry::{SkillRoute, skill_route, skill_routes};
 pub use skill_manifest::{
-    SelectedSkillBody, SkillBodyCache, SkillManifestEntry, manifest_by_name, manifests_for_capsule,
-    render_selected_skill_bodies, select_skill_bodies, skill_body_by_name,
+    SelectedSkillBody, SkillBodyCache, SkillManifestEntry, all_skill_names, manifest_by_name,
+    manifests_for_capsule, render_selected_skill_bodies, select_skill_bodies, skill_body_by_name,
     validate_manifest_templates,
 };
 pub use types::{TASK_RECORD_FIELD_ORDER, TaskRecord, TaskStatus};

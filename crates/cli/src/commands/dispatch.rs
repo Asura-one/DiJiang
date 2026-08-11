@@ -54,6 +54,7 @@ fn strip_embedded_context(prompt: &str) -> String {
         if let Some(end) = after_start.find("</skill>") {
             rest = &after_start[end + "</skill>".len()..];
         } else {
+            output.push_str(after_start);
             break;
         }
     }
@@ -783,4 +784,25 @@ pub fn cmd_dispatch(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malformed_embedded_skill_context_remains_visible_to_routing() {
+        let prompt = "<skill name=\"broken\">ignored debug this crash";
+        assert_eq!(strip_embedded_context(prompt), prompt);
+        let route = dispatch_route(prompt);
+        assert_eq!(route.skill, "dj-hunt");
+    }
+
+    #[test]
+    fn complete_embedded_skill_context_is_hidden_from_routing() {
+        let route = dispatch_route(
+            "<skill name=\"noise\">debug crash security audit</skill> write documentation",
+        );
+        assert_eq!(route.skill, "dj-output");
+    }
 }

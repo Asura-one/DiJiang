@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use serde::Deserialize;
 
 use crate::templates::TemplateAssets;
 
@@ -148,12 +149,8 @@ where
     for name in expected {
         let content = get_skill_content(&name)
             .ok_or_else(|| format!("missing embedded template for {name}"))?;
-        let declared_name = content
-            .lines()
-            .find_map(|line| line.strip_prefix("name:").map(str::trim))
-            .map(|value| value.trim_matches('"'));
-        if declared_name != Some(name.as_str()) {
-            errors.push(format!("template {name} declares {:?}", declared_name));
+        if let Err(error) = validate_skill_frontmatter(&name, &content) {
+            errors.push(error);
         }
     }
     if errors.is_empty() {
@@ -163,9 +160,60 @@ where
     }
 }
 
-/// Verify that the embedded skill registry contains exactly the managed skill templates.
-pub fn validate_skill_registry() -> Result<(), String> {
-    validate_skill_registry_names(list_skill_names())
+#[derive(Deserialize)]
+struct SkillFrontmatter {
+    name: String,
+    description: String,
+    #[serde(default)]
+    summary: Option<String>,
+    #[serde(default)]
+    phases: Vec<String>,
+    #[serde(default)]
+    risk: Option<String>,
+}
+
+/// Validate one managed skill's YAML frontmatter against its directory name.
+pub fn validate_skill_frontmatter(name: &str, content: &str) -> Result<(), String> {
+    let content = content
+        .strip_prefix("---\n")
+        .ok_or_else(|| format!("template {name} has invalid frontmatter boundaries"))?;
+    let closing = content
+        .lines()
+        .position(|line| line == "---")
+        .ok_or_else(|| format!("template {name} has invalid frontmatter boundaries"))?;
+    let body = content.lines().take(closing).collect::<Vec<_>>().join("\n");
+    let frontmatter: SkillFrontmatter = serde_yaml::from_str(&body)
+        .map_err(|error| format!("template {name} has invalid frontmatter: {error}"))?;
+    if frontmatter.name != name {
+        return Err(format!(
+            "template {name} declares skill name {}",
+            frontmatter.name
+        ));
+    }
+    if frontmatter.description.trim().is_empty()
+        || frontmatter
+            .summary
+            .as_deref()
+            .is_some_and(|value| value.trim().is_empty())
+        || frontmatter
+            .risk
+            .as_deref()
+            .is_some_and(|value| value.trim().is_empty())
+    {
+        return Err(format!("template {name} has an empty metadata field"));
+    }
+    let _ = frontmatter.phases;
+    Ok(())
+}
+
+/// Validate every embedded managed skill template and its frontmatter.
+pub fn validate_skill_templates() -> Result<(), String> {
+    for name in list_skill_names() {
+        let content = get_skill_content(&name)
+            .ok_or_else(|| format!("missing embedded template for {name}"))?;
+        validate_skill_frontmatter(&name, &content)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -174,7 +222,7 @@ mod tests {
 
     #[test]
     fn embedded_skill_registry_matches_template_frontmatter() {
-        validate_skill_registry().unwrap();
+        validate_skill_templates().unwrap();
     }
 
     #[test]
@@ -183,5 +231,23 @@ mod tests {
             .expect_err("name drift must fail validation");
         assert!(error.contains("registry missing"));
         assert!(error.contains("registry has unknown unknown-skill"));
+    }
+
+    #[test]
+    fn skill_frontmatter_requires_valid_yaml_and_fields() {
+        for content in [
+            "# missing frontmatter",
+            "---\nname: dj-test\ndescription: \nsummary: Test\nphases: [check]\nrisk: low\n---\n",
+            "---\nname: other\ndescription: Test\nsummary: Test\nphases: [check]\nrisk: low\n---\n",
+            "---\nname: dj-test\ndescription: Test\n---junk\nbody\n",
+        ] {
+            assert!(validate_skill_frontmatter("dj-test", content).is_err());
+        }
+    }
+
+    #[test]
+    fn skill_frontmatter_accepts_managed_schema() {
+        let content = "---\nname: dj-test\ndescription: Test skill\nsummary: Test\nphases: [check]\nrisk: low\n---\n";
+        validate_skill_frontmatter("dj-test", content).unwrap();
     }
 }

@@ -35,6 +35,10 @@ fn is_compatibility_skill(name: &str) -> bool {
     COMPATIBILITY_SKILLS.contains(&name)
 }
 
+pub fn all_skill_names() -> impl Iterator<Item = &'static str> {
+    SKILL_MANIFESTS.iter().map(|entry| entry.name)
+}
+
 pub fn manifests_for_capsule(capsule: WorkflowCapsule) -> Vec<SkillManifestEntry> {
     let phase = capsule.as_str();
     SKILL_MANIFESTS
