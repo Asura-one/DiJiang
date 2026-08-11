@@ -9,14 +9,13 @@ crates/cli/tests/e2e.rs          # 集成：完整二进制作为子进程执行
 crates/*/src/**/*.rs (mod tests)  # 单元：crate 内部逻辑
 ```
 
-| 层 | 测试数 | 范围 | 运行方式 |
-|----|--------|------|----------|
-| E2E | 47 | CLI 二进制，通过子进程调用 | `cargo test -p dijiang` |
-| 单元（cli） | 20 | `main.rs` 中的命令处理器 | `cargo test -p dijiang --lib` |
-| 单元（task） | 74 | Route gate、git gate、spec/doc sync | `cargo test -p dijiang-task` |
-| 单元（configurator） | 50 | Init、模板、更新、注册表 | `cargo test -p dijiang-configurator` |
-| 单元（mem） | 16 | 存储、适配器、序列化 | `cargo test -p dijiang-mem` |
-| **总计** | **~207** | | `cargo test --workspace` |
+| 层 | 范围 | 运行方式 |
+|----|------|----------|
+| E2E | 以完整 CLI 二进制验证工作流和用户可见行为 | `cargo test -p dijiang --test e2e` |
+| Crate 单元测试 | 验证 task、configurator、mem、CLI 等 crate 的公共接口与边界逻辑 | `cargo test --workspace --lib` |
+| Contract tests | 验证 Pi extension 与 managed skill registry 契约 | `make pi-extension-contract`、`make validate-skills` |
+
+测试数量会随功能增长，不作为稳定契约。`cargo test --workspace` 是否全部通过以及关键行为是否有回归覆盖才是验收依据。
 
 ## 测试原则
 
@@ -47,45 +46,17 @@ E2E 测试应复用单一编译好的二进制。当前方案使用 `CARGO_BIN_E
 
 ## 覆盖要求
 
-### Crate: `task`
+覆盖要求按行为边界维护，不规定固定测试数量：
 
-| 模块 | 要求覆盖 | 关键场景 |
-|------|---------|----------|
-| `route_gate` | 12+ 测试 | 每个任务状态的 capsule 评估，`planning` 的重定向规则，`completed` 的阻断 |
-| `spec_sync` | 12+ 测试 | SHA256 比较，check vs record，文件变更检测，无变更时无操作 |
-| `doc_sync/analyzer` | 8+ 测试 | Diff 解析，变更事件分类，多文件 diff |
-| `doc_sync/mapper` | 10+ 测试 | 事件→文档映射，置信度评分，触发证据提取 |
-| `store` | 7+ 测试 | 任务创建/读取/更新，状态转移，边界情况 |
-| `git_gate` | 4+ 测试 | Worktree 就绪检测，已有 worktree 检测 |
-| `capability_gate` | 4+ 测试 | integrate/push/cleanup 的批准条件 |
-| `workflow_state` | 5+ 测试 | 状态注入，对等工作流面 |
-| `skill_manifest` | 9+ 测试 | 注册表填充，懒加载，body 缓存 |
+| Crate / 测试面 | 必须覆盖的行为 |
+|----------------|----------------|
+| `task` | 任务状态与 route/git/capability gates；task store containment；spec/doc sync；context manifest 安全、完整性与行号错误；skill manifest 路由和完整名称集合 |
+| `configurator` | 各平台配置生成；初始化与更新；template registry 安装完整性；managed skill YAML frontmatter schema 与模板名称集合 |
+| `mem` | JSONL 存储、归档、备份和平台适配器在不可用时的显式降级 |
+| `cli` | 完整任务生命周期、所有公开子命令 help、参数冲突、失败退出状态和跨 crate 生产调用链 |
+| Pi contract | Extension 事件注册、上下文注入、字符预算和 managed artifact inventory |
 
-### Crate: `configurator`
-
-| 模块 | 要求覆盖 | 关键场景 |
-|------|---------|----------|
-| `templates` | 17+ 测试 | 每个平台的模板渲染，变量替换 |
-| `template_registry` | 9+ 测试 | 模板发现，fallback，版本化 |
-| `pi` | 7+ 测试 | Pi 平台配置生成，hook 注入 |
-| `init` | 5+ 测试 | 脚手架生成，冲突检测，强制覆盖 |
-| `registry` | 6+ 测试 | 平台注册，发现，去重 |
-| `update` | 3+ 测试 | Hash 比较，GitHub 下载，本地 fallback |
-| `changelog` | 3+ 测试 | 输出格式化，版本映射 |
-
-### Crate: `mem`
-
-| 模块 | 要求覆盖 | 关键场景 |
-|------|---------|----------|
-| `store` | 3+ 测试 | JSONL 追加/读取，项目范围查找 |
-| 平台适配器 | 各 2-4 测试 | 适配器创建，平台不可用时 `sync` 优雅降级 |
-
-### Crate: `cli`
-
-| 区域 | 要求覆盖 | 关键场景 |
-|------|---------|----------|
-| E2E（二进制） | 47+ 测试 | 完整工作流：init→start→dispatch→finish-work，所有子命令 |
-| 单元（main.rs） | 20+ 测试 | 命令解析，dispatch 逻辑，路径解析 |
+新增或修复行为必须附带能在修改前失败、修改后通过的回归测试。共享边界或跨 crate 契约应同时保留公共接口测试和至少一个生产调用链测试。
 
 ## 测试事项（按层）
 
@@ -117,6 +88,14 @@ E2E 测试应复用单一编译好的二进制。当前方案使用 `CARGO_BIN_E
 - 所有子命令的 `--help` 产生非空输出
 - 所有命令输出已中文本地化
 
+### Context 与 Skill 完整性
+
+- Context 路径拒绝项目外目标、`.env*`、credential 组件和高风险配置目录，并覆盖项目内 symlink 指向敏感目标的情况。
+- Context manifest 遇到损坏 JSONL 时返回 manifest 路径与 1-based 行号；合法空行和普通路径继续可用。
+- Embedded skill context 只移除完整闭合 block；未闭合 `<skill ...` 保留原始文本供路由使用。
+- Managed skill validation 覆盖 frontmatter 边界、YAML 类型、目录名与 `name` 一致、非空 `description`、可选字段类型及 task runtime manifest/template 集合一致性。
+- `dijiang skills --sync` 与 `--validate` 参数互斥，CLI validation 测试必须经过生产调用链。
+
 ### 记忆
 
 - `dijiang mem findings --finding "x"` 追加到项目记忆
@@ -133,7 +112,12 @@ E2E 测试应复用单一编译好的二进制。当前方案使用 `CARGO_BIN_E
 
 ## 运行测试
 
+权威本地 gate 为 `make ci`，按顺序执行构建、`git diff --check`、workspace check、workspace tests、Pi extension contract 和 managed skill validation。不要用 PATH 中可能过时的全局 `dijiang` 替代构建后的 `./target/debug/dijiang`。
+
 ```bash
+# 完整 CI gate
+make ci
+
 # 全工作空间
 cargo test --workspace
 
