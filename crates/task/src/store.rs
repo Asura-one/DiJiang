@@ -33,6 +33,25 @@ pub enum TaskError {
 
     #[error("Invalid context path: {0}")]
     InvalidContextPath(String),
+
+    #[error("Invalid task reference: {0}")]
+    InvalidTaskReference(String),
+}
+
+fn validate_task_reference(task_name: &str) -> Result<&str, TaskError> {
+    let trimmed = task_name.trim();
+    let mut components = Path::new(trimmed).components();
+    if task_name != trimmed
+        || trimmed.is_empty()
+        || components.next().is_none()
+        || components.next().is_some()
+        || trimmed == "."
+        || trimmed == ".."
+        || trimmed.contains(['/', '\\'])
+    {
+        return Err(TaskError::InvalidTaskReference(task_name.to_string()));
+    }
+    Ok(trimmed)
 }
 
 /// Find the `.dijiang/` directory by walking up from `cwd`.
@@ -158,12 +177,13 @@ fn read_session_task(
     }
     let content = fs::read_to_string(path)?;
     let data: serde_json::Value = serde_json::from_str(&content)?;
-    Ok(data
+    let task = data
         .get("current_task")
         .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string))
+        .filter(|s| !s.is_empty());
+    task.map(validate_task_reference)
+        .transpose()
+        .map(|task| task.map(str::to_string))
 }
 
 /// Find the active task for the current session, using global state only when no session identity exists.
@@ -185,7 +205,7 @@ fn read_global_active_task(dijiang_dir: &Path) -> Result<Option<String>, TaskErr
         let content = fs::read_to_string(&path)?;
         let active = content.trim();
         if !active.is_empty() {
-            return Ok(Some(active.to_string()));
+            return Ok(Some(validate_task_reference(active)?.to_string()));
         }
     }
 
@@ -220,6 +240,7 @@ pub fn write_active_task_for_session(
     task_name: &str,
     identity: Option<&SessionIdentity>,
 ) -> Result<(), TaskError> {
+    let task_name = validate_task_reference(task_name)?;
     if identity.is_none() {
         fs::write(dijiang_dir.join("active_task.txt"), task_name)?;
     }
@@ -388,19 +409,31 @@ pub fn clear_active_task_for_session(
 
 /// Load a single task from its task.json file.
 pub fn load_task(tasks_dir: &Path, task_name: &str) -> Result<TaskRecord, TaskError> {
-    let path = tasks_dir.join(task_name).join("task.json");
-    if !path.exists() {
+    let task_name = validate_task_reference(task_name)?;
+    let task_dir = tasks_dir.join(task_name);
+    if !task_dir.exists() {
         return Err(TaskError::NotFound(task_name.to_string()));
     }
-    let content = fs::read_to_string(&path)?;
+    let tasks_root = fs::canonicalize(tasks_dir)?;
+    let canonical_task_dir = fs::canonicalize(&task_dir)?;
+    if canonical_task_dir.parent() != Some(tasks_root.as_path()) {
+        return Err(TaskError::InvalidTaskReference(task_name.to_string()));
+    }
+    let content = fs::read_to_string(canonical_task_dir.join("task.json"))?;
     let record = serde_json::from_str(&content)?;
     Ok(record)
 }
 
 /// Save a task record to its task.json file.
 pub fn save_task(tasks_dir: &Path, task: &TaskRecord) -> Result<(), TaskError> {
-    let task_dir = tasks_dir.join(&task.name);
+    let task_name = validate_task_reference(&task.name)?;
+    let task_dir = tasks_dir.join(task_name);
     fs::create_dir_all(&task_dir)?;
+    let tasks_root = fs::canonicalize(tasks_dir)?;
+    let canonical_task_dir = fs::canonicalize(&task_dir)?;
+    if canonical_task_dir.parent() != Some(tasks_root.as_path()) {
+        return Err(TaskError::InvalidTaskReference(task_name.to_string()));
+    }
     let path = task_dir.join("task.json");
     let content = serde_json::to_string_pretty(task)?;
     fs::write(&path, content)?;
@@ -641,9 +674,14 @@ const IMPLEMENT_TEMPLATE: &str =
 /// Create scaffolding documentation (prd.md, design.md, implement.md)
 /// for a task, if they don't already exist.
 pub fn scaffold_task_docs(tasks_dir: &Path, task_name: &str, title: &str) -> Result<(), TaskError> {
+    let task_name = validate_task_reference(task_name)?;
     let task_dir = tasks_dir.join(task_name);
     fs::create_dir_all(&task_dir)?;
-
+    let tasks_root = fs::canonicalize(tasks_dir)?;
+    let canonical_task_dir = fs::canonicalize(&task_dir)?;
+    if canonical_task_dir.parent() != Some(tasks_root.as_path()) {
+        return Err(TaskError::InvalidTaskReference(task_name.to_string()));
+    }
     let research_dir = task_dir.join("research");
     fs::create_dir_all(&research_dir)?;
 
@@ -671,7 +709,7 @@ pub fn scaffold_task_docs(tasks_dir: &Path, task_name: &str, title: &str) -> Res
 
 // Context manifest management moved to `crate::context`.
 // Re-exports for backward compatibility.
-pub use crate::context::{add_context_entry, list_context_entries, ContextEntry};
+pub use crate::context::{ContextEntry, add_context_entry, list_context_entries};
 
 // ── Lifecycle Hooks ────────────────────────────────────────────────
 
@@ -1432,9 +1470,11 @@ mod tests {
         let dijiang_dir = dir.path().join(".dijiang");
         fs::create_dir(&dijiang_dir).unwrap();
 
-        assert!(read_active_task_for_session(&dijiang_dir, None)
-            .unwrap()
-            .is_none());
+        assert!(
+            read_active_task_for_session(&dijiang_dir, None)
+                .unwrap()
+                .is_none()
+        );
 
         let identity = SessionIdentity::new("codex", "window-a").unwrap();
         write_active_task_for_session(&dijiang_dir, "my-task", Some(&identity)).unwrap();
@@ -1488,6 +1528,102 @@ mod tests {
             read_active_task_for_session(&dijiang_dir, None).unwrap(),
             None
         );
+    }
+
+    #[test]
+    fn active_task_rejects_invalid_references_on_write_and_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let dijiang_dir = dir.path().join(".dijiang");
+        fs::create_dir(&dijiang_dir).unwrap();
+        let identity = SessionIdentity::new("codex", "window-a").unwrap();
+
+        assert!(
+            write_active_task_for_session(&dijiang_dir, "../outside", Some(&identity)).is_err()
+        );
+        assert!(write_active_task_for_session(&dijiang_dir, "/tmp/outside", None).is_err());
+        assert!(write_active_task_for_session(&dijiang_dir, " task-a", None).is_err());
+        assert!(write_active_task_for_session(&dijiang_dir, "nested\\task", None).is_err());
+
+        let session = session_path(&dijiang_dir, &identity);
+        fs::create_dir_all(session.parent().unwrap()).unwrap();
+        fs::write(&session, r#"{"current_task":"../outside"}"#).unwrap();
+        assert!(read_active_task_for_session(&dijiang_dir, Some(&identity)).is_err());
+
+        fs::write(&session, r#"{"current_task":" task-a"}"#).unwrap();
+        assert!(read_active_task_for_session(&dijiang_dir, Some(&identity)).is_err());
+
+        fs::remove_file(session).unwrap();
+        fs::write(dijiang_dir.join("active_task.txt"), "/tmp/outside\n").unwrap();
+        assert!(read_global_active_task(&dijiang_dir).is_err());
+    }
+
+    #[test]
+    fn load_task_rejects_paths_outside_tasks_directory() {
+        let (dir, tasks_dir) = setup_temp_tasks();
+        let outside = dir.path().join("outside");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(
+            outside.join("task.json"),
+            serde_json::to_string(&create_task("outside", "Outside")).unwrap(),
+        )
+        .unwrap();
+
+        assert!(load_task(&tasks_dir, "../outside").is_err());
+        assert!(load_task(&tasks_dir, outside.to_str().unwrap()).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn load_task_rejects_symlink_outside_tasks_directory() {
+        use std::os::unix::fs::symlink;
+
+        let (dir, tasks_dir) = setup_temp_tasks();
+        let outside = dir.path().join("outside");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(
+            outside.join("task.json"),
+            serde_json::to_string(&create_task("linked", "Linked")).unwrap(),
+        )
+        .unwrap();
+        symlink(&outside, tasks_dir.join("linked")).unwrap();
+
+        assert!(load_task(&tasks_dir, "linked").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_task_rejects_symlink_outside_tasks_directory() {
+        use std::os::unix::fs::symlink;
+
+        let (dir, tasks_dir) = setup_temp_tasks();
+        let outside = dir.path().join("outside");
+        fs::create_dir_all(&outside).unwrap();
+        symlink(&outside, tasks_dir.join("linked")).unwrap();
+
+        let task = create_task("linked", "Linked");
+        assert!(save_task(&tasks_dir, &task).is_err());
+        assert!(!outside.join("task.json").exists());
+    }
+
+    #[test]
+    fn scaffold_task_docs_rejects_paths_outside_tasks_directory() {
+        let (dir, tasks_dir) = setup_temp_tasks();
+        assert!(scaffold_task_docs(&tasks_dir, "../outside", "Outside").is_err());
+        assert!(!dir.path().join("outside/prd.md").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scaffold_task_docs_rejects_symlink_outside_tasks_directory() {
+        use std::os::unix::fs::symlink;
+
+        let (dir, tasks_dir) = setup_temp_tasks();
+        let outside = dir.path().join("outside");
+        fs::create_dir_all(&outside).unwrap();
+        symlink(&outside, tasks_dir.join("linked")).unwrap();
+
+        assert!(scaffold_task_docs(&tasks_dir, "linked", "Linked").is_err());
+        assert!(!outside.join("prd.md").exists());
     }
 
     #[test]

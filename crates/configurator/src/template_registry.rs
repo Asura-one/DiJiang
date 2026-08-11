@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// A file entry within a template package.
 #[derive(Debug, Clone, Deserialize)]
@@ -230,87 +230,124 @@ impl TemplateRegistry {
         subpath: Option<&str>,
         branch: &str,
     ) -> Result<TemplatePackage, String> {
-        // Determine the template directory path within the repo
         let template_dir = subpath.unwrap_or("templates");
         let base_url = format!(
             "https://raw.githubusercontent.com/{}/{}/{}/{}",
             owner, repo, branch, template_dir
         );
         let manifest_url = format!("{}/manifest.toml", base_url);
-
-        // Fetch manifest
         let manifest_content = fetch_url(&manifest_url)?;
+        let source = TemplateSource::GitHub {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+            subpath: subpath.map(str::to_string),
+            branch: branch.to_string(),
+        };
+        self.install_remote(
+            &format!("gh_{}_{}", owner, repo),
+            &manifest_content,
+            &source.label(),
+            source,
+            |path| fetch_url(&format!("{}/{}", base_url, path)),
+        )
+    }
+
+    /// Pull from a raw manifest URL and resolve files relative to it.
+    fn pull_url(&self, url: &str) -> Result<TemplatePackage, String> {
+        let manifest_content = fetch_url(url)?;
         let manifest: TemplateManifest = toml::from_str(&manifest_content)
-            .map_err(|e| format!("Failed to parse manifest.toml: {}", e))?;
+            .map_err(|e| format!("Failed to parse manifest from URL: {}", e))?;
+        let base_url = url
+            .rsplit_once('/')
+            .map(|(base, _)| base)
+            .ok_or_else(|| format!("Manifest URL has no base path: {}", url))?;
+        let cache_name = sanitize_name(&manifest.template.name);
+        let source = TemplateSource::Url(url.to_string());
+        self.install_remote(&cache_name, &manifest_content, url, source, |path| {
+            fetch_url(&format!("{}/{}", base_url, path))
+        })
+    }
 
-        // Create local cache directory
-        let cache_name = format!("gh_{}_{}", owner, repo);
-        let cache_dir = self.cache_root.join(&cache_name);
-        fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create cache dir: {}", e))?;
+    fn install_remote<F>(
+        &self,
+        cache_name: &str,
+        manifest_content: &str,
+        source_label: &str,
+        source: TemplateSource,
+        mut fetch_file: F,
+    ) -> Result<TemplatePackage, String>
+    where
+        F: FnMut(&str) -> Result<String, String>,
+    {
+        validate_cache_key(cache_name)?;
+        let manifest: TemplateManifest = toml::from_str(manifest_content)
+            .map_err(|e| format!("Failed to parse manifest: {}", e))?;
+        for file in &manifest.files {
+            validate_template_path(&file.path)?;
+        }
 
-        // Save manifest
-        fs::write(cache_dir.join("manifest.toml"), &manifest_content)
-            .map_err(|e| format!("Failed to write manifest: {}", e))?;
+        fs::create_dir_all(&self.cache_root)
+            .map_err(|e| format!("Failed to create template cache root: {}", e))?;
+        let staging = tempfile::Builder::new()
+            .prefix(".dijiang-template-")
+            .tempdir_in(&self.cache_root)
+            .map_err(|e| format!("Failed to create template staging dir: {}", e))?;
+        fs::write(staging.path().join("manifest.toml"), manifest_content)
+            .map_err(|e| format!("Failed to stage manifest: {}", e))?;
+        fs::write(staging.path().join(".source"), source_label)
+            .map_err(|e| format!("Failed to stage source label: {}", e))?;
 
-        // Source label file for identification
-        let label = format!("gh:{}/{}", owner, repo);
-        fs::write(cache_dir.join(".source"), &label)
-            .map_err(|e| format!("Failed to write source label: {}", e))?;
+        for file in &manifest.files {
+            let content = fetch_file(&file.path)
+                .map_err(|e| format!("Failed to fetch '{}': {}", file.path, e))?;
+            let target = staging.path().join(&file.path);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to stage '{}': {}", file.path, e))?;
+            }
+            fs::write(&target, content)
+                .map_err(|e| format!("Failed to stage '{}': {}", file.path, e))?;
+        }
 
-        // Fetch each file in the template
-        for file_entry in &manifest.files {
-            let file_url = format!("{}/{}", base_url, file_entry.path);
-            match fetch_url(&file_url) {
-                Ok(content) => {
-                    let file_path = cache_dir.join(&file_entry.path);
-                    if let Some(parent) = file_path.parent() {
-                        fs::create_dir_all(parent).ok();
-                    }
-                    let _ = fs::write(&file_path, &content);
-                }
-                Err(e) => {
-                    eprintln!("  Warning: failed to fetch {}: {}", file_entry.path, e);
+        let cache_dir = self.cache_root.join(cache_name);
+        let backup = tempfile::Builder::new()
+            .prefix(".dijiang-template-backup-")
+            .tempdir_in(&self.cache_root)
+            .map_err(|e| format!("Failed to create template backup dir: {}", e))?;
+        let backup_cache = backup.path().join("previous");
+        if cache_dir.exists() {
+            fs::rename(&cache_dir, &backup_cache)
+                .map_err(|e| format!("Failed to preserve existing template cache: {}", e))?;
+        }
+
+        let staged_path = staging.keep();
+        if let Err(install_error) = fs::rename(&staged_path, &cache_dir) {
+            let _ = fs::remove_dir_all(&staged_path);
+            if backup_cache.exists() && !cache_dir.exists() {
+                if let Err(restore_error) = fs::rename(&backup_cache, &cache_dir) {
+                    let preserved_backup = backup.keep().join("previous");
+                    return Err(format!(
+                        "Failed to install template cache: {install_error}; failed to restore previous cache: {restore_error}; backup preserved at {}",
+                        preserved_backup.display()
+                    ));
                 }
             }
+            return Err(format!(
+                "Failed to install template cache: {}",
+                install_error
+            ));
         }
 
         Ok(TemplatePackage {
             manifest,
-            source: TemplateSource::GitHub {
-                owner: owner.to_string(),
-                repo: repo.to_string(),
-                subpath: subpath.map(|s| s.to_string()),
-                branch: branch.to_string(),
-            },
-            root: cache_dir,
-        })
-    }
-
-    /// Pull from a raw URL (manifest must be at the URL root).
-    fn pull_url(&self, url: &str) -> Result<TemplatePackage, String> {
-        let content = fetch_url(url)?;
-        let manifest: TemplateManifest = toml::from_str(&content)
-            .map_err(|e| format!("Failed to parse manifest from URL: {}", e))?;
-
-        let cache_name = sanitize_name(&manifest.template.name);
-        let cache_dir = self.cache_root.join(&cache_name);
-        fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create cache dir: {}", e))?;
-
-        fs::write(cache_dir.join("manifest.toml"), &content)
-            .map_err(|e| format!("Failed to write manifest: {}", e))?;
-
-        fs::write(cache_dir.join(".source"), url)
-            .map_err(|e| format!("Failed to write source label: {}", e))?;
-
-        Ok(TemplatePackage {
-            manifest,
-            source: TemplateSource::Url(url.to_string()),
+            source,
             root: cache_dir,
         })
     }
 
     /// Load a template from the local cache by name.
     pub fn load(&self, name: &str) -> Result<TemplatePackage, String> {
+        validate_cache_key(name)?;
         // Try direct name
         let dir = self.cache_root.join(name);
         if dir.exists() {
@@ -380,6 +417,9 @@ impl TemplateRegistry {
             .ok_or_else(|| format!("Missing manifest.toml in built-in package '{}'", name))?;
         let manifest: TemplateManifest = toml::from_str(&manifest_content)
             .map_err(|e| format!("Failed to parse manifest: {}", e))?;
+        for file in &manifest.files {
+            validate_template_path(&file.path)?;
+        }
 
         // Create cache directory
         let cache_dir = self.cache_root.join(name);
@@ -443,8 +483,12 @@ impl TemplateRegistry {
             }
         };
 
-        // Validate that referenced files exist
+        // Validate paths before resolving any referenced file.
         for file_entry in &manifest.files {
+            if let Err(error) = validate_template_path(&file_entry.path) {
+                errors.push(error);
+                continue;
+            }
             if let Some(parent) = manifest_path.parent() {
                 let file_path = parent.join(&file_entry.path);
                 if !file_path.exists() {
@@ -467,7 +511,12 @@ impl TemplateRegistry {
     fn load_manifest(&self, path: &Path) -> Result<TemplateManifest, String> {
         let content =
             fs::read_to_string(path).map_err(|e| format!("Failed to read manifest: {}", e))?;
-        toml::from_str(&content).map_err(|e| format!("Invalid manifest: {}", e))
+        let manifest: TemplateManifest =
+            toml::from_str(&content).map_err(|e| format!("Invalid manifest: {}", e))?;
+        for file in &manifest.files {
+            validate_template_path(&file.path)?;
+        }
+        Ok(manifest)
     }
 
     fn source_label_from_path(path: &Path) -> String {
@@ -496,6 +545,32 @@ fn fetch_url(url: &str) -> Result<String, String> {
         .map_err(|e| format!("Failed to read response body: {}", e))
 }
 
+fn validate_template_path(path: &str) -> Result<(), String> {
+    let path = Path::new(path);
+    if path.as_os_str().is_empty()
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(format!("Invalid template file path: {}", path.display()));
+    }
+    Ok(())
+}
+
+fn validate_cache_key(key: &str) -> Result<(), String> {
+    let path = Path::new(key);
+    let mut components = path.components();
+    if key.is_empty()
+        || key == "."
+        || key == ".."
+        || key.contains(['/', '\\'])
+        || !matches!(components.next(), Some(Component::Normal(_)))
+        || components.next().is_some()
+    {
+        return Err(format!("Invalid template cache key: {key}"));
+    }
+    Ok(())
+}
 /// Sanitize a name for use as a directory name.
 fn sanitize_name(name: &str) -> String {
     name.chars()
@@ -651,6 +726,171 @@ description = "This file doesn't exist"
         let dir = tempfile::tempdir().unwrap();
         let result = TemplateRegistry::validate(dir.path());
         assert!(result.is_err());
+    }
+
+    fn remote_manifest(paths: &[&str]) -> String {
+        let mut manifest = String::from(
+            "[template]\nname = \"remote\"\nversion = \"1.0.0\"\ndescription = \"Remote\"\n",
+        );
+        for path in paths {
+            manifest.push_str(&format!("\n[[files]]\npath = {:?}\n", path));
+        }
+        manifest
+    }
+
+    #[test]
+    fn cache_operations_reject_unsafe_keys() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = TemplateRegistry::with_root(root.path().to_path_buf());
+        for key in [
+            "",
+            ".",
+            "..",
+            "../outside",
+            "/tmp/outside",
+            "nested/key",
+            "nested\\key",
+        ] {
+            assert!(registry.load(key).is_err(), "key should be rejected: {key}");
+            assert!(
+                registry
+                    .install_remote(
+                        key,
+                        &remote_manifest(&["file.txt"]),
+                        "test",
+                        TemplateSource::Url("https://example.test/manifest.toml".into()),
+                        |_| Ok("content".into()),
+                    )
+                    .is_err(),
+                "key should be rejected before installation: {key}"
+            );
+        }
+        assert!(validate_cache_key("模板-v1").is_ok());
+    }
+
+    #[test]
+    fn install_remote_rejects_unsafe_paths_before_fetching() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = TemplateRegistry::with_root(root.path().to_path_buf());
+        for path in ["../outside", "/tmp/outside", "nested/../../outside", ""] {
+            let mut fetched = false;
+            let result = registry.install_remote(
+                "remote",
+                &remote_manifest(&[path]),
+                "test",
+                TemplateSource::Url("https://example.test/manifest.toml".into()),
+                |_| {
+                    fetched = true;
+                    Ok("content".into())
+                },
+            );
+            assert!(result.is_err(), "path should be rejected: {path}");
+            assert!(!fetched, "unsafe path should fail before fetching");
+        }
+    }
+
+    #[test]
+    fn install_remote_failure_preserves_existing_cache() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = TemplateRegistry::with_root(root.path().to_path_buf());
+        let cache = root.path().join("remote");
+        fs::create_dir_all(&cache).unwrap();
+        fs::write(cache.join("existing.txt"), "old").unwrap();
+
+        let result = registry.install_remote(
+            "remote",
+            &remote_manifest(&["first.txt", "second.txt"]),
+            "test",
+            TemplateSource::Url("https://example.test/manifest.toml".into()),
+            |path| {
+                if path == "second.txt" {
+                    Err("network failure".into())
+                } else {
+                    Ok("new".into())
+                }
+            },
+        );
+
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(cache.join("existing.txt")).unwrap(),
+            "old"
+        );
+        assert!(!cache.join("first.txt").exists());
+    }
+
+    #[test]
+    fn install_remote_success_replaces_cache_without_stale_files() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = TemplateRegistry::with_root(root.path().to_path_buf());
+        let cache = root.path().join("remote");
+        fs::create_dir_all(&cache).unwrap();
+        fs::write(cache.join("stale.txt"), "stale").unwrap();
+
+        let package = registry
+            .install_remote(
+                "remote",
+                &remote_manifest(&["nested/current.txt"]),
+                "test",
+                TemplateSource::Url("https://example.test/manifest.toml".into()),
+                |_| Ok("current".into()),
+            )
+            .unwrap();
+
+        assert_eq!(
+            fs::read_to_string(package.root.join("nested/current.txt")).unwrap(),
+            "current"
+        );
+        assert!(!package.root.join("stale.txt").exists());
+    }
+
+    #[test]
+    fn concurrent_remote_installs_leave_a_complete_cache() {
+        use std::sync::{Arc, Barrier};
+
+        let root = tempfile::tempdir().unwrap();
+        let cache_root = root.path().to_path_buf();
+        let barrier = Arc::new(Barrier::new(2));
+        let mut handles = Vec::new();
+        for version in ["alpha", "beta"] {
+            let cache_root = cache_root.clone();
+            let barrier = Arc::clone(&barrier);
+            handles.push(std::thread::spawn(move || {
+                let registry = TemplateRegistry::with_root(cache_root);
+                registry.install_remote(
+                    "remote",
+                    &remote_manifest(&["one.txt", "two.txt"]),
+                    "test",
+                    TemplateSource::Url("https://example.test/manifest.toml".into()),
+                    |_| {
+                        barrier.wait();
+                        Ok(version.to_string())
+                    },
+                )
+            }));
+        }
+        let results: Vec<_> = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect();
+
+        assert!(results.iter().any(Result::is_ok));
+        let cache = root.path().join("remote");
+        let one = fs::read_to_string(cache.join("one.txt")).unwrap();
+        let two = fs::read_to_string(cache.join("two.txt")).unwrap();
+        assert_eq!(one, two);
+        assert!(one == "alpha" || one == "beta");
+        assert!(cache.join("manifest.toml").is_file());
+        let leftovers: Vec<_> = fs::read_dir(root.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.starts_with(".dijiang-template-"))
+            .collect();
+        assert!(
+            leftovers.is_empty(),
+            "temporary directories remain: {leftovers:?}"
+        );
     }
 
     #[test]
