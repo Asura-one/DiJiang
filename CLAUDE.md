@@ -1,46 +1,54 @@
-# DiJiang — DiJiang Project
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '63830c8a-41e0-4589-94e5-ad268352afe0'
+  PropagateID: '63830c8a-41e0-4589-94e5-ad268352afe0'
+  ReservedCode1: '304552c9-763e-4386-86f8-2a74821a042c'
+  ReservedCode2: '304552c9-763e-4386-86f8-2a74821a042c'
+---
 
-This project uses DiJiang, an AI-native development workflow framework.
+# DiJiang
 
-## Project Structure
+本文件为 Claude 提供 DiJiang 项目上下文。
 
-- `.dijiang/` — DiJiang project configuration
-- `.dijiang/tasks/` — Task records (JSON, Trellis-compatible format)
-- `.dijiang/spec/` — Project specifications and coding guidelines
-- `.dijiang/workspace/` — Developer journals and session traces
-- `.pi/` — Pi agent platform configuration
-- `crates/` — Rust workspace crates (core, cli, task, mem, configurator)
+## 项目结构
 
-## Task Workflow
+- `skills/` — 所有 DiJiang skill（engineering/productivity 两个 bucket）
+- `.dijiang/` — 项目本地状态（gitignored，由 `dj-setup` 初始化）
+- `CONTEXT.md` — 领域术语表
+- `docs/adr/` — 架构决策记录
+- `docs/references/` — 跨技能参考文档
 
-Tasks live in `.dijiang/tasks/<name>/` with these artifacts:
-- `prd.md` — Requirements (mandatory)
-- `design.md` — Technical design (complex tasks)
-- `implement.md` — Execution plan (complex tasks)
-- `task.json` — Structured task record (24 Trellis-compatible fields)
+## Skill 使用
 
-### Phases
+通过 `Call the Skill tool with "<skill-name>"` 调用 skill。
 
-| Status | Phase | Action |
-|--------|-------|--------|
-| planning | plan | Read PRD, align requirements |
-| in_progress | implement | Write code |
-| completed | complete | Verify quality gate |
-| archived | archive | Move to archive |
+### 常用入口
 
-## Core Workflow
+1. **新项目**：`dj-setup` 初始化
+2. **新任务**：`dj-dispatch` 分流路由
+3. **需求对齐**：`dj-grill` 逐轮拷问
+4. **实现**：`dj-implement` 或 `dj-tdd`
+5. **排查**：`dj-hunt`
+6. **审查**：`dj-check`
+7. **收尾**：`dijiang-finish-work`
 
-1. **plan**: Start by reading `dijiang workflow-state --json`; use its route gate, Git gate, breadcrumb, and target-skill summary before reading `prd.md`, `design.md`, and `implement.md`. Use `dijiang skill-body <name>` when the full skill body is needed.
-2. **implement**: Write code following the runtime context and specs. Run `cargo build` to verify.
-3. **check**: Run `cargo test`, verify types, lint.
-4. **archive**: Commit changes when done.
+### 任务状态
 
-## CLI Commands
+读取 `.dijiang/active_task.txt` 获取活跃任务指针，然后读取 `.dijiang/tasks/<name>/task.json` 获取任务状态。
 
-- `dijiang status` — 项目概览
-- `dijiang task list` — 所有任务
-- `dijiang task current` — 当前任务
-- `dijiang start <name>` — Start task
-- `dijiang workflow-state --json` — Load injected runtime route + target skill context
-- `cargo build -p dijiang-cli` — Build CLI
-- `cargo test` — Run all tests
+| 状态 | 下一步 |
+|------|--------|
+| planning | `dj-grill` → `dj-output` → `dj-split` |
+| in_progress | `dj-implement` / `dj-tdd` → `dj-check` |
+| completed | `dijiang-finish-work` |
+| paused | `dijiang-continue` |
+
+## 核心工作流
+
+1. **plan**: 读取 CONTEXT.md 和 .dijiang/spec/ 中相关规范。用 `dj-grill` 对齐需求。
+2. **implement**: 按 PRD/design 实现代码。运行测试验证。
+3. **check**: 用 `dj-check` 审查代码质量。
+4. **archive**: 用 `dijiang-finish-work` 收尾、提交、归档。

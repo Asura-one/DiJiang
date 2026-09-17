@@ -1,4 +1,41 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '38f3a25e-b8d4-4f93-ad2e-1619498c4eb1'
+  PropagateID: '38f3a25e-b8d4-4f93-ad2e-1619498c4eb1'
+  ReservedCode1: '16a72982-b15c-4c36-b750-f7d2fe434b38'
+  ReservedCode2: '16a72982-b15c-4c36-b750-f7d2fe434b38'
+---
+
 # 变更日志
+
+## [1.0.0] — 2026-09-17
+
+### 重构
+
+- **从 Rust CLI 运行时迁移到纯 skill 架构**。移除全部 Rust 代码（5 crate：cli/task/mem/configurator/mcp-server），改为基于 mattpocock/skills 的纯 skill 集合。
+- 移除 Trellis 兼容层（24 字段 schema、.trellis/ 回退、状态降级映射）。
+- Skill 重组到 `skills/<bucket>/<name>/SKILL.md` 格式（engineering + productivity 两个 bucket）。
+- Frontmatter 对齐 mattpocock 格式（name/description/disable-model-invocation）。
+- 运行时门禁（Route/Git/Capability Gate）下沉为 skill 文本纪律。
+- 新增 `dj-setup` skill：项目初始化和旧版迁移。
+- 新增 `dj-memory` skill：记忆管理（model-invoked，替代 Rust mem crate）。
+- 重写 `dijiang-start`/`dijiang-continue`/`dijiang-finish-work` 为纯 skill，不依赖 CLI。
+- task.json 从 24 字段简化为 8 字段（id/title/status/createdAt/completedAt/branch/notes/meta）。
+- 新建 `CONTEXT.md` 领域术语表，替代 `.dijiang/glossary.md`。
+- ADR 迁移到 `docs/adr/`，参考文件迁移到 `docs/references/`。
+- `.dijiang/` 简化为 tasks/ + memory/ + spec/ + config.toml。
+
+### 移除
+
+- 移除 `crates/`（全部 Rust 代码）。
+- 移除 `Cargo.toml`、`Cargo.lock`、`Makefile`、`VERSION`、`target/`、`tests/`。
+- 移除 `AGENTS.md.example`。
+- 移除 5 个 agent 定义文件。
+- 移除 workflow.md 独立文件（逻辑分散到 skill 中）。
+- 移除 14 个共享参考文件（迁移到 `docs/references/`）。
 
 ## [0.14.2] — 2026-08-11
 

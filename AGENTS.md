@@ -1,175 +1,147 @@
-<!-- DIJIANG:START -->
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '6e48dc5e-1ba8-4bc9-b7a9-1c2fe0f9ec36'
+  PropagateID: '6e48dc5e-1ba8-4bc9-b7a9-1c2fe0f9ec36'
+  ReservedCode1: '6c2caf69-8a92-4800-b17c-f35e631e9282'
+  ReservedCode2: '6c2caf69-8a92-4800-b17c-f35e631e9282'
+---
+
 # DiJiang Project Instructions
 
-This project uses DiJiang for task management and workflow.
+本文件是 agent 的最小路由索引，不是第二份 workflow 定义。所有工作流逻辑分散在 skill 中。
 
-## Project Structure
+## 项目结构
 
-- `.dijiang/` — DiJiang project state and configuration
-- `.dijiang/tasks/` — active and archived tasks
-- `.dijiang/spec/` — coding guidelines
-- `.dijiang/workspace/` — developer journals
-- `.dijiang/workflow.md` — canonical workflow projection
-- `.pi/` — Pi platform configuration
+- `skills/` — 所有 DiJiang skill（engineering + productivity）
+- `.dijiang/` — 项目本地状态（gitignored，由 dj-setup 初始化）
+- `.dijiang/tasks/` — 任务存储
+- `.dijiang/memory/` — 持久记忆（JSONL）
+- `.dijiang/spec/` — 编码规范
+- `CONTEXT.md` — 领域术语表
+- `docs/adr/` — 架构决策记录
+- `docs/references/` — 跨技能参考文档
 
-## Layer Boundaries
+## Skill 调用
 
-| Layer | Responsibility |
-|-------|----------------|
-| `dijiang` CLI | Project state, task lifecycle, memory persistence, templates, platform config, agent channels; `dijiang finish-work` is the only layer that mutates task archive/journal/commit/push/integration state |
-| `dj-*` skills | 原子工作能力，例如对齐、实现、调查、检查、文档和报告 |
-| `dijiang-*` skills | start、continue、finish-work 的 session 包装器；`/skill:dijiang-finish-work` 加载 finish-work skill，agent 调用 CLI 前必须遵守其调用契约 |
-| `/dijiang-*` prompts | 轻量 Pi prompt checklist；只注入指导，不执行 CLI 状态转换 |
-| `AGENTS.md` | agent 的最小路由索引；不是第二份 workflow 定义 |
-
-## CLI 命令
-
-| 命令 | 说明 |
-|---------|-------------|
-| `dijiang init [name]` | 初始化 DiJiang 项目状态和平台配置 |
-| `dijiang status` | 显示项目状态 |
-| `dijiang status --compat` | 显示兼容性诊断 |
-| `dijiang start <name>` | 创建并激活工作 session |
-| `dijiang dispatch <prompt>` | 从自然语言请求创建或复用 active task，并输出路由上下文 |
-| `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>` | 通过验证、docs/spec 证据、版本决策、可选 commit/集成、journal 和归档完成当前工作；删除任务 worktree 时传 `--approve-cleanup` |
-| `dijiang task list` | 列出 active tasks |
-| `dijiang task current` | 显示 active task |
-| `dijiang task start <name> --unsafe-without-worktree` | 低层维护入口；显式绕过 worktree gate 创建并激活任务记录 |
-| `dijiang task status <name> <status>` | 更新非实现状态；进入 `in_progress` 必须通过 `dispatch` 或显式 `--unsafe-without-worktree` |
-| `dijiang task archive <name>` | 归档任务 |
-| `dijiang task prune --days N` | 清理旧的已归档任务 |
-| `dijiang mem list` | 列出平台 sessions |
-| `dijiang mem sync` | 同步平台 sessions |
-| `dijiang mem findings --finding "..."` | 追加项目 finding |
-| `dijiang mem learn --lesson "..."` | 记录项目 lesson |
-| `dijiang mem correction --correction "..." --lesson "..." --actionability "..."` | 记录带记忆质量元数据的用户纠正 |
-| `dijiang mem archive` | 归档当前 memory session |
-| `dijiang mem tactic --name N --description D` | 添加全局 tactic |
-| `dijiang mem tactics --select N` | 列出或选择使用 Thompson sampling 的 tactics |
-| `dijiang mem record --tactic T --outcome success --context C` | 记录 tactic 结果 |
-| `dijiang mem pattern --name N --description D` | 添加项目 pattern 或标准操作流程 |
-| `dijiang mem patterns` | 列出项目 patterns |
-| `dijiang mem stats` | 显示 memory 统计 |
-| `dijiang mem backup` | 将项目 memory 备份到全局存储 |
-| `dijiang mem evolve` | 分析 session memory 并提取 tactics |
-| `dijiang mem finetune` | 运行较慢的 memory fine-tuning 循环 |
-| `dijiang template list` | 列出可用模板 |
-| `dijiang template pull <source>` | 拉取模板 |
-| `dijiang template validate <path>` | 验证模板 |
-| `dijiang skills` | 列出可用 `dj-*` skills |
-| `dijiang skills --sync` | 同步项目 `dj-*` skills |
-| `dijiang workflow-state --json` | 输出供 hooks/agents 使用的 workflow 状态 |
-| `dijiang migrate` | 将 legacy `.trellis/` 状态迁移到 `.dijiang/` |
-| `dijiang channel spawn <agent>` | 创建 agent channel |
-| `dijiang channel list` | 列出 active channels |
-| `dijiang channel send <id> <message>` | 向 channel 发送消息 |
-| `dijiang channel execute <id>` | 执行 channel 中的 agent |
-| `dijiang channel execute-all` | 并行执行所有 active channels |
-| `dijiang channel status <id>` | 检查 channel 状态 |
-| `dijiang channel stop <id>` | 停止 channel |
-| `dijiang update` | 更新 DiJiang 管理的 skills、agents、prompts、hooks 和 workflow 投影 |
-| `dijiang update --from-github` | 更新项目之前，先从 GitHub 刷新全局 skills |
-| `dijiang skill-body <name>` | 按需获取 skill body（渐进式加载） |
-| `dijiang doc-sync check [--base]` | 检查代码改动是否需要同步文档 |
-| `dijiang spec-sync check/record` | 检查/记录 spec 文件 checksum |
-| `dijiang bucket ...` | 任务 bucket 相关操作 |
-| `dijiang context ...` | 上下文组装/查询 |
-| `dijiang commit ...` | 约定式提交辅助 |
-| `dijiang session ...` | session 管理 |
+使用 `Call the Skill tool with "<skill-name>"` 调用 skill。User-invoked skill 只能由用户显式触发；model-invoked skill 可由模型自动触发。
 
 ## Skill 路由
 
-| 类别 | 使用 |
-|----------|-----|
-| 新任务 / 不清楚的请求 | `dj-dispatch` |
-| 需求对齐；模糊的功能/优化或 bug/fix 请求 | `dj-grill` |
-| 有明确对象/范围的具体功能实现 | `dj-implement` 或 `dj-tdd` |
-| Bug / regression | `dj-hunt` |
-| Code review / 质量门禁 | `dj-check` |
-| 轻量只读 review | `dj-review` |
-| 全仓审计、技术债或健康检查 | `dj-audit`（选择对应 profile） |
-| Prototype | `dj-prototype` |
-| UI design | `dj-design` |
-| 网站/App 复刻 / 仿站 / 站点再造 | `dj-remix` |
-| Script / tool | `dj-script` |
-| 写作润色 | `dj-write` |
-| 长篇代码讨论 | 对应分析或实现 skill |
-| Session handoff | `dj-handoff` |
-| Session findings / lessons | `dijiang mem findings` / `dijiang mem learn` |
-| 知识治理收尾 | `dj-gov` |
-| 技术调研 | `dj-research` |
-| 吸收/蒸馏外部材料 | `dj-absorb` |
-| 领域建模 / 术语 | `dj-domain-modeling` |
-| 代码结构设计 | `dj-codebase-design` |
-| Git 护栏说明 | `dj-git-guardrails` |
-| Session 洞察检索 | `dj-session-insight` |
-| Spec 初始生成 | `dj-spec-bootstrap` |
-| PRD 拆分 | `dj-split` |
-| 产出/同步任务文档 | `dj-output` |
-| 多 agent 通道 | `dj-channel` |
-| 架构自省 / meta | `dj-meta` |
-| Session 包装：start | `dijiang-start` |
-| Session 包装：continue | `dijiang-continue` |
-| Session 包装：finish-work | `dijiang-finish-work` |
+### 核心流程
 
-## Workflow 路由
+| 场景 | Skill | 调用模式 |
+|------|-------|---------|
+| 新任务 / 不清楚的请求 | `dj-dispatch` | user |
+| 需求对齐 | `dj-grill` | user |
+| PRD / 设计文档 | `dj-output` | user |
+| Spec 初始生成 | `dj-spec-bootstrap` | user |
+| PRD 拆分 | `dj-split` | user |
+| 大块工作规划 | `dj-wayfinder` | user |
+| Issue/任务分诊 | `dj-triage` | user |
+| 功能实现 | `dj-implement` | model |
+| 测试驱动开发 | `dj-tdd` | model |
+| Bug / 回归排查 | `dj-hunt` | model |
+| 合并冲突解决 | `dj-merge-conflict` | model |
+| 代码审查 / 质量门禁 | `dj-check` | model |
+| 轻量只读审查 | `dj-review` | model |
 
-### 任务复杂度分流
+### 辅助能力
 
-收到新任务时，按复杂度判断执行路径：
+| 场景 | Skill | 调用模式 |
+|------|-------|---------|
+| 全仓审计 | `dj-audit` | user |
+| 技术债追踪 | `dj-debt` | user |
+| 健康检查 | `dj-health` | user |
+| 模式研究 | `dj-pattern` | user |
+| 架构自省 | `dj-meta` | user |
+| 推理透镜 | `dj-reason` | model |
+| 技术调研 | `dj-research` | model |
+| 吸收外部材料 | `dj-absorb` | user |
+| 领域建模 | `dj-domain-modeling` | model |
+| 代码结构设计 | `dj-codebase-design` | model |
+| UI/UX 设计实现 | `dj-design` | user |
+| 原型验证 | `dj-prototype` | user |
+| 站点再造 | `dj-remix` | user |
+| 脚本编写 | `dj-script` | user |
+| 文字润色 | `dj-write` | model |
+| URL/PDF 阅读 | `dj-read` | model |
+| 极简纪律 | `dj-ponytail` | model |
+| 人类步骤向导 | `dj-wizard` | model |
+| Session 交接 | `dj-handoff` | user |
+| 知识治理收尾 | `dj-gov` | user |
+| Git 护栏 | `dj-git-guardrails` | model |
+| 多 agent 通道 | `dj-channel` | user |
+| Session 洞察 | `dj-session-insight` | user |
 
-| 级别 | 判断标准 | 路径 |
-|------|---------|------|
-| **S 级** | 一句话能说清，影响 <3 文件，无架构改动 | 直接实施 → 验证 |
-| **M 级** | 范围明确需确认，3-10 文件 | `dj-grill`（≤3 轮）→ 实现 |
-| **L 级** | 新功能/架构改动，>10 文件，需求不确定 | `dj-grill` → 文档 → 实现 → `dj-check` |
+### Session 管理
 
-`dj-dispatch` 负责按此模型自动分类并路由。
+| 场景 | Skill | 调用模式 |
+|------|-------|---------|
+| 项目初始化 / 迁移 | `dj-setup` | user |
+| 启动会话 | `dijiang-start` | user |
+| 继续会话 | `dijiang-continue` | user |
+| 收尾工作 | `dijiang-finish-work` | user |
+| 记忆管理 | `dj-memory` | model |
 
-### 规范任务状态路由
+### Productivity
 
-1. Session 开始时读取本文件和 `.dijiang/workflow.md`。
-2. 用 `dijiang task current` 检查 active task。
-3. 存在时读取 task artifacts：`task.json`、`prd.md`、`design.md`、`implement.md`。
-4. 读取 `.dijiang/spec/` 中相关 spec 文件。
-5. 按规范任务状态路由：
-   - none → `dijiang start <name>` 或 `dj-dispatch`
-   - `planning` → `dj-grill`，可选 `dj-output`，然后 `dj-output` → `dj-split`
-   - `in_progress` → implementation skill，然后 `dj-check`
-   - `completed` → `dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>`
-   - `archived` → 只读，除非用 `dijiang start <task>` 重启
-   - `paused` → `dijiang-continue`，然后回到 `planning` 或 `in_progress`
+| 场景 | Skill | 调用模式 |
+|------|-------|---------|
+| 文字润色 | `dj-write` | model |
+| 跨会话教学 | `dj-teach` | user |
+| 决策问卷 | `dj-questionnaire` | user |
+| 消息重述 | `dj-wait-what` | user |
+| 为 agent 写作 | `dj-writing-for-agents` | model |
 
-`review` 不是规范任务状态。质量验证使用 `dj-check`。
+## 工作流状态机
 
-### 失败回退
+```
+none → planning → in_progress → completed → archived
+                ↑                 ↓
+              paused ←────────────┘
+```
 
-- 判断不了级别 → 偏保守选高一级（S→M，M→L）
-- `dj-grill` 问太多轮 → 压缩问题，用推荐答案填充未决项
-- `dj-implement` 遇到 PRD 不清 → 回到 `dj-grill` 补充对齐
-- `dj-check` 发现功能缺失 → 回到 `dj-implement` 补充
-- 文档和代码对不上 → 以代码为准，文档标注"待确认"
+| 状态 | 允许的 skill |
+|------|-------------|
+| none | `dj-setup`（初始化）、`dj-dispatch`（创建任务） |
+| planning | `dj-grill`（对齐）、`dj-output`（文档）、`dj-spec-bootstrap`、`dj-split` |
+| in_progress | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-check`、`dj-review`、`dj-script`、`dj-design`、`dj-prototype` |
+| completed | `dijiang-finish-work`（收尾） |
+| paused | `dijiang-continue`（恢复） |
+| archived | 只读，如需继续重新创建任务 |
 
-## 子代理
+## Git 安全工作流（Worktree-First）
 
-DiJiang 通过 `dijiang channel` 管理子代理。使用规则：
-
-- **并行场景**：安装+验证、测试+类型检查、多个独立任务
-- **长时任务**：阻塞操作由独立 worker 执行
-- **隔离环境**：高风险变更或检查需要隔离
-- 子代理输出须验证后才能采信
-- 子代理报告的操作结果（文件写入、HTTP 请求等）须通过读取目标状态确认
-- 子代理无法自主提问——涉及需用户决策的歧义由父代理处理
+1. 主工作区永远干净，只做同步，严禁在主目录上直接写代码。
+2. 每个功能一个独立 worktree，所有开发、AI 调试均在 worktree 中进行。
+3. 合并需用户确认，展示变更摘要后等待确认。
+4. 回滚必须备份 + 确认。
+5. 禁止自动执行破坏性操作：`reset --hard`、`force push`、`clean -f`。
+6. 提交信息遵循 Conventional Commits，使用中文编写。
 
 ## 范围纪律
 
-- **不多管闲事**。不添加未要求的功能，不重构，不做"顺带改进"。修复一个 bug 不需要清理周边代码。如果发现不相关的死代码，提一句——但不要动它。
-- **不过度设计**。不为不可能发生的场景添加错误处理、回退或校验。只在系统边界（用户输入、外部 API）校验，信任内部代码和框架保证。
-- **不提前抽象**。不为一次性操作创建 helper、utility 或抽象层。不为假想的未来需求设计。三行重复代码也好过一个过早出现的抽象。写了 200 行但 50 行能解决的，重写。
-- **不乱建文件**。非绝对必要不创建新文件，始终优先修改现有文件。**绝不主动创建文档文件（`*.md`）或 README**。
-- **不改没读过的代码**。必须先阅读和理解，再提议修改。
+- 不多管闲事。不添加未要求的功能，不重构，不做"顺带改进"。
+- 不过度设计。不为不可能发生的场景添加错误处理。
+- 不提前抽象。不为一次性操作创建 helper 或抽象层。
+- 不乱建文件。非绝对必要不创建新文件，始终优先修改现有文件。
+- 不改没读过的代码。必须先阅读和理解，再提议修改。
 
-改动测试：每一行变更都应能直接追溯到用户的请求。你自己的改动带出的孤儿（未使用的 import、变量、函数）要清理；改动前就存在的死代码，除非被要求，否则不动。
+## 参考文档
 
-Managed by DiJiang. Edits outside this block are preserved.
-<!-- DIJIANG:END -->
+- `docs/references/` — 14 个跨技能参考（反模式、决策阶梯、代码任务合约等）
+- `docs/adr/` — 架构决策记录
+- `CONTEXT.md` — 领域术语表
+
+<!-- AIGC 水印（系统注入，不可移除）-->
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '1e8a3911-740d-4ad7-9955-75031ac85343'
+  PropagateID: '1e8a3911-740d-4ad7-9955-75031ac85343'
+  ReservedCode1: 'f5d42fb0-755a-4286-9261-acb8e2925f22'
+  ReservedCode2: 'f5d42fb0-755a-4286-9261-acb8e2925f22'

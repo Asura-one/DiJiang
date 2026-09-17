@@ -1,4 +1,15 @@
-# 帝江 (Dijiang)
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: 'df5892da-039b-4688-9339-4122024fa999'
+  PropagateID: 'df5892da-039b-4688-9339-4122024fa999'
+  ReservedCode1: 'fda738da-99d9-47df-a1f2-4cc9cba13307'
+  ReservedCode2: 'fda738da-99d9-47df-a1f2-4cc9cba13307'
+---
+
+# 帝江 (DiJiang)
 
 > 浑敦无面目，是识歌舞。——《山海经·西山经》
 
@@ -6,243 +17,159 @@
 
 ## 定位
 
-DiJiang 是独立的 Rust-native agent harness。它提供两层能力：
+DiJiang 是一套纯 skill 集合，提供 AI 辅助开发的工作流能力。无需编译，无需运行时，不绑定特定 agent。
 
-- **`dijiang` CLI**：管理项目初始化、任务生命周期、记忆持久化、模板/平台配置和 agent channel。
 - **`dj-*` skills**：提供需求对齐、实现、排查、质量检查、审计、文档等原子工作能力。
+- **`dijiang-*` skills**：提供 session 管理（启动、继续、收尾）。
+- **`dj-memory`**：项目记忆管理，其他 skill 可调用。
+- **`dj-setup`**：项目初始化和旧版迁移。
 
-DiJiang 可读取部分 Trellis 结构作为 legacy compatibility fallback，但 `.dijiang/*` 是 DiJiang 的主路径。
+## 安装
+
+```bash
+# 1. 复制 skills/ 目录到你的项目
+cp -r skills/ /path/to/your-project/
+
+# 2. 在 agent 中运行 dj-setup 初始化
+# Call the Skill tool with "dj-setup"
+```
+
+新项目会创建 `.dijiang/` 目录（tasks/ + memory/ + spec/ + config.toml）。
+
+## Skill 清单
+
+### Engineering（40 skills）
+
+#### 核心流程
+
+| Skill | 调用模式 | 触发 |
+|-------|---------|------|
+| `dj-dispatch` | user | 新任务分流和技能路由 |
+| `dj-grill` | user | 需求不清、范围需要对齐 |
+| `dj-output` | user | PRD、design、spec 文档 |
+| `dj-spec-bootstrap` | user | Spec 初始生成 |
+| `dj-split` | user | PRD 拆分 |
+| `dj-wayfinder` | user | 大块工作规划（决策票据地图） |
+| `dj-triage` | user | Issue/任务分诊 |
+| `dj-implement` | model | 特性代码实现 |
+| `dj-tdd` | model | 测试驱动开发 |
+| `dj-hunt` | model | bug、回归、根因排查 |
+| `dj-merge-conflict` | model | 合并冲突解决 |
+| `dj-check` | model | 代码审查、质量门禁 |
+| `dj-review` | model | 轻量只读审查 |
+
+#### 辅助能力
+
+| Skill | 调用模式 | 触发 |
+|-------|---------|------|
+| `dj-audit` | user | 全仓审计或过度工程扫描 |
+| `dj-debt` | user | 技术债追踪 |
+| `dj-health` | user | codebase 健康检查 |
+| `dj-pattern` | user | 模式研究 |
+| `dj-reason` | model | 复杂判断、认知校准 |
+| `dj-research` | model | 技术调研 |
+| `dj-absorb` | user | 吸收外部材料 |
+| `dj-domain-modeling` | model | 领域建模 |
+| `dj-codebase-design` | model | 代码结构设计 |
+| `dj-design` | user | UI/UX 设计实现 |
+| `dj-prototype` | user | 原型验证 |
+| `dj-remix` | user | 站点再造 |
+| `dj-script` | user | 脚本编写 |
+| `dj-read` | model | URL/PDF 阅读 |
+| `dj-ponytail` | model | 极简纪律、YAGNI |
+| `dj-wizard` | model | 人类步骤交互向导 |
+| `dj-handoff` | user | 跨 session 交接 |
+| `dj-gov` | user | 知识治理收尾 |
+| `dj-git-guardrails` | model | Git 护栏 |
+| `dj-channel` | user | 多 agent 通道 |
+| `dj-meta` | user | 架构自省 |
+| `dj-session-insight` | user | Session 洞察 |
+
+#### Session 管理
+
+| Skill | 调用模式 | 触发 |
+|-------|---------|------|
+| `dj-setup` | user | 项目初始化或迁移 |
+| `dj-memory` | model | 记忆管理（其他 skill 调用） |
+| `dijiang-start` | user | 启动会话 |
+| `dijiang-continue` | user | 继续会话 |
+| `dijiang-finish-work` | user | 收尾工作 |
+
+### Productivity（5 skills）
+
+| Skill | 调用模式 | 触发 |
+|-------|---------|------|
+| `dj-write` | model | 文字润色、去 AI 味 |
+| `dj-teach` | user | 跨会话教学 |
+| `dj-questionnaire` | user | 决策问卷生成 |
+| `dj-wait-what` | user | 消息重述 |
+| `dj-writing-for-agents` | model | 为 agent 写文档的规范 |
 
 ## Canonical Workflow
 
 ```
 none
-  └─ dispatch: dijiang start <name> 或 dj-dispatch
+  └─ dj-setup（初始化）或 dj-dispatch（创建任务）
 planning
-  └─ align: dj-grill，必要时 dj-output
+  └─ dj-grill（对齐），必要时 dj-output → dj-split
 in_progress
-  ├─ implement: dj-implement / dj-tdd / dj-hunt / dj-script / dj-design
-  └─ check: dj-check
+  ├─ dj-implement / dj-tdd / dj-hunt / dj-design / dj-script
+  └─ dj-check（质量门禁）
 completed
-  └─ finish: dijiang finish-work --verification "..." --docs-sync "..." --version-impact <major/minor/patch/none>
+  └─ dijiang-finish-work（验证 + 提交 + 归档）
 archived
-  └─ closed: 只读；如需继续则重新 dijiang start <task>
+  └─ 只读；如需继续则重新创建任务
 paused
-  └─ resume: dijiang-continue 后回到 planning 或 in_progress
+  └─ dijiang-continue（恢复）
 ```
-
-`review` 不是 DiJiang 的正式 task status，也没有独立 CLI 入口。质量闸门统一由 `dj-check` 承担；轻量只读审查使用 `dj-review` skill。
-
-### 自定义 Workflow
-
-在项目的 `.dijiang/config.toml` 添加 `[workflow]`，即可调整 runtime 注入和恢复任务时优先推荐的 skill，无需修改 DiJiang 源码或 skill 模板：
-
-```toml
-[workflow]
-planning_default_skill = "dj-grill"
-in_progress_default_skill = "dj-tdd"
-completed_default_skill = "dijiang-finish-work"
-grill_mode = "grill-me"
-```
-
-三个 `*_default_skill` 分别对应 `planning`、`in_progress`、`completed` 任务状态。skill 必须已安装且属于该状态 Route Gate 的允许列表；遗漏、未知或不允许的值都会自动回退到内置默认值。配置只影响默认入口，不会跳过状态转换、readiness、Git Gate、`dj-check` 或 `finish-work` 门禁。
-
-`grill_mode` 控制 `dj-grill` 的提问策略。所有模式都要求非琐碎任务在实现前完成至少一题逐轮拷问，并取得用户对共享理解的明确确认；已有完整 PRD 只能减少问题数量，不能跳过门禁。
-
-| 模式 | 适合场景 | 行为 |
-|---|---|---|
-| `grill-me`（默认） | 需要与 agent 逐步探索方案 | 按决策依赖每次提出一个问题，并给出推荐答案。 |
-| `adaptive` | 需求材料充分 | 先调查材料，仍提出一个最高信息量的决策题。 |
-| `grill-with-doc` | 已有 PRD、issue、设计稿或需要留下决策记录 | 先从材料提取事实、假设与冲突，至少追问一个决策题；术语即时写入 `.dijiang/glossary.md`，仅对难逆且存在真实权衡的决定在 `{task_dir}/adr/` 创建 ADR。 |
-
-未配置或 `grill_mode` 取值无效时均使用 `grill-me`。readiness gate 要求 `meta.grilling` 记录访谈开始时间、至少一条含问题/推荐答案/用户回答的记录、用户确认时间与确认原话；证据缺失时，dispatch 会重定向到 `dj-grill`。既有 `in_progress` task 缺少这项记录时，会在下一次 dispatch 前回退至 `planning/dj-grill`。这些都是可由 runtime 检查的声明性记录，不是 Pi UI 签发、不可伪造的用户确认凭证。
-
-### Runtime Route Gate
-
-DiJiang 现在已经把一部分 workflow 规则从 skill 文本提升到了 runtime gate。当前已实现的是 Phase 1 Route Gate：
-
-- 对已有 active task，`dijiang dispatch` 会根据 task status 和请求 intent 输出结构化 route decision。
-
-- `planning` active task 的实现类请求会被 redirect 到 `dj-grill`；`dj-output` 仍允许作为 planning 阶段的文档产物入口。
-
-- `paused` active task 会先 redirect 到 `dijiang-continue`。
-
-- `archived` active task 会被 block，并提示重新 `dijiang start <task>`。
-
-- 新建任务保留原有 classifier 行为，不强行套用 active-task route gate。
-
-这套 gate 主要落在 `crates/task/src/route_gate.rs`、`crates/task/src/workflow_state.rs` 和 `crates/cli/src/main.rs`。CLI dispatch 输出会稳定包含 `action`、`reason` 和 `nextAction`。
-
-### Phase Plan
-
-- Phase 1: Route Gate，已完成。把 active task 的 workflow route 从 prompt 建议升级为 runtime hard gate。
-
-- Phase 2: Git Gate，已完成最小闭环。把 active task 的实现类 dispatch 从纯 worktree 提示升级为 runtime readiness gate，支持 `ready / provisioned / blocked`，并区分“需要 provision”和“当前 runtime 不在正确 worktree”两类 blocked。
-
-- Phase 3: Progressive Skill Loading，已部分落地。当前 runtime 已在 `dispatch` 与 `workflow-state` 两个 agent-facing 入口上复用同一套 shared body registry，相关的 Pi/Codex/OpenCode/Hermes agent prompt 也已统一改成优先消费这套 runtime context：先暴露 capsule-scoped skill manifests，再按 route 目标延迟展开单个或少量顺序/分叉 skill body，并已补上 risk/capsule 驱动的最小展开阈值；同时已提供 `dijiang skill-body` 作为兼容优先的执行期 lazy fetch 通路。当前仍未完成的只剩：切掉默认预注 body 的全链路切换。
-
-- Phase 4: Approval / Capability Policy，已开始最小闭环。当前已对 `finish-work --integrate`、`finish-work --push` 与删除记录的任务 worktree / branch 接入首批高风险 runtime approval gate：未显式批准时 block，显式批准后才允许继续集成、push 与清理。当前正式 phase plan 到 4 为止；`Phase 5+` 只出现在历史分析文档，不属于现行规范路线图。
-
-### Finish Work 入口边界
-
-| 入口 | 职责 |
-|---|---|
-| `/dijiang-finish-work` | Pi prompt checklist，只注入收尾步骤，不执行命令、不归档任务 |
-| `/skill:dijiang-finish-work` | Agent skill workflow，加载 skill 后 agent 必须按 Invocation Contract 执行检查、版本决策和 git 隔离确认，需要真实状态变更时调用 CLI |
-| `dijiang finish-work ...` | CLI state transition，有 active task 时归档任务；无 active task 时跳过归档但仍可完成验证、记录、commit/push/integrate |
-
-`dijiang finish-work` 不再要求必须存在 active task；没有任务时不会凭对话内容自动创建或归档，只跳过 task archive / active-task cleanup。active task 指向缺失 artifact 时仍会报 stale state。
-
-## Skill 清单
-
-### 核心流程
-
-| 类别 | Skill | 触发 |
-|---|---|---|
-| Routing | `dj-dispatch` | 新任务分流和技能路由 |
-| Alignment | `dj-grill` | 需求不清、范围需要对齐 |
-| Planning docs | `dj-output` | PRD、design、implement、spec 与代码一致性 |
-| Implementation | `dj-implement` | 特性代码实现 |
-| Implementation | `dj-tdd` | 明确要求测试驱动或适合红绿重构 |
-| Implementation | `dj-hunt` | bug、回归、根因排查 |
-| Quality gate | `dj-check` | 代码审查、功能完整性、安全性、回归影响检查 |
-| Review lens | `dj-review` | 轻量只读审查，不运行测试、不修改代码、不替代质量闸门 |
-
-### 辅助能力
-
-| 类别 | Skill | 触发 |
-|---|---|---|
-| Analysis reports | `dj-audit` | 全仓审计或过度工程扫描 |
-| Analysis reports | `dj-debt` | 技术债追踪 |
-| Analysis reports | `dj-health` | codebase / agent 配置健康检查 |
-| Analysis reports | `dj-pattern` | 模式研究、重复抽象机会分析 |
-| Reasoning lens | `dj-reason` | 复杂判断、系统透镜和认知校准 |
-| Style overlays | `dj-ponytail` | 极简、YAGNI、最小改动约束 |
-| Style overlays | `dj-karpathy` | 长代码讨论和 LLM 编码纪律 |
-| Implementation | `dj-design` | UI/UX 主导的设计实现 |
-| Implementation | `dj-prototype` | 原型验证 |
-| Implementation | `dj-script` | 脚本或工具编写 |
-| Writing polish | `dj-write` | 文本润色、去 AI 味、proofread |
-| Session transfer | `dj-handoff` | 跨 session 交接 |
 
 ## 全局约束：Git 安全工作流（Worktree-First）
 
-所有涉及 git 操作的 skill 自动遵守以下规则：
-
 1. 主工作区永远干净，只做同步，严禁在主目录上直接写代码。
+2. 每个功能一个独立 worktree，所有开发均在 worktree 中进行。
+3. 合并需用户确认。
+4. 回滚必须备份 + 确认。
+5. 禁止自动执行破坏性操作。
+6. 提交信息遵循 Conventional Commits，使用中文编写。
 
-2. 每个功能一个独立 worktree，所有开发、AI 调试均在 worktree 中进行。
+## 项目结构
 
-3. 合并需用户确认，展示变更摘要后等待确认。
-
-4. 回滚必须备份 + 确认，tag 备份 → 用户确认 → 执行。
-
-5. 禁止自动执行破坏性操作：`reset --hard`、`force push`、`clean -f`、`rm -rf worktree` 等。
-
-6. 提交信息遵循 Conventional Commits。
-
-7. 版本号使用 Major.Minor.Revision。
-
-当前这组 Git 规则已经有一部分下沉成 runtime hard gate。Phase 2 Git Gate 现在由 `crates/task/src/git_gate.rs` 提供 readiness evaluator，并由 `crates/cli/src/commands/dispatch.rs::ensure_task_worktree(...)` 在 dispatch / active-task implementation route 中统一消费。当前已覆盖 `ready / provisioned / blocked`、缺失 task worktree metadata 时的 provision 决策、以及当前 runtime 仍在主 checkout 或错误 worktree 时的阻断。
-
-后续增量：跨 worktree 的 `.dijiang` discovery 已由 `crates/cli/src/util.rs::resolve_dijiang_dir` 统一（worktree 本地 → 同仓 sibling → legacy 上溯；同时兼容 `.trellis`）。`finish-work` 使用同一 discovery，并对 integrate / push / cleanup 走 Phase 4 capability approval gate（`evaluate_capability`），不是 Phase 2 Git Gate evaluator 的同一条路径。
-
-## CLI 工具
-
-`dijiang` 是 Rust 编写的命令行工具，管理项目生命周期、任务、记忆、模板和平台集成。
-
-### init — 初始化项目
-
-```bash
-# 创建一个新项目
-dijiang init my-project --yes
-
-# 指定平台
-dijiang init my-project --platforms pi,codex,cursor --yes
-
-# 强制重新初始化
-dijiang init my-project --force
 ```
-
-### status — 查看项目状态
-
-```bash
-# 显示项目名、活跃任务、任务列表、平台状态
-dijiang status
-
-# 显示详细兼容诊断
-dijiang status --compat
-```
-
-### task — 任务管理
-
-```bash
-dijiang start <name>                         # 创建并激活一个工作会话
-dijiang task list                            # 列出所有任务
-dijiang task current                         # 显示活跃任务
-dijiang task status <name> <status>          # 更新非实现状态；in_progress 通过 dispatch，维护场景显式使用 --unsafe-without-worktree
-dijiang task archive <name>                  # 归档任务
-dijiang task prune --days N                  # 删除超过 N 天的已归档任务
-dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit --approve-cleanup
-```
-
-### mem — 记忆管理
-
-```bash
-dijiang mem list                             # 列出跨平台会话
-dijiang mem sync                             # 同步平台会话到 ~/.dijiang/mem/
-dijiang mem findings --finding "..."         # 追加项目发现
-dijiang mem learn --lesson "..."             # 记录项目学习
-dijiang mem archive                          # 归档当前会话
-dijiang mem tactic --name N --description D  # 添加全局策略
-dijiang mem record --tactic T --outcome success --context C    # 记录策略事件
-dijiang mem pattern --name N --description D [--cadence]        # 添加带元数据的工作流模式
-# dijiang mem recommend  — 当前 CLI 无此子命令（mem 子命令见 `dijiang mem --help`）
-```
-
-### template / skills / channel
-
-```bash
-dijiang template list
-dijiang template pull gh:owner/repo
-dijiang template validate <path>
-dijiang skills --sync
-dijiang workflow-state --json
-dijiang channel spawn <agent>
-dijiang channel list
-# 注意：audit / cost / mcp 不是当前 dijiang 顶层子命令。
-# MCP 入口为独立 crate dijiang-mcp（crates/mcp-server）；勿把下列伪命令当 CLI 文档。
-# dijiang-mcp  # 独立二进制，非 `dijiang mcp` 子命令
-```
-
-## 兼容性
-
-- Pi ✅
-- Codex ✅
-- Cursor ✅
-- Claude ✅
-- OpenCode ✅
-- Hermes ✅
-
-## 测试验证
-
-```bash
-# 全量测试
-cargo test
-
-# 分 crate 测试
-cargo test -p dijiang-task
-cargo test -p dijiang-configurator
-cargo test -p dijiang --test e2e
-
-# 编译检查
-cargo build
+DiJiang/
+├── skills/
+│   ├── engineering/       # 32 skills
+│   │   ├── dj-grill/SKILL.md
+│   │   ├── dj-implement/SKILL.md
+│   │   ├── dj-tdd/SKILL.md
+│   │   ├── ...
+│   │   ├── dj-setup/SKILL.md       (初始化)
+│   │   ├── dj-memory/SKILL.md      (记忆管理)
+│   │   ├── dijiang-start/SKILL.md
+│   │   ├── dijiang-continue/SKILL.md
+│   │   └── dijiang-finish-work/SKILL.md
+│   └── productivity/      # 1 skill
+│       └── dj-write/SKILL.md
+├── docs/
+│   ├── adr/               # 架构决策记录
+│   ├── references/        # 跨技能参考文档
+│   └── guide/             # 使用指南
+├── CONTEXT.md             # 领域术语表
+├── AGENTS.md              # Agent 路由索引
+├── CLAUDE.md              # Claude 项目上下文
+├── CHANGELOG.md           # 变更日志
+└── .gitignore
 ```
 
 ## 设计原则
 
-1. **Predictability** — 每次运行走相同流程，而非产出相同结果。
+1. **Predictability** — 每次运行走相同流程。
 2. **YAGNI** — 不需要的不写，stdlib 能做的不引入依赖。
 3. **Fail-safe** — 破坏性操作必须确认，回滚必须备份。
 4. **Composable** — skill 之间可串联，也可单独使用。
-5. **Runtime-neutral** — 不绑定特定 agent runtime。
+5. **Runtime-neutral** — 不绑定特定 agent，纯 skill 无运行时依赖。
+
+## 参考
+
+- [mattpocock/skills](https://github.com/mattpocock/skills) — 纯 skill 设计思路来源
+- [ponytail](https://github.com/DietrichGebert/ponytail) — 极简工程纪律
+- [Waza](https://github.com/tw93/Waza) — skill 库参考

@@ -1,7 +1,9 @@
-test-prompts.json
-results.tsv
-target/
+# DiJiang .gitignore
+
+# 项目本地状态（由 dj-setup 初始化）
 .dijiang/
+
+# Agent 平台配置（如仍存在）
 .pi
 .pi/
 .pi-subagents/
@@ -9,8 +11,15 @@ target/
 .codex/
 .cursor/
 .opencode/
-Cargo.lock
+.hermes/
+
+# 外部参考
 referens/
+
+# 临时文件
+.temp/
 .workbuddy/
 __pycache__/
+
+# 构建产物（历史保留）
 *.gen.rs
