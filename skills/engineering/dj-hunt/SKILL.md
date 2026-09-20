@@ -5,10 +5,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: 'f2d7884e-e0fb-431c-b1bc-9f861ea6e108'
-  PropagateID: 'f2d7884e-e0fb-431c-b1bc-9f861ea6e108'
-  ReservedCode1: 'efa0b82d-73a7-4b03-89ea-6d68e52a94cc'
-  ReservedCode2: 'efa0b82d-73a7-4b03-89ea-6d68e52a94cc'
+  ProduceID: '7b283f2e-097f-4323-b9c3-f53ecfbe9622'
+  PropagateID: '7b283f2e-097f-4323-b9c3-f53ecfbe9622'
+  ReservedCode1: '08fe636c-d99c-42de-acf5-c21d7a1de2e0'
+  ReservedCode2: '08fe636c-d99c-42de-acf5-c21d7a1de2e0'
 ---
 
 参考规范：`docs/references/decision-ladder.md`（编码前的决策阶梯）、`docs/references/code-task-contract.md`（代码任务合约）。
@@ -168,5 +168,10 @@ AIGC:
 | 一次改太多可能原因 | 不知道哪个修复生效 | 一次一个改动 |
 | 修完不验证 | regression 遗漏 | 跑全量测试或冒烟 |
 | 改代码不确认是否 root cause | 症状修了根因还在 | 先确认 root cause 再改 |
+| 存量失败未甄别 | 误将存量 bug 当新引入修复，浪费时间追错方向 | git stash 暂存改动，在干净基线跑测试对比，区分存量问题与新引入问题 |
+| 修了一个原因就认为 bug 已解决 | 多个重叠原因叠加导致同一症状，只修一个其余仍在，bug 不消失。实测案例：SwiftUI ScrollView 高度为 0 有 4 个叠加原因（safeAreaInset 吃高度 + 缺 minHeight + tableHeader 占固定高度 + isFocused 动画触发重布局），只修第 1 个症状仍在 | 修复后必须重跑反馈环确认症状消失；若症状仍在，继续排查其他可能原因，不要假设单一根因。列出所有候选原因清单逐个验证 |
+| 静默降级无标记 | preferred 选项不存在时代码静默 fallback 到随机/默认值，无显式标记，导致配置与运行时割裂（如配了 worker A 实际跑 worker B + model 错配 provider） | fallback 路径必须显式标记（返回 fallback 标志/记日志），且 fallback 时不注入 preferred 选项的专属参数 |
+| 功能已生成但未消费 | prompt 要求 LLM 生成某字段（如 structured_report），但输出解析代码不提取该字段，LLM 白耗 output token 生成后被丢弃 | 审查 prompt 要求的每个输出字段是否都有对应的提取/消费代码；token 异常超耗时优先排查"生成但未消费"的字段 |
+| 防护只在降级路径执行 | 预算/截断/校验机制只在错误/降级路径触发，正常路径无防护，导致正常路径 token/资源不受控 | 预算/截断/校验必须在所有路径执行，不能只在 fallback 分支调用 |
 
 参考规范：`docs/references/output-markers.md`（输出标记）。
