@@ -1,6 +1,14 @@
 ---
 name: dj-check
 description: "交付质量闸门：验证 diff 质量、功能完整性、安全性和回归风险，输出 finish-work 收口证据。 Use when the user needs a delivery quality gate, completion verification, release-blocking check, or finish-work handoff. 触发词：check、质量门禁、验收、验证、检查交付、finish-work 前检查。"
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '571a45f4-9ad4-413e-8263-f669dde47114'
+  PropagateID: '571a45f4-9ad4-413e-8263-f669dde47114'
+  ReservedCode1: '05784647-9544-4e91-9a16-3124ba14c28b'
+  ReservedCode2: '05784647-9544-4e91-9a16-3124ba14c28b'
 ---
 
 ## Outcome Contract
@@ -62,6 +70,7 @@ git diff --stat HEAD
 **回归风险** — 改动的副作用范围？
 - 被改模块的调用方是否检查过？
 - 相关测试是否跑过？
+- **改前/改后护送已由 `dj-regression-guard` 完成**：本维度验证改码过程中是否走完了三明治协议（改前基线→改后回归），而非在本 skill 内重复执行基线/回归
 
 ### 3. 输出审查报告
 

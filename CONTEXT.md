@@ -5,10 +5,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: 'ff40879f-6d26-4db8-9de7-b7399118aff7'
-  PropagateID: 'ff40879f-6d26-4db8-9de7-b7399118aff7'
-  ReservedCode1: '06643d16-3d1a-43b2-8713-0d1fc32b9fe5'
-  ReservedCode2: '06643d16-3d1a-43b2-8713-0d1fc32b9fe5'
+  ProduceID: '30b07129-de05-4c4d-b49f-ff569e1eba2b'
+  PropagateID: '30b07129-de05-4c4d-b49f-ff569e1eba2b'
+  ReservedCode1: '396f5820-f615-4fa7-9e74-166e78f33d4c'
+  ReservedCode2: '396f5820-f615-4fa7-9e74-166e78f33d4c'
 ---
 
 # DiJiang 领域语言
@@ -87,11 +87,35 @@ Skill 的分类桶。DiJiang 使用两个 bucket：
 
 ### dj-check
 
-质量门禁的 skill。代码审查、功能完整性、回归影响检查。
+交付质量闸门的 skill。代码审查、功能完整性、回归风险检查。作为流程内置的质量门，**只报告不改代码**。回归的改前/改后护送由 `dj-regression-guard` 承担。
 
 ### dj-hunt
 
-bug 排查的 skill。根因定位、修复、反馈环验证。
+bug 排查的 skill。根因定位、修复、反馈环验证。修复后的回归保护接入 `dj-regression-guard` 三明治协议。
+
+### dj-regression-guard
+
+改码三明治回归协议的 skill（model-invoked）。对每次改码任务执行 **改前基线 → 修改 → 专项验证 → 改后回归**。任务级轻量协议，作为所有改码入口（dj-implement/dj-tdd/dj-hunt）的前置纪律。
+
+### dj-fullstack-testing
+
+全栈回归测试引擎（model-invoked）。承担 **全量模式**：功能枚举、API 深度验证（契约/限流/幂等/落盘）、UI 交互、UX 评估、覆盖度核对。`dj-regression-guard` 引用其 diff 映射表、冒烟最小集与 `docs/project-understanding.md` 文档格式（引用不复制）。
+
+### 回归三明治
+
+改码三明治回归协议的形象名称。流程：改前基线（快速层）→ 改码（TDD 红绿循环）→ 专项验证（红测转绿）→ 改后回归（快速层增量对比）。区分两类失败：**专项失败 = 改错了**；**回归失败 = 改多了波及别处**。
+
+### 快速层
+
+任务改前/改后要双跑的测试子集，目标耗时 < 3 分钟。每个项目首次改码任务时定义并持久化到 `docs/project-understanding.md`（由 `dj-fullstack-testing` 维护）。
+
+### 回归基线
+
+任务改前的快速层结果快照（`.temp/regression-baseline-<ts>.json`），记录 commit-id、PASS/FAIL、耗时。任务级瞬时数据，只用于本次任务的增量比对，任务结束即删。
+
+### 测试债台账
+
+`docs/testing/test-debt.md`，记录零基建或补全不完整任务欠下的测试债（模块名 | 欠账 | 建议补全方式 | 日期）。非阻塞，但改码任务涉及欠账模块时顺带偿还。
 
 ### Worktree-First
 

@@ -1,6 +1,14 @@
 ---
 name: dj-hunt
 description: "系统化排查 bug：先定位根因，再修复。尤其擅长回归和"以前好现在坏"的情况。 Use when the user reports errors, crashes, regressions, failing tests, or unexpected behavior changes — anything that needs root cause investigation. 触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。"
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: 'f2d7884e-e0fb-431c-b1bc-9f861ea6e108'
+  PropagateID: 'f2d7884e-e0fb-431c-b1bc-9f861ea6e108'
+  ReservedCode1: 'efa0b82d-73a7-4b03-89ea-6d68e52a94cc'
+  ReservedCode2: 'efa0b82d-73a7-4b03-89ea-6d68e52a94cc'
 ---
 
 参考规范：`docs/references/decision-ladder.md`（编码前的决策阶梯）、`docs/references/code-task-contract.md`（代码任务合约）。
@@ -28,7 +36,7 @@ description: "系统化排查 bug：先定位根因，再修复。尤其擅长�
 1. **先复现，再分析** — 不能稳定复现的问题，优先找复现条件，不猜原因。
 2. **先定位，再修复** — 必须找到根因（特定函数/变量/逻辑行）再修。不"顺便修周边"。
 3. **一次改一个变量** — 修复后不绿就回退，换方向，不堆叠补丁。
-4. **每次修复后跑 regression** — 确认没引入新问题。
+4. **每次修复后跑 regression** — 确认没引入新问题。改前/改后护送走 **`dj-regression-guard`** 三明治协议（改前基线 → 修复 → 专项验证 → 改后回归）。本 skill 负责定位根因并写专项（failing test 转绿），改前基线与改后回归由 `dj-regression-guard` 承接，不在本 skill 内重复实现。
 
 ## 工作流
 

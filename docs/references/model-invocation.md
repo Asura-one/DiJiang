@@ -1,3 +1,14 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '4f59e36c-27d5-4eff-9532-1a65e96df7e7'
+  PropagateID: '4f59e36c-27d5-4eff-9532-1a65e96df7e7'
+  ReservedCode1: '322752d0-933f-434c-99d1-76a8009ec34d'
+  ReservedCode2: '322752d0-933f-434c-99d1-76a8009ec34d'
+---
+
 # 技能调用分类（Model Invocation）
 
 每个 `dj-*` skill 在 `disable_model_invocation` 字段声明其调用方式。
@@ -26,6 +37,8 @@
 | dj-implement | 模型调用 | 执行流程核心 |
 | dj-tdd | 模型调用 | 执行流程核心 |
 | dj-hunt | 模型调用 | bug 修复核心 |
+| dj-regression-guard | 模型调用 | 改码三明治回归协议（任务级前置纪律） |
+| dj-fullstack-testing | 模型调用 | 全量回归引擎（全量模式时触发） |
 | dj-check | 模型调用 | 质量门禁 |
 | dj-review | 模型调用 | 代码审查 |
 | dj-script | 用户调用 | 只在用户要求时创建脚本 |

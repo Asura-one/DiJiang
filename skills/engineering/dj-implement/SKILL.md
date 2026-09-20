@@ -1,6 +1,14 @@
 ---
 name: dj-implement
 description: "按计划实现特性代码，遵守 git 安全工作流。 Use when the user wants to implement a feature, fix, or change based on a plan or issue. 触发词：实现、写代码、implement、开始做、按计划做、开发。"
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '7c732ca1-b21a-4191-b81a-fb5c82f4e00e'
+  PropagateID: '7c732ca1-b21a-4191-b81a-fb5c82f4e00e'
+  ReservedCode1: '710eda3a-5932-4880-8b59-160c248d2d84'
+  ReservedCode2: '710eda3a-5932-4880-8b59-160c248d2d84'
 ---
 
 参考规范：`docs/references/decision-ladder.md`（编码前的决策阶梯）、`docs/references/code-task-contract.md`（代码任务合约）。
@@ -62,6 +70,8 @@ description: "按计划实现特性代码，遵守 git 安全工作流。 Use wh
 4. 跑 regression scope，确认没有破坏相关行为。
 5. 清理本改动引入的死 import、临时输出。
 6. 重读改过的区域，确认局部一致。
+
+**改前/改后回归护送**：本次改码的改前基线与改后回归由 `dj-regression-guard` 三明治协议承接。改码前先确认已走 S0-S1（快速层定义 + 改前基线），改码后执行 S2-S3（专项验证 + 改后回归）。本 skill 负责写专项（TDD 红测转绿），基线与回归由 `dj-regression-guard` 承载，不在本 skill 内重复实现。
 
 复杂变更前，先问：「有没有不新增抽象、不新增依赖的简单方案？」
 
