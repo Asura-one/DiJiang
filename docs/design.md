@@ -1,3 +1,14 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: 'caf84ac6-2392-451e-843f-52c795e9feaa'
+  PropagateID: 'caf84ac6-2392-451e-843f-52c795e9feaa'
+  ReservedCode1: '639092b4-7c42-45b3-a05a-0357c354eb22'
+  ReservedCode2: '639092b4-7c42-45b3-a05a-0357c354eb22'
+---
+
 # 设计决策
 
 ## 1. 单体 CLI 二进制
@@ -189,9 +200,8 @@ summary: ...
 
 | 子 agent          | 加载的 skill 清单                                          |
 | ----------------- | ---------------------------------------------------------- |
-| dijiang-check     | dj-check, dj-audit, dj-debt, dj-health                     |
-| dijiang-implement | dj-implement, dj-tdd, dj-prototype, dj-ponytail, dj-script, dj-absorb |
-| dijiang-implement | dj-implement, dj-tdd, dj-prototype, dj-ponytail, dj-script |
+| dijiang-check     | dj-check, dj-fullstack-testing, dj-audit, dj-debt, dj-health                     |
+| dijiang-implement | dj-implement, dj-tdd, dj-regression-guard, dj-prototype, dj-ponytail, dj-script, dj-absorb |
 | dijiang-research  | dj-hunt, dj-dispatch, dj-pattern                           |
 
 **理由**：单一 agent 加载全部 skil 会超出 prompt 上下文。分离后每个子 agent 只需知道所属领域的 skill。同时职责边界更清晰 —— check agent 不会误入实现路径。

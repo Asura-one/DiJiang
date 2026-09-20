@@ -2,6 +2,14 @@
 name: dj-dispatch
 description: "通用任务分类器：识别任务类型，路由到对应 skill 执行。 支持单一任务和混合任务（主类型驱动 + 串联执行）。 Use when the user gives a new task, request, feature idea, bug report, or any command that isn't already in a specific skill workflow. 触发词：新任务、帮忙、做一下、有个想法、有个需求。"
 disable-model-invocation: true
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '08dc53f4-2f8f-4263-b49a-591088e5a569'
+  PropagateID: '08dc53f4-2f8f-4263-b49a-591088e5a569'
+  ReservedCode1: '67fa12b0-50a0-4c81-8151-fac03d2512b0'
+  ReservedCode2: '67fa12b0-50a0-4c81-8151-fac03d2512b0'
 ---
 
 参考规范：`docs/references/decision-ladder.md`、`docs/references/code-task-contract.md`。
@@ -39,7 +47,7 @@ disable-model-invocation: true
 
 | 用户说的话 | 路由到 |
 |---|---|
-| "实现/写代码/做功能/加个接口" | `dj-implement` 或 `dj-tdd` |
+| "实现/写代码/做功能/加个接口" | `dj-implement` 或 `dj-tdd`（改码护送走 `dj-regression-guard`） |
 | "复刻/仿站/对标/clone" | `dj-remix` |
 | "原型/验证一下/探一下" | `dj-prototype` |
 | "极简/少写/简单点" | 对应实现 skill，并应用 workflow 的最小变更约束 |
@@ -53,6 +61,8 @@ disable-model-invocation: true
 |---|---|
 | "审查/帮我看看代码" | `dj-review` |
 | "检查/验收/质量门禁" | `dj-check` |
+| "全量测试/全面回归/系统测试" | `dj-fullstack-testing` |
+| "回归保护/改前基线/三明治" | `dj-regression-guard` |
 | "审计/扫一下/过度工程" | `dj-audit` |
 | "债务/技术债/标记/健康检查/配置检查" | `dj-audit`（选择 debt 或 health profile） |
 | "代码规则/纪律/karpathy" | 对应实现或审查 skill，并应用 workflow 通用约束 |

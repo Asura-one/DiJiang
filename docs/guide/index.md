@@ -1,3 +1,14 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '329fec55-cc37-4c58-af92-0d38789a79ce'
+  PropagateID: '329fec55-cc37-4c58-af92-0d38789a79ce'
+  ReservedCode1: '09c714e6-568c-4364-a68a-b1e4e4340686'
+  ReservedCode2: '09c714e6-568c-4364-a68a-b1e4e4340686'
+---
+
 # 用户指南
 
 ## Skill 选择流程
@@ -12,7 +23,9 @@
 │   ├── 有测试要求 → dj-tdd
 │   └── 无测试要求 → dj-implement
 ├── Bug / 回归
-│   └── dj-hunt
+│   ├── 排查根因 → dj-hunt
+│   ├── 改码回归保护 → dj-regression-guard
+│   └── 全量回归测试 → dj-fullstack-testing
 ├── 需求不明确 / 范围模糊
 │   └── dj-grill → 对齐后再走实现路径
 ├── 审查现有代码
@@ -51,7 +64,7 @@
 |-------------|-------------|------|
 | `none` | `dj-dispatch` | 先分流，不要直接干活 |
 | `planning` | `dj-grill`、`dj-output` | 对齐阶段；实现类请求会被 Route Gate 重定向到 `dj-grill` |
-| `in_progress` | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-script` / `dj-check` 等 | 实现阶段，按需选择 |
+| `in_progress` | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-regression-guard` / `dj-fullstack-testing` / `dj-script` / `dj-check` 等 | 实现阶段，按需选择 |
 | `completed` | 无（走 `dijiang finish-work`） | 收尾，不使用 skill |
 | `archived` | 无 | 只读，需 `dijiang start <task>` 重新激活 |
 | `paused` | `dijiang-continue` | 恢复后回到 planning 或 in_progress |
@@ -82,6 +95,7 @@
    → 引擎分类为 dj-hunt（bug/regression）
 
 2. dj-hunt 排查根因 → 找到问题 → 修复 → 验证
+   （改码护送走 dj-regression-guard 三明治协议：改前基线→修复→专项验证→改后回归）
 
 3. dijiang finish-work --verification "Bug 已修复，回归测试通过" --docs-sync "CHANGELOG" --version-impact patch --commit --approve-cleanup
 ```

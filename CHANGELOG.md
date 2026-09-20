@@ -3,13 +3,28 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '38f3a25e-b8d4-4f93-ad2e-1619498c4eb1'
-  PropagateID: '38f3a25e-b8d4-4f93-ad2e-1619498c4eb1'
-  ReservedCode1: '16a72982-b15c-4c36-b750-f7d2fe434b38'
-  ReservedCode2: '16a72982-b15c-4c36-b750-f7d2fe434b38'
+  ProduceID: '8860d518-dbb0-4f98-bdb0-6a643b4981dd'
+  PropagateID: '8860d518-dbb0-4f98-bdb0-6a643b4981dd'
+  ReservedCode1: '8811a182-d6f7-4636-bfb7-0aa95c2df5a4'
+  ReservedCode2: '8811a182-d6f7-4636-bfb7-0aa95c2df5a4'
 ---
 
 # 变更日志
+
+## [1.1.0] — 2026-09-20
+
+### 新增
+
+- **`dj-regression-guard`**：改码三明治回归协议（S0–S6 + 零基建退路 + 铁律）。改码任务级前置纪律，执行改前基线 → 修改 → 专项验证 → 改后回归。
+- **`dj-fullstack-testing`**：全栈回归测试引擎（commit-id 守门 / 功能枚举 / API 深度验证 / UI 双层 / 覆盖度核对）。供 `dj-regression-guard` 引用其 diff 映射表、冒烟最小集与 `docs/project-understanding.md` 格式（引用不复制）。
+
+### 变更
+
+- 改造 `dj-check`、`dj-hunt`、`dj-implement` 收敛回归碎片为引用 `dj-regression-guard`，消除双轨表述。
+- `CONTEXT.md` 新增回归三明治、快速层、回归基线、测试债台账等术语。
+- `docs/references/model-invocation.md` 登记两个新 skill 为 model-invoked。
+- `README.md`、`AGENTS.md`、`CLAUDE.md`、`dj-dispatch` 路由表同步更新。
+- 新增 ADR-006 记录融合决策与方案权衡。
 
 ## [1.0.0] — 2026-09-17
 

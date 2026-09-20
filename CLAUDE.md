@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '63830c8a-41e0-4589-94e5-ad268352afe0'
-  PropagateID: '63830c8a-41e0-4589-94e5-ad268352afe0'
-  ReservedCode1: '304552c9-763e-4386-86f8-2a74821a042c'
-  ReservedCode2: '304552c9-763e-4386-86f8-2a74821a042c'
+  ProduceID: 'faac968d-856b-4d27-8a69-88d16996cf6d'
+  PropagateID: 'faac968d-856b-4d27-8a69-88d16996cf6d'
+  ReservedCode1: '359cce67-3925-4e93-b93f-fe79b66516fc'
+  ReservedCode2: '359cce67-3925-4e93-b93f-fe79b66516fc'
 ---
 
 # DiJiang
@@ -30,10 +30,11 @@ AIGC:
 1. **新项目**：`dj-setup` 初始化
 2. **新任务**：`dj-dispatch` 分流路由
 3. **需求对齐**：`dj-grill` 逐轮拷问
-4. **实现**：`dj-implement` 或 `dj-tdd`
+4. **实现**：`dj-implement` 或 `dj-tdd`（改码护送走 `dj-regression-guard`）
 5. **排查**：`dj-hunt`
 6. **审查**：`dj-check`
-7. **收尾**：`dijiang-finish-work`
+7. **全量测试**：`dj-fullstack-testing`
+8. **收尾**：`dijiang-finish-work`
 
 ### 任务状态
 
@@ -42,7 +43,7 @@ AIGC:
 | 状态 | 下一步 |
 |------|--------|
 | planning | `dj-grill` → `dj-output` → `dj-split` |
-| in_progress | `dj-implement` / `dj-tdd` → `dj-check` |
+| in_progress | `dj-implement` / `dj-tdd` → `dj-regression-guard`（护送）→ `dj-check` |
 | completed | `dijiang-finish-work` |
 | paused | `dijiang-continue` |
 

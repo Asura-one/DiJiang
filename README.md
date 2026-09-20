@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: 'df5892da-039b-4688-9339-4122024fa999'
-  PropagateID: 'df5892da-039b-4688-9339-4122024fa999'
-  ReservedCode1: 'fda738da-99d9-47df-a1f2-4cc9cba13307'
-  ReservedCode2: 'fda738da-99d9-47df-a1f2-4cc9cba13307'
+  ProduceID: 'cc3807ce-d7db-40e3-afd9-3340f58c784a'
+  PropagateID: 'cc3807ce-d7db-40e3-afd9-3340f58c784a'
+  ReservedCode1: 'ae239b2b-fda9-478d-92c2-b8580742b337'
+  ReservedCode2: 'ae239b2b-fda9-478d-92c2-b8580742b337'
 ---
 
 # 帝江 (DiJiang)
@@ -38,7 +38,7 @@ cp -r skills/ /path/to/your-project/
 
 ## Skill 清单
 
-### Engineering（40 skills）
+### Engineering（42 skills）
 
 #### 核心流程
 
@@ -54,6 +54,8 @@ cp -r skills/ /path/to/your-project/
 | `dj-implement` | model | 特性代码实现 |
 | `dj-tdd` | model | 测试驱动开发 |
 | `dj-hunt` | model | bug、回归、根因排查 |
+| `dj-regression-guard` | model | 改码三明治回归协议（改前基线→改后回归） |
+| `dj-fullstack-testing` | model | 全栈回归测试引擎（全量模式） |
 | `dj-merge-conflict` | model | 合并冲突解决 |
 | `dj-check` | model | 代码审查、质量门禁 |
 | `dj-review` | model | 轻量只读审查 |
@@ -114,6 +116,7 @@ planning
   └─ dj-grill（对齐），必要时 dj-output → dj-split
 in_progress
   ├─ dj-implement / dj-tdd / dj-hunt / dj-design / dj-script
+  ├─ dj-regression-guard（改码三明治护送）
   └─ dj-check（质量门禁）
 completed
   └─ dijiang-finish-work（验证 + 提交 + 归档）
@@ -137,7 +140,7 @@ paused
 ```
 DiJiang/
 ├── skills/
-│   ├── engineering/       # 32 skills
+│   ├── engineering/       # 42 skills
 │   │   ├── dj-grill/SKILL.md
 │   │   ├── dj-implement/SKILL.md
 │   │   ├── dj-tdd/SKILL.md
@@ -147,7 +150,7 @@ DiJiang/
 │   │   ├── dijiang-start/SKILL.md
 │   │   ├── dijiang-continue/SKILL.md
 │   │   └── dijiang-finish-work/SKILL.md
-│   └── productivity/      # 1 skill
+│   └── productivity/      # 5 skills
 │       └── dj-write/SKILL.md
 ├── docs/
 │   ├── adr/               # 架构决策记录

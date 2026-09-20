@@ -1,3 +1,14 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: 'e2749e31-b8ec-4475-b0d3-4aaabd4a0664'
+  PropagateID: 'e2749e31-b8ec-4475-b0d3-4aaabd4a0664'
+  ReservedCode1: 'f22063fb-531f-4f62-9c9c-764a47d7a3f6'
+  ReservedCode2: 'f22063fb-531f-4f62-9c9c-764a47d7a3f6'
+---
+
 # Durable Context Preflight
 
 在读取 DiJiang 持久记忆前执行的标准化预检流程。
@@ -7,6 +18,7 @@
 以下操作前必须执行 Preflight：
 - 开始新的实现任务（dj-implement）
 - 开始 bug 修复（dj-hunt）
+- 改码回归护送（dj-regression-guard）
 - 设计或架构决策（dj-design、dj-reason）
 - Session 交接（dj-handoff）
 - 模式识别（dj-pattern）

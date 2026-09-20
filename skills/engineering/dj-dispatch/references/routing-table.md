@@ -1,3 +1,14 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: 'd2bfdefe-4433-4701-ad3b-adaaec187109'
+  PropagateID: 'd2bfdefe-4433-4701-ad3b-adaaec187109'
+  ReservedCode1: '2c23c2d4-2704-46a1-8c74-a76dc5f3734c'
+  ReservedCode2: '2c23c2d4-2704-46a1-8c74-a76dc5f3734c'
+---
+
 # dj-dispatch: 路由表
 
 | 关键词 | 路由 |
@@ -7,6 +18,8 @@
 | 出错了/不工作/报错 | dj-hunt |
 | 审查/看看代码 | dj-review |
 | 检查/验收 | dj-check |
+| 全量测试/全面回归 | dj-fullstack-testing |
+| 回归保护/改前基线/三明治 | dj-regression-guard |
 | 想法/细化/对齐 | dj-grill |
 | 原型/验证/探一下 | dj-prototype |
 | 脚本/工具 | dj-script |

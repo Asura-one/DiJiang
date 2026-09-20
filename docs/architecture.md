@@ -1,3 +1,14 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '995aa1a9-6d20-43cd-8e0e-ae6558d7bb79'
+  PropagateID: '995aa1a9-6d20-43cd-8e0e-ae6558d7bb79'
+  ReservedCode1: 'b23dfdb7-1ea7-405f-a691-a5da2b840c5c'
+  ReservedCode2: 'b23dfdb7-1ea7-405f-a691-a5da2b840c5c'
+---
+
 # DiJiang 架构
 
 ## 概述
@@ -239,6 +250,7 @@ planning
   └─ align: dj-grill，必要时 dj-output
 in_progress
   ├─ implement: dj-implement / dj-tdd / dj-hunt / dj-script / dj-design
+  ├─ guard: dj-regression-guard（改码三明治护送）
   └─ check: dj-check
 completed
   └─ finish: dijiang finish-work --verification ... --docs-sync ... --version-impact ...

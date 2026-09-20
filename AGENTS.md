@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '6e48dc5e-1ba8-4bc9-b7a9-1c2fe0f9ec36'
-  PropagateID: '6e48dc5e-1ba8-4bc9-b7a9-1c2fe0f9ec36'
-  ReservedCode1: '6c2caf69-8a92-4800-b17c-f35e631e9282'
-  ReservedCode2: '6c2caf69-8a92-4800-b17c-f35e631e9282'
+  ProduceID: '39ff2973-3ce0-44c5-8993-1b79eb7ddaee'
+  PropagateID: '39ff2973-3ce0-44c5-8993-1b79eb7ddaee'
+  ReservedCode1: '8d450be5-5fdf-48bb-be57-a12143765930'
+  ReservedCode2: '8d450be5-5fdf-48bb-be57-a12143765930'
 ---
 
 # DiJiang Project Instructions
@@ -44,6 +44,8 @@ AIGC:
 | 功能实现 | `dj-implement` | model |
 | 测试驱动开发 | `dj-tdd` | model |
 | Bug / 回归排查 | `dj-hunt` | model |
+| 改码回归保护 | `dj-regression-guard` | model |
+| 全栈回归测试 | `dj-fullstack-testing` | model |
 | 合并冲突解决 | `dj-merge-conflict` | model |
 | 代码审查 / 质量门禁 | `dj-check` | model |
 | 轻量只读审查 | `dj-review` | model |
@@ -108,7 +110,7 @@ none → planning → in_progress → completed → archived
 |------|-------------|
 | none | `dj-setup`（初始化）、`dj-dispatch`（创建任务） |
 | planning | `dj-grill`（对齐）、`dj-output`（文档）、`dj-spec-bootstrap`、`dj-split` |
-| in_progress | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-check`、`dj-review`、`dj-script`、`dj-design`、`dj-prototype` |
+| in_progress | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-regression-guard`、`dj-fullstack-testing`、`dj-check`、`dj-review`、`dj-script`、`dj-design`、`dj-prototype` |
 | completed | `dijiang-finish-work`（收尾） |
 | paused | `dijiang-continue`（恢复） |
 | archived | 只读，如需继续重新创建任务 |
