@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '329fec55-cc37-4c58-af92-0d38789a79ce'
-  PropagateID: '329fec55-cc37-4c58-af92-0d38789a79ce'
-  ReservedCode1: '09c714e6-568c-4364-a68a-b1e4e4340686'
-  ReservedCode2: '09c714e6-568c-4364-a68a-b1e4e4340686'
+  ProduceID: '06a41695-3999-4762-9cff-d6d4436b15e6'
+  PropagateID: '06a41695-3999-4762-9cff-d6d4436b15e6'
+  ReservedCode1: '6d4d0d53-7638-4c60-9852-6ade99653b01'
+  ReservedCode2: '6d4d0d53-7638-4c60-9852-6ade99653b01'
 ---
 
 # 用户指南
@@ -31,9 +31,7 @@ AIGC:
 ├── 审查现有代码
 │   ├── 需要运行测试、检查完整性 → dj-check
 │   ├── 只需要快速看一眼、不改代码 → dj-review
-│   ├── 全仓审计 / 过度工程扫描 → dj-audit
-│   ├── 技术债追踪 → dj-debt
-│   └── 健康报告 → dj-health
+│   ├── 全仓审计 / 过度工程扫描 / 技术债 / 健康检查 → dj-audit
 ├── 设计 / UI
 │   └── dj-design
 ├── 吸收融合

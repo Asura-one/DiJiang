@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: 'd2bfdefe-4433-4701-ad3b-adaaec187109'
-  PropagateID: 'd2bfdefe-4433-4701-ad3b-adaaec187109'
-  ReservedCode1: '2c23c2d4-2704-46a1-8c74-a76dc5f3734c'
-  ReservedCode2: '2c23c2d4-2704-46a1-8c74-a76dc5f3734c'
+  ProduceID: 'abd3f07f-7d9e-41eb-85fc-5429ffc677b3'
+  PropagateID: 'abd3f07f-7d9e-41eb-85fc-5429ffc677b3'
+  ReservedCode1: 'dc11b5af-9902-4db5-9191-c58b88572f03'
+  ReservedCode2: 'dc11b5af-9902-4db5-9191-c58b88572f03'
 ---
 
 # dj-dispatch: 路由表
@@ -21,6 +21,7 @@ AIGC:
 | 全量测试/全面回归 | dj-fullstack-testing |
 | 回归保护/改前基线/三明治 | dj-regression-guard |
 | 想法/细化/对齐 | dj-grill |
+| 有哪些流程/该走什么 | dj-ask |
 | 原型/验证/探一下 | dj-prototype |
 | 脚本/工具 | dj-script |
 | 极简/少写 | 对应实现 skill，遵守 workflow 的最小变更约束 |

@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: 'faac968d-856b-4d27-8a69-88d16996cf6d'
-  PropagateID: 'faac968d-856b-4d27-8a69-88d16996cf6d'
-  ReservedCode1: '359cce67-3925-4e93-b93f-fe79b66516fc'
-  ReservedCode2: '359cce67-3925-4e93-b93f-fe79b66516fc'
+  ProduceID: '648c7f03-394d-483a-a023-036bcd6074f1'
+  PropagateID: '648c7f03-394d-483a-a023-036bcd6074f1'
+  ReservedCode1: 'ad573154-4fdf-4fdc-9283-689b30f631ad'
+  ReservedCode2: 'ad573154-4fdf-4fdc-9283-689b30f631ad'
 ---
 
 # DiJiang
@@ -28,13 +28,14 @@ AIGC:
 ### 常用入口
 
 1. **新项目**：`dj-setup` 初始化
-2. **新任务**：`dj-dispatch` 分流路由
-3. **需求对齐**：`dj-grill` 逐轮拷问
-4. **实现**：`dj-implement` 或 `dj-tdd`（改码护送走 `dj-regression-guard`）
-5. **排查**：`dj-hunt`
-6. **审查**：`dj-check`
-7. **全量测试**：`dj-fullstack-testing`
-8. **收尾**：`dijiang-finish-work`
+2. **全局流程**：`dj-ask` 查看 DiJiang 有哪些 workflow / 该走什么流程
+3. **新任务**：`dj-dispatch` 分流路由
+4. **需求对齐**：`dj-grill` 逐轮拷问
+5. **实现**：`dj-implement` 或 `dj-tdd`（改码护送走 `dj-regression-guard`）
+6. **排查**：`dj-hunt`
+7. **审查**：`dj-check`
+8. **全量测试**：`dj-fullstack-testing`
+9. **收尾**：`dijiang-finish-work`
 
 ### 任务状态
 

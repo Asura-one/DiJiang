@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '995aa1a9-6d20-43cd-8e0e-ae6558d7bb79'
-  PropagateID: '995aa1a9-6d20-43cd-8e0e-ae6558d7bb79'
-  ReservedCode1: 'b23dfdb7-1ea7-405f-a691-a5da2b840c5c'
-  ReservedCode2: 'b23dfdb7-1ea7-405f-a691-a5da2b840c5c'
+  ProduceID: '307b76cf-2cfc-4c48-ad37-0c28bc99514d'
+  PropagateID: '307b76cf-2cfc-4c48-ad37-0c28bc99514d'
+  ReservedCode1: '785f97f7-b762-49aa-94b4-474cacc18bab'
+  ReservedCode2: '785f97f7-b762-49aa-94b4-474cacc18bab'
 ---
 
 # DiJiang 架构
@@ -205,8 +205,6 @@ DiJiang 有两层 skill：`dj-*` skill（原子工作能力）和 `dijiang-*` sk
 │   ├── dj-prototype/SKILL.md
 │   ├── dj-audit/SKILL.md
 │   ├── dj-absorb/SKILL.md
-│   ├── dj-debt/SKILL.md
-│   ├── dj-health/SKILL.md
 │   ├── dj-pattern/SKILL.md
 │   ├── dj-karpathy/SKILL.md
 │   ├── dj-review/SKILL.md

@@ -5,10 +5,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '30b07129-de05-4c4d-b49f-ff569e1eba2b'
-  PropagateID: '30b07129-de05-4c4d-b49f-ff569e1eba2b'
-  ReservedCode1: '396f5820-f615-4fa7-9e74-166e78f33d4c'
-  ReservedCode2: '396f5820-f615-4fa7-9e74-166e78f33d4c'
+  ProduceID: '73410e28-3e0d-49eb-b2fe-8b4c1e593d45'
+  PropagateID: '73410e28-3e0d-49eb-b2fe-8b4c1e593d45'
+  ReservedCode1: '2523ac4b-667f-4fe5-8959-90585fc598eb'
+  ReservedCode2: '2523ac4b-667f-4fe5-8959-90585fc598eb'
 ---
 
 # DiJiang 领域语言
@@ -79,7 +79,11 @@ Skill 的分类桶。DiJiang 使用两个 bucket：
 
 ### dj-dispatch
 
-任务分流和技能路由的 skill。读取任务状态和用户意图，推荐合适的 dj-* skill。
+任务分流和技能路由的 skill（user-invoked）。逐请求战术路由：读取用户意图，一进一出推荐合适的 dj-* skill。
+
+### dj-ask
+
+全局 flow 路由图的 skill（user-invoked）。以主流程/入口匝道/独立工具/词汇层的结构组织全部 skill，回答"这个任务该走什么流程""DiJiang 有哪些 workflow"。与 `dj-dispatch` 分工：dispatch 是逐请求路由（一进一出），dj-ask 是全局战略路由（多 skill 串联路径图）。
 
 ### dj-grill
 

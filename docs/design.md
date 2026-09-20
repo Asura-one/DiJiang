@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: 'caf84ac6-2392-451e-843f-52c795e9feaa'
-  PropagateID: 'caf84ac6-2392-451e-843f-52c795e9feaa'
-  ReservedCode1: '639092b4-7c42-45b3-a05a-0357c354eb22'
-  ReservedCode2: '639092b4-7c42-45b3-a05a-0357c354eb22'
+  ProduceID: '67493ac5-5347-4f18-a94c-7871b1bdb0bb'
+  PropagateID: '67493ac5-5347-4f18-a94c-7871b1bdb0bb'
+  ReservedCode1: 'dac6a89f-d9c0-4f30-903f-3343e9234a85'
+  ReservedCode2: 'dac6a89f-d9c0-4f30-903f-3343e9234a85'
 ---
 
 # 设计决策
@@ -200,7 +200,7 @@ summary: ...
 
 | 子 agent          | 加载的 skill 清单                                          |
 | ----------------- | ---------------------------------------------------------- |
-| dijiang-check     | dj-check, dj-fullstack-testing, dj-audit, dj-debt, dj-health                     |
+| dijiang-check     | dj-check, dj-fullstack-testing, dj-audit                     |
 | dijiang-implement | dj-implement, dj-tdd, dj-regression-guard, dj-prototype, dj-ponytail, dj-script, dj-absorb |
 | dijiang-research  | dj-hunt, dj-dispatch, dj-pattern                           |
 

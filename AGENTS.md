@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '39ff2973-3ce0-44c5-8993-1b79eb7ddaee'
-  PropagateID: '39ff2973-3ce0-44c5-8993-1b79eb7ddaee'
-  ReservedCode1: '8d450be5-5fdf-48bb-be57-a12143765930'
-  ReservedCode2: '8d450be5-5fdf-48bb-be57-a12143765930'
+  ProduceID: '74afed85-0c13-40ec-8854-3de3ba08c6e8'
+  PropagateID: '74afed85-0c13-40ec-8854-3de3ba08c6e8'
+  ReservedCode1: '385c18c6-4487-4815-9bc7-18ce662c6c85'
+  ReservedCode2: '385c18c6-4487-4815-9bc7-18ce662c6c85'
 ---
 
 # DiJiang Project Instructions
@@ -35,6 +35,7 @@ AIGC:
 | 场景 | Skill | 调用模式 |
 |------|-------|---------|
 | 新任务 / 不清楚的请求 | `dj-dispatch` | user |
+| 全局流程路由 / 有哪些 workflow | `dj-ask` | user |
 | 需求对齐 | `dj-grill` | user |
 | PRD / 设计文档 | `dj-output` | user |
 | Spec 初始生成 | `dj-spec-bootstrap` | user |
@@ -54,9 +55,7 @@ AIGC:
 
 | 场景 | Skill | 调用模式 |
 |------|-------|---------|
-| 全仓审计 | `dj-audit` | user |
-| 技术债追踪 | `dj-debt` | user |
-| 健康检查 | `dj-health` | user |
+| 全仓审计 / 技术债 / 健康检查 | `dj-audit` | user |
 | 模式研究 | `dj-pattern` | user |
 | 架构自省 | `dj-meta` | user |
 | 推理透镜 | `dj-reason` | model |

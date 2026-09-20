@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '4f59e36c-27d5-4eff-9532-1a65e96df7e7'
-  PropagateID: '4f59e36c-27d5-4eff-9532-1a65e96df7e7'
-  ReservedCode1: '322752d0-933f-434c-99d1-76a8009ec34d'
-  ReservedCode2: '322752d0-933f-434c-99d1-76a8009ec34d'
+  ProduceID: 'b96e337d-a0aa-4d9d-bd62-3f9bfded1a5e'
+  PropagateID: 'b96e337d-a0aa-4d9d-bd62-3f9bfded1a5e'
+  ReservedCode1: 'f1fbdde4-2706-4d46-9d12-2135bb4bf003'
+  ReservedCode2: 'f1fbdde4-2706-4d46-9d12-2135bb4bf003'
 ---
 
 # 技能调用分类（Model Invocation）
@@ -22,7 +22,7 @@ AIGC:
 
 ## 设计原则
 
-- **路由 skills**（如 dj-dispatch、dj-grill）应为模型调用——它们是模型自动进入流程的入口
+- **路由 skills**（如 dj-dispatch、dj-ask、dj-grill）应为模型调用或用户调用——dispatch 是逐请求战术路由，dj-ask 是全局战略路由图，两者都是用户主动触发
 - **执行 skills**（如 dj-implement、dj-tdd）应为模型调用——模型在 routing 后自动进入
 - **分析/报告 skills**（如 dj-audit）应为用户调用——只在用户要求时执行，减少不必要的上下文消耗
 - **写作/润色 skills**（如 dj-write）应为用户调用——改写原文需要用户确认
@@ -33,6 +33,7 @@ AIGC:
 | Skill | 调用类型 | 理由 |
 |-------|----------|------|
 | dj-dispatch | 模型调用 | 新请求入口路由 |
+| dj-ask | 用户调用 | 全局 flow 路由图（用户主动问有哪些流程） |
 | dj-grill | 模型调用 | 需求模糊时自动对齐 |
 | dj-implement | 模型调用 | 执行流程核心 |
 | dj-tdd | 模型调用 | 执行流程核心 |

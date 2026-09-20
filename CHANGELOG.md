@@ -3,13 +3,31 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '8860d518-dbb0-4f98-bdb0-6a643b4981dd'
-  PropagateID: '8860d518-dbb0-4f98-bdb0-6a643b4981dd'
-  ReservedCode1: '8811a182-d6f7-4636-bfb7-0aa95c2df5a4'
-  ReservedCode2: '8811a182-d6f7-4636-bfb7-0aa95c2df5a4'
+  ProduceID: '5134a277-c4f1-4d01-a8e1-b84ac00577df'
+  PropagateID: '5134a277-c4f1-4d01-a8e1-b84ac00577df'
+  ReservedCode1: '2a0b87aa-eb8d-47ec-b7b2-5e324782155f'
+  ReservedCode2: '2a0b87aa-eb8d-47ec-b7b2-5e324782155f'
 ---
 
 # 变更日志
+
+## [1.3.0] — 2026-09-20
+
+### 变更
+
+- **归档 `dj-debt` 和 `dj-health`**：两者为 11 行兼容别名（委派 dj-audit 的 debt/health profile），现归档到 `.temp/archived-skills/`。dj-audit 直接承载 debt/health profile。
+- **修正 `dj-gov`**：description 存在编辑残留（重复段落），已清理。
+- `README.md`、`AGENTS.md`、`dj-audit`、`dj-ask`、`docs/guide/index.md`、`docs/design.md`、`docs/architecture.md` 同步移除 dj-debt/dj-health 引用，skill 数量 43→41。
+
+## [1.2.0] — 2026-09-20
+
+### 新增
+
+- **`dj-ask`**：全局 flow 路由图（DiJiang 版 ask-matt）。以主流程/入口匝道/独立工具/词汇层/Session 管理的结构组织全部 skill，回答"这个任务该走什么流程"。与 `dj-dispatch` 分工：dispatch 是逐请求战术路由，dj-ask 是全局战略路由。
+
+### 变更
+
+- `README.md`、`AGENTS.md`、`CLAUDE.md`、`docs/references/model-invocation.md` 同步登记 `dj-ask`。
 
 ## [1.1.0] — 2026-09-20
 

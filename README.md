@@ -3,10 +3,10 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: 'cc3807ce-d7db-40e3-afd9-3340f58c784a'
-  PropagateID: 'cc3807ce-d7db-40e3-afd9-3340f58c784a'
-  ReservedCode1: 'ae239b2b-fda9-478d-92c2-b8580742b337'
-  ReservedCode2: 'ae239b2b-fda9-478d-92c2-b8580742b337'
+  ProduceID: '9d69ecbf-2f95-4703-8c8d-ab04575dc620'
+  PropagateID: '9d69ecbf-2f95-4703-8c8d-ab04575dc620'
+  ReservedCode1: '57bb34c3-abd1-4e67-b243-66e9efbf3249'
+  ReservedCode2: '57bb34c3-abd1-4e67-b243-66e9efbf3249'
 ---
 
 # 帝江 (DiJiang)
@@ -38,13 +38,14 @@ cp -r skills/ /path/to/your-project/
 
 ## Skill 清单
 
-### Engineering（42 skills）
+### Engineering（41 skills）
 
 #### 核心流程
 
 | Skill | 调用模式 | 触发 |
 |-------|---------|------|
 | `dj-dispatch` | user | 新任务分流和技能路由 |
+| `dj-ask` | user | 全局 flow 路由图（有哪些 workflow/该走什么流程） |
 | `dj-grill` | user | 需求不清、范围需要对齐 |
 | `dj-output` | user | PRD、design、spec 文档 |
 | `dj-spec-bootstrap` | user | Spec 初始生成 |
@@ -64,9 +65,7 @@ cp -r skills/ /path/to/your-project/
 
 | Skill | 调用模式 | 触发 |
 |-------|---------|------|
-| `dj-audit` | user | 全仓审计或过度工程扫描 |
-| `dj-debt` | user | 技术债追踪 |
-| `dj-health` | user | codebase 健康检查 |
+| `dj-audit` | user | 全仓审计（含技术债/健康检查 profile） |
 | `dj-pattern` | user | 模式研究 |
 | `dj-reason` | model | 复杂判断、认知校准 |
 | `dj-research` | model | 技术调研 |
@@ -140,7 +139,7 @@ paused
 ```
 DiJiang/
 ├── skills/
-│   ├── engineering/       # 42 skills
+│   ├── engineering/       # 41 skills
 │   │   ├── dj-grill/SKILL.md
 │   │   ├── dj-implement/SKILL.md
 │   │   ├── dj-tdd/SKILL.md
