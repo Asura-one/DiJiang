@@ -3,23 +3,12 @@
 # 项目本地状态（由 dj-setup 初始化）
 .dijiang/
 
-# Agent 平台配置（如仍存在）
-.pi
-.pi/
-.pi-subagents/
-.claude/
-.codex/
-.cursor/
-.opencode/
-.hermes/
-
-# 外部参考
-referens/
-
-# 临时文件
+# 临时文件 / 归档
 .temp/
-.workbuddy/
 __pycache__/
+
+# 外部参考仓库
+referens/
 
 # 构建产物（历史保留）
 *.gen.rs

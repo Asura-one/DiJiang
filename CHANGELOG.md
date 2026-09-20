@@ -3,13 +3,32 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '5134a277-c4f1-4d01-a8e1-b84ac00577df'
-  PropagateID: '5134a277-c4f1-4d01-a8e1-b84ac00577df'
-  ReservedCode1: '2a0b87aa-eb8d-47ec-b7b2-5e324782155f'
-  ReservedCode2: '2a0b87aa-eb8d-47ec-b7b2-5e324782155f'
+  ProduceID: 'f8aac43f-4b03-453e-ba51-51b951ab0cb0'
+  PropagateID: 'f8aac43f-4b03-453e-ba51-51b951ab0cb0'
+  ReservedCode1: '23128256-50da-40fb-a243-74a6ab133fd3'
+  ReservedCode2: '23128256-50da-40fb-a243-74a6ab133fd3'
 ---
 
 # 变更日志
+
+## [1.4.0] — 2026-09-20
+
+### 移除
+
+- **归档 5 个本地目录**：`.pi/`（77 文件 Pi Extension + skill 副本）、`.pi-subagents/`（49 文件运行时产物）、`.claude/`（hook 调用不存在的 CLI）、`.codex/`（同前）、`.workbuddy/`——全部移入 `.temp/archived-dirs/`。
+- **归档 9 个历史文档**：`docs/architecture.md`（旧版）、`docs/design.md`（旧版）、`docs/guide/index.md`（旧版）、`docs/guide/loop-engineering.md`、`docs/DiJiang优化计划.md`、`docs/dijiang-architecture.md`、`docs/dijiang-trellis-analysis.md`、`docs/trellis-analysis.md`、`docs/DiJiang与Trellis深度调研报告_复核版.md`、`docs/DiJiang与Trellis深度调研报告_grok.md`、`docs/dijiang-loop-engineering-fusion-analysis.md`、`docs/test-criteria.md`——全部移入 `.temp/archived-docs/`。
+
+### 新增
+
+- **重写 `docs/architecture.md`**：纯 skill 架构文档（skill 组织/加载/路由/安全/目录结构），删除全部 Rust CLI / Pi Extension / Trellis 内容。
+- **重写 `docs/design.md`**：10 条纯 skill 架构设计决策，替换旧 13 条 Rust 实现决策。
+- **重写 `docs/guide/index.md`**：skill 选择流程 + 常见工作流场景，删除 CLI 速查 / Pi Extension / Gate 门禁 / CLI 排查指南。
+
+### 变更
+
+- `docs/references/version-management.md`：重写为纯 skill 版本管理（CHANGELOG 为权威面，删除 Cargo/workspace/CLI 引用）。
+- `docs/references/anti-patterns.md`：移除 `DIJIANG_CONTEXT_ID` 引用。
+- `.gitignore`：清理已归档目录的忽略规则。
 
 ## [1.3.0] — 2026-09-20
 

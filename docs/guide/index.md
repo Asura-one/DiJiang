@@ -3,22 +3,24 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '06a41695-3999-4762-9cff-d6d4436b15e6'
-  PropagateID: '06a41695-3999-4762-9cff-d6d4436b15e6'
-  ReservedCode1: '6d4d0d53-7638-4c60-9852-6ade99653b01'
-  ReservedCode2: '6d4d0d53-7638-4c60-9852-6ade99653b01'
+  ProduceID: 'fdcec1cf-004d-4d08-9754-55b28f1fddf1'
+  PropagateID: 'fdcec1cf-004d-4d08-9754-55b28f1fddf1'
+  ReservedCode1: '250ba61a-8fa2-4775-b6e7-b0ff30ae5bdc'
+  ReservedCode2: '250ba61a-8fa2-4775-b6e7-b0ff30ae5bdc'
 ---
 
 # 用户指南
 
-## Skill 选择流程
+DiJiang 是纯 skill 架构：所有工作流通过调用 skill 完成，无运行时依赖。调用方式统一为 `Call the Skill tool with "dj-xxx"`。
 
-以下流程图帮助你根据不同场景选择正确的 `dj-*` skill。
+## Skill 选择流程
 
 ### 按任务类型选择
 
 ```
 你的任务是什么？
+├── 不知道走哪条流程 / 想要全局路线
+│   └── dj-ask（全局 flow 路由图）
 ├── 新功能 / 明确需求
 │   ├── 有测试要求 → dj-tdd
 │   └── 无测试要求 → dj-implement
@@ -31,12 +33,12 @@ AIGC:
 ├── 审查现有代码
 │   ├── 需要运行测试、检查完整性 → dj-check
 │   ├── 只需要快速看一眼、不改代码 → dj-review
-│   ├── 全仓审计 / 过度工程扫描 / 技术债 / 健康检查 → dj-audit
+│   └── 全仓审计 / 过度工程扫描 / 技术债 → dj-audit
 ├── 设计 / UI
 │   └── dj-design
-├── 吸收融合
-│   └── dj-absorb
-│   └── dj-design
+├── 吸收融合 / 复刻
+│   ├── 吸收外部项目模式 → dj-absorb
+│   └── 1:1 复刻界面功能 → dj-remix
 ├── 原型验证
 │   └── dj-prototype
 ├── 脚本 / 工具编写
@@ -50,8 +52,6 @@ AIGC:
 │   └── dj-reason
 ├── 最小改动 / YAGNI 约束
 │   └── dj-ponytail
-├── 长代码讨论
-│   └── dj-karpathy
 └── Session 交接
     └── dj-handoff
 ```
@@ -61,10 +61,10 @@ AIGC:
 | 当前任务状态 | 允许的 skill | 说明 |
 |-------------|-------------|------|
 | `none` | `dj-dispatch` | 先分流，不要直接干活 |
-| `planning` | `dj-grill`、`dj-output` | 对齐阶段；实现类请求会被 Route Gate 重定向到 `dj-grill` |
+| `planning` | `dj-grill`、`dj-output` | 对齐阶段；实现类请求按 skill 纪律引导到 `dj-grill` |
 | `in_progress` | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-regression-guard` / `dj-fullstack-testing` / `dj-script` / `dj-check` 等 | 实现阶段，按需选择 |
-| `completed` | 无（走 `dijiang finish-work`） | 收尾，不使用 skill |
-| `archived` | 无 | 只读，需 `dijiang start <task>` 重新激活 |
+| `completed` | 无（走 `dijiang-finish-work`） | 收尾，不使用 skill |
+| `archived` | 无 | 只读，需 `dijiang-start` 重新激活 |
 | `paused` | `dijiang-continue` | 恢复后回到 planning 或 in_progress |
 
 `dj-review` 是只读的双维度审查：spec 匹配度与代码质量必须分别完成后再汇总。平台有并行执行能力时可并行，没有时按相同输入串行执行，不能因工具能力不同而省略任一维度。
@@ -74,301 +74,66 @@ AIGC:
 ### 场景 A：开始一个新功能
 
 ```
-1. dijiang start feat-user-auth
-   → 创建 planning 任务；实现请求由 dispatch 进入 worktree-gated route
-
-2. dijiang dispatch "实现用户登录模块"
-   → 引擎分类为 dj-implement，分配 worktree
-
-3. 在 worktree 中实现 → 测试 → dj-check 审查
-
-4. dijiang finish-work --verification "测试通过" --docs-sync "CHANGELOG" --version-impact minor --commit --approve-cleanup
-   → 提交、归档任务
+1. Call the Skill tool with "dijiang-start" → 加载任务上下文，明确路线
+2. 需求已明确？是 → Call "dj-implement"（有测试要求 → "dj-tdd"）；否 → Call "dj-grill" 对齐 → Call "dj-output" 产出 PRD → 再实现
+3. 改码过程走 "dj-regression-guard" 三明治协议（改前基线 → 修改 → 专项验证 → 改后回归）
+4. Call "dj-check" 双轴审查（Standards + Spec）
+5. Call "dijiang-finish-work" → 验证 → 版本决策 → 提交 → 归档
 ```
 
 ### 场景 B：修复一个 Bug
 
 ```
-1. dijiang dispatch "用户登录后页面空白"
-   → 引擎分类为 dj-hunt（bug/regression）
-
-2. dj-hunt 排查根因 → 找到问题 → 修复 → 验证
-   （改码护送走 dj-regression-guard 三明治协议：改前基线→修复→专项验证→改后回归）
-
-3. dijiang finish-work --verification "Bug 已修复，回归测试通过" --docs-sync "CHANGELOG" --version-impact patch --commit --approve-cleanup
+1. Call "dj-hunt" 排查根因（先定位，再修复）
+2. 改码护送走 "dj-regression-guard" 三明治协议
+3. 需要全量回归时 Call "dj-fullstack-testing"（API 深度验证、契约校验、UI 交互、覆盖度核对）
+4. Call "dijiang-finish-work" 收尾（提交、归档）
 ```
 
 ### 场景 C：需求不明确
 
 ```
-1. dijiang dispatch "优化用户体验"
-   → 需求模糊 → 引擎分类为 dj-grill
-
-2. dj-grill 追问 2-3 轮，明确具体范围
-   → 输出对齐结论
-
-3. dj-output 根据对齐结论创建 PRD
-
-4. 确认 PRD 后 → dj-implement 实现
+1. Call "dj-grill" 追问 2-3 轮，明确具体范围 → 输出对齐结论
+2. Call "dj-output" 根据对齐结论创建 PRD
+3. 确认 PRD 后 → Call "dj-implement" 实现
 ```
 
 ### 场景 D：跨 Session 交接
 
 ```
-1. 当前 session 结束前：dj-handoff
-   → 输出 session 摘要、未决问题、下一步建议
-
-2. 新 session 开始：加载 dj-handoff 产物
-   → 快速回到工作状态
+1. 当前 session 结束前：Call "dj-handoff" → 输出 session 摘要、未决问题、下一步建议
+2. 新 session 开始：Call "dijiang-continue" → 恢复活跃任务、加载产物、报告下一步
 ```
 
 ### 场景 E：并行任务
 
 ```
-1. channel spawn "安装依赖的 agent"
-2. channel spawn "写测试的 agent"
-3. channel execute-all --timeout 120
-   → 两个 channel 并行执行
-4. channel status 查看结果
+1. Call "dj-channel" 生成多个子 agent
+2. 每个子 agent 独立执行一个任务
+3. 收集结果，汇总到主流程
 ```
 
 ## Worktree 工作流
 
-DiJiang 使用 git worktree 隔离代码修改。了解该流程可避免常见问题。
+DiJiang 使用 git worktree / 分支隔离代码修改，主 checkout 始终保持干净。该纪律由 `dj-git-guardrails` 以文本形式约束（ADR-005 后无运行时强制）：
 
 ```
-主仓库（main checkout）   ← 始终保持干净
+主仓库（main checkout）  ← 始终保持干净
   │
-  ├── dijiang dispatch ...
-  │   → Git Gate 检测为主仓库
-  │   → 自动创建 worktree ../dijiang-<task>
-  │   → 切换到 worktree 执行
+  ├── 工作纪律（dj-git-guardrails）
+  │   ├── 不在 main 上直接改 → 永远使用 worktree 或分支
+  │   ├── 不 push 到 main → 使用 PR/MR 流程
+  │   └── push 前检查 → 无 debug 代码、凭证、TODO
   │
-  └── dijiang finish-work
-      → 提交、集成
-      → 询问是否删除 worktree
-      → 是：自动删除 worktree 和分支
-      → 否：保留 worktree，手动清理
+  └── dijiang-finish-work 只从任务 worktree 收尾
+      → 确认 Git 隔离 → 提交 → 归档
 ```
 
 ### 常见误区和处理方法
 
-| 问题 | 原因 | 处理方式 |
-|------|------|----------|
-| `dijiang dispatch` 找不到 `.dijiang/` | 不在 git 仓库内，或 sibling worktree 也无 `.dijiang`/`.trellis` | 先确认主 checkout 存在 `.dijiang/`；在 task worktree 内运行时依赖 `resolve_dijiang_dir` 自动发现；仍失败则回到主仓库目录再 dispatch |
-| 忘记在哪个 worktree 里 | 多个 worktree 正在使用 | `dijiang task current` 查看当前 task metadata；`git worktree list` 列出所有 worktree |
-| finish-work cleanup gate 被阻断 | 破坏性操作需要显式批准 | 检查 prompt 中 gate 的提示，显式确认后再运行 |
-| "当前不在正确的 worktree 里" | runtime 在主 checkout 或错误的 worktree 中 | 引擎会 block 并提供 nextAction |
-
-## 门禁系统（Gates）
-
-三层的安全约束确保你不会意外破坏仓库。以下是各门禁的触发条件：
-
-| 门禁 | 触发场景 | 处理方式 |
-|------|---------|----------|
-| Route Gate | 对 `archived` task dispatch 实现类请求 | block → 提示重新 start |
-| Route Gate | 对 `planning` task dispatch 实现类请求 | redirect → 走 dj-grill |
-| Route Gate | 对 `paused` task dispatch 任何请求 | redirect → 走 dijiang-continue |
-| Git Gate | 在主 checkout 直接 dispatch 代码路由 | provision → 自动创建 worktree |
-| Git Gate | 在错误 worktree 中运行 | block → 提示切换到正确 worktree |
-| Capability Gate | `finish-work --integrate` 未显式批准 | block → 需确认后才允许 |
-| Capability Gate | `finish-work --push` 未显式批准 | block → 需确认后才允许 |
-| Capability Gate | 删除任务 worktree / 分支未显式批准 | block → 传 `--approve-cleanup` 后才清理 |
-
-## Pi Extension 集成
-
-DiJiang 通过 Pi Extension（`.pi/extensions/dijiang/index.ts`）与 Pi 平台深度集成。扩展在 Pi 的 agent 生命周期事件中自动注入路由上下文，无需用户手动触发。
-
-### 注册方式
-
-`.pi/settings.json` 中配置：
-```json
-{
-  "enable_skill_commands": true,
-  "extensions": ["./extensions/dijiang/index.ts"],
-  "skills": ["./skills"],
-  "prompts": ["./prompts"],
-  "agents": []
-}
-```
-
-### 自动注入行为
-
-扩展在以下场景自动工作：
-
-1. **agent 启动或用户提交提示时**：自动运行 `dijiang workflow-state` 刷新状态信息，同时运行 `dijiang dispatch --json --hook-event` 分类提示。agent 提示顶部注入 `<dijiang-workflow-state>` 和 `<dijiang-route>` 路由上下文。
-2. **bash 命令失败时**：自动注入 `<dijiang-route>` 路由到 `dj-hunt`，附带失败命令。agent 应停止当前实现流程，转向排查模式。
-3. **验证/检查通过且有脏 diff 时**：自动注入 `<dijiang-route>` 路由到 `dj-output`。agent 应在完成验证后先同步文档再收尾。
-4. **每次 bash 工具调用时**：自动注入 `DIJIANG_CONTEXT_ID` 环境变量，用于标识来源 session。
-5. **session 开始/关闭时**：自动刷新状态栏和 widget。
-
-路由注入有去重机制——同一 session 中同一命令不重复注入。模型可见的自动注入上下文默认限制为 32768 个 Unicode 字符；可通过 `DIJIANG_CONTEXT_MAX_CHARS` 调整为 1024–262144。非法值会回退默认上限，截断时保留任务、route、Git Gate 和目标 skill 等核心信息，并附带省略标记。
-
-### 子 Agent 系统
-
-DiJiang 定义三个 Pi 子 agent（`.pi/agents/`），分别处理不同职责：
-
-| 子 agent | 职责 | 加载来源 |
-|---------|------|----------|
-| dijiang-check | 质量审查、审计、技术债、健康报告 | `.pi/agents/dijiang-check.md` |
-| dijiang-implement | 特性实现、TDD、原型、脚本 | `.pi/agents/dijiang-implement.md` |
-| dijiang-research | 技术调研、bug 排查、分类 | `.pi/agents/dijiang-research.md` |
-
-子 agent 加载后的第一件事是读取 `dijiang workflow-state --json` 获取运行时路由上下文，然后根据 `<dijiang-target-skill>` 确定使用哪个 `dj-*` skill。
-
-### UI 组件
-
-扩展提供两处可视化信息：
-
-- **状态栏**（Status Bar）：两个条目 `dijiang-task` 和 `dijiang-capsule`，显示 `{任务标题} [{capsule}]`，让你知道当前是否在正确的工作流阶段。
-- **Widget**：显示详细信息行 `任务: {标题} | 状态: {status} | Capsule: {capsule} | Gate: {gate}`。
-
-Pi 内置命令 `/dijiang` 可手动刷新并显示当前任务和 capsule 摘要。
-
-### 与 CLI 分立的运行时上下文
-
-扩展在每次 agent 启动时自动注入 `<dijiang-workflow-state>` 和 `<dijiang-route>` 上下文，包含最新工作流状态、Skill Manifests 和目标 skill 路由。这是 agent 消费 DiJiang 上下文的**主要渠道**——agent 不应主动频繁调用 `dijiang dispatch` 或 `dijiang workflow-state`，扩展会在适当时机自动注入。
-
-### Prompt 模板
-
-Pi 提供三个 `/dijiang-*` prompt 模板作为轻量检查清单：
-
-- `/dijiang-start` — 加载当前任务上下文和 workflow.md，适合新 session 开始时手动调用。
-- `/dijiang-finish-work` — 验证、检查、文档同步、版本决策、记忆记录、收尾执行的步骤清单，适合功能完成时手动调用。
-- `/dijiang-reason` — `dj-reason` 的轻量入口；真正的推理增强流程由 `/skill:dj-reason` 承载。
-
-## CLI 速查
-
-### 项目初始化
-
-```bash
-dijiang init my-project --yes
-dijiang init my-project --platforms pi,codex --yes
-```
-
-### 任务生命周期
-
-```bash
-dijiang start <name>                         # 创建 planning 会话
-dijiang dispatch "实现用户注册"                # 路由并通过 worktree gate 进入实现
-dijiang task list
-dijiang task current
-dijiang task status <name> <status>          # 非实现状态更新；in_progress 走 dispatch，或维护场景显式加 --unsafe-without-worktree
-dijiang task archive <name>
-dijiang task prune --days 30
-```
-
-### 任务 Context Manifest
-
-Context manifest 为当前任务声明 implement 或 check 阶段需要读取的项目文件。路径必须相对项目根目录，且文件必须已经存在。
-
-```bash
-dijiang task context add docs/architecture.md --action implement --reason "架构约束"
-dijiang task context add docs/test-criteria.md --action check --reason "验收标准"
-dijiang task context list
-dijiang task context list --action check
-```
-
-条目分别写入当前任务目录的 `implement.jsonl` 或 `check.jsonl`。每行包含 `action`、`file` 和 `reason`；空行兼容保留，损坏的 JSONL 会报告 manifest 路径和行号，不会静默忽略。
-
-Context 文件必须位于项目根目录内。CLI 在读取前拒绝 `.env*`、包含 `credential` 的路径组件，以及 `secrets`、`.ssh`、`.aws`、`.gnupg`、`.config` 等敏感目录；symlink 的真实目标也执行相同检查。不要通过 context manifest 传递凭据或本地配置。
-
-### Dispatch（核心入口）
-
-```bash
-dijiang dispatch "实现用户注册"
-dijiang dispatch "修复登录 bug"
-```
-
-### 收尾
-
-```bash
-dijiang finish-work --verification "..." --docs-sync "CHANGELOG" --version-impact patch
-dijiang finish-work --verification "..." --docs-sync "CHANGELOG" --version-impact minor --commit --approve-cleanup
-dijiang finish-work --verification "..." --docs-sync "CHANGELOG" --version-impact major --commit --push --approve-integrate --approve-cleanup
-dijiang finish-work --verification "..." --docs-sync "..." --version-impact none --commit --approve-cleanup
-```
-
-### 记忆
-
-```bash
-dijiang mem findings --finding "用户反馈登录后页面空白，排查发现 token 解析失败"
-dijiang mem learn --lesson "token 过期时间需要同步到前端"
-dijiang mem archive
-dijiang mem list
-dijiang mem sync
-```
-
-### Channel（并行）
-
-```bash
-dijiang channel spawn "安装依赖"    # agent 1
-dijiang channel spawn "写测试"      # agent 2
-dijiang channel execute-all         # 并行执行
-dijiang channel list                # 查看状态
-```
-
-### 模板和更新
-
-```bash
-dijiang template list
-dijiang skills --sync       # 将 managed skills 同步到当前项目
-dijiang skills --validate   # 只读校验内置模板 schema 与 task runtime registry
-dijiang update
-```
-
-`--sync` 和 `--validate` 互斥。Validation 要求每个 managed skill 的 YAML frontmatter 具有与目录一致的 `name` 和非空 `description`，校验可选字段类型，并确认内置模板名称与 task 编译时 manifest 一致。
-
-## 排查指南
-
-### Git Gate 相关问题
-
-**现象**：dispatch 后显示 `blocked`，原因与 worktree 相关。
-
-**检查步骤**：
-1. `git worktree list` — 查看所有 worktree
-2. `dijiang task current` — 确认 active task 的 metadata
-3. 确认当前目录是否有 `.dijiang/`（`ls -la .dijiang/`）
-4. 在主仓库目录重新运行 dispatch
-
-### Route Gate 相关问题
-
-**现象**：dispatch 后路由与期望不符（例如想实现功能却被重定向到 dj-grill）。
-
-**检查步骤**：
-1. `dijiang task current` — 查看当前任务状态
-2. 如果任务状态为 `planning`，实现类请求会被重定向，属于正常行为
-3. 如果任务状态为 `completed`，需要先 `dijiang start <task>` 重新激活
-4. 如果任务状态为 `archived`，必须先 `dijiang start <task>`
-
-### Memory 相关问题
-
-**现象**：`dijiang mem findings` 不生效。
-
-**新增命令（Phase 2/3）**：
-- Loop Readiness / audit score：**不是**当前 `dijiang` 顶层子命令（`dijiang --help` 无 `audit`）；成熟度审计若存在，走独立工具面而非 CLI 子命令文档
-- MCP / cost / audit：**不是** `dijiang` 顶层子命令。MCP 入口为独立二进制 crate `dijiang-mcp`（`crates/mcp-server`）；token cost 估算若存在则在其他面，勿当作 CLI 子命令文档
-- `dijiang mem pattern --name <名称> --description <描述> [--cadence] [--risk] [--phases]` — 添加带元数据的 workflow 模式
-- `dijiang mem recommend`：**不是**当前 mem 子命令（`dijiang mem --help` 无 recommend）
-
-**检查步骤**：
-1. `dijiang mem list` — 确认平台 session 是否正确加载
-2. `dijiang status` — 确认 `.dijiang/` 存在且配置正确
-3. 如果使用平台适配器（Pi、Codex 等），确认平台 API 可用
-
-### Channel 相关问题
-
-**现象**：channel 执行超时或失败。
-
-**检查步骤**：
-1. 增加超时时间 `channel execute-all --timeout 300`
-2. `channel status <id>` 查看具体 agent 状态
-3. 检查 agent 是否正确安装了所需工具和依赖
-
-### 收尾相关问题
-
-**现象**：`dijiang finish-work` 在 cleanup gate 被阻断。
-
-**处理方式**：
-- 如果需要清理 worktree：确认后，gate 会放行
-- 如果需要保留 worktree 手动处理：选择不清理，后续手动 `git worktree remove` 和 `git branch -d`
+| 问题 | 处理方式 |
+|------|----------|
+| 不确定在哪个 worktree | `git worktree list` 列出所有 worktree，确认当前分支与顶层目录 |
+| 在主 checkout 直接改代码 | 切到任务 worktree 或分支再改（dj-git-guardrails 铁律） |
+| finish-work 被阻断 | 通常是验证证据缺失（缺 TDD evidence / 测试未跑 / 文档同步未说明），补齐后重试 |
+| 收尾时 diff 混入无关文件 | 只暂存已审查路径，不盲目 `git add .` |

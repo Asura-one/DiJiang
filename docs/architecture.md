@@ -3,381 +3,124 @@ AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '307b76cf-2cfc-4c48-ad37-0c28bc99514d'
-  PropagateID: '307b76cf-2cfc-4c48-ad37-0c28bc99514d'
-  ReservedCode1: '785f97f7-b762-49aa-94b4-474cacc18bab'
-  ReservedCode2: '785f97f7-b762-49aa-94b4-474cacc18bab'
+  ProduceID: '5f4030c5-7f4d-4229-ad7a-d62f8b8f5836'
+  PropagateID: '5f4030c5-7f4d-4229-ad7a-d62f8b8f5836'
+  ReservedCode1: '51b27821-3039-4388-90f7-f87b37779c2b'
+  ReservedCode2: '51b27821-3039-4388-90f7-f87b37779c2b'
 ---
 
 # DiJiang 架构
 
 ## 概述
 
-DiJiang 是一个 Rust 原生的 AI 编码助手工作流层。它提供 CLI 二进制 `dijiang`、一组可组合的 skill（`dj-*`），以及面向 Pi 平台的扩展集成，用于管理项目任务生命周期、记忆持久化、模板配置和 agent channel 编排。
+DiJiang 是一个**纯 skill 架构**的工程工作流框架：没有编译、没有运行时、不绑定特定 agent。全部能力以 `SKILL.md` 文本形式存在，由任何支持 skill 机制的 agent（Claude、Codex、OpenCode 等）直接加载执行。
 
-项目结构为 Cargo workspace，包含 5 个 crate（cli / task / mem / configurator / mcp-server），各司其职。
+架构从 Rust CLI 运行时迁移而来，迁移决策见 **ADR-0005**（从 Trellis 兼容迁移到纯 Skill 架构）；回归纪律的引入见 **ADR-0006**（Regression Guard 与 Fullstack Testing）。
 
-## Crate 关系图
+## 核心设计原则
 
-```
-dijiang（workspace 根目录）
-├── crates/cli/           # 入口：CLI 二进制、dispatch、finish-work
-├── crates/task/          # 任务状态模型、路由/版本/能力门禁
-├── crates/mem/           # 跨平台记忆持久化
-├── crates/configurator/  # Init、模板、平台配置、更新
-└── crates/mcp-server/    # MCP 服务端（包名 dijiang-mcp，与 CLI 独立）
-```
+1. **无编译、无运行时**：项目不含任何可执行代码，工作流逻辑全部以文本纪律承载。
+2. **不绑定特定 agent**：无平台适配层，任何支持 skill 的 agent 均可消费。
+3. **工作流分散在 skill 中**：路由、门禁、收尾逻辑不再集中于 CLI，而是分布在各个 skill 文本。
+4. **纪律靠文本引导**：原运行时硬约束（Route/Git/Capability Gate）下沉为 skill 文本纪律，依赖模型遵守（见 ADR-005）。
+5. **可组合、可改造**：skill 是小粒度原子单元，支持按需新增、拆分、重组。
 
-### 依赖流向
+## Skill 组织结构
 
 ```
-cli ──→ task ──→ （独立，不依赖 DiJiang 其他 crate）
-  │
-  ├──→ mem ──→ （独立，仅有平台适配器）
-  │
-  └──→ configurator ──→ （独立，仅有模板注册表）
+skills/
+├── engineering/    # 41 个工程 skill（代码工作相关）
+│   ├── dj-ask/SKILL.md            # 全局 flow 路由图（战略层）
+│   ├── dj-dispatch/SKILL.md       # 逐请求战术路由器
+│   ├── dj-implement/SKILL.md      # 功能实现
+│   ├── dj-tdd/SKILL.md            # 测试驱动开发
+│   ├── dj-regression-guard/SKILL.md   # 改码三明治回归协议
+│   ├── dj-fullstack-testing/SKILL.md  # 全量回归引擎
+│   ├── dj-check/SKILL.md          # 交付质量门禁
+│   ├── dj-hunt/SKILL.md           # Bug 排查
+│   └── ...（共 41 个）
+└── productivity/   # 5 个 skill：通用工作流工具（文字润色等）
 ```
 
-三个库 crate（`task`、`mem`、`configurator`）互相独立，不共享 DiJiang 内部依赖。`cli` 是主要集成层；`mcp-server`（`dijiang-mcp`）为独立 MCP 入口，版本与 CLI crate 可不一致。
+### SKILL.md 文件结构
 
-## Crate 职责
+每个 skill 是 `skills/<bucket>/<name>/SKILL.md`，采用 mattpocock/skills 风格（见 ADR-005）：
 
-### `cli`（二进制：`dijiang`）
+- **frontmatter**：`name`（= 目录名）、`description`（含触发词）、可选 `disable-model-invocation`。
+- **正文**：工作流步骤、纪律、铁律，以文本形式引导 agent 行为。
 
-单一 `main.rs`（约 4000 行）包含所有 CLI 命令处理器和 dispatch 引擎。子命令使用 `clap` 组织：
+### User-invoked 与 Model-invoked
 
-| 命令组 | 子命令 |
+- **User-invoked skill**（`disable-model-invocation: true`）：只能由用户显式调用，承担编排与入口职责（如 `dj-setup`、`dj-grill`、`dj-handoff`）。
+- **Model-invoked skill**：可由模型在满足触发条件时自动调用，承载可复用工程纪律（如 `dj-implement`、`dj-regression-guard`、`dj-memory`）。
+
+约束：User-invoked skill 可调用 model-invoked skill，但永远不能调用另一个 user-invoked skill。
+
+## 加载机制
+
+1. **skill 即文件**：agent 通过 skill 加载工具读取 `SKILL.md`，无注册表、无编译清单。
+2. **自动触发**：模型根据 `description` 中的触发条件自动匹配 model-invoked skill；`disable-model-invocation: true` 阻止自动触发。
+3. **按需引用**：skill 之间通过"引用不复制"协作，跨技能细节引用 `docs/references/` 规范，避免重复文本。
+
+## 工作流路由
+
+路由分两层，互为补充：
+
+| 层 | Skill | 职责 |
+|----|-------|------|
+| 战略层 | `dj-ask` | 全局 flow 路由图（主流程 / 入口匝道 / 独立工具 / 词汇层） |
+| 战术层 | `dj-dispatch` | 逐请求分类路由：识别任务类型 → 路由到对应 skill（支持混合任务串联） |
+
+任务状态机：`none → planning → in_progress → completed → archived`，另有 `paused`。
+
+各阶段对应的核心 skill：
+
+- **planning**：`dj-grill`（需求对齐）、`dj-output`（文档）、`dj-spec-bootstrap`、`dj-split`
+- **in_progress**：`dj-implement` / `dj-tdd` / `dj-hunt`，改码过程由 **`dj-regression-guard`** 护送（改前基线 → 修改 → 专项验证 → 改后回归），全量回归由 **`dj-fullstack-testing`** 承载（见 ADR-006）
+- **completed**：`dijiang-finish-work` 收尾；`dj-check` 为交付前质量门禁
+
+## 安全约束（三层 Gate 下沉）
+
+原运行时三层门禁已下沉为 skill 文本纪律（见 ADR-005）：
+
+| 原门禁 | 现形态 |
 |--------|--------|
-| `status` | `status`、`status --compat` |
-| `start` | `start <name>` |
-| `dispatch` | `dispatch <prompt>` |
-| `task` | `task list/current/status/archive/prune` |
-| `finish-work` | `finish-work --verification --docs-sync --version-impact [--commit] [--push]` |
-| `mem` | `mem list/sync/findings/learn/correction/archive/tactic/tactics/record/pattern/patterns/stats/backup/evolve/finetune` |
-| `channel` | `channel spawn/list/send/status/stop/execute/execute-all` |
-| `template` | `template list/pull/validate` |
-| `skills` | `skills [--sync]` |
-| `workflow-state` | `workflow-state [--json]` |
-| `skill-body` | `skill-body <name>` |
-| `doc-sync` | `doc-sync check [--base]` |
-| `spec-sync` | `spec-sync check/record` |
-| `init` | `init <name> [--force] [--platforms]` |
-| `migrate` | `migrate` |
-| `update` | `update [--force] [--from-github]` |
-| `bucket` | `bucket ...` |
-| `context` | `context ...` |
-| `commit` | `commit ...` |
-| `session` | `session ...` |
-
-`cli` 中的关键架构组件：
-- **Dispatch 引擎**（`dispatch_route`、`apply_route_gate`）：将自然语言提示分类为 skill 路由，执行工况状态门禁（Route Gate Phase 1）。
-- **Git Gate** 集成（`ensure_task_worktree`、`evaluate_worktree_readiness`）：对代码修改类任务执行 worktree 隔离。
-- **Finish Work**（`cmd_finish_work`）：验证、doc-sync、版本号递增、commit、本地集成、push、worktree 清理 —— 破坏性操作使用批准门禁（Phase 4）。
-- **Channel 执行**（`cmd_channel_execute`）：为并行/隔离工作派生子 agent 进程。
-
-### `task`（库：`dijiang-task`）
-
-核心任务生命周期和工况约束。无外部依赖（仅 `serde`、`serde_json`、`thiserror`、`chrono`）。
-
-| 模块 | 职责 |
-|------|------|
-| `types` | `TaskRecord`、`TaskStatus` — 状态模型，保持 Trellis 向后兼容 |
-| `store` | JSON 任务持久化至 `./.dijiang/tasks/<id>/task.json` |
-| `context` | Context manifest 路径 containment、敏感路径拒绝和 JSONL 完整性校验 |
-| `route_gate` | 工况 capsule 检测和路由约束（`evaluate_route`） |
-| `git_gate` | Worktree 就绪评估（`evaluate_worktree_readiness`） |
-| `capability_gate` | 高风险操作批准（integrate/push/cleanup） |
-| `skill_manifest` | Skill 注册表、body 缓存、渐进式 skill 注入的懒加载 |
-| `workflow_state` | Session 日志记录、对等窗口面、近期记忆注入 |
-| `doc_sync` | `analyzer` + `mapper` — 从 git diff 检测哪些长期文档需要更新 |
-| `spec_sync` | SHA256 的 spec 文件 checksum 追踪（`check` / `record`） |
-
-### `mem`（库：`dijiang-mem`）
-
-跨平台记忆持久化，使用平台特定适配器。
-
-| 模块 | 职责 |
-|------|------|
-| `types` | 记忆模型（findings、lessons、tactics、patterns） |
-| `store` | JSONL 本地持久化至 `~/.dijiang/mem/` |
-| `memory` | 五层记忆架构（working → episodic → semantic → procedural → meta） |
-| `adapter` | 抽象 `PlatformMemory` trait |
-| `pi` / `claude` / `codex` / `opencode` / `hermes` | 平台特定记忆适配器 |
-| `jsonl` | JSONL 文件 I/O 工具 |
-| `registry` | 平台记忆发现和路由 |
-
-`MemoryAdapter::get_dialogue` 返回平台源存储中可恢复的真实 user/assistant turns。Pi、Claude 和 Codex 会保留 compaction 前后的原始对话并过滤 summary/tool/thinking 事件；OpenCode 1.2+ 使用 SQLite，当前明确返回 `Unsupported`，不以空对话表示成功。
-
-### `configurator`（库：`dijiang-configurator`）
-
-项目初始化、模板管理、平台配置、自更新。
-
-| 模块 | 职责 |
-|------|------|
-| `init` | 项目脚手架：`.dijiang/`、`.pi/`、模板生成 |
-| `types` | `PlatformKind` 枚举、配置模型 |
-| `registry` | 平台插件注册 |
-| `template_registry` | 从内嵌/远程源加载模板 |
-| `templates` | init 使用的内置模板内容 |
-| `dj_skills` | init 时生成 `dj-*` skill 文件 |
-| `pi` / `claude` / `codex` / `cursor` / `opencode` / `hermes` | 平台特定配置生成 |
-| `update` | 自更新机制（hash 比较 + GitHub 下载），通过各平台 `managed_artifacts` inventory 复用 configure 的受管文件事实源 |
-| `changelog` | CLI 中显示变更日志 |
-
-远程 template manifest 的文件路径只接受规范相对路径。Registry 在 cache 同一文件系统内使用唯一 staging 和 backup 目录，所有文件下载成功后才替换正式缓存；失败时保留旧缓存，避免目录穿越、并发临时目录碰撞和部分更新。
-
-Managed skill registry 使用 YAML frontmatter schema 验证目录名、必需的 `name`/`description` 及可选字段类型；`dijiang skills --validate` 与 `make ci` 复用同一 validator，并对比 task 编译时 manifest，避免内置模板、运行时清单和部署文件之间漂移。
-## 数据流
-
-### 任务生命周期
-
-```
-用户提示 → dispatch_route()
-  → dispatch_route_for_active_task() | dispatch_route()（分类器）
-    → apply_route_gate()（执行工况约束）
-      → evaluate_worktree_readiness()（Git Gate，若为代码路由）
-        → ensure_task_worktree()（按需供应 worktree）
-          → 路由决策 + 上下文注入 agent 提示
-```
-
-### Finish Work 流程
-
-```
-cmd_finish_work()
-  → ensure_finish_preconditions()（验证脏树、任务状态）
-    → update_workspace_version()（按需语义版本递增）
-      → perform_finish_commit()（可选 --commit）
-        → perform_finish_integration()（可选 --integrate，带批准门）
-          → auto_cleanup_worktree()（移除 worktree，删除分支）
-            → append_session_closure()（日志 + 归档任务）
-```
-
-### 记忆流程
-
-```
-cmd_mem_findings() → current_project_memory()
-  → dijiang_mem::ProjectMemory::append_finding()
-    → store::append_jsonl()（本地持久化）
-      → adapter sync（平台特定推送）
-
-cmd_mem_backup() → 项目记忆 → ~/.dijiang/mem/（全局存储）
-```
-
-### Doc-Sync 流程
-
-```
-cmd_doc_sync_check()
-  → doc_sync::analyzer::analyze_diff()（git diff → 变更事件）
-    → doc_sync::mapper::map_events_to_docs()（变更事件 → 受影响文档）
-      → 输出：文档路径 + 置信度 + 触发证据
-```
-
-### Spec-Sync 流程
-
-```
-cmd_spec_spec_check()
-  → spec_sync::check()（SHA256 比较）
-    → 输出：已变更的 spec 文件列表
-
-cmd_spec_sync_record()
-  → spec_sync::record()（更新 checksum 数据库）
-```
-
-## Skill 系统
-
-DiJiang 有两层 skill：`dj-*` skill（原子工作能力）和 `dijiang-*` skill（session 包装器）。
-
-### 文件结构
-
-```
-.pi/
-├── skills/                  # dj-* skill SKILL.md 文件集合
-│   ├── dj-dispatch/SKILL.md
-│   ├── dj-grill/SKILL.md
-│   ├── dj-implement/SKILL.md
-│   ├── dj-check/SKILL.md
-│   ├── dj-hunt/SKILL.md
-│   ├── dj-output/SKILL.md
-│   ├── dj-ponytail/SKILL.md
-│   ├── dj-tdd/SKILL.md
-│   ├── dj-script/SKILL.md
-│   ├── dj-design/SKILL.md
-│   ├── dj-prototype/SKILL.md
-│   ├── dj-audit/SKILL.md
-│   ├── dj-absorb/SKILL.md
-│   ├── dj-pattern/SKILL.md
-│   ├── dj-karpathy/SKILL.md
-│   ├── dj-review/SKILL.md
-│   ├── dj-write/SKILL.md
-│   ├── dj-handoff/SKILL.md
-│   ├── dijiang-start/SKILL.md      # session 包装器
-│   ├── dijiang-continue/SKILL.md    # session 包装器
-│   └── dijiang-finish-work/SKILL.md # session 包装器
-├── agents/                   # 子 agent 定义
-│   ├── dijiang-check.md
-│   ├── dijiang-implement.md
-│   └── dijiang-research.md
-├── extensions/dijiang/        # Pi 扩展
-│   └── index.ts
-├── prompts/                   # Pi prompt 模板
-│   ├── dijiang-start.md
-│   └── dijiang-finish-work.md
-└── settings.json              # Pi 配置：注册 skills、extensions、prompts
-```
-
-### Skill 加载机制
-
-1. **注册**：`.pi/settings.json` 的 `"skills": ["./skills"]` 配置告诉 Pi 引擎从此目录加载 skill。
-2. **清单**：`dijiang skills` 列出所有可用 `dj-*` skill；`dijiang workflow-state --json` 将当前 capsule 对应的 skill 清单注入 agent 提示。
-3. **懒加载**：默认只注入 skill 清单（名称 + 描述 + 风险等级）。完整 SKILL.md body 在路由引擎选定目标 skill 后才按需加载，通过 `dijiang skill-body <name>` 获取。
-4. **同步**：`dijiang skills --sync` 将内置 skill 模板同步到 `.pi/skills/`。
-5. **验证**：`dijiang skills --validate` 解析内置 skill YAML frontmatter，校验目录名、必需的 `name`/`description`、可选字段类型，并与 task 编译时 manifest 对比。
-
-### Skill 的路由目标
-
-每个 skill 在 `task/src/skill_manifest.rs` 中注册 manifest 元数据，包括 `name`、`description`、`risk`（低/中/高）、`capsule`（适用工况）。Route Gate 在 dispatch 时根据 active task status 和 capsule 匹配，确定允许、重定向还是阻断。
-
-## Workflow 路由系统
-
-### 规范工作流
-
-```
-none
-  └─ dispatch: dijiang start <name> 或 dj-dispatch
-planning
-  └─ align: dj-grill，必要时 dj-output
-in_progress
-  ├─ implement: dj-implement / dj-tdd / dj-hunt / dj-script / dj-design
-  ├─ guard: dj-regression-guard（改码三明治护送）
-  └─ check: dj-check
-completed
-  └─ finish: dijiang finish-work --verification ... --docs-sync ... --version-impact ...
-archived
-  └─ closed: 只读；如需继续则重新 dijiang start <task>
-paused
-  └─ resume: dijiang-continue → 回到 planning 或 in_progress
-```
-
-### Route Gate（运行时路由门禁）
-
-Route Gate 将上述工作流规则从纯提示级别提升为运行时硬约束。在 `crates/task/src/route_gate.rs` 中实现：
-
-```
-active_task.route_decision(request_intent) →
-  allow:    路由正常，进入目标 skill
-  redirect: 路由重定向到 dj-grill / dijiang-continue
-  block:    阻断并提示重新 start
-```
-
-具体规则：
-
-| 任务状态 | 实现类请求 | 文档类请求 | 其他 |
-|---------|-----------|-----------|------|
-| `planning` | redirect → dj-grill | allow → dj-output | allow |
-| `in_progress` | allow | allow | allow |
-| `paused` | redirect → dijiang-continue | redirect → dijiang-continue | redirect → dijiang-continue |
-| `completed` | block → 需重新 start | block → 需重新 start | block → 需重新 start |
-| `archived` | block → 需重新 start | block → 需重新 start | block → 需重新 start |
-
-新任务（无 active task）不套用 Route Gate，保留 dispatch 分类器原始行为。
-
-### 子 Agent 系统
-
-DiJiang 定义三个 Pi 子 agent，每个消费 `dijiang workflow-state --json` 和 `<dijiang-target-skill ...>` 上下文作为路由入口：
-
-| 子 agent | 文件 | 职责 |
-|---------|------|------|
-| dijiang-check | `.pi/agents/dijiang-check.md` | 质量审查、审计、技术债、健康报告 |
-| dijiang-implement | `.pi/agents/dijiang-implement.md` | 特性实现、TDD、原型、脚本 |
-| dijiang-research | `.pi/agents/dijiang-research.md` | 技术调研、bug 排查、分类 |
-
-子 agent 加载时先读 `workflow-state` 获取运行时路由上下文，再根据 `<dijiang-target-skill>` 决定使用哪个 `dj-*` skill。skill 清单由 workflow-state 的 `Skill Manifests` 注入。
-
-## Pi Extension（平台集成层）
-
-DiJiang 在 Pi 中通过 `.pi/extensions/dijiang/index.ts` 扩展实现运行时集成。该扩展是 Pi 与 DiJiang 之间的桥梁，在 Pi 的 agent 生命周期事件中自动注入 DiJiang 路由上下文。
-
-### 注册方式
-
-`.pi/settings.json`：
-```json
-{
-  "enable_skill_commands": true,
-  "extensions": ["./extensions/dijiang/index.ts"],
-  "skills": ["./skills"],
-  "prompts": ["./prompts"],
-  "agents": []
-}
-```
-
-### 生命周期 Hook
-
-| Hook | 触发时机 | 扩展行为 |
-|------|---------|----------|
-| before_agent_start | agent 启动前 | 通过 `dijiang dispatch --json --hook-event` 分类提示并注入工作流与路由上下文 |
-| tool_call | 任意工具调用 | 向 bash 命令注入 `DIJIANG_CONTEXT_ID` 环境变量 |
-| tool_result | 工具返回结果 | 1. 刷新状态栏和 widget |
-| | | 2. bash 命令失败 → 注入 `<dijiang-route>` 路由到 dj-hunt |
-| | | 3. 验证命令通过且有脏 diff → 注入 `<dijiang-route>` 路由到 dj-output |
-| session_start | session 开始 | 刷新状态栏和 widget |
-| session_shutdown | session 关闭 | 刷新状态栏和 widget |
-
-
-### UI 组件
-
-扩展提供两个 UI 组件，信息源来自 `dijiang workflow-state --json`：
-
-**状态栏（Status Bar）**：两个条目
-- `dijiang-task` — 显示 `{任务标题} [{capsule}]`
-- `dijiang-capsule` — 显示 capsule 状态
-
-**Widget**：显示详细信息行
-```
-任务: {任务标题} | 状态: {idle/in_progress/completed} | Capsule: {capsule} | Gate: {ready/provisioned/blocked}
-```
-
-### 自动路由注入
-
-扩展在 `tool_result` hook 中实现两项自动化路由：
-
-1. **bash 命令失败** → 注入 `<dijiang-route>` 消息（类型 `dijiang_route`），路由到 `dj-hunt`，附带失败命令内容。
-2. **验证/检查通过且有脏 diff** → 注入 `<dijiang-route>` 消息，路由到 `dj-output`，附带命令内容。
-
-每次注入去重（按 session key + command 组合），避免同一问题重复路由。消息通过 `deliverAs: "steer"` 发送，确保被 agent 优先处理。
-
-### Prompt 模板
-
-两个 Pi prompt 模板作为轻量检查清单：
-- `/dijiang-start` — 读取 `dijiang task current` 和 `workflow.md`，注入 DiJiang 上下文
-- `/dijiang-finish-work` — 验证、检查、文档同步、版本决策、记忆记录、收尾执行的步骤清单
-
-## 关键设计决策
-
-- **CLI 作为集成层**：所有跨 crate 编排在 `cli/main.rs` 中。库 crate 互不知晓。
-- **门禁式工况约束**：路由约束在运行时硬编码（非仅提示级别）。active task 状态阻止无效转移。
-- **Worktree 隔离**：代码修改任务自动供应隔离 git worktree。主 checkout 保持干净。
-- **渐进式 skill 加载**：Skill body 不预先注入 agent 提示。先暴露清单，按需懒加载完整 body，通过 `dijiang skill-body <name>` 获取。
-- **Trellis 向后兼容**：任务状态到 Trellis 状态的映射为有损转换。`.trellis/` 作为遗留读回退；`.dijiang/` 是主要状态路径。
-- **Pi 扩展主导的运行时集成**：agent 不直接调用 CLI 路由，由 Pi 扩展在生命周期事件中自动注入路由上下文和 `<dijiang-route>`。agent 消费注入内容而非主动调用路由。
-- **子 agent 职责分离**：check、implement、research 三个子 agent 分别处理质量、实现和调研，各自加载对应 skill 清单。agent prompt 首行必须读取 `workflow-state`。
+| **Route Gate** | 任务状态约束分散在状态机与 `dj-dispatch`/`dj-ask` 的路由文本中 |
+| **Git Gate** | `dj-git-guardrails` + AGENTS.md 的 Worktree-First 纪律：主目录保持干净、功能在独立 worktree 中开发、合并需用户确认 |
+| **Capability Gate** | 破坏性操作（reset --hard / force push / clean -f）在 skill 文本中明确禁止，收尾执行需用户确认 |
 
 ## 项目目录结构
 
-### `.dijiang/`（CLI 状态目录）
-
 ```
-.dijiang/
-├── tasks/<id>/task.json   # 每个任务的状态
-├── spec/                   # 逐层编码规范
-│   ├── backend/          # 可选 skeleton（init 模板可 seed；本仓库已无本地 spec 实例）
-│   ├── frontend/         # 可选 skeleton（init 模板可 seed；本仓库已无本地 spec 实例）
-│   ├── guides/
-│   └── meta/               # ADR 模板、贡献指南
-├── workspace/              # 开发者日志（每个 session 一个）
-├── workflow.md             # 规范工作流投影
-└── config.toml             # DiJiang 配置
+DiJiang/
+├── skills/
+│   ├── engineering/       # 41 个 skill
+│   └── productivity/      # 5 个 skill
+├── docs/
+│   ├── adr/               # 架构决策记录（001-006）
+│   ├── references/        # 跨技能参考文档
+│   └── guide/             # 使用指南
+├── CONTEXT.md             # 领域术语表（skill/bucket/task 等）
+├── AGENTS.md              # Agent 路由索引（最小路由，非 workflow 定义）
+├── CLAUDE.md              # Claude 项目上下文
+├── CHANGELOG.md           # 变更日志
+├── README.md              # 项目入口
+└── .gitignore
 ```
 
-### `.pi/`（Pi 平台目录）
+> `.dijiang/`（tasks/ + memory/ + spec/ + config.toml）是项目本地状态目录，gitignored，由 `dj-setup` 初始化，不进入仓库。
 
-如上文 Skill 系统的文件结构所示，`settings.json` 统一注册 skills、extensions、prompts。
+## 关键设计决策
+
+- **纯 skill 无运行时**（ADR-005）：移除全部 Rust 代码、Trellis 兼容层与平台适配层。
+- **门禁下沉为文本纪律**：安全与工作流约束依赖 skill 文本与模型遵守，换取零依赖与全 agent 兼容。
+- **回归纪律独立成 skill**（ADR-006）：`dj-regression-guard` 是任务级横切协议，被 `dj-implement`/`dj-hunt`/`dj-tdd`/`dj-check` 统一引用，回归真相单一。
+- **引文不复制**：跨 skill 共享机制集中为 `docs/references/` 文档，skill 内仅引用。
+- **CONTEXT.md 承载领域语言**，ADR 记录决策演化，AGENTS.md 只做最小路由索引。
+
+## 相关文档
+
+- `docs/adr/005-migration-from-trellis-to-pure-skills.md` — 纯 skill 架构迁移决策
+- `docs/adr/006-regression-guard-fullstack-testing.md` — 回归守卫与全量回归引入
+- `CONTEXT.md` — 领域术语表
+- `AGENTS.md` — Skill 路由索引与调用方式

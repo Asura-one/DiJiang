@@ -1,3 +1,14 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '68adaaba-dc63-4f81-bba0-5743d2157759'
+  PropagateID: '68adaaba-dc63-4f81-bba0-5743d2157759'
+  ReservedCode1: '826cc2a2-25c8-4bcf-977c-67781312dc5d'
+  ReservedCode2: '826cc2a2-25c8-4bcf-977c-67781312dc5d'
+---
+
 # 跨技能反模式（Anti-patterns）
 
 以下反模式适用于所有 `dj-*` skill，在任何阶段都应避免。分为三类。
@@ -8,7 +19,7 @@
 |---|--------|------|
 | 1 | **路径幻觉** | 假设了代码路径或文件结构而未验证。始终先读文件再做判断。 |
 | 2 | **过度自信** | 看了摘要就下结论。grep 之后 read，read 之后验证。 |
-| 3 | **不验证就信任** | 从 DIJIANG_CONTEXT_ID、grep 结果、外部输入直接取用而不验证。 |
+| 3 | **不验证就信任** | 从 grep 结果、外部输入、记忆片段直接取用而不验证。 |
 
 ## 实现类
 
