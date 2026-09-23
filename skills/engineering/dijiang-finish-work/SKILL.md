@@ -1,7 +1,17 @@
 ---
 name: dijiang-finish-work
+name_cn: 收尾工作
+description_cn: "收尾当前 session：质量验证、版本决策、提交、归档任务。所有 git 提交和任务归档只在这里发生。"
 description: "收尾当前 session：质量验证、版本决策、提交、归档任务。所有 git 提交和任务归档只在这里发生。"
 disable-model-invocation: true
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '98b087bd-b56f-4463-947d-538b55e7cfe9'
+  PropagateID: '98b087bd-b56f-4463-947d-538b55e7cfe9'
+  ReservedCode1: '7165379b-57b6-45fc-821e-42211c127833'
+  ReservedCode2: '7165379b-57b6-45fc-821e-42211c127833'
 ---
 
 # 收尾工作
@@ -46,8 +56,8 @@ git log --oneline @{u}..HEAD 2>/dev/null || true
 变更文件: <paths>
 验证: <commands => result>
 RED/Repro evidence: <command or n/a + reason>
-GREEN command: <command => result>
-Regression scope: <checks => result>
+GREEN command: <command> => <result>
+Regression scope: <checks> => <result>
 Exception: <none or justified gap>
 文档同步: <updated / none / skipped; reason=...>
 版本决策: <major|minor|patch|none; reason=...>
@@ -94,7 +104,21 @@ git add <reviewed paths>
 git commit -m "<类型>(<范围>): 中文描述"
 ```
 
-### 7. 归档任务
+### 7. 清理 worktree 与分支
+
+提交（及 merge，如有）完成后，清理本次任务使用的 worktree 与已合并分支：
+
+```bash
+git worktree list
+git worktree remove <path>           # 已合并的 worktree
+git worktree remove --force <path>   # 有未跟踪/残留文件时，先确认改动已提交再强制移除
+git branch -d <branch>               # 只删除已合并分支
+```
+
+- 只清理已合并（或用户确认不再需要）的 worktree；未合并的保留，并向用户报告分支名与 worktree 路径。
+- 主 checkout 永不清理。
+
+### 8. 归档任务
 
 如果有活跃任务，将 task.json 的 status 更新为 `archived`，并从 `.dijiang/active_task.txt` 移除指针。
 
@@ -103,7 +127,7 @@ git commit -m "<类型>(<范围>): 中文描述"
 # 移除 .dijiang/active_task.txt
 ```
 
-### 8. 记录记忆
+### 9. 记录记忆
 
 调用 `dj-memory` skill 记录本次 session 的发现和经验。
 
@@ -118,13 +142,4 @@ Call the Skill tool with "dj-memory" to store findings and learnings.
 | 不要隐藏验证失败 | 报告命令和失败 |
 | 不要写 "fixed bug" 这类模糊记忆 | 写入有 source、scope、已验证的 finding |
 | 不要带着无关脏改关闭任务 | 拆分或清理范围 |
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'e28d78fd-58b5-44ae-8ccd-428d6d07deb5'
-  PropagateID: 'e28d78fd-58b5-44ae-8ccd-428d6d07deb5'
-  ReservedCode1: '4fd81602-9833-4a22-860a-1a5c7763f03a'
-  ReservedCode2: '4fd81602-9833-4a22-860a-1a5c7763f03a'
+| 不要留着已合并的 worktree 和分支不管 | 提交/merge 后清理 worktree、删除已合并分支 |

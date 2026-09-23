@@ -1,14 +1,16 @@
 ---
 name: dj-implement
+name_cn: 实现代码
+description_cn: "按计划实现特性代码，遵守 git 安全工作流。用于实现特性、修复或基于计划/issue 的变更。"
 description: "按计划实现特性代码，遵守 git 安全工作流。 Use when the user wants to implement a feature, fix, or change based on a plan or issue. 触发词：实现、写代码、implement、开始做、按计划做、开发。"
 AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '7c732ca1-b21a-4191-b81a-fb5c82f4e00e'
-  PropagateID: '7c732ca1-b21a-4191-b81a-fb5c82f4e00e'
-  ReservedCode1: '710eda3a-5932-4880-8b59-160c248d2d84'
-  ReservedCode2: '710eda3a-5932-4880-8b59-160c248d2d84'
+  ProduceID: '4d003b51-2252-45d7-99df-934b36445d6b'
+  PropagateID: '4d003b51-2252-45d7-99df-934b36445d6b'
+  ReservedCode1: 'bfbfe6a7-89ad-4e9e-80a6-57fdf93df580'
+  ReservedCode2: 'bfbfe6a7-89ad-4e9e-80a6-57fdf93df580'
 ---
 
 参考规范：`docs/references/decision-ladder.md`（编码前的决策阶梯）、`docs/references/code-task-contract.md`（代码任务合约）。
@@ -82,6 +84,7 @@ Typecheck: <command> => <result>
 RED/Repro evidence: <command> => <failed as expected>
 GREEN command: <command> => <passed>
 Relevant tests: <command> => <result>
+UI 实测: <command or n/a + reason> => <result>
 Full tests: <command or not run + reason> => <result>
 Regression scope: <commands or not run> => <result>
 Regression risk: <low/medium/high + why>
@@ -90,6 +93,7 @@ Exception: <none or justified gap>
 
 - typecheck → RED → GREEN → 相关测试 → 全量测试
 - 有任何新失败 → 修好再交接
+- UI/前端改动 → 真实浏览器实测（如 Playwright 实际操作界面）；实测前先确认改动已在运行环境生效（容器化/挂载环境下热重载可能失效，需重启服务/容器）——typecheck/build 通过只是必要条件，不等于功能可见
 
 ### 4. 收尾
 

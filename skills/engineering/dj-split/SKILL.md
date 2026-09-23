@@ -1,6 +1,6 @@
 ---
 name: dj-split
-description: "将 PRD 文档拆分为独立可执行的 task。衔接 dj-output 的输出，产出可通过 Call the Skill tool with "dj-dispatch" 路由的任务列表。 Use after a PRD is written, when you need to break the work into independently implementable tasks. 触发词：拆分任务、分任务、切成 task、work breakdown、分批做。"
+description: "将 PRD 文档拆分为独立可执行的 task。衔接 dj-output 的输出，产出可通过 Call the Skill tool with \"dj-dispatch\" 路由的任务列表。 Use after a PRD is written, when you need to break the work into independently implementable tasks. 触发词：拆分任务、分任务、切成 task、work breakdown、分批做。"
 disable-model-invocation: true
 ---
 

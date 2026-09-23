@@ -1,14 +1,14 @@
 ---
 name: dj-hunt
-description: "系统化排查 bug：先定位根因，再修复。尤其擅长回归和"以前好现在坏"的情况。 Use when the user reports errors, crashes, regressions, failing tests, or unexpected behavior changes — anything that needs root cause investigation. 触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。"
+description: "系统化排查 bug：先定位根因，再修复。尤其擅长回归和\"以前好现在坏\"的情况。 Use when the user reports errors, crashes, regressions, failing tests, or unexpected behavior changes — anything that needs root cause investigation. 触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。"
 AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
   Label: '1'
-  ProduceID: '7b283f2e-097f-4323-b9c3-f53ecfbe9622'
-  PropagateID: '7b283f2e-097f-4323-b9c3-f53ecfbe9622'
-  ReservedCode1: '08fe636c-d99c-42de-acf5-c21d7a1de2e0'
-  ReservedCode2: '08fe636c-d99c-42de-acf5-c21d7a1de2e0'
+  ProduceID: '5a268706-89b2-40a5-b89f-5677fd9b56bf'
+  PropagateID: '5a268706-89b2-40a5-b89f-5677fd9b56bf'
+  ReservedCode1: 'eacf21da-a01e-4dba-a560-ce5b9beb9520'
+  ReservedCode2: 'eacf21da-a01e-4dba-a560-ce5b9beb9520'
 ---
 
 参考规范：`docs/references/decision-ladder.md`（编码前的决策阶梯）、`docs/references/code-task-contract.md`（代码任务合约）。
