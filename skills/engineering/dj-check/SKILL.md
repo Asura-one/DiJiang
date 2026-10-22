@@ -103,6 +103,7 @@ git diff --stat HEAD
 - `git diff --stat HEAD`
 - 验证报告摘要
 - 版本决策建议
+- issue 结题评论素材：验收逐条对照 + commit 引用 + 边界如实声明（工单有 Forgejo 镜像时，finish-work 关闭 issue 直接复用本报告，不再另写）
 
 ## 反例
 
