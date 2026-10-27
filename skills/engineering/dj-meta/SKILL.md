@@ -41,6 +41,20 @@ SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考
 - 上游产出是什么（dialogue / PRD / issue / code diff）
 - 下游谁接手（`dj-output` / `dj-split` / `dj-implement` / `dj-check` / `dijiang-finish-work`）
 
+### 5. 只写增量纠偏，规则必带 why
+
+写指令前先判断：模型默认会做好这件事吗？会的不写——每条指令都是对模型默认行为的**纠偏**，不是百科全书。全大写 ALWAYS/NEVER 串是坏信号。承重级禁令必须附一句理由：理由在场时模型能判断边界情形；缺 why 的规则是技能自进化时代第一批被"聪明"放宽的承重墙。
+
+### 6. 引用带条件，具体度匹配任务脆弱性
+
+- **条件细节引用**：references/ 引用带触发条件（"If 任务涉及 X：读 `references/<主题>.md`"）；引用深度 ≤1——references 内再引用 references 是反模式
+- **自由度校准**：脆弱操作（git 红线、格式破坏风险）写死步骤——窄桥要护栏；灵活任务（排查、设计）给目标不给清单——开阔地允许多条路
+- **具体判据**：要求具体到数字、来源、代码、步骤；空泛描述视为未完成
+
+每个技能都应明确：
+- 上游产出是什么（dialogue / PRD / issue / code diff）
+- 下游谁接手（`dj-output` / `dj-split` / `dj-implement` / `dj-check` / `dijiang-finish-work`）
+
 ## 治理门槛（先于模板）
 
 创建新技能前先过 `SCOPE.md` 双门槛（真实失败 + 契合哲学）；**可由现有技能组合的行为不建新技能**，落点优先是现有技能的增量段落或 `references/` 文档。被否决的概念登记到 `.out-of-scope/`，防止重复提案。
