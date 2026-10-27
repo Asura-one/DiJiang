@@ -1,3 +1,7 @@
+---
+review_before: 2028-10-27
+---
+
 # Outcome Contract 模式
 
 每个 `dj-*` skill 必须明确定义其交付物和完成条件。这是 skill 合约的头部块，放在 skill 描述之后、具体流程之前。

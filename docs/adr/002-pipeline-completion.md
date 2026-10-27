@@ -1,3 +1,7 @@
+---
+review_before: 2028-10-27
+---
+
 # ADR 002: 补齐 grill → PRD → split → implement 流水线
 
 ## 状态

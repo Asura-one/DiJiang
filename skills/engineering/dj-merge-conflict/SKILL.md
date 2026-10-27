@@ -1,6 +1,6 @@
 ---
 name: dj-merge-conflict
-description: "解决进行中的 git merge/rebase 冲突。Use when you need to resolve an in-progress git merge/rebase conflict."
+description: "解决进行中的 git merge/rebase 冲突。 Use when you need to resolve an in-progress git merge/rebase conflict. 触发词：合并冲突、解决冲突、conflict、merge 冲突、rebase 冲突。"
 ---
 
 # 解决合并冲突

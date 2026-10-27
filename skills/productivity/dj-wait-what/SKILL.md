@@ -1,6 +1,6 @@
 ---
 name: dj-wait-what
-description: "停。最后一条消息没落地：重新讲一遍。给点上下文，用领域术语表里的术语重新表达。"
+description: "停。最后一条消息没落地：重新讲一遍。给点上下文，用领域术语表里的术语重新表达。 Use when the user signals the last reply missed the point and needs restating with context. 触发词：等等、没懂、重新说、你在说什么、wait what、再讲一遍。"
 disable-model-invocation: true
 ---
 

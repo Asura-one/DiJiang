@@ -1,6 +1,6 @@
 ---
 name: dijiang-start
-description: "启动 DiJiang session：加载项目上下文、当前任务和状态，然后报告合适的 dj-* 路线。"
+description: "启动 DiJiang session：加载项目上下文、当前任务和状态，然后报告合适的 dj-* 路线。 Use when starting a new session in a DiJiang-managed project and context must be loaded first. 触发词：开始、启动会话、今天做什么、start session、项目状态、开工。"
 disable-model-invocation: true
 ---
 

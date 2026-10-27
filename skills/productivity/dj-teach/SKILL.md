@@ -1,6 +1,6 @@
 ---
 name: dj-teach
-description: "在当前工作区教用户一个新技能或概念。状态化请求：用户打算跨多个 session 学习该主题。"
+description: "在当前工作区教用户一个新技能或概念。状态化请求：用户打算跨多个 session 学习该主题。 Use when the user wants to learn a topic across multiple sessions with this workspace as state. 触发词：教我、学习、teach、跨会话学习、我想学、给我讲讲。"
 disable-model-invocation: true
 argument-hint: "你想学什么？"
 ---

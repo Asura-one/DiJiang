@@ -1,6 +1,6 @@
 ---
 name: dj-spec-bootstrap
-description: 扫描项目主要源码目录，为每个模块生成初始 spec 文件（.dijiang/spec/<module>/index.md）
+description: "扫描项目主要源码目录，为每个模块生成初始 spec 文件。 Use when a project lacks .dijiang/spec/ coverage and needs baseline specs generated. 触发词：生成 spec、初始规范、spec 引导、bootstrap、规范初始化、扫描模块。"
 disable-model-invocation: true
 ---
 

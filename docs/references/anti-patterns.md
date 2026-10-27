@@ -7,6 +7,7 @@ AIGC:
   PropagateID: '68adaaba-dc63-4f81-bba0-5743d2157759'
   ReservedCode1: '826cc2a2-25c8-4bcf-977c-67781312dc5d'
   ReservedCode2: '826cc2a2-25c8-4bcf-977c-67781312dc5d'
+review_before: 2028-10-27
 ---
 
 # 跨技能反模式（Anti-patterns）

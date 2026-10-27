@@ -1,6 +1,6 @@
 ---
 name: dj-channel
-description: 多 agent 协作通道。通过 Call the Skill tool with "dj-channel" 生成 AI agent 执行任务、跨 agent 协作、 进度检查、通道日志调试。
+description: "多 agent 协作通道：生成子代理执行任务、跨 agent 协作、进度检查、通道日志调试。 Use when you need to spawn sub-agents, coordinate multiple agents, or debug channel logs. 触发词：子代理、多 agent、协作通道、生成 agent、spawn、channel、派任务。"
 disable-model-invocation: true
 ---
 

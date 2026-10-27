@@ -1,6 +1,6 @@
 ---
 name: dj-writing-for-agents
-description: "为 agent 写文档的规范参考：skill、AGENTS.md/CLAUDE.md、或任何 agent 通过指针到达的文档。Use when creating or editing skills, or modifying AGENTS.md or CLAUDE.md."
+description: "为 agent 写文档的规范参考：skill、AGENTS.md/CLAUDE.md、或任何 agent 通过指针到达的文档。 Use when creating or editing skills, AGENTS.md, CLAUDE.md, or any doc an agent will read. 触发词：写 skill、agent 文档、AGENTS.md、写作规范、为 agent 写、文档规范。"
 ---
 
 参考文档：任何 agent 消费的文档的写作——skill、`AGENTS.md` / `CLAUDE.md`、通过指针到达的文档。包装不同；写作相同：同一套杠杆让每个可预测，因为 agent 每次运行走同一**过程**而不是产出相同输出。

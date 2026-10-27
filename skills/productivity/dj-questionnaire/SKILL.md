@@ -1,6 +1,6 @@
 ---
 name: dj-questionnaire
-description: "把用户无法独自回答的决策变成一个问卷，交给能回答的那个人。Grill the send, not the subject."
+description: "把用户无法独自回答的决策变成一个问卷，交给能回答的那个人。Grill the send, not the subject. Use when a blocking decision lives outside your context and must be answered by another person. 触发词：问卷、questionnaire、问谁、别人决策、发问卷、他才知道。"
 disable-model-invocation: true
 ---
 

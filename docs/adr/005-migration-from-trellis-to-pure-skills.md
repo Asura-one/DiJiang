@@ -7,6 +7,7 @@ AIGC:
   PropagateID: '21588a9a-1bab-4771-8a57-3f9f18c32b73'
   ReservedCode1: '49516a37-dfae-4e8b-9f7c-ae2719712233'
   ReservedCode2: '49516a37-dfae-4e8b-9f7c-ae2719712233'
+review_before: 2028-10-27
 ---
 
 # ADR 0005: 从 Trellis 兼容迁移到纯 Skill 架构

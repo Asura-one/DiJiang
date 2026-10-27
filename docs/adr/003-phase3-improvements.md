@@ -1,3 +1,7 @@
+---
+review_before: 2028-10-27
+---
+
 # ADR 003: dj-review 并行审查 + dj-meta + ADR 机制
 
 ## 状态

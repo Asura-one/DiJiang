@@ -1,6 +1,6 @@
 ---
 name: dj-git-guardrails
-description: "Git 操作安全护栏：防止危险操作，推前检查，保护 main 分支。 Use before git push, merge, rebase, or any destructive operation. 叠加到 dj-implement / dj-hunt 上使用。 触发词：git 安全、保护分支、推前检查、guardrails。"
+description: "Git 操作安全护栏：防止危险操作，推前检查，保护 main 分支。 Use when about to git push, merge, rebase, or any destructive git operation. 触发词：git 安全、保护分支、推前检查、guardrails、push 前检查、force push。"
 ---
 
 # Git Guardrails: Git 安全护栏

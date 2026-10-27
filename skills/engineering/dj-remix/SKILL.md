@@ -1,6 +1,6 @@
 ---
 name: dj-remix
-description: 系统化地1:1复刻一个网站或App的界面与功能，并在复刻完成后做一次差异化改造。
+description: "系统化地 1:1 复刻一个网站或 App 的界面与功能，并在复刻完成后做一次差异化改造。 Use when the user wants to clone or replicate an existing site or app before customizing it. 触发词：复刻、仿站、1:1、克隆网站、remix、对标、复现界面。"
 disable-model-invocation: true
 ---
 

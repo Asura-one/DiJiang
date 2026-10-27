@@ -1,6 +1,6 @@
 ---
 name: dj-memory
-description: "项目管理记忆：存储发现、经验、纠正和模式。其他 skill 通过 Call the Skill tool 调用。管理 .dijiang/memory/ 下的 JSONL 文件。"
+description: "项目管理记忆：存储发现、经验、纠正和模式，管理 .dijiang/memory/ 下的 JSONL 文件。 Use when storing or recalling project findings, learnings, and corrections after task work. 触发词：记录、记忆、recall、存教训、项目经验、findings、写记忆。"
 ---
 
 # 项目记忆管理

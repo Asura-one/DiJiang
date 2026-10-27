@@ -1,6 +1,6 @@
 ---
 name: dijiang-continue
-description: "恢复当前任务：找到活跃任务和阶段，加载产物，然后报告合适的 dj-* 路线。"
+description: "恢复当前任务：找到活跃任务和阶段，加载产物，然后报告合适的 dj-* 路线。 Use when the user asks to resume a previous task or session and needs the current state reloaded. 触发词：继续、恢复任务、接着做、上次的任务、resume、continue。"
 disable-model-invocation: true
 ---
 

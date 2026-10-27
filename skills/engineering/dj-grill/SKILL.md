@@ -1,6 +1,6 @@
 ---
 name: dj-grill
-description: "不留情的深度拷问。走遍决策树的每个分支，直到达成共享理解。 一次一个问题，追到没有模糊为止。每个非平凡任务之前必备的第一步。 当用户需求模糊时自动激活——不需要等用户主动调用。 触发词：想法、方案、参考、细化、grill、plan、research、不确定做什么。"
+description: "不留情的深度拷问：走遍决策树的每个分支，直到达成共享理解。一次一个问题，追到没有模糊为止。 Use when the request is ambiguous, a plan needs stress-testing, or before any non-trivial task. 触发词：拷问、grill、对齐需求、逐轮确认、需求不清、想法细化。"
 disable-model-invocation: true
 ---
 

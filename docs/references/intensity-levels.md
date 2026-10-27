@@ -1,3 +1,7 @@
+---
+review_before: 2028-10-27
+---
+
 # 强度等级（Intensity Levels）
 
 某些 `dj-*` skill 支持强度等级，控制分析的深度和输出范围。

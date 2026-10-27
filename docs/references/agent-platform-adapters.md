@@ -1,3 +1,7 @@
+---
+review_before: 2027-10-27
+---
+
 # Agent 平台适配器
 
 DiJiang 的技能定义（SKILL.md）以 Pi agent 平台为第一目标，但设计上保持模型无关性。

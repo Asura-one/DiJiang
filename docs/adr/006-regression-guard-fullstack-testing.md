@@ -7,6 +7,7 @@ AIGC:
   PropagateID: '233cb8e0-6c6b-4637-a18b-570e54332dd1'
   ReservedCode1: '61f57e34-ea23-436b-a886-8025e345766d'
   ReservedCode2: '61f57e34-ea23-436b-a886-8025e345766d'
+review_before: 2028-10-27
 ---
 
 # ADR 0006: 引入 Regression Guard 与 Fullstack Testing 到纯 Skill 架构

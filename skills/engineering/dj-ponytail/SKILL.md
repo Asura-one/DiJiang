@@ -1,6 +1,6 @@
 ---
 name: dj-ponytail
-description: "强制最懒但真正有效的解决方案：最简单、最短、最精简。把每个工程问题都推到 YAGNI：先问是否需要存在，再用标准库，最后才写自定义代码。支持强度等级 lite/full/ultra。Use on ANY coding task. 触发词：ponytail、be lazy、lazy mode、极简、最简方案、yagni、do less、过度设计、简化。"
+description: "强制最懒但真正有效的解决方案：最简单、最短、最精简。把每个工程问题都推到 YAGNI：先问是否需要存在，再用标准库，最后才写自定义代码。 Use when code risks over-engineering or the user asks for the laziest working solution. 支持强度等级 lite/full/ultra。 触发词：ponytail、be lazy、lazy mode、极简、最简方案、yagni、do less、过度设计、简化。"
 argument-hint: "[lite|full|ultra]"
 ---
 

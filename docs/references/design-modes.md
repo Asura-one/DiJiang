@@ -1,3 +1,7 @@
+---
+review_before: 2028-10-27
+---
+
 # 设计模式（Design Modes）
 
 借鉴 Waza 的 `think` skill，按设计问题的深度和类型选择模式。

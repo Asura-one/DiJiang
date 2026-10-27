@@ -1,6 +1,6 @@
 ---
 name: dj-setup
-description: "初始化 DiJiang 项目状态或从旧版本迁移。创建 .dijiang/ 目录结构、config.toml 和 CONTEXT.md。每个项目运行一次。"
+description: "初始化 DiJiang 项目状态或从旧版本迁移：创建 .dijiang/ 目录结构、config.toml 和 CONTEXT.md。每个项目运行一次。 Use when .dijiang/ is missing or a legacy structure needs migration. 触发词：初始化项目、setup、新项目、迁移、初始化、安装。"
 disable-model-invocation: true
 ---
 

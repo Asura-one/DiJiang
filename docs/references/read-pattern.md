@@ -1,3 +1,7 @@
+---
+review_before: 2028-10-27
+---
+
 # URL / PDF 阅读模式
 
 利用 Pi 的 `fetch_content` 工具读取 URL 和 PDF，返回结构化内容。
