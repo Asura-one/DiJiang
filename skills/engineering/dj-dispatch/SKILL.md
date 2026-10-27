@@ -81,6 +81,7 @@ AIGC:
 | "交接/换 session" | `dj-handoff` |
 | "写 skill、创建技能、技能指南" | `dj-meta` |
 | "出错了/不工作/报错" | `dj-hunt` |
+| "总结经验/沉淀技能/自进化" | `dj-evolve` |
 
 ## 混合任务处理
 
