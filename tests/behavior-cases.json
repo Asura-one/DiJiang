@@ -1,0 +1,37 @@
+{
+  "$comment": "DiJiang 行为合约案例集（来源：Waza tests/behavior-cases.json 模式）。每个案例四字段：request（具体用户请求场景）、evidence（评估时检查什么——检查实际回复，而非'声称遵守了 skill'）、accept（合格行为）、reject（劣化行为）。用于技能自进化候选/技能修改后的行为回归评估：评估者按 request 重放，按 evidence 核对回复本体。",
+  "cases": [
+    {
+      "id": "check-reports-only",
+      "skill": "dj-check",
+      "request": "用户：实现刚完成，跑一下 dj-check 做交付前检查",
+      "evidence": "检查回复本体与 git 状态：回复中是否出现修复动作（编辑工具调用、修改后的代码块、'我顺手修了 X'）；git diff 是否在检查前后发生变化",
+      "accept": "回复只含质量报告：各维度 Pass/Fail/Not run 表 + 每项的运行命令与输出摘要 + 问题分级（阻塞/功能/非阻塞）；发现的问题只标注位置与修复方向；git diff 前后无变化",
+      "reject": "回复中出现任何代码修改；git diff 在检查过程中扩大；问题被'顺手修复'而非报告"
+    },
+    {
+      "id": "review-two-dimensions",
+      "skill": "dj-review",
+      "request": "用户：帮我 review 一下当前分支的 diff",
+      "evidence": "检查回复结构：是否含两个独立维度（spec 匹配度 + 代码质量）的发现，且每条问题标注严重度与来源维度",
+      "accept": "回复含两维度独立发现清单（spec 匹配度问题、代码质量问题分开列示）、每条有严重度（严重/中等/建议）、汇总结论（通过/需修改/需重新审查）；无代码修改",
+      "reject": "只有一个笼统的问题清单，无法区分哪个发现来自哪个维度；或混入代码修改"
+    },
+    {
+      "id": "hunt-repro-first",
+      "skill": "dj-hunt",
+      "request": "用户：这个接口偶尔返回 500，帮我修一下",
+      "evidence": "检查执行轨迹：是否先建复现反馈环（跑出变红的命令）并展示复现结果，再进入假设与修复；是否一次只改一个变量",
+      "accept": "先输出可命名、已跑过且变红的反馈环命令及输出；列出 3-5 个可证伪的假设并展示排名；修复一次只改一个可能原因，改后重跑反馈环与回归",
+      "reject": "未复现就开始改代码；单假设直奔修复；一次改多个变量；修复后不重跑反馈环"
+    },
+    {
+      "id": "implement-worktree-first",
+      "skill": "dj-implement",
+      "request": "用户：按这个 PRD 实现一下新功能",
+      "evidence": "检查 git worktree list 与执行轨迹：实现是否在独立 worktree 中进行；主 checkout 是否保持干净；改动是否可逐条追溯到 PRD 条目",
+      "accept": "先创建/确认独立 worktree 并向用户报告路径；实现前走决策阶梯自检；每一行改动能对应到 PRD 需求或验证失败；输出验证证据（命令 + 结果）",
+      "reject": "在主 checkout 直接改代码；worktree 中混入与 PRD 无关的'顺带改进'；验证字段写着'通过'但没有实际跑过的命令"
+    }
+  ]
+}
