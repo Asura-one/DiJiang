@@ -1,0 +1,42 @@
+# dj-ask 技能目录（详注版）
+
+本文件是 dj-ask 路由图的技能详注目录。SKILL.md 只列技能名与一句话角色；需要更详细的路由判定信息时读本节。
+
+## 独立工具（详注）
+
+- **`dj-merge-conflict`**：解决进行中的 merge/rebase 冲突，逐 hunk 按 **意图** 追溯到两侧的原始来源，不靠挑行。永不 `--abort`。已在冲突中时用它。
+- **`dj-research`**：把阅读腿活委托给后台 agent：它调查问题、查原始来源、在仓库里留一份带引用的 Markdown 文件。你继续干活，它在读。产出拿进主流程的 `dj-grill`。
+- **`dj-questionnaire`**：阻塞你的东西不在你脑子里或代码库里，而在**别人**那里时用。它写一份问卷给那个人填。它是 `dj-grill` 的反面：不拷问你关于主题，而是拷问你关于**发送**（给谁、需要什么回来）。回来的东西是 `dj-grill` 或 `dj-output` 的素材。
+- **`dj-wizard`**：只有**人类**能做的步骤：配置基础设施、设置凭据或 CI secret、点过陌生的三方仪表盘、跑一次性迁移。生成一个交互式 bash 脚本，开每个 URL、抓每个值、写进 `.env`，让流程不再每次重新跟 agent 解释。
+- **`dj-wait-what`**：消息没接住时的纠正。在对话中任何 skill 内部使用，agent 用 `CONTEXT.md` 的词汇重新讲一遍刚才说的，补上你缺的上下文。
+- **`dj-read`**：获取 URL 和 PDF，总结或返回干净 Markdown。
+- **`dj-reason`**：用认知矩阵和系统透镜分析复杂判断、架构取舍、流程副作用和长期影响。
+- **`dj-write`**：文字润色、去除 AI 味。
+- **`dj-handoff`**：session 交接——把当前对话压缩为结构化交接文档，供新 session 无缝接手。
+- **`dj-absorb`**：有选择地吸收外部项目的设计模式/交互方式/功能模块/视觉语言，融合到自有项目中。
+- **`dj-remix`**：系统化 1:1 复刻一个网站/App 的界面与功能，复刻后做差异化改造。
+- **`dj-script`**：一次性或可复用的自动化脚本编写。
+- **`dj-design`**：前端 UI 设计——产出有观点的界面，不是千篇一律的默认样式。
+- **`dj-ponytail`**：强制最懒但真正有效的方案：最简、最短、最精简，把每个工程问题推到 YAGNI。
+- **`dj-channel`**：多 agent 协作通道——生成子 agent 执行任务、跨 session 通信、进度检查。
+- **`dj-gov`**：知识治理收尾——审计项目文档/规则/记忆与代码实际行为一致。
+- **`dj-meta`**：Skill 写作指南——记录 dj-* 的设计原则和写作规范，用于创建和审查技能。
+- **`dj-session-insight`**：跨会话记忆检索——"上次怎么解的""之前讨论过吗"。
+- **`dj-teach`**：跨 session 教一个概念，用当前目录做状态化工作区。
+- **`dj-writing-for-agents`**：为 agent 写文档的规范参考：skill、AGENTS.md/CLAUDE.md 或任何 agent 通过指针到达的文档。
+
+## 词汇层（详注）
+
+两个 model-invoked 参考在其它 skill *下面* 运行，各是其词汇的唯一真相源。直接用它们当 **词语**（而非流程）有问题时；或让上面的 skill 拉它们进来。
+
+- **`dj-domain-modeling`**：打磨项目的*领域*语言：挑战模糊术语、解决重载词（一个"账户"干三件事）、把难逆转的决策记为 ADR。它是 `dj-grill` 驱动以保持 `CONTEXT.md` 干净词汇表的主动纪律。
+- **`dj-codebase-design`** 是深模块词汇（模块、接口、深度、seam、适配器、杠杆、局部性），用于设计模块的*形状*：小接口后面的大量行为，在干净的 seam 上。`dj-tdd` 和 `dj-audit` 都说它。
+- **`dj-memory`** 是项目记忆的底层支撑：其他 skill 通过 `Call the Skill tool with "dj-memory"` 读写历史发现、经验、模式。
+- **`dj-git-guardrails`** 是 Git 安全的底层护栏：所有涉及 git 操作的 skill 都经过它的约束。
+
+## 代码库健康（详注）
+
+不是功能工作，只是养护。
+
+- **`dj-audit`** 在有空时运行，保持代码库对 agent 友好。它扫描过度工程和安全性，也可用 `debt` profile（技术债）或 `health` profile（仓库健康）补充。它发现候选；**`dj-codebase-design`** 是设计选中项的工作台。
+- **`dj-pattern`** 从历史修复和代码模式中学习，发现可复用抽象和反模式。

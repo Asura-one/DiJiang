@@ -9,28 +9,59 @@ AIGC:
   ReservedCode2: 'dc11b5af-9902-4db5-9191-c58b88572f03'
 ---
 
-# dj-dispatch: 路由表
+# dj-dispatch: 完整路由表
 
-| 关键词 | 路由 |
+SKILL.md 保留每阶段核心行与判定规则；不确定某句话路由到哪时读本表全量匹配。
+
+## Pre-build（动手前）
+
+| 用户说的话 | 路由到 |
 |---|---|
-| 实现/写代码/做功能 | dj-implement / dj-tdd |
-| 复刻/仿站/对标/clone | dj-remix |
-| 出错了/不工作/报错 | dj-hunt |
-| 审查/看看代码 | dj-review |
-| 检查/验收 | dj-check |
-| 全量测试/全面回归 | dj-fullstack-testing |
-| 回归保护/改前基线/三明治 | dj-regression-guard |
-| 想法/细化/对齐 | dj-grill |
-| 有哪些流程/该走什么 | dj-ask |
-| 原型/验证/探一下 | dj-prototype |
-| 脚本/工具 | dj-script |
-| 极简/少写 | 对应实现 skill，遵守 workflow 的最小变更约束 |
-| 审计/扫一下 | dj-audit |
-| 文档/PRD | dj-output |
-| 债务/健康检查/配置检查 | dj-audit（选择 debt 或 health profile） |
-| 模式/重复 | dj-pattern |
-| 分析/权衡 | dj-reason |
-| 润色/改文字 | dj-write |
-| 设计/UI | dj-design |
-| 交接 | dj-handoff |
-| 规范/纪律 | 对应分析或实现 skill，遵守 workflow 通用约束 |
+| "有个想法/想细化一下/想对齐" | `dj-grill` |
+| "分析/推理/决策/取舍" | `dj-reason` |
+| "设计/做页面/UI" | `dj-design` |
+| "结构设计、放在哪、模块划分" | `dj-codebase-design` |
+| "术语、统一语言" | `dj-domain-modeling` |
+| "调研、研究、技术选型" | `dj-research` |
+| "写 PRD、产品文档、把需求写下来" | `dj-output` |
+
+## Build（实现中）
+
+| 用户说的话 | 路由到 |
+|---|---|
+| "实现/写代码/做功能/加个接口" | `dj-implement` 或 `dj-tdd`（改码护送走 `dj-regression-guard`） |
+| "复刻/仿站/对标/clone" | `dj-remix` |
+| "原型/验证一下/探一下" | `dj-prototype` |
+| "极简/少写/简单点" | 对应实现 skill，并应用 workflow 的最小变更约束 |
+| "写个脚本/做个小工具" | `dj-script` |
+| "拆分任务、切任务、分批做" | `dj-split` |
+| "模式/重复/抽象" | `dj-pattern` |
+
+## Post-build（交付前）
+
+| 用户说的话 | 路由到 |
+|---|---|
+| "审查/帮我看看代码" | `dj-review` |
+| "检查/验收/质量门禁" | `dj-check` |
+| "全量测试/全面回归/系统测试" | `dj-fullstack-testing` |
+| "回归保护/改前基线/三明治" | `dj-regression-guard` |
+| "审计/扫一下/过度工程" | `dj-audit` |
+| "债务/技术债/标记/健康检查/配置检查" | `dj-audit`（选择 debt 或 health profile） |
+| "代码规则/纪律/karpathy" | 对应实现或审查 skill，并应用 workflow 通用约束 |
+| "文档/写文档/PRD/说明" | `dj-output` |
+
+## Content（内容进出）
+
+| 用户说的话 | 路由到 |
+|---|---|
+| "润色/改文字/去 AI 味" | `dj-write` |
+
+## 运维
+
+| 用户说的话 | 路由到 |
+|---|---|
+| "交接/换 session" | `dj-handoff` |
+| "写 skill、创建技能、技能指南" | `dj-meta` |
+| "出错了/不工作/报错" | `dj-hunt` |
+| "总结经验/沉淀技能/自进化" | `dj-evolve` |
+| "有哪些流程/该走什么" | `dj-ask` |

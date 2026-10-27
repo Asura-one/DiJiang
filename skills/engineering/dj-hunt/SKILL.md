@@ -11,7 +11,7 @@ AIGC:
   ReservedCode2: 'eacf21da-a01e-4dba-a560-ce5b9beb9520'
 ---
 
-参考规范：`docs/references/decision-ladder.md`（编码前的决策阶梯）、`docs/references/code-task-contract.md`（代码任务合约）。
+参考：`docs/references/decision-ladder.md`、`docs/references/code-task-contract.md`。深度细节：反馈环 10 方法 → `references/diagnose-feedback-loop.md`；置信度门禁与实战长案例（重叠原因/静默降级/生成未消费/防护路径）→ `references/hypothesis-and-cases.md`。
 
 ## Outcome Contract
 
@@ -30,152 +30,49 @@ AIGC:
 
 你已身为 dj-hunt。直接执行排查与修复，不得再调用或派发另一个 dj-hunt。修复的回归护送按 dj-regression-guard 协议文本执行（协议引用，非派发）。
 
-
-参考 `diagnosing-bugs`（Matt Pocock）的 6 阶段 Bug 诊断方法。
-以下阶段按顺序执行，跳过时必须显式说明理由。
-
-> **Phase 1 是最关键的技能**——建好反馈环，bug 就 90% 定位了。
+参考 `diagnosing-bugs`（Matt Pocock）6 阶段诊断法，按序执行，跳过须显式说明理由。
 
 ## 铁律
 
-1. **先复现，再分析** — 不能稳定复现的问题，优先找复现条件，不猜原因。
-2. **先定位，再修复** — 必须找到根因（特定函数/变量/逻辑行）再修。不"顺便修周边"。
-3. **一次改一个变量** — 修复后不绿就回退，换方向，不堆叠补丁。
-4. **每次修复后跑 regression** — 确认没引入新问题。改前/改后护送走 **`dj-regression-guard`** 三明治协议（改前基线 → 修复 → 专项验证 → 改后回归）。本 skill 负责定位根因并写专项（failing test 转绿），改前基线与改后回归由 `dj-regression-guard` 承接，不在本 skill 内重复实现。
+1. **先复现，再分析** — 不稳定复现的优先找复现条件，不猜原因
+2. **先定位，再修复** — 找到根因（特定函数/变量/逻辑行）再修，不"顺便修周边"
+3. **一次改一个变量** — 不绿就回退换方向，不堆叠补丁
+4. **修复后跑 regression** — 护送走 `dj-regression-guard` 三明治协议；本 skill 定位根因+写专项，基线与回归由它承接
 
 ## 工作流
 
-### Phase 1 — 建反馈环（占 >40% 时间）
+### Phase 1 — 建反馈环（占 >40% 时间，最关键）
 
-**这是整场 bug hunt 最关键的技能。** 有稳定的 pass/fail 信号，bug 就 90% 定位了。
+有稳定 pass/fail 信号，bug 就 90% 定位了。紧环是调试超能力——2 秒确定性循环强过 30 秒 flaky 循环。按序尝试 10 法建环（failing test / curl / CLI+diff / headless / 重放 trace / 临时 harness / fuzz / bisection / 差分 / HITL bash，详见 references/diagnose-feedback-loop.md）。
 
-按顺序尝试以下方法建反馈环：
-
-> **紧环**是调试超能力——2 秒确定性循环比 30 秒 flaky 循环强 10 倍。
-
-| # | 方法 | 场景 |
-|---|------|------|
-| 1 | **Failing test**（单元/集成/e2e） | 有测试框架的项目 |
-| 2 | **Curl / HTTP 脚本** | 服务端 bug |
-| 3 | **CLI 调用 + diff 快照** | CLI 工具 |
-| 4 | **Headless 浏览器脚本** | UI 渲染/交互 bug |
-| 5 | **重放捕获的 trace** | 有真实请求/事件日志 |
-| 6 | **临时 harness** | 最小子系统隔离验证 |
-| 7 | **Property / fuzz loop** | "有时错"的间歇性 bug |
-| 8 | **Bisection harness** | 回归场景，已知引入时间窗口 |
-| 9 | **差分循环** | 新旧版本/两个配置对比 |
-| 10 | **HITL bash 脚本** | 最后手段：人肉介入 |
-
-**收紧反馈环**：
-- 跑得更快？（缓存、跳过无关 init、缩小 scope）
-- 信号更清晰？（断言精确症状，不是"没崩"）
-- 更确定？（固定时间、seed RNG、隔离文件系统）
-
-当 **无法建立任何反馈环** 时，停止并汇报。列出已尝试的方法，请求用户提供：复现环境访问、HAR/日志/核心转储、或生产临时埋点权限。
-
-**Phase 1 完成标准**：你有一条可以命名命令的、已经跑过且变红的反馈环。
-
-> 如果你发现自己还没建环就开始读代码猜原因——**停下来**。跳到假设是 feedback loop 技能要预防的精确失败模式。
+**收紧**：更快？信号更清晰（断言精确症状）？更确定（固定时间、seed RNG）？无法建环时停止汇报，列已试方法，向用户要复现环境/HAR/日志/埋点权限。**完成标准**：可命名命令、已跑过且变红。没建环就读代码猜原因 → **停下来**。
 
 ### Phase 2 — 复现 + 最小化
 
-- 跑反馈环，确认复现用户的精确错误场景——不是附近的另一个错误
-- 确认多次复现（flaky bug：确认复现率足够高）
-- 捕获精确错误信息（错误消息/输出/diff）
-
-**最小化**：缩到最小的 still-red 场景。
-- 每次减少一个输入/调用者/配置/步骤
-- 每步减完重跑——只保留对失败必要的内容
-- 最小化缩小后续 Phase 3 的假设空间，并成为 Phase 5 的 regression 测试
-
-> 每个剩余元素都是 load-bearing 的——去掉任何一个就变绿了。
+跑反馈环复现用户**精确**错误场景（多次复现，flaky 确认复现率），捕获精确错误信息。**最小化**到最小 still-red：每次减一个输入/调用者/配置/步骤，每步重跑——缩小 Phase 3 假设空间，成为 Phase 5 的 regression 测试。剩余元素都是 load-bearing。
 
 ### Phase 3 — 假设（3-5 个）
 
-列出 **3-5 个有排名的假设**，再逐个测试。单假设易锚定第一个想法。
-
-每个假设必须 **可证伪**：陈述预测。
-
-```text
-假设 1：如果 <X> 是根因，那么 <改 Y> 后 bug 会消失 / <改 Z> 后 bug 会更糟
-假设 2：...
-```
-
-如果无法陈述预测，这个假设是"感觉"——丢弃或打磨它。
-
-**将排名列表展示给用户。** 用户往往有领域知识能立刻重排（"我们刚部署了 #3 的改动"），或知道哪些假设已经排除了。
-
-### 假设优先级与置信度门禁（多候选根因的量化纪律）
-
-1. **先验分配** — 按第一直觉给各假设分配概率（总和 100%），写下理由
-2. **证据分级** — 可靠性从高到低：test output > 日志 > 用户报告 > 直觉。只让高可靠证据改变概率
-3. **区分性证据优先** — 问"若 H1 真而 H3 假，我会看到什么？"——找能把两个假设分开的证据，而不是对谁都成立的证据
-4. **置信度门禁**：
-
-| 置信度 | 动作 |
-|---|---|
-| ≥90% | 直接修复，附 fallback 计划 |
-| 70-90% | 修复，同时准备回退路径 |
-| 50-70% | 先加探针验证假设，再决定修不修 |
-| <50% | 继续收集证据，不许猜着修 |
-
-先验不是承诺：证据更新后概率必须跟着动，警惕锚定在第一个可疑点。
+列 **3-5 个有排名的可证伪假设**（"如果 <X> 是根因，<改 Y> 后 bug 会消失"），无法陈述预测的丢弃。**排名展示给用户**——领域知识能立刻重排（"刚部署了 #3"）。多候选按置信度门禁行动（≥90% 直接修附 fallback / 50-70% 先探针 / <50% 继续收证据），细则见 `references/hypothesis-and-cases.md`。
 
 ### Phase 4 — 探针
 
-每个探针映射到 Phase 3 的一个特定预测。一次只改一个变量。
-
-工具偏好：
-1. **调试器 / REPL** — 一个断点胜过十条 log
-2. **定向日志** — 在区分假设的边界加 log
-3. **永不"log 一切再 grep"**
-
-**Perf 分支**：性能 regression 用日志通常是错的。改测 baseline → bisect。先测量再修。
+每个探针映射 Phase 3 一个特定预测，一次只改一个变量。工具偏好：调试器/REPL（一断点胜十 log）> 定向日志（加在区分假设的边界）> **永不"log 一切再 grep"**。Perf 分支：性能 regression 改用 baseline→bisect，先测量再修。
 
 ### Phase 5 — 修复 + regression 测试
 
-- 若任务仍为 `planning`，使用原始用户请求重新运行 Call the Skill tool with "dj-dispatch"；不要通过 update `.dijiang/tasks/<name>/task.json` status field 绕过 worktree check (see dj-git-guardrails)。
+任务仍 `planning` 时用原始用户请求重新走 dj-dispatch，不绕过 worktree check（见 dj-git-guardrails）。
 
-回归测试写在修复 **之前**——仅当存在正确的 seam。
+回归测试写在修复**之前**——仅当存在正确 seam；没有 seam → 本身就是发现：架构阻碍 bug 锁定。有 seam：最小化 repro → failing test → RED → 修 → GREEN → 重跑反馈环确认原始场景不复现。遵守 **Code Task TDD Contract**（RED/Repro evidence、GREEN command、Regression scope、Exception）。
 
-- 正确的 seam：测试能复现 bug 在调用点的真实模式
-- 没有正确的 seam → 本身就是一个发现：代码架构阻碍了 bug 锁定
-- 如果 seam 存在：最小化 repro → 写 failing test → 看它 RED → 修代码 → 看它 GREEN → 跑 Phase 1 反馈环确认原始场景不复现
-- 遵守 **Code Task TDD Contract**：修复必须包含 RED/Repro evidence、GREEN command、Regression scope 和 Exception 证据。
-- 确认 Regression scope（判断修复是否影响相关功能）并用测试或手动校验验证。
-- 确认 Exception（记录因架构限制无法修复的边界情况，或标记为 n/a）。
 ### Phase 6 — 清理 + 复盘
 
-**完成前必须检查：**
-
-- [ ] 原始场景不再复现（重跑 Phase 1 反馈环）
-- [ ] Regression 测试通过（或无正确 seam 已记录）
-- [ ] 所有调试探针已移除（grep 唯一前缀清理）
-- [ ] 一次性原型已删除或移到标识的 debug 位置
-- [ ] 正确的假设记录在 commit message
-
-**然后问：什么能预防这个 bug？** 如果答案涉及架构变更（没有好的测试 seam、耦合、隐藏依赖），在修复后（不是之前）转交到对应 skill。
-
-**修复失败计数器**：同一 bug 连续 3 次修复失败 → 停止当前方向，做 Break-Loop 报告：
-- 当前假设和验证结果
-- 还有哪些路径没查过
-- 是否需要换工具
-
-### 反例
-
-| ❌ 不要做 | ✅ 正确做法 |
-|---|---|
-| 不复现就猜原因 | 先稳定复现再分析 |
-| 一次性改多个地方 | 一次改一个变量，验证再继续 |
-| 修复完不跑回归 | 确认相关行为没坏 |
-| 同一方向死磕 3 次以上 | 换思路，做 Break-Loop 报告 |
-
-参考规范：`docs/references/anti-patterns.md`（跨技能行为约束）、`references/diagnose-feedback-loop.md`（Bug 诊断反馈环）、`docs/references/durable-context-preflight.md`（记忆预检）。
+完成前检查：场景不复现（重跑反馈环）；regression 过（或无 seam 已记录）；探针全清（grep 唯一前缀）；一次性原型删除；正确假设进 commit message。再问"什么能预防这个 bug"——涉及架构变更（无好 seam、耦合、隐藏依赖）的，修复**后**转交相应 skill。同一 bug 连续 3 次修复失败 → 停止方向做 Break-Loop 报告（当前假设与验证/未查路径/是否换工具）。
 
 ## Hard Rules
 
 1. 先建稳定的复现反馈环，再动代码
-2. 不能说一句话根因就不改代码——每条假设必须可证伪
+2. 每条假设必须可证伪
 3. 修复前先写 regression 测试（有正确 seam 时）
 4. 一次只改一个可能的原因，改完验证
 5. 3 次连续修复失败 → 停止汇报
@@ -183,16 +80,16 @@ AIGC:
 
 ## Gotchas
 
-| Gotcha | 后果 | 预防 |
-|---|---|---|
-| 没确认复现就改 | 可能根本没找到 bug | 先建反馈环 |
-| 一次改太多可能原因 | 不知道哪个修复生效 | 一次一个改动 |
-| 修完不验证 | regression 遗漏 | 跑全量测试或冒烟 |
-| 改代码不确认是否 root cause | 症状修了根因还在 | 先确认 root cause 再改 |
-| 存量失败未甄别 | 误将存量 bug 当新引入修复，浪费时间追错方向 | git stash 暂存改动，在干净基线跑测试对比，区分存量问题与新引入问题 |
-| 修了一个原因就认为 bug 已解决 | 多个重叠原因叠加导致同一症状，只修一个其余仍在，bug 不消失。实测案例：SwiftUI ScrollView 高度为 0 有 4 个叠加原因（safeAreaInset 吃高度 + 缺 minHeight + tableHeader 占固定高度 + isFocused 动画触发重布局），只修第 1 个症状仍在 | 修复后必须重跑反馈环确认症状消失；若症状仍在，继续排查其他可能原因，不要假设单一根因。列出所有候选原因清单逐个验证 |
-| 静默降级无标记 | preferred 选项不存在时代码静默 fallback 到随机/默认值，无显式标记，导致配置与运行时割裂（如配了 worker A 实际跑 worker B + model 错配 provider） | fallback 路径必须显式标记（返回 fallback 标志/记日志），且 fallback 时不注入 preferred 选项的专属参数 |
-| 功能已生成但未消费 | prompt 要求 LLM 生成某字段（如 structured_report），但输出解析代码不提取该字段，LLM 白耗 output token 生成后被丢弃 | 审查 prompt 要求的每个输出字段是否都有对应的提取/消费代码；token 异常超耗时优先排查"生成但未消费"的字段 |
-| 防护只在降级路径执行 | 预算/截断/校验机制只在错误/降级路径触发，正常路径无防护，导致正常路径 token/资源不受控 | 预算/截断/校验必须在所有路径执行，不能只在 fallback 分支调用 |
+| Gotcha | 预防 |
+|---|---|
+| 没确认复现就改 | 先建反馈环 |
+| 一次改太多可能原因 | 一次一个改动 |
+| 修完不验证 | 跑全量测试或冒烟 |
+| 不确认 root cause 就改 | 先确认再改 |
+| 存量失败未甄别 | 干净基线对比区分存量/新引入 |
+| 多原因只修一个 | 重跑反馈环，列候选清单逐个验证 |
+| 静默降级无标记 | fallback 显式标记，不注入 preferred 专属参数 |
+| 生成字段未消费 | 审查输出字段提取代码；token 超耗优先排查 |
+| 防护只在降级路径 | 预算/截断/校验全路径执行 |
 
-参考规范：`docs/references/output-markers.md`（输出标记）。
+后四条的实测案例详情见 `references/hypothesis-and-cases.md`。

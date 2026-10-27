@@ -44,46 +44,26 @@ AIGC:
   ```bash
   git worktree add ../<项目名>-<分支名> -b <type>/<任务名> <base>
   ```
-- 通知用户 worktree 路径，后续测试在 worktree 目录中执行（Makefile 等已有文件继承自仓库）。
-- 遵守 **Code Task TDD Contract**：先固定行为和回归边界，再实现。
-- 非平凡改动先声明 scope：列出必须改变的行为、允许修改的模块，以及明确不处理的相邻问题。
-- 固定行为边界：先写一个失败测试（RED/Repro evidence）、复现步骤或人工复核清单。
-- 确认测试环境可用，或记录不可用原因。
-- **上下文护栏**：读取 PRD / 设计文档 / issue 等任务产物设字节预算（参考值：单文件 32KB / 总注入 128KB）。超预算文件先读索引/结论段，按需再读细节；总量超限时把超出文件降级为索引行（路径 + 原因 + 大小）并说明降级清单——不硬截断、不静默丢弃。
-- 若任务仍为 `planning`，使用原始用户请求重新运行 Call the Skill tool with "dj-dispatch"；不要通过 update `.dijiang/tasks/<name>/task.json` status field 绕过 worktree check (see dj-git-guardrails)。
+- 通知用户 worktree 路径（测试在 worktree 中执行）。
+- 遵守 **Code Task TDD Contract**：先固定行为和回归边界再实现——非平凡改动先声明 scope（必改行为/允许模块/明确不处理的相邻问题）；先写失败测试（RED/Repro evidence）或复现清单；确认测试环境可用或记录原因。
+- **上下文护栏**：读任务产物设字节预算（参考：单文件 32KB / 总注入 128KB）。超预算先读索引/结论段按需展开；总量超限降级超出文件为索引行（路径+原因+大小）并说明降级清单——不硬截断、不静默丢弃。
+- 任务仍 `planning` 时用原始用户请求重新走 dj-dispatch，不绕过 worktree check（见 dj-git-guardrails）。
 
 ### 1.5 决策阶梯门禁
 
-编码前先走 **Ponytail 7-rung 决策阶梯**（`docs/references/decision-ladder.md`），逐层自检：
+编码前走 **Ponytail 7-rung 决策阶梯**（`docs/references/decision-ladder.md`，逐层：YAGNI → 复用现有 → 标准库 → 原生特性 → 已有依赖 → 一行代码 → 最小代码）。通过一层就不进下一层；跳层须注释原因。
 
-1. **YAGNI** — 这行代码真的需要吗？
-2. **复用现有** — 项目里已经有现成的了吗？
-3. **标准库** — 语言 stdlib 能解决吗？
-4. **原生特性** — 语言本身的特性够用吗？
-5. **已有依赖** — 已有依赖提供需要的能力吗？
-6. **一行代码** — 一行能搞定吗？
-7. **最小代码** — 写最少能工作的代码
-
-通过一层就不进下一层。跳过任意层需要注释说明原因。
-极简路径与一般实现都遵守本 skill 的决策阶梯和 workflow 的通用最小变更约束。
-
-**shortcut 债务注释**：砍功能、临时绕过或接受已知限制时，必须留注释 `shortcut: <上限>, <升级触发点>`（例：`shortcut: 单机锁, 并发>100 时换分布式锁`）。写不出升级触发点就不要简化——没有触发点的简化会在将来默默腐烂。
+**shortcut 债务注释**：砍功能/临时绕过/接受已知限制时，必须留 `shortcut: <上限>, <升级触发点>`（例：`shortcut: 单机锁, 并发>100 时换分布式锁`）。写不出触发点就不要简化——没有触发点的简化将默默腐烂。
 
 ### 2. 实现
 
 **只改必要的代码。** 每一行改动必须能追溯到用户请求、PRD 或验证失败。
 
-顺序：
-1. 先读现有代码，找已有模式。
-2. 写最小失败证据（测试/复现/清单），确认它能证明目标命题。
-3. 写最小可通过代码，让验证变绿。
-4. 跑 regression scope，确认没有破坏相关行为。
-5. 清理本改动引入的死 import、临时输出。
-6. 重读改过的区域，确认局部一致。
+顺序：读现有代码找已有模式 → 写最小失败证据（测试/复现/清单）确保证明目标命题 → 最小可通过代码变绿 → 跑 regression scope 确认未破坏相关行为 → 清理死 import 与临时输出 → 重读改过区域确认局部一致。
 
-**改前/改后回归护送**：本次改码的改前基线与改后回归由 `dj-regression-guard` 三明治协议承接。改码前先确认已走 S0-S1（快速层定义 + 改前基线），改码后执行 S2-S3（专项验证 + 改后回归）。本 skill 负责写专项（TDD 红测转绿），基线与回归由 `dj-regression-guard` 承载，不在本 skill 内重复实现。
+**改前/改后回归护送**：S0-S1（快速层+改前基线）确认后开始改码，S2-S3（专项+改后回归）由 `dj-regression-guard` 承接；本 skill 负责写专项（红测转绿），不重复实现基线与回归。
 
-复杂变更前，先问：「有没有不新增抽象、不新增依赖的简单方案？」
+复杂变更前自问：「有没有不新增抽象、不新增依赖的简单方案？」
 
 ### 3. 验证
 
@@ -99,48 +79,22 @@ Regression risk: <low/medium/high + why>
 Exception: <none or justified gap>
 ```
 
-- typecheck → RED → GREEN → 相关测试 → 全量测试
-- 有任何新失败 → 修好再交接
-- UI/前端改动 → 真实浏览器实测（如 Playwright 实际操作界面）；实测前先确认改动已在运行环境生效（容器化/挂载环境下热重载可能失效，需重启服务/容器）——typecheck/build 通过只是必要条件，不等于功能可见
+- typecheck → RED → GREEN → 相关测试 → 全量测试；有任何新失败 → 修好再交接
+- UI/前端改动 → 真实浏览器实测（Playwright 操作界面）；实测前确认改动已在运行环境生效（容器/挂载环境热重载可能失效需重启）——typecheck/build 通过只是必要条件，不等于功能可见
 
 ### 4. 收尾
 
-准备给 `dijiang-finish-work` 的数据：
-- `git status --short --branch`
-- `git diff --stat HEAD`
-- 已验证的命令和结果
-- 版本决策建议：`major` / `minor` / `patch` / `none`
+给 `dijiang-finish-work` 准备数据：`git status --short --branch`、`git diff --stat HEAD`、已验证的命令和结果、版本决策建议（major/minor/patch/none）。Git 工作流详见 `references/git-workflow.md`。
 
-参考 `references/git-workflow.md` 查看 Git 工作流详细指南。
+## Hard Rules（含反例）
 
-## 反例
-
-| ❌ 不要做 | ✅ 正确做法 |
-|---|---|
-| 在 main 上直接写代码 | 在 worktree 中开发 |
-| 顺手改无关代码、引入新依赖 | 只做任务范围内的事 |
-| 跑完测试有失败不管 | 修好新失败再交接 |
-| 验证没跑却写"通过" | 写 `not run` + 原因 |
-
-参考规范：`docs/references/anti-patterns.md`（跨技能行为约束）、`docs/references/durable-context-preflight.md`（记忆预检）。
-
-## Hard Rules
-
-1. 必须在 worktree 中实现，不在 main 上直接改
-2. 每轮改动只能解决一个关注点
-3. 改代码前先查历史发现（Call the Skill tool with "dj-memory" to recall）
-4. 实现完成后必须通过 dj-check 质量门禁
-5. 不改未读过的代码
-
-## Gotchas
-
-| Gotcha | 后果 | 预防 |
-|---|---|---|
-| 不在 worktree 中改 | main 被污染 | 先 create worktree |
-| 一次改太多文件 | 回滚困难和冲突 | 一次一个关注点 |
-| 不改就交 | 测试不过、有警告 | 实现后跑 dj-check |
-| 顺手改不相关代码 | reviewer 看不懂变动 | 只做任务指定的事 |
+1. 必须在 worktree 中实现，不在 main 上直接改（污染 main）
+2. 每轮改动只解决一个关注点（一次改太多 → 回滚困难）
+3. 改代码前先查历史发现（dj-memory recall）
+4. 实现完成后必须通过 dj-check 质量门禁（不改就交 → 测试不过）
+5. 不改未读过的代码；只做任务范围内的事（顺手改无关 → reviewer 看不懂）
+6. 验证没跑不得写"通过"——写 `not run` + 原因
 
 当任务需要从 spec 拆分为可执行单元时，参考 `references/ticket-decomposition.md` 的垂直切片方法。
 
-参考规范：`docs/references/output-markers.md`（输出标记）。
+参考规范：`docs/references/anti-patterns.md`、`docs/references/durable-context-preflight.md`、`docs/references/output-markers.md`。
