@@ -28,6 +28,11 @@ AIGC:
 
 按 PRD / 设计文档 / issue 描述实现。不提交、不 push、不 merge——这些由 `dijiang-finish-work` 处理。
 
+## Recursion Guard
+
+你已身为 dj-implement。直接执行实现工作，不得再调用或派发另一个 dj-implement / dj-tdd。实现完成后的质量门禁（dj-check）由主会话在交付时触发，不在本 skill 内自行调用。
+
+
 ## 工作流
 
 ### 1. 准备

@@ -24,6 +24,11 @@ AIGC:
 
 在交付前验证变更质量、功能完整性、安全性和回归风险。输出收口证据给 `dijiang-finish-work`。
 
+## Recursion Guard
+
+你已身为 dj-check。直接执行质量门禁检查，不得再调用或派发另一个 dj-check / dj-review。发现的问题只报告不修复——修复回 dj-hunt / dj-implement，由主会话裁决。
+
+
 ## 原则
 
 - **可验证** — 每个断言都必须有对应的运行命令或可复核操作

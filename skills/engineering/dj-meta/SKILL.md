@@ -41,6 +41,14 @@ SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考
 - 上游产出是什么（dialogue / PRD / issue / code diff）
 - 下游谁接手（`dj-output` / `dj-split` / `dj-implement` / `dj-check` / `dijiang-finish-work`）
 
+## 治理门槛（先于模板）
+
+创建新技能前先过 `SCOPE.md` 双门槛（真实失败 + 契合哲学）；**可由现有技能组合的行为不建新技能**，落点优先是现有技能的增量段落或 `references/` 文档。被否决的概念登记到 `.out-of-scope/`，防止重复提案。
+
+## 治理门槛（先于模板）
+
+创建新技能前先过 `SCOPE.md` 双门槛（真实失败 + 契合哲学）；**可由现有技能组合的行为不建新技能**，落点优先是现有技能的增量段落或 `references/` 文档。被否决的概念登记到 `.out-of-scope/`，防止重复提案。
+
 ## 创建新技能的模板
 
 ```markdown

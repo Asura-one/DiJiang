@@ -126,6 +126,7 @@ AIGC:
 3. 低置信度时必须路由到 `dj-grill`，不可猜
 4. 不记录路由历史——每次请求独立路由
 5. 路由到代码任务时，遵守 **Code Task TDD Contract**：输出必须包含 RED/Repro evidence、GREEN command、Regression scope 和 Exception 说明。
+6. 路由断言前先读目标技能的 SKILL.md 验证当前内容——路由表会过时，SKILL.md 是事实源。新增、改名或行为变更的技能必须同步更新本文件路由表。
 ## Gotchas
 
 | Gotcha | 后果 | 预防 |

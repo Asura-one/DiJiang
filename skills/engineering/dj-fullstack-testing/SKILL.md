@@ -24,6 +24,11 @@ description: "全栈系统回归测试引擎：后端分批 pytest、API 深度�
 
 本技能是全量回归**引擎**。任务级改码前后的轻量护送由 `dj-regression-guard` 承担，它引用本技能的三处机制（0.1a diff 映射表、3a 冒烟最小集、`docs/project-understanding.md` 格式），不内嵌副本。
 
+## Recursion Guard
+
+你已身为 dj-fullstack-testing。直接执行测试引擎流程，不得再调用或派发另一个 dj-fullstack-testing。
+
+
 ## 工作流
 
 ### 0. 文档触发检查（commit-id 守门）

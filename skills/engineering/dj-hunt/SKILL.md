@@ -26,6 +26,11 @@ AIGC:
 
 先定位根因，再修复。不跳步骤、不猜原因。
 
+## Recursion Guard
+
+你已身为 dj-hunt。直接执行排查与修复，不得再调用或派发另一个 dj-hunt。修复的回归护送按 dj-regression-guard 协议文本执行（协议引用，非派发）。
+
+
 参考 `diagnosing-bugs`（Matt Pocock）的 6 阶段 Bug 诊断方法。
 以下阶段按顺序执行，跳过时必须显式说明理由。
 

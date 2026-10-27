@@ -18,6 +18,11 @@ description: "测试驱动开发：红绿重构循环，一次一个垂直切片
 
 完成测试-代码-重构循环，一次一个垂直切片。不一次性实现整个功能，每轮只解决一个行为。
 
+## Recursion Guard
+
+你已身为 dj-tdd。直接执行红绿重构循环，不得再调用或派发另一个 dj-tdd。实现入口的切换（dj-implement）由主会话决定。
+
+
 ## 工作流
 
 - 若任务仍为 `planning`，使用原始用户请求重新运行 Call the Skill tool with "dj-dispatch"；不要通过 update `.dijiang/tasks/<name>/task.json` status field 绕过 worktree check (see dj-git-guardrails)。
