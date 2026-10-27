@@ -9,7 +9,7 @@ __pycache__/
 
 # 外部参考仓库
 referens/
-references/
+/references/
 
 # 构建产物（历史保留）
 *.gen.rs

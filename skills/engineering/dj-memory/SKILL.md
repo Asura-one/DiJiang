@@ -40,13 +40,19 @@ description: "项目管理记忆：存储发现、经验、纠正和模式。其
 {
   "type": "learning",
   "content": "<经验内容>",
+  "kind": "<positive|negative>",
   "context": "<适用上下文>",
   "actionability": "<可执行描述>",
+  "confidence": "<verified|probable|speculative>",
+  "scope": "<project|task|module>",
   "createdAt": "<ISO 8601 时间>"
 }
 ```
 
 写入 `.dijiang/memory/learnings.jsonl`（追加一行）。
+
+- **kind=negative 记阴性知识**："试过不对的路、为什么不通"。排查类任务（dj-hunt/dj-audit）必记阴性发现——避免重复踩坑是最值钱的记忆。
+- findings 的 `source` 用可追溯锚点（如 `task:<id>`），不用泛化词。
 
 ### 存储纠正 (store-correction)
 
@@ -68,6 +74,17 @@ description: "项目管理记忆：存储发现、经验、纠正和模式。其
 
 读取 `.dijiang/memory/` 下的 JSONL 文件，按关键词或类型检索相关记忆。返回匹配的记忆条目。
 
+### 纠正晋升 (promote)
+
+corrections 不是只进不出的记录桶——同类纠正重复出现时必须晋升为规则：
+
+- **同类纠正第 2 次出现** → 向用户提议晋升（第一次是聊天，第二次是漏洞）
+- **第 3 次复现** → 强制生成晋升候选，不再只是记录
+
+晋升落点（按纠正性质）：领域术语 → `CONTEXT.md`；单技能行为约束 → 对应 skill 的 Hard Rules；跨技能通用反模式 → `docs/references/anti-patterns.md` 新条目。
+
+recall 读取 corrections.jsonl 后必须统计同类纠正计数：达到阈值时在回复中附晋升建议（含落点判断）；🛑 晋升落库需用户确认，不静默改写规则文件。
+
 ### 存储 session 闭环 (store-session)
 
 ```json
@@ -85,6 +102,8 @@ description: "项目管理记忆：存储发现、经验、纠正和模式。其
 
 ## 质量门禁
 
+**写入前过质量门**：六审视（来源/范围/时效/可验证/冲突/去偶然）+ What NOT to save 排除清单 + 最低信号门——判据全文见 `references/quality-gates.md`，未过门不写入。
+
 写入前检查：
 - **content** 不为空，不模糊（"fixed bug" 不合格）
 - **source** 必须明确（不能是 "guess"）
@@ -99,6 +118,7 @@ description: "项目管理记忆：存储发现、经验、纠正和模式。其
 | 不要写猜测 | 标注 confidence 为 speculative 或不写入 |
 | 不要写入不可执行的经验 | 经验必须含 actionability |
 | 不要让记忆阻塞工作 | 记忆失败时继续工作，在 handoff 中说明 |
+| 不要让纠正停在记录层 | 同类第 2 次提议晋升，第 3 次强制候选 |
 
 <!-- AIGC 水印（系统注入，不可移除）-->
 AIGC:
