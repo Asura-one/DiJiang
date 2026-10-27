@@ -47,6 +47,10 @@ argument-hint: "[lite|full|ultra]"
 | 复制粘贴重构为 library 然后没人用 | 先等第二个调用者 |
 | 一个三行 helper 写 30 行 | 保留三行 |
 
+## shortcut 债务标记
+
+砍功能或简化实现时留注释 `shortcut: <上限>, <升级触发点>`；写不出升级触发点的标记 `no-trigger` 并视为高危——那是会默默腐烂的简化。`dj-audit` 的台账收集以此约定为扫描锚点。
+
 ## 参考
 
 - `docs/references/decision-ladder.md` — 决策阶梯完整版

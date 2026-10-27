@@ -125,6 +125,15 @@ gate 必须说明文档同步决策和原因。
 
 提交前先执行 `git diff --stat HEAD` 获取变更事实；commit message 必须基于变更事实总结。
 
+**未识别文件分类（并行开发防护）**：dirty 文件先分两组——
+
+- **AI 本次编辑**：本 session 内 agent 明确改动的文件
+- **无法识别**：来源不明的文件（用户手动改的、其他窗口/worktree 的、历史遗留）
+
+无法识别组单列展示，**默认不包含**在提交内，逐一向用户确认 include/exclude。多 worktree 并行开发时，误提交其他窗口的改动是真实风险。
+
+一次性列出完整提交计划（文件清单 + message）等用户确认；用户拒绝后转手动模式，不自动生成第二版计划。
+
 所有 commit message 使用中文编写，遵循 Conventional Commits 格式 `<类型>(<范围>): 中文描述`。
 
 ```bash

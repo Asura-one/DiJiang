@@ -52,6 +52,14 @@ AIGC:
 - 未校验的外部输入（SQL 拼接、shell 命令拼接）
 - 危险的导入（eval、exec、pickle 不安全使用）
 
+### 2.5 shortcut 债务台账收集
+
+```bash
+git grep --no-index --exclude-standard -nE '(#|//) ?(shortcut|ponytail):'
+```
+
+逐行输出 `<文件:行号> — 简化了什么 / 上限 / 升级触发点`。没有升级触发点的标记 `no-trigger` 并高亮——那是会默默腐烂的简化。declutter/简化类改动较多的仓库，本节为必查项。
+
 ### 3. 输出
 
 每项发现包含：
