@@ -49,7 +49,6 @@ AIGC:
 | 全栈回归测试 | `dj-fullstack-testing` | model |
 | 合并冲突解决 | `dj-merge-conflict` | model |
 | 代码审查 / 质量门禁 | `dj-check` | model |
-| 轻量只读审查 | `dj-review` | model |
 
 ### 辅助能力
 
@@ -108,7 +107,7 @@ none → planning → in_progress → completed → archived
 |------|-------------|
 | none | `dj-setup`（初始化）、`dj-dispatch`（创建任务） |
 | planning | `dj-grill`（对齐）、`dj-output`（文档）、`dj-spec-bootstrap`、`dj-split` |
-| in_progress | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-regression-guard`、`dj-fullstack-testing`、`dj-check`、`dj-review`、`dj-script`、`dj-design`、`dj-prototype` |
+| in_progress | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-regression-guard`、`dj-fullstack-testing`、`dj-check`（含 PR/分支审查档）、`dj-script`、`dj-design`、`dj-prototype` |
 | completed | `dijiang-finish-work`（收尾） |
 | paused | `dijiang-continue`（恢复） |
 | archived | 只读，如需继续重新创建任务 |

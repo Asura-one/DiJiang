@@ -27,7 +27,7 @@ review_before: 2028-10-27
 - **执行 skills**（如 dj-implement、dj-tdd）应为模型调用——模型在 routing 后自动进入
 - **分析/报告 skills**（如 dj-audit）应为用户调用——只在用户要求时执行，减少不必要的上下文消耗
 - **写作/润色 skills**（如 dj-write）应为用户调用——改写原文需要用户确认
-- **检查 skills**（如 dj-check、dj-review）应为模型调用——它们是流程内置的质量门
+- **检查 skills**（如 dj-check，含审查档）应为模型调用——它们是流程内置的质量门
 
 ## 当前映射
 
@@ -42,7 +42,7 @@ review_before: 2028-10-27
 | dj-regression-guard | 模型调用 | 改码三明治回归协议（任务级前置纪律） |
 | dj-fullstack-testing | 模型调用 | 全量回归引擎（全量模式时触发） |
 | dj-check | 模型调用 | 质量门禁 |
-| dj-review | 模型调用 | 代码审查 |
+| dj-check 审查档 | 模型调用 | 代码审查 |
 | dj-script | 用户调用 | 只在用户要求时创建脚本 |
 | dj-prototype | 用户调用 | 只在用户要求时做原型 |
 | dj-design | 用户调用 | 只在 UI 需求时执行 |

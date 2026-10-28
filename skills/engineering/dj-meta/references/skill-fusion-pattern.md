@@ -60,7 +60,7 @@ dj-grill ──→ dj-output ──→ dj-split ──→ dj-implement / dj-tdd
 
 ## Quality Pattern (Phase 3)
 
-- **并行审查**: `dj-review` 使用 `delegate_task` 同时审查 spec 匹配度和代码质量
+- **并行审查**: dj-check 的 PR/分支审查档（原独立 review 技能）使用 `delegate_task` 同时审查 spec 匹配度和代码质量
 - **元技能**: `dj-meta` 记录设计原则和创建模板
 - **ADR**: `docs/adr/` 记录跨技能设计决策
 

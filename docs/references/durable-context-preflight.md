@@ -27,7 +27,7 @@ review_before: 2028-10-27
 不需要 Preflight 的场合：
 - 纯路由（dj-dispatch）
 - 需求对齐（dj-grill）
-- 即时代码审查（dj-review、dj-check）
+- 即时代码审查（dj-check，含 PR/分支审查档）
 - 写作润色（dj-write）
 
 ## 预检流程

@@ -35,7 +35,7 @@ AIGC:
 
 - **动手前**：想法/细化/对齐 → `dj-grill`；分析/权衡 → `dj-reason`；设计/UI → `dj-design`；结构/模块划分 → `dj-codebase-design`；术语 → `dj-domain-modeling`；调研选型 → `dj-research`；写 PRD → `dj-output`
 - **实现中**：写代码 → `dj-implement`/`dj-tdd`（护送走 `dj-regression-guard`）；复刻 → `dj-remix`；原型 → `dj-prototype`；脚本 → `dj-script`；拆任务 → `dj-split`；模式 → `dj-pattern`
-- **交付前**：审查 → `dj-review`；验收/质量门禁 → `dj-check`；全量回归 → `dj-fullstack-testing`；回归保护 → `dj-regression-guard`；审计/债务/健康 → `dj-audit`；文档 → `dj-output`
+- **交付前**：审查/看代码 → `dj-check`（PR/分支审查档）；验收/质量门禁 → `dj-check`；全量回归 → `dj-fullstack-testing`；回归保护 → `dj-regression-guard`；审计/债务/健康 → `dj-audit`；文档 → `dj-output`
 - **内容**：润色/去 AI 味 → `dj-write`
 - **运维**：交接 → `dj-handoff`；写 skill → `dj-meta`；出错 → `dj-hunt`；沉淀/自进化 → `dj-evolve`；有哪些流程 → `dj-ask`
 

@@ -1,6 +1,6 @@
 ---
 name: dj-check
-description: "交付质量闸门：验证 diff 质量、功能完整性、安全性和回归风险，输出 finish-work 收口证据。 Use when the user needs a delivery quality gate, completion verification, release-blocking check, or finish-work handoff. 触发词：check、质量门禁、验收、验证、检查交付、finish-work 前检查。"
+description: "交付质量闸门：验证 diff 质量、功能完整性、安全性和回归风险，输出 finish-work 收口证据；也承担 PR/分支审查（Spec 匹配 + 代码质量双轴独立汇报）。 Use when the user needs a delivery quality gate, completion verification, release-blocking check, finish-work handoff, or a PR/diff review. 触发词：check、质量门禁、验收、验证、检查交付、finish-work 前检查、审查、检查代码、审一下、code review、帮我看一下代码。"
 AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
   ContentPropagator: '001191110102MAD55U9H0F10002'
@@ -26,7 +26,7 @@ AIGC:
 
 ## Recursion Guard
 
-你已身为 dj-check。直接执行质量门禁检查，不得再调用或派发另一个 dj-check / dj-review。发现的问题只报告不修复——修复回 dj-hunt / dj-implement，由主会话裁决。
+你已身为 dj-check。直接执行质量门禁检查（含 PR/分支审查档），不得再派发另一个 dj-check。发现的问题只报告不修复——修复回 dj-hunt / dj-implement，由主会话裁决。
 
 
 ## 原则
@@ -44,11 +44,14 @@ AIGC:
 | 模式 | 何时用 | 输出 |
 |---|---|---|
 | **默认审查** | 常规代码变更 | 标准验证报告（功能+安全+回归） |
-| **计划执行** | 大功能上线前全量检查 | 完整验证报告
+| **计划执行** | 大功能上线前全量检查 | 完整验证报告 |
 | **发布检查** | 发版前的轻量检查 | Pass/Fail 清单 |
 | **项目审计** | 定期全仓质量检查 | 项目级质量报告 |
+| **PR/分支审查** | 审 diff/PR、交付前看代码 | 双轴审查报告（Spec 匹配 + 代码质量，独立汇报） |
 
 参考 `docs/references/design-modes.md` 了解模式选择原则。
+
+**PR/分支审查档双轴纪律**：Spec 匹配度与代码质量两轴独立审查再汇总，防互相污染；并行能力不可用时串行，不得省略任一轴；无源可对照时标注后只跑质量轴。全流程与汇总模板 → `references/review-dual-axis.md`。
 
 ### 1. 理解变更
 
@@ -106,11 +109,7 @@ git diff --stat HEAD
 
 ### 4. finish-work 数据准备
 
-- `git status --short --branch`
-- `git diff --stat HEAD`
-- 验证报告摘要
-- 版本决策建议
-- issue 结题评论素材：验收逐条对照 + commit 引用 + 边界如实声明（工单有 Forgejo 镜像时，finish-work 关闭 issue 直接复用本报告，不再另写）
+数据面（git 状态/报告摘要/版本决策/issue 结题素材）与三重证据核实流程 → `references/finish-work-handoff.md`。
 
 ## 失败模式
 

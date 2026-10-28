@@ -59,7 +59,6 @@ cp -r skills/ /path/to/your-project/
 | `dj-fullstack-testing` | model | 全栈回归测试引擎（全量模式） |
 | `dj-merge-conflict` | model | 合并冲突解决 |
 | `dj-check` | model | 代码审查、质量门禁 |
-| `dj-review` | model | 轻量只读审查 |
 
 #### 辅助能力
 

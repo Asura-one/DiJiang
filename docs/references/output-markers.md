@@ -33,7 +33,7 @@ review_before: 2028-10-27
 | dj-check | `🥷 check: 质量门禁通过` |
 | dj-regression-guard | `🥷 regression-guard: 三明治护送完成，回归无新增` |
 | dj-fullstack-testing | `🥷 fullstack-testing: 全量回归完成，覆盖率 100%` |
-| dj-review | `🥷 review: 审查完成，2 个发现` |
+| dj-check 审查档 | `🥷 review: 审查完成，2 个发现` |
 | dj-audit | `🥷 audit: 全仓扫描完成，3 个可删除项` |
 | dj-handoff | `🥷 handoff: session 交接文档已保存` |
 

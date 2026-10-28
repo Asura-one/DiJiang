@@ -33,7 +33,7 @@ review_before: 2028-10-27
 | Skill | lite | full | ultra |
 |-------|------|------|-------|
 | dj-check | 仅类型检查 + 核心测试 | 功能+安全+回归 | 全量 + 性能 + 边界 |
-| dj-review | 仅 spec 匹配度 | spec + 代码质量 | 双 agent + 替代方案审查 |
+| dj-check（PR/分支审查档） | 仅 spec 匹配度 | spec + 代码质量 | 双 agent + 替代方案审查 |
 | dj-audit | 快速扫描默认、debt 或 health profile | 选择 profile 的完整检查 | 全量检查和逐文件复核 |
 
 ## 实现原则
