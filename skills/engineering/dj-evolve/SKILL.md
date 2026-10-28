@@ -63,6 +63,14 @@ description: "任务收尾时回顾本 session 的发现、经验与纠正，按
 - **确认** → 按 `dj-implement` 纪律实施，worktree 开发、`dijiang-finish-work` 收尾
 - **拒绝** → 追加 `.dijiang/evolution-rejections.md` 一行（日期 / 候选摘要 / 拒绝理由），下轮先读拒绝史
 
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| 候选经验与现有技能重复 | 丢弃，不重复入库 | 标记已存在 |
+| behavior-cases 对比跑不了 | 先修验证环境 | 暂停提案，交用户 |
+| 多条候选同时命中 | 逐条差分，一次一条 | 停下请用户排序 |
+
 ## 边界
 
 - 不改平台自进化机制（darwin review 是平台能力，本 skill 是库内主动流程）
