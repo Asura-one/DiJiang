@@ -92,6 +92,14 @@ grill_mode = "grill-me"  # grill-me | adaptive | grill-with-doc
 type = "local"  # local | github | linear
 ```
 
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| 迁移中途中断 | 保留原数据，重跑迁移 | 停下报告，不覆盖 |
+| config.toml 已存在 | 读取后合并新字段 | 冲突字段停下问用户 |
+| 无法推断 project.name | 用目录名兜底 | 请用户给定项目名 |
+
 ## 反模式
 
 | 不要 | 改为这样做 |
