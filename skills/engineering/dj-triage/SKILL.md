@@ -1,6 +1,7 @@
 ---
 name: dj-triage
-description: "将 issue 和外部 PR 通过分诊角色状态机流转：分类、验证、必要时拷问、编写 agent-ready briefs。适配本地文件任务存储。 Use when issues arrive—bug reports, feature requests, external PRs—and need classification before dispatch. 触发词：分诊、triage、issue 处理、新 issue、问题分类、工单流转。"
+description: "将 issue 和外部 PR 通过分诊角色状态机流转：分类、验证、必要时拷问、编写 agent-ready briefs。适配本地文件任务存储。 Use when issues arrive—bug reports, feature requests, external PRs—and need classification before dispatch. 触发词：分诊、triage、issue 处理、新 issue、问题分类、工单流转。
+**下一步**：agent-ready issue 产出后，建议下一步调用 `dj-implement` 拾取执行（dj-split 产出的工单已 agent-ready，不再 triage）。"
 disable-model-invocation: true
 ---
 

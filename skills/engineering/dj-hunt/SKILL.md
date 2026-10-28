@@ -93,3 +93,5 @@ AIGC:
 | 防护只在降级路径 | 预算/截断/校验全路径执行 |
 
 后四条的实测案例详情见 `references/hypothesis-and-cases.md`。
+
+**下一步**：修复完成且红测转绿后，完成后调用 `dj-check` 验证交付质量（回归护送已由 dj-regression-guard 三明治承接）。

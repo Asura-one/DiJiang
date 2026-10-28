@@ -305,6 +305,81 @@ def check_ttl(rep):
         rep.ok("ttl 全部在册且未过期")
 
 
+
+
+# ---------- 尾部指针与索引覆盖守卫（DJ-016, fusion-chain T6） ----------
+# 主流程清单：技能 -> [(指向技能, 边类型)]；model 边写「完成后调用」，user 边写「建议下一步调用」。
+TAIL_POINTERS = {
+    "dj-grill": [("dj-output", "user")],
+    "dj-output": [("dj-split", "user")],
+    "dj-split": [("dj-implement", "user")],
+    "dj-implement": [("dj-check", "model")],
+    "dj-check": [("dijiang-finish-work", "user")],
+    "dijiang-finish-work": [("dj-evolve", "user")],
+    "dj-triage": [("dj-implement", "user")],
+    "dj-wayfinder": [("dj-output", "user")],
+    "dj-hunt": [("dj-check", "model")],
+    "dj-research": [("dj-grill", "user")],
+    "dj-questionnaire": [("dj-grill", "user")],
+}
+
+# 指针措辞标记（存在即认可文中已给推荐，不必逐字匹配——文案措辞留给技能作者）
+POINTER_HINT = ("建议下一步", "完成后调用", "建议加载", "建议开启")
+
+def check_tail_pointers(rep, skills):
+    """尾部指针守卫：清单技能必含下一步指向；指向不存在技能报 FAIL。"""
+    all_names = {name for _, name, _ in skills}
+    for src, edges in TAIL_POINTERS.items():
+        if src not in all_names:
+            rep.fail(f"[tail-ptr] 主流程清单含不存在的技能: {src}——清单与 skills/ 漂移")
+            continue
+        path = None
+        for _, name, p in skills:
+            if name == src:
+                path = p
+                break
+        text = open(path, encoding="utf-8").read()
+        for dst, edge in edges:
+            if dst not in all_names:
+                rep.fail(f"[tail-ptr] {src} 的指针指向不存在技能: {dst}")
+                continue
+            # 措辞两型：指向 user-invoked 用「建议」句式；model-invoked 用「完成后调用」
+            if dst not in text:
+                rep.fail(f"[tail-ptr] {src} 未含指向 {dst} 的下一步推荐——主流程接力断链")
+            elif edge == "user" and not any(h in text for h in POINTER_HINT):
+                rep.fail(f"[tail-ptr] {src} 指向 user-invoked {dst} 但缺「建议」句式（文字点火而非自动调用）")
+    rep.ok(f"tail pointers {len(TAIL_POINTERS)} 项")
+
+
+# 索引载体文件（相对仓库根）；索引覆盖守卫用
+INDEX_FILES = {
+    "agents": "AGENTS.md",
+    "ask": ["skills/engineering/dj-ask/SKILL.md", "skills/engineering/dj-ask/references/skill-catalog.md"],
+    "dispatch": ["skills/engineering/dj-dispatch/SKILL.md", "skills/engineering/dj-dispatch/references/routing-table.md"],
+}
+
+def check_index_coverage(rep, skills):
+    """索引覆盖守卫：每技能至少一层索引有场景行——防孤儿技能只靠单点索引养着。"""
+    texts = {}
+    for layer, targets in INDEX_FILES.items():
+        targets_list = [targets] if isinstance(targets, str) else targets
+        for rel in targets_list:
+            p = os.path.join(ROOT, rel)
+            if not os.path.exists(p):
+                rep.fail(f"[index-cov] 索引载体丢失: {rel}——索引层残缺")
+                continue
+            texts.setdefault(layer, []).append(open(p, encoding="utf-8").read())
+    orphans = []
+    for _, name, _ in skills:
+        hits = any(re.search(r"\b" + re.escape(name) + r"\b", t) for layer in texts for t in texts[layer])
+        if not hits:
+            orphans.append(name)
+    if orphans:
+        rep.fail(f"[index-cov] 零索引覆盖孤儿: {orphans}——至少一层索引须有场景行")
+    else:
+        rep.ok(f"index coverage {len(skills)}/{len(skills)}")
+
+
 def main():
     strict = "--strict" in sys.argv
     rep = Report()
@@ -327,6 +402,8 @@ def main():
     check_canary(rep)
     check_docs_freshness(rep)
     check_ttl(rep)
+    check_tail_pointers(rep, skills)
+    check_index_coverage(rep, skills)
 
     print(f"PASS {len(rep.passes)}  |  WARN {len(rep.warns)}  |  FAIL {len(rep.fails)}")
     for w in rep.warns:

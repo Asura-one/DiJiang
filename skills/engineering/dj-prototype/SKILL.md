@@ -60,6 +60,7 @@ disable-model-invocation: true
 - 原型代码不提交
 - 结论记录到 `.dijiang/` 或告诉用户
 - 问：下一步是不是应该用 `dj-implement` 做正式版？
+**下一步**：原型验证完成后建议下一步调用 `dj-implement` 把答案折进正式实现（原型代码保留为证据，不直接续写）。
 
 参考 `references/prototype-patterns.md` 查看原型验证模式。
 

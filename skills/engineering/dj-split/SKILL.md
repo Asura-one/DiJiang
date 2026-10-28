@@ -60,6 +60,7 @@ Issue 跟踪器同步的完整机制、task 类 issue 模板、结题评论模�
 若项目在本地任务外有真实跟踪器（Forgejo/Gitea/GitHub 等），每个任务**镜像**为一条 issue，本地任务为唯一权威源，不得只更新一侧：任务 → 创建 issue（目标/验收标准/依赖）并本地记录 issue 编号；状态变化/完成 → 补评论并关闭；依赖优先用跟踪器原生 blocking，否则正文标「Blocked by」。
 
 **格式统一（必须）**：标题 `<前缀>-<编号> [task][P?] <一句话摘要>`，正文固定骨架 + 尾注本地任务路径，不得自创格式。**类型必标**：缺陷修复另挂 `bug`、需求实现另挂 `enhancement`；**标签必挂**（只用仓库已有标签，缺的先建，P 级约定色见 references）。**关闭正规流程**：三重证据核实（跟踪器状态+本地提交+代码实证，不信推测）→ 结题评论 → 同步勾选正文验收 checklist → PATCH closed → GET 复核 → 本地同步 completed。模板全文与 API/平台细节（假 404 陷阱、Windows curl 临时文件、token 同命令内使用）见 `references/issue-sync.md`。
+**下一步**：工单就绪后，建议下一步逐张调用 `dj-implement`（每张工单从全新上下文启动；有 Forgejo 镜像时按 issue-sync 正规流程关闭）。
 
 ## 失败模式
 

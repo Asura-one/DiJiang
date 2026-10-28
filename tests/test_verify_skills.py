@@ -184,3 +184,50 @@ class MutationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestTailPointerGuards:
+    """DJ-016 验收：双守卫突变测试——注入损坏必须 FAIL（咬合证明）。"""
+
+    def test_tail_pointer_removed_bites(self, tmp_path, monkeypatch):
+        """突变：dj-implement 的指针目标被抹 → tail-ptr FAIL。"""
+        rep = vs.Report()
+        skills = vs.discover()
+        path = [p for _, n, p in skills if n == "dj-implement"][0]
+        orig = open(path, encoding="utf-8").read()
+        assert "dj-check" in orig, "前提：dj-implement 当前指向 dj-check"
+        import io as _io
+        monkeypatch.setattr("builtins.open", lambda *a, **k: _io.StringIO(orig.replace("dj-check", "dj-ZZZ")))
+        vs.check_tail_pointers(rep, skills)
+        assert rep.fails, "指针被抹后必须 FAIL——守卫失明"
+        assert any("dj-implement" in f for f in rep.fails)
+
+    def test_dead_pointer_target_bites(self):
+        """突变：清单指向不存在技能 → tail-ptr FAIL（防死链）。"""
+        rep = vs.Report()
+        skills = vs.discover()
+        saved = dict(vs.TAIL_POINTERS)
+        try:
+            vs.TAIL_POINTERS["dj-implement"] = [("dj-ghost-skill", "model")]
+            vs.check_tail_pointers(rep, skills)
+        finally:
+            vs.TAIL_POINTERS.clear()
+            vs.TAIL_POINTERS.update(saved)
+        assert rep.fails, "死链指针必须被抓住"
+        assert any("dj-ghost-skill" in f for f in rep.fails)
+
+    def test_index_orphan_bites(self):
+        """突变：孤儿技能名 → index-cov FAIL。"""
+        rep = vs.Report()
+        fake_skills = [("engineering", "dj-nonexistent-orphan", "/nowhere/SKILL.md")]
+        vs.check_index_coverage(rep, fake_skills)
+        assert rep.fails, "孤儿技能必须被 index-cov 抓住"
+        assert any("dj-nonexistent-orphan" in f for f in rep.fails)
+
+    def test_guards_green_on_current_repo(self):
+        """绿灯基线：当前仓库两守卫必须零 FAIL（回归保护）。"""
+        rep = vs.Report()
+        skills = vs.discover()
+        vs.check_tail_pointers(rep, skills)
+        vs.check_index_coverage(rep, skills)
+        assert not rep.fails, f"基线必须全绿：{rep.fails}"

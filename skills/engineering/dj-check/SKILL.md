@@ -143,3 +143,4 @@ git diff --stat HEAD
 | 分类标准模糊 | 阻塞/非阻塞不清 | 每个问题必须标注 |
 
 参考规范：`docs/references/intensity-levels.md`（强度等级：支持 lite/full/ultra）、`docs/references/output-markers.md`（输出标记）。
+**下一步**：质量报告产出后，建议下一步调用 `dijiang-finish-work` 收口（提交/归档/版本决策；issue 镜像复用本报告关单）。

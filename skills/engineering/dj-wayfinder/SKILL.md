@@ -1,6 +1,7 @@
 ---
 name: dj-wayfinder
-description: "规划一个大块工作（超过一个 session 能容纳的）为共享的决策票据地图，一次解决一个票据，直到路清晰。 Use when a large, vague project exceeds one session and needs a decision-ticket map before building. 触发词：大块工作、路线图、wayfinder、决策地图、规划路线、雾里推路。"
+description: "规划一个大块工作（超过一个 session 能容纳的）为共享的决策票据地图，一次解决一个票据，直到路清晰。 Use when a large, vague project exceeds one session and needs a decision-ticket map before building. 触发词：大块工作、路线图、wayfinder、决策地图、规划路线、雾里推路。
+**下一步**：地图清后它交出不构建——建议下一步调用 `dj-output` 折叠决策为可构建方案（跳过折叠直跳 dj-implement 会丢决策细节）。"
 disable-model-invocation: true
 ---
 

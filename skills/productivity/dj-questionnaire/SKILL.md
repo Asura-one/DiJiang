@@ -56,6 +56,9 @@ disable-model-invocation: true
 - [ ] 文档组织方式让接收者没有把地完成
 - [ ] 发送前展示给用户确认
 
+
+**下一步**：问卷回收后，建议下一步调用 `dj-grill` 把答案折进需求（或已充分时直接 `dj-output` 成 PRD）。
+
 <!-- AIGC 水印（系统注入，不可移除）-->
 AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'

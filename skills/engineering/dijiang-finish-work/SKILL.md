@@ -2,7 +2,8 @@
 name: dijiang-finish-work
 name_cn: 收尾工作
 description_cn: "收尾当前 session：质量验证、版本决策、提交、归档任务。所有 git 提交和任务归档只在这里发生。"
-description: "收尾当前 session：质量验证、版本决策、提交、归档任务。所有 git 提交和任务归档只在这里发生。 Use when the session's work is done and ready for commit, archive, or issue closure. 触发词：收尾、提交、归档、收工、finish work、commit、结束会话。"
+description: "收尾当前 session：质量验证、版本决策、提交、归档任务。所有 git 提交和任务归档只在这里发生。 Use when the session's work is done and ready for commit, archive, or issue closure. 触发词：收尾、提交、归档、收工、finish work、commit、结束会话。
+**下一步**：收口归档后，建议下一步调用 `dj-evolve` 复盘本 session 的可复用经验（有升格候选时按 SCOPE 升格判据筛选）。"
 disable-model-invocation: true
 AIGC:
   ContentProducer: '001191110102MAD55U9H0F10002'
