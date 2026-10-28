@@ -54,7 +54,7 @@ model-invoked 参考在其它 skill *下面* 运行，各是词汇的唯一真�
 
 主流程之外（详注见 `references/skill-catalog.md`）：
 
-`dj-merge-conflict` 解决冲突永不 abort · `dj-research` 后台调研 · `dj-questionnaire` 拷问发送 · `dj-wizard` 人才能做的步骤脚本化 · `dj-wait-what` 消息没接住的纠正 · `dj-read` 抓 URL/PDF · `dj-reason` 认知矩阵分析 · `dj-write` 去 AI 味润色 · `dj-handoff` session 交接 · `dj-absorb` 吸收外部项目 · `dj-remix` 1:1 复刻+差异化 · `dj-script` 脚本编写 · `dj-design` 前端 UI · `dj-ponytail` 最懒有效方案 · `dj-channel` 多 agent 通道 · `dj-gov` 知识治理 · `dj-meta` skill 写作指南  · `dj-teach` 状态化教学 · `dj-writing-for-agents` agent 文档规范
+`dj-merge-conflict` 解决冲突永不 abort · `dj-research` 后台调研 · `dj-questionnaire` 拷问发送 · `dj-wizard` 人才能做的步骤脚本化 · `dj-wait-what` 消息没接住的纠正 · `dj-read` 抓 URL/PDF · `dj-reason` 认知矩阵分析 · `dj-write` 去 AI 味润色 · `dj-handoff` session 交接 · `dj-absorb` 吸收外部项目 · `dj-remix` 1:1 复刻+差异化 · `dj-script` 脚本编写 · `dj-design` 前端 UI · `dj-ponytail` 最懒有效方案 · `dj-channel` 多 agent 通道 · `dj-gov` 知识治理 · `dj-meta` skill 写作指南与 agent 文档规范  · `dj-teach` 状态化教学
 
 ## Session 管理
 

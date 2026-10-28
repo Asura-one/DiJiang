@@ -57,7 +57,7 @@ AIGC:
 |------|-------|---------|
 | 全仓审计 / 技术债 / 健康检查 | `dj-audit` | user |
 | 模式研究 | `dj-pattern` | user |
-| 架构自省 | `dj-meta` | user |
+| 架构自省 / 为 agent 写文档 | `dj-meta` | user |
 | 推理透镜 | `dj-reason` | model |
 | 技术调研 | `dj-research` | model |
 | 吸收外部材料 | `dj-absorb` | user |
@@ -95,7 +95,6 @@ AIGC:
 | 跨会话教学 | `dj-teach` | user |
 | 决策问卷 | `dj-questionnaire` | user |
 | 消息重述 | `dj-wait-what` | user |
-| 为 agent 写作 | `dj-writing-for-agents` | model |
 
 ## 工作流状态机
 

@@ -23,7 +23,7 @@
 - **`dj-meta`**：Skill 写作指南——记录 dj-* 的设计原则和写作规范，用于创建和审查技能。
 - **`dj-memory`** 跨会话检索面：召回时机（何时/何时不用）与召回后落点已并入其正文——"上次怎么解的""之前讨论过吗"直接走 dj-memory 召回。
 - **`dj-teach`**：跨 session 教一个概念，用当前目录做状态化工作区。
-- **`dj-writing-for-agents`**：为 agent 写文档的规范参考：skill、AGENTS.md/CLAUDE.md 或任何 agent 通过指针到达的文档。
+- **`dj-meta`** 也为 agent 写文档提供写作规范（AGENTS.md/CLAUDE.md、指针文档；含上下文指针/前置词/修剪纪律，机制详注见其 references/）。
 
 ## 词汇层（详注）
 

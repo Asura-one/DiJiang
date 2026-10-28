@@ -1,6 +1,6 @@
 ---
 name: dj-meta
-description: "Skill 写作指南：记录 dj-* 的设计原则和写作规范，用于创建和审查技能。 Use when creating a new dj-* skill, reviewing an existing one, or onboarding a new developer to the skill system. 触发词：写 skill、创建技能、skill 规范、技能指南、meta。"
+description: "Skill 写作指南：记录 dj-* 的设计原则和写作规范，用于创建和审查技能；也为 agent 写文档（AGENTS.md/CLAUDE.md 及指针文档）提供写作规范。 Use when creating a new dj-* skill, reviewing an existing one, onboarding a new developer, or writing any doc an agent will read. 触发词：写 skill、创建技能、skill 规范、技能指南、agent 文档、AGENTS.md、写作规范、meta。"
 disable-model-invocation: true
 ---
 
@@ -51,6 +51,17 @@ SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考
 - **自由度校准**：脆弱操作（git 红线、格式破坏风险）写死步骤——窄桥要护栏；灵活任务（排查、设计）给目标不给清单——开阔地允许多条路
 - **具体判据**：要求具体到数字、来源、代码、步骤；空泛描述视为未完成
 
+## 为 agent 写文档（含 AGENTS.md/CLAUDE.md）
+
+skill、`AGENTS.md`/`CLAUDE.md`、任何 agent 通过指针到达的文档——包装不同，写作相同：同一套杠杆让每个可预测，因为 agent 每次运行走同一**过程**而非产出相同输出。
+
+- **上下文指针**：agent 上下文中持有的引用。**指针的措辞**而非目标决定 agent 何时到达材料、多可靠——高价值目标配弱措辞是变异 bug：先锐化措辞，锐化失败才内联
+- **信息层级**：始终在上下文（指针本身）/ 可按需取（指针目标）/ 几乎不需要（省略或深藏）
+- **前置词**（触发词）：覆盖触发场景多种表达、清晰区分用与不用、用领域语言不用空泛词
+- **修剪**：一刀砍一半；指令用祈使句；例外和反模式进表格不进散文；参考文件大则 SKILL.md 保持窄
+
+skill 特化机制（invocation 选择/拆分/路由技能）→ `references/agent-doc-mechanics.md`。
+
 ## 治理门槛（先于模板）
 
 创建新技能前先过 `SCOPE.md` 双门槛（真实失败 + 契合哲学）；**可由现有技能组合的行为不建新技能**，落点优先是现有技能的增量段落或 `references/` 文档。被否决的概念登记到 `.out-of-scope/`，防止重复提案。
@@ -65,45 +76,8 @@ SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考
 
 ## 创建新技能的模板
 
-```markdown
----
-name: dj-<name>
-description: >
-  <一句话说清楚做什么>
-  Use when <触发条件，agent 判断依据>
-  触发词：<用户说的词，帮助 dj-dispatch 路由>
----
+完整骨架复制 `references/skill-template.md`（frontmatter/description/职责/工作流/边界/反例六段）。触发词写 description 内供 dj-dispatch 路由；写完回 `SCOPE.md` 双门槛核验。
 
-# <Title>: <中文描述>
-
-## 职责
-
-<一段话说明这个 skill 负责什么、不负责什么>
-
-## 工作流
-
-### 1. <步骤 1>
-
-<指令>
-
-### 2. <步骤 2>
-
-<指令>
-
-### 3. <步骤 3>
-
-<指令>
-
-## 边界
-
-- <不做的事>
-
-## 反例
-
-| ❌ 不要做 | ✅ 正确做法 |
-|---|---|
-| <反例> | <正例> |
-```
 
 ## 反例
 

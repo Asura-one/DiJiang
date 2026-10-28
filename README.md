@@ -103,7 +103,6 @@ cp -r skills/ /path/to/your-project/
 | `dj-teach` | user | 跨会话教学 |
 | `dj-questionnaire` | user | 决策问卷生成 |
 | `dj-wait-what` | user | 消息重述 |
-| `dj-writing-for-agents` | model | 为 agent 写文档的规范 |
 
 ## Canonical Workflow
 
