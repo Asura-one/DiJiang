@@ -144,3 +144,5 @@ timestamp	commit	skill	old_score	new_score	status	dimension	note	eval_mode
 2026-10-28T11:18	dijiang-continue	d1267de	78.8	3-0 better	keep	dim3	补失败模式(指针悬空/状态矛盾) clear	paired
 2026-10-28T11:18	dj-read	cfda146	78.8	3-0 better	keep	dim3	补失败模式(重定向/JS渲染/反爬)	paired
 2026-10-28T11:18	dj-evolve	61005fb	79.7	3-0 better	keep	dim3	补失败模式(重复候选/环境故障/排序)	paired
+2026-10-28T14:29	dj-reason	22879c5	68.7(修复后)	3-0 better	keep	dim7	删边界节(与HardRules 1-3逐字重复); 零信息损失	paired
+2026-10-28T14:29	dj-handoff	b2b31fd	68.7(修复后)	3-0 better	keep	dim7	删规则节+Gotchas(四重→三结构); -33%体量	paired

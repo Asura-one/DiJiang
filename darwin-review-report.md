@@ -174,10 +174,14 @@
 
 dj-regression-guard(88.6) · dj-fullstack-testing(88.4) · dj-gov(85.3) · dijiang-finish-work(84.2) · dj-hunt(83.9) · dj-remix(82.4) · dj-triage(80.1)
 
-### 5.6 后续候选（本次发现但未处理）
+### 5.6 后续候选处理记录
 
-- dj-reason「边界」↔ Hard Rules 逐字重复（存量，judge 多次点名）
-- dj-handoff「反例」↔「Gotchas」↔「规则」↔「Hard Rules」四重复读（存量）
+| 候选 | 状态 |
+|---|---|
+| dj-reason「边界」↔ Hard Rules 逐字重复 | ✅ **已处理**（dim7 专项 `22879c5`：删「边界」节，3 条全有 Hard Rules 逐字载体，零信息损失，3-0 better keep）|
+| dj-handoff 四重结构复读 | ✅ **已处理**（dim7 专项 `b2b31fd`：删「规则」节+Gotchas 表，四结构收敛为 失败模式/反例/Hard Rules 三结构，体量 -33%，3-0 better keep）|
+
+两处均按新落反模式 **#26 去冗余不验载体**执行：删除前 grep 验证每条替代载体，`verify_skills.py --strict` PASS 146 / FAIL 0。
 
 ---
 
