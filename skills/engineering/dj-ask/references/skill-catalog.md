@@ -21,7 +21,7 @@
 - **`dj-channel`**：多 agent 协作通道——生成子 agent 执行任务、跨 session 通信、进度检查。
 - **`dj-gov`**：知识治理收尾——审计项目文档/规则/记忆与代码实际行为一致。
 - **`dj-meta`**：Skill 写作指南——记录 dj-* 的设计原则和写作规范，用于创建和审查技能。
-- **`dj-session-insight`**：跨会话记忆检索——"上次怎么解的""之前讨论过吗"。
+- **`dj-memory`** 跨会话检索面：召回时机（何时/何时不用）与召回后落点已并入其正文——"上次怎么解的""之前讨论过吗"直接走 dj-memory 召回。
 - **`dj-teach`**：跨 session 教一个概念，用当前目录做状态化工作区。
 - **`dj-writing-for-agents`**：为 agent 写文档的规范参考：skill、AGENTS.md/CLAUDE.md 或任何 agent 通过指针到达的文档。
 

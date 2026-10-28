@@ -1,6 +1,6 @@
 ---
 name: dj-memory
-description: "项目管理记忆：存储发现、经验、纠正和模式，管理 .dijiang/memory/ 下的 JSONL 文件。 Use when storing or recalling project findings, learnings, and corrections after task work. 触发词：记录、记忆、recall、存教训、项目经验、findings、写记忆。"
+description: "项目管理记忆：存储/召回发现、经验、纠正和模式，管理 .dijiang/memory/ 下的 JSONL 文件。也承担跨会话检索：上次怎么解的、之前讨论过吗。 Use when storing or recalling project findings, learnings, and corrections after task work, or when the user asks about past decisions or session history. 触发词：记录、记忆、recall、存教训、项目经验、findings、写记忆、上次怎么解的、之前讨论过吗、历史会话、记忆检索。"
 ---
 
 # 项目记忆管理
@@ -73,6 +73,10 @@ description: "项目管理记忆：存储发现、经验、纠正和模式，管
 ### 回忆 (recall)
 
 读取 `.dijiang/memory/` 下的 JSONL 文件，按关键词或类型检索相关记忆。返回匹配的记忆条目。
+
+### 何时召回（跨会话判断）
+
+召回是工具不是仪式：脑暴重复风险 / 熟悉 bug 调试 / 跨会话续接 / 决策检索 / 模式发现五场景才召回；当前上下文够用、问代码事实、用户明说不翻历史时不召回。**召回后按现场判断落点（引用/prd/仅内化），不强制写固定文件**——判断表见 `references/recall-playbook.md`。
 
 ### 纠正晋升 (promote)
 

@@ -80,4 +80,4 @@ dj-channel skill stop <id>
 ## 不属于此 skill 的内容
 
 - 单次静态审查，一个 prompt 就够了
-- 长期记忆检索。使用 Call the Skill tool with "dj-memory" to recall（dj-session-insight skill）
+- 长期记忆检索。使用 Call the Skill tool with "dj-memory" to recall

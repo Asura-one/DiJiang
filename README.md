@@ -84,7 +84,6 @@ cp -r skills/ /path/to/your-project/
 | `dj-git-guardrails` | model | Git 护栏 |
 | `dj-channel` | user | 多 agent 通道 |
 | `dj-meta` | user | 架构自省 |
-| `dj-session-insight` | user | Session 洞察 |
 
 #### Session 管理
 

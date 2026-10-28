@@ -76,7 +76,6 @@ AIGC:
 | Git 护栏 | `dj-git-guardrails` | model |
 | 技能自进化 | `dj-evolve` | user |
 | 多 agent 通道 | `dj-channel` | user |
-| Session 洞察 | `dj-session-insight` | user |
 
 ### Session 管理
 
