@@ -11,7 +11,7 @@
     },
     {
       "id": "review-two-dimensions",
-      "skill": "dj-review",
+      "skill": "dj-check",
       "request": "用户：帮我 review 一下当前分支的 diff",
       "evidence": "检查回复结构：是否含两个独立维度（spec 匹配度 + 代码质量）的发现，且每条问题标注严重度与来源维度",
       "accept": "回复含两维度独立发现清单（spec 匹配度问题、代码质量问题分开列示）、每条有严重度（严重/中等/建议）、汇总结论（通过/需修改/需重新审查）；无代码修改",

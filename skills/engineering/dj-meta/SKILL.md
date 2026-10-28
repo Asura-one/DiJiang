@@ -1,6 +1,6 @@
 ---
 name: dj-meta
-description: "Skill 写作指南：记录 dj-* 的设计原则和写作规范，用于创建和审查技能；也为 agent 写文档（AGENTS.md/CLAUDE.md 及指针文档）提供写作规范。 Use when creating a new dj-* skill, reviewing an existing one, onboarding a new developer, or writing any doc an agent will read. 触发词：写 skill、创建技能、skill 规范、技能指南、agent 文档、AGENTS.md、写作规范、meta。"
+description: "Skill 写作指南：记录 dj-* 的设计原则和写作规范，用于创建和审查技能；也为 agent 写文档（AGENTS.md/CLAUDE.md 及指针文档）提供写作规范。 Use when creating a new dj-* skill, reviewing an existing one, onboarding a new developer, or writing any doc an agent will read. 触发词：写 skill、创建技能、skill 规范、技能指南、agent 文档、AGENTS.md、写作规范、为 agent 写、文档规范、meta。"
 disable-model-invocation: true
 ---
 

@@ -1,6 +1,6 @@
 # Agent 文档机制（invocation / 拆分 / 路由技能）
 
-> 由 dj-writing-for-agents references/SKILL-MECHANICS.md 中文化迁移（DJ-012）。文档是 skill 时的特化分支：frontmatter、invocation 选择、路由技能；其余写作规范见 dj-meta 正文「为 agent 写文档」节。
+> 由 DJ-012 中文化迁移（原独立 agent 文档技能的机制参考）。文档是 skill 时的特化分支：frontmatter、invocation 选择、路由技能；其余写作规范见 dj-meta 正文「为 agent 写文档」节。
 
 ## Invocation 选择
 
@@ -10,6 +10,16 @@
 - **user-invoked**：从 agent 视野剥离 description（设 `disable-model-invocation: true`），只有人点名才能触发。零上下文负载，但花认知负载——你就是必须记得它存在的索引。description 转为面向人的一句话摘要，剥离触发词列表。
 
 只在 agent 必须自主到达、或另一技能必须到达时选 model-invocation。若只靠手动触发，做 user-invoked，不付上下文负载。
+
+第三判据臂：**纯参考型 model-invoked 技能是多技能共享参考的单一存放地**——多个技能都需要的参考放进一个 model-invoked 技能，一处维护处处可达（技能融合的「并入 references/」正是此判据的实践）。
+
+## 失败模式（agent 文档特有）
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| 指针措辞弱 agent 不到达 | 按触发场景补前置词/触发词 | 内联关键材料 |
+| 信息层级放错（重要信息深藏） | 「始终需要」提到前置词区 | 结构重排，可按需取的下沉 |
+| 参考文件被删或改名 | 修复指针路径 | 内联必要内容，不依赖外链 |
 
 两个 user-invoked 技能都需要的共享参考两边都放不下（无 description 互不可达）：推到技能系统外的普通文件，任何技能都可指向的外部参考。
 
