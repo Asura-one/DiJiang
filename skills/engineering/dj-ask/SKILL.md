@@ -64,6 +64,7 @@ model-invoked 参考在其它 skill *下面* 运行，各是词汇的唯一真�
 | **`dijiang-start`** | 启动 session：加载上下文 → 报告路线 |
 | **`dijiang-continue`** | 恢复 session：找活跃任务 → 加载产物 → 报告路线 |
 | **`dijiang-finish-work`** | 收尾 session：质量验证 → 提交 → 归档 |
+| **`dj-evolve`** / **`dj-fullstack-testing`** | 沉淀经验进 skill 体系 / 全栈回归测试引擎——挂在 finish-work 与 implement 收口侧（详注见 catalog） |
 
 ## 与 dj-dispatch 的边界
 

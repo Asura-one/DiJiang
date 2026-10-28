@@ -22,6 +22,8 @@
 - **`dj-gov`**：知识治理收尾——审计项目文档/规则/记忆与代码实际行为一致。
 - **`dj-meta`**：Skill 写作指南——记录 dj-* 的设计原则和写作规范，用于创建和审查技能。
 - **`dj-memory`** 跨会话检索面：召回时机（何时/何时不用）与召回后落点已并入其正文——"上次怎么解的""之前讨论过吗"直接走 dj-memory 召回。
+- **`dj-evolve`**：任务收尾时回顾发现/经验/纠正，按升格判据筛选可复用经验生成技能更新候选——session 管理的沉淀面，衔接 `dijiang-finish-work` 收口。
+- **`dj-fullstack-testing`**：全栈回归测试引擎（后端分批/API 深度/业务校验/UI 交互/UX 评估）——implement/收口侧的全量档，`dj-check` 是门禁它是火力。
 - **`dj-teach`**：跨 session 教一个概念，用当前目录做状态化工作区。
 - **`dj-meta`** 也为 agent 写文档提供写作规范（AGENTS.md/CLAUDE.md、指针文档；含上下文指针/前置词/修剪纪律，机制详注见其 references/）。
 

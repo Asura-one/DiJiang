@@ -24,6 +24,8 @@ SKILL.md 保留每阶段核心行与判定规则；不确定某句话路由到�
 | "术语、统一语言" | `dj-domain-modeling` |
 | "调研、研究、技术选型" | `dj-research` |
 | "写 PRD、产品文档、把需求写下来" | `dj-output` |
+| "issue 堆积/工单分诊/帮我处理 issue" | `dj-triage` |
+| "大块工作/绿地规划/路线图/决策地图" | `dj-wayfinder` |
 
 ## Build（实现中）
 
@@ -36,6 +38,7 @@ SKILL.md 保留每阶段核心行与判定规则；不确定某句话路由到�
 | "写个脚本/做个小工具" | `dj-script` |
 | "拆分任务、切任务、分批做" | `dj-split` |
 | "模式/重复/抽象" | `dj-pattern` |
+| "merge 冲突/rebase 冲突/解决冲突" | `dj-merge-conflict` |
 
 ## Post-build（交付前）
 
