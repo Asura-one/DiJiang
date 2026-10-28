@@ -1,0 +1,146 @@
+timestamp	commit	skill	old_score	new_score	status	dimension	note	eval_mode
+2026-10-28T09:08	baseline	dijiang-continue	-	60.4	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dijiang-finish-work	-	63.5	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dijiang-start	-	58	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-absorb	-	60.1	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-ask	-	53.2	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-audit	-	57	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-channel	-	47.1	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-check	-	55.6	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-codebase-design	-	49.7	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-design	-	55.6	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-dispatch	-	59.9	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-domain-modeling	-	50	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-evolve	-	61.3	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-fullstack-testing	-	67.7	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-git-guardrails	-	51.1	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-gov	-	66.9	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-grill	-	60.1	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-handoff	-	52.6	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-hunt	-	65.5	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-implement	-	62.3	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-memory	-	60	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-merge-conflict	-	50.7	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-meta	-	52.8	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-output	-	53.4	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-pattern	-	58	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-ponytail	-	59.9	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-prototype	-	56	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-questionnaire	-	49.2	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-read	-	60.4	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-reason	-	52.6	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-regression-guard	-	67.9	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-remix	-	61.7	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-research	-	56	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-review	-	56.2	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-script	-	57.4	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-session-insight	-	45.9	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-setup	-	56.8	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-spec-bootstrap	-	53.2	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-split	-	58	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-tdd	-	57.6	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-teach	-	53.8	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-triage	-	61.7	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-wait-what	-	41.3	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-wayfinder	-	60.9	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-wizard	-	52.4	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-write	-	56	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:08	baseline	dj-writing-for-agents	-	48.6	baseline	-	结构基线(runtime=pass)	structural
+2026-10-28T09:12	baseline	dijiang-continue	-	78.8	baseline	-	结构=60.4 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dijiang-finish-work	-	84.2	baseline	-	结构=63.5 实测dim8=9 综合全量	full_test
+2026-10-28T09:12	baseline	dijiang-start	-	74.1	baseline	-	结构=58 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-absorb	-	78.5	baseline	-	结构=60.1 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-ask	-	69.3	baseline	-	结构=53.2 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-audit	-	73.1	baseline	-	结构=57 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-channel	-	60.9	baseline	-	结构=47.1 实测dim8=6 综合全量	full_test
+2026-10-28T09:12	baseline	dj-check	-	76.3	baseline	-	结构=55.6 实测dim8=9 综合全量	full_test
+2026-10-28T09:12	baseline	dj-codebase-design	-	65.8	baseline	-	结构=49.7 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-design	-	74	baseline	-	结构=55.6 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-dispatch	-	76	baseline	-	结构=59.9 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-domain-modeling	-	66.1	baseline	-	结构=50 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-evolve	-	79.7	baseline	-	结构=61.3 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-fullstack-testing	-	88.4	baseline	-	结构=67.7 实测dim8=9 综合全量	full_test
+2026-10-28T09:12	baseline	dj-git-guardrails	-	64.9	baseline	-	结构=51.1 实测dim8=6 综合全量	full_test
+2026-10-28T09:12	baseline	dj-gov	-	85.3	baseline	-	结构=66.9 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-grill	-	78.5	baseline	-	结构=60.1 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-handoff	-	68.7	baseline	-	结构=52.6 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-hunt	-	83.9	baseline	-	结构=65.5 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-implement	-	76.1	baseline	-	结构=62.3 实测dim8=6 综合全量	full_test
+2026-10-28T09:12	baseline	dj-memory	-	78.4	baseline	-	结构=60 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-merge-conflict	-	66.8	baseline	-	结构=50.7 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-meta	-	68.9	baseline	-	结构=52.8 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-output	-	71.8	baseline	-	结构=53.4 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-pattern	-	74.1	baseline	-	结构=58 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-ponytail	-	78.3	baseline	-	结构=59.9 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-prototype	-	74.4	baseline	-	结构=56 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-questionnaire	-	65.3	baseline	-	结构=49.2 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-read	-	78.8	baseline	-	结构=60.4 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-reason	-	68.7	baseline	-	结构=52.6 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-regression-guard	-	88.6	baseline	-	结构=67.9 实测dim8=9 综合全量	full_test
+2026-10-28T09:12	baseline	dj-remix	-	82.4	baseline	-	结构=61.7 实测dim8=9 综合全量	full_test
+2026-10-28T09:12	baseline	dj-research	-	72.1	baseline	-	结构=56 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-review	-	72.3	baseline	-	结构=56.2 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-script	-	75.8	baseline	-	结构=57.4 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-session-insight	-	59.7	baseline	-	结构=45.9 实测dim8=6 综合全量	full_test
+2026-10-28T09:12	baseline	dj-setup	-	72.9	baseline	-	结构=56.8 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-spec-bootstrap	-	67	baseline	-	结构=53.2 实测dim8=6 综合全量	full_test
+2026-10-28T09:12	baseline	dj-split	-	76.4	baseline	-	结构=58 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-tdd	-	73.7	baseline	-	结构=57.6 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-teach	-	69.9	baseline	-	结构=53.8 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-triage	-	80.1	baseline	-	结构=61.7 实测dim8=8 综合全量	full_test
+2026-10-28T09:12	baseline	dj-wait-what	-	52.8	baseline	-	结构=41.3 实测dim8=5 综合全量	full_test
+2026-10-28T09:12	baseline	dj-wayfinder	-	77	baseline	-	结构=60.9 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-wizard	-	66.2	baseline	-	结构=52.4 实测dim8=6 综合全量	full_test
+2026-10-28T09:12	baseline	dj-write	-	72.1	baseline	-	结构=56 实测dim8=7 综合全量	full_test
+2026-10-28T09:12	baseline	dj-writing-for-agents	-	67	baseline	-	结构=48.6 实测dim8=8 综合全量	full_test
+2026-10-28T09:23	025a119	dj-wait-what	52.8	3-0 better	keep	dim3+dim4+dim9	补失败模式if-then+反例表+确认门; 3judge一致clear	paired
+2026-10-28T09:32	40a4111	dj-session-insight	59.7	3-0 better	keep	dim3+dim9	补失败模式if-then+反例表; 3judge一致better	paired
+2026-10-28T09:32	2d6541d	dj-channel	60.9	3-0 better	keep	dim3+dim9	补失败模式if-then+反例表; 3judge一致better	paired
+2026-10-28T09:32	dfda6af	dj-git-guardrails	64.9	3-0 better	keep	dim3+dim9	补失败模式if-then+反例表; 3judge一致better	paired
+2026-10-28T09:32	b3ec7b8	dj-questionnaire	65.3	3-0 better	keep	dim3+dim9	补失败模式if-then+反例表; 3judge一致better	paired
+2026-10-28T09:32	c6b1bfb	dj-codebase-design	65.8	3-0 better	keep	dim3+dim9	补失败模式if-then+反例表; 3judge一致better	paired
+2026-10-28T09:32	14773ed	dj-domain-modeling	66.1	3-0 better	keep	dim3+dim9	补失败模式if-then+反例表; 3judge一致better	paired
+2026-10-28T09:47	dj-merge-conflict	a7817db	66.8	3-0 better	keep	dim3	补失败模式(归因/分批/裁决); 3judge better	paired
+2026-10-28T09:47	dj-writing-for-agents	f1facfc	67.0	3-0 better	keep	dim3+dim9	补失败模式+反例(部分复读)	paired
+2026-10-28T09:47	dj-spec-bootstrap	8ed5067	67.0	3-0 tie	keep	dim3+dim9	初版凑分复读HardRules→judge判tie→精修	paired
+2026-10-28T09:47	dj-reason	d6eed3c	68.7	3-0 better	keep	dim3	补失败模式(零复读纯增量)	paired
+2026-10-28T09:47	dj-handoff	38088c3	68.7	3-0 better	keep	dim3	补失败模式(.dijiang缺失/脱敏存疑)	paired
+2026-10-28T09:47	dj-meta	1747e81	68.9	3-0 better	keep	dim7+dim3	清理治理门槛重复2次+补失败模式	paired
+2026-10-28T09:52	1e90a1f	dj-spec-bootstrap	(tie)		3-0 better	keep	dim9	round2 剔除复读HardRules行，精修后转better	paired
+2026-10-28T10:01	dj-wizard	24095c8	66.2	3-0 better	keep	dim3	补失败模式(URL/确认门/幂等) 零复读	paired
+2026-10-28T10:01	dj-ask	78cf30c	69.3	3-0 better	keep	dim3	失败模式+反例(反例复读→待精修)	paired
+2026-10-28T10:01	dj-teach	ee706c7	69.9	3-0 better	keep	dim3	失败模式(2条真增量)+反例(部分复读待精修)	paired
+2026-10-28T10:01	dj-output	758b287	71.8	3-0 better	keep	dim3+dim7	补失败模式+删除重复Gotchas(双向改善)	paired
+2026-10-28T10:01	dj-research	1938509	72.1	3-0 better	keep	dim3	失败模式真增量+反例100%复读(待精修)	paired
+2026-10-28T10:01	dj-write	d4461b8	72.1	2b1tie	keep	dim3	失败模式基本复读(待精修)	paired
+2026-10-28T10:15	dj-ask	9b6fd96	(修)		3-0 better	keep	dim9	round2 剔除复读反例，无损去冗	paired
+2026-10-28T10:15	dj-teach	1e1d51c	(修)		3-0 better	keep	dim9	round2 剔除复读反例，无损去冗	paired
+2026-10-28T10:15	dj-research	a645fa9	(修)		3-0 better	keep	dim7+9	round2 删反例+重复Gotchas，-17%无损	paired
+2026-10-28T10:15	dj-write	de585c7	(修)		1b2w	revert	dim3	round2 误删语义漂移兜底，2/3判worse→revert	paired
+2026-10-28T10:15	dj-write	1ffe404	(修)		3-0 better	keep	dim3	round3 仅删纯复读术语行，保留真增量	paired
+2026-10-28T10:22	dj-review	198e38a	72.3	3-0 better	keep	dim3	补失败模式(冲突/分批/无源)	paired
+2026-10-28T10:22	dj-setup	0b4c674	72.9	3-0 better	keep	dim3	补失败模式(迁移中断/合并/推断)	paired
+2026-10-28T10:22	dj-audit	be36ebd	73.1	3-0 better	keep	dim3	补失败模式(超时/去重/分级)	paired
+2026-10-28T10:22	dj-tdd	d10af41	73.7	3-0 better	keep	dim3	补失败模式(RED假绿/环境/切片)	paired
+2026-10-28T10:22	dj-design	b0945f4	74.0	3-0 better	keep	dim3	补失败模式(方向/对比度/token)	paired
+2026-10-28T10:22	dijiang-start	9a311f6	74.1	2b1tie	keep	dim3	补失败模式(首行复读→待精修)	paired
+2026-10-28T10:25	394771c	dijiang-start	(修)		3-0 better	keep	dim3	round2 删复读首行，无损聚焦	paired
+2026-10-28T10:34	dj-pattern	3e92ee2	74.1	3-0 better	keep	dim3	补失败模式(范围/重构/根因)	paired
+2026-10-28T10:34	dj-prototype	53072be	74.4	3-0 better	keep	dim3	补失败模式(依赖/数据/人眼)	paired
+2026-10-28T10:34	dj-script	559ffa6	75.8	3-0 better	keep	dim3+dim7	补失败模式+删反例重复行	paired
+2026-10-28T10:34	dj-dispatch	2f840db	76.0	3-0 better	keep	dim3	补失败模式(多类型/身份/超范围)	paired
+2026-10-28T10:34	dj-implement	f6d599e	76.1	3-0 better	revert	dim3	失败模式表复读正文接近tie→revert	paired
+2026-10-28T10:34	dj-check	8649194	76.3	3-0 better	keep	dim3	补失败模式(not run/越界/数据不一致)	paired
+2026-10-28T10:46	dj-split	7fea844	76.4	3-0 better	keep	dim3	补失败模式(依赖环/issue失败/PRD遗漏)	paired
+2026-10-28T10:46	dj-wayfinder	4e041ac	77.0	1b2tie	keep	dim3	失败模式2/3复读(待精修)	paired
+2026-10-28T10:46	dj-ponytail	ccbfbc6	78.3	2b1tie	keep	dim3	失败模式1行复读(待精修)	paired
+2026-10-28T10:46	dj-memory	d3e3f00	78.4	3-0 better	keep	dim3	补失败模式(损坏/召回空/晋升)	paired
+2026-10-28T10:46	dj-absorb	1c5b62a	78.5	1b1w1tie	keep	dim3	失败模式3行全复读Gotchas(待精修)	paired
+2026-10-28T10:46	dj-grill	7975eec	78.5	3-0 better	keep	dim3	失败模式1行复读(待精修)	paired
+2026-10-28T10:55	dj-wayfinder	9393662	(修)		3-0 better	keep	dim3	round2 删复读行(票据超目的地)	paired
+2026-10-28T10:55	dj-ponytail	a83e33e	(修)		3-0 better	keep	dim3	round2 删复读行(shortcut no-trigger)	paired
+2026-10-28T10:55	dj-grill	5201d3b	(修)		3-0 better	keep	dim3	round2 删复读行(开始做≠确认)	paired
+2026-10-28T10:55	dj-absorb	35390f9	(修)		3-0 better	keep	dim3	round2 撤除全复读失败模式表	paired
+2026-10-28T11:18	dijiang-continue	d1267de	78.8	3-0 better	keep	dim3	补失败模式(指针悬空/状态矛盾) clear	paired
+2026-10-28T11:18	dj-read	cfda146	78.8	3-0 better	keep	dim3	补失败模式(重定向/JS渲染/反爬)	paired
+2026-10-28T11:18	dj-evolve	61005fb	79.7	3-0 better	keep	dim3	补失败模式(重复候选/环境故障/排序)	paired
