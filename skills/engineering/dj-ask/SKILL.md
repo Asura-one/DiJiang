@@ -74,3 +74,19 @@ model-invoked 参考在其它 skill *下面* 运行，各是词汇的唯一真�
 | **调用模式** | user-invoked | user-invoked |
 
 两者不互斥：先问 `dj-ask` 全局路径，再 `dj-dispatch` 逐请求路由。
+
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| 任务跨多条 flow | 指出主干 + 分支，给串联顺序 | 停下问用户目标，再定路径 |
+| 路由图与目标 SKILL.md 不一致 | 以 SKILL.md 为准，指出图过时点 | 报告不一致，不硬套旧图 |
+| 用户只有模糊想法（雾太大） | 指到 `dj-wayfinder` 或 `dj-grill` | 先澄清一个决策再定路径 |
+
+## 反例
+
+| ❌ 不要做 | ✅ 正确做法 |
+|---|---|
+| 把 dj-ask 当单请求路由用 | 单次请求交 `dj-dispatch` |
+| 不读 SKILL.md 就下断言 | 断言前验证目标 SKILL.md |
+| 从决策地图直接跳 `dj-implement` | 先经 `dj-output` 折叠再 `dj-split` |
