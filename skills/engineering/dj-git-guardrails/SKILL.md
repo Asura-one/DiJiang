@@ -27,6 +27,14 @@ git diff HEAD | grep -n "console.log\|print(\|dbg!\|TODO\|FIXME"
 git diff --stat HEAD | grep -E "\.(png|jpg|pdf|zip|dmg)$"
 ```
 
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| push 被拒（远程有新提交） | 先 `git fetch` 再 rebase 本地分支 | 停下报告冲突面，交用户裁决路线 |
+| 发现已被提交的敏感文件 | 从工作树移除 + `.gitignore`，**停止** 不自行改写历史 | 报告，请用户在改史/轮换凭证间决策 |
+| 需要覆盖远程（force） | 一律 `--force-with-lease`，绝不裸 `--force` | 共享分支禁止强推；停下确认 |
+
 ## 配套
 
 参考文件 `references/block-dangerous-git.sh` 查看危险操作拦截脚本。
