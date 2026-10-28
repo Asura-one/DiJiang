@@ -61,6 +61,14 @@ Issue 跟踪器同步的完整机制、task 类 issue 模板、结题评论模�
 
 **格式统一（必须）**：标题 `<前缀>-<编号> [task][P?] <一句话摘要>`，正文固定骨架 + 尾注本地任务路径，不得自创格式。**类型必标**：缺陷修复另挂 `bug`、需求实现另挂 `enhancement`；**标签必挂**（只用仓库已有标签，缺的先建，P 级约定色见 references）。**关闭正规流程**：三重证据核实（跟踪器状态+本地提交+代码实证，不信推测）→ 结题评论 → 同步勾选正文验收 checklist → PATCH closed → GET 复核 → 本地同步 completed。模板全文与 API/平台细节（假 404 陷阱、Windows curl 临时文件、token 同命令内使用）见 `references/issue-sync.md`。
 
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| 依赖成环（A↔B） | 拆出共享前置任务 | 停下报告环 |
+| PRD 有遗漏无法拆 | 报告遗漏，不改 PRD | 交 `dj-output` 补 |
+| 跟踪器创建 issue 失败 | 按 `references/issue-sync.md` 排查 | 本地任务为准，标待同步 |
+
 ## 边界
 
 - 不实现任务——那是 `dj-implement` / `dj-tdd` 的事
