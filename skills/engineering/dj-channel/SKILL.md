@@ -56,6 +56,23 @@ dj-channel skill stop <id>
 - 长时间运行的任务使用 `channel status <id>` 定期检查进度。
 - 不再需要的通道用 `channel stop <id>` 清理。
 
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| `spawn` 报 agent 名不存在 | `channel list` 确认可用 agent 类型 | 报告可用类型，请用户确认 |
+| 通道长时间无输出 | `channel status <id>` 查状态 | `channel stop <id>` 后重 spawn，收紧 task 描述 |
+| `execute` 报错 | 读通道日志定位 | 换同步方式单跑，不阻塞主流程 |
+
+## 反例
+
+| ❌ 不要做 | ✅ 正确做法 |
+|---|---|
+| 假设 agent 已完成就继续 | 先 `channel list`/`status` 确认 |
+| 同步阻塞等长任务跑完 | spawn 后台 + 定期 status 检查 |
+| 结束前不清理通道 | 用 `channel stop` 清掉不再需要的通道 |
+| 用 channel 做单次静态审查 | 一个 prompt 直接做 |
+
 ## 参考文件
 
 - Call the Skill tool with "dj-channel" — 所有子命令的最新参考

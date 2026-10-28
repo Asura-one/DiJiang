@@ -78,6 +78,14 @@ git diff --name-only HEAD
 
 保存到系统 temp 目录：`dijiang-handoff-<task-name>-<YYYYMMDD-HHMM>.md`
 
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| `.dijiang/` 缺失无任务产物 | 用 git 状态 + 对话提炼 | 报告缺失，交接文档标注不确定项 |
+| 脱敏后仍疑似含敏感片段 | 二次扫描 token/key 模式 | 停下请用户人工复核 |
+| 交接内容超出单屏 | 分层：摘要 + 引用路径 | 拆成多个 handoff 文件 |
+
 ## 规则
 
 - 不复制其他产物（PRD、design doc）的内容，引用路径即可

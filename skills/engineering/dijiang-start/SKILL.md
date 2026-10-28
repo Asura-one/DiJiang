@@ -62,6 +62,13 @@ test -d .dijiang/spec && find .dijiang/spec -maxdepth 2 -type f -name "*.md" | s
 
 Call the Skill tool with "dj-dispatch".
 
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| active_task 指针为空 | 报告「无活跃任务」 | 询问是否新建任务 |
+| config/spec 读取失败 | 报告缺失项 | 靠当前对话继续 |
+
 ## 状态报告
 
 离开该 skill 前报告：

@@ -80,6 +80,14 @@ git grep --no-index --exclude-standard -nE '(#|//) ?(shortcut|ponytail):'
 
 参考 `references/HTML-REPORT.md` 查看审计报告 HTML 模板。
 
+## 失败模式
+
+| 触发条件 | 一线修复 | 仍失败兜底 |
+|---|---|---|
+| 扫描范围过大超时 | 分模块/分类型分批扫 | 标已扫范围，建议续扫 |
+| 同一文件多项发现 | 按文件聚合去重 | 保留最高严重度条目 |
+| 结果过多无法定性 | 按风险分级取 top | 标样本，建议人工复核 |
+
 ## 边界
 
 - 只检查已追踪的文件（git tracked）
