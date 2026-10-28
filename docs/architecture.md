@@ -75,7 +75,7 @@ skills/
 
 各阶段对应的核心 skill：
 
-- **planning**：`dj-grill`（需求对齐）、`dj-output`（文档）、`dj-spec-bootstrap`、`dj-split`
+- **planning**：`dj-grill`（需求对齐）、`dj-output`（文档）、`dj-split`
 - **in_progress**：`dj-implement` / `dj-tdd` / `dj-hunt`，改码过程由 **`dj-regression-guard`** 护送（改前基线 → 修改 → 专项验证 → 改后回归），全量回归由 **`dj-fullstack-testing`** 承载（见 ADR-006）
 - **completed**：`dijiang-finish-work` 收尾；`dj-check` 为交付前质量门禁
 

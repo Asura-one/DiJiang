@@ -11,6 +11,12 @@ AIGC:
 
 # 变更日志
 
+## [未发布] — 2026-10-28
+
+### 移除
+
+- **退役技能 `dj-spec-bootstrap`**（DJ-014）：零使用孤儿——`.dijiang/spec/` 从未产出、全库零入度、消费链已断。SCOPE 退役政策首个实例，档案见 `..out-of-scope/skill-retirement-dj-spec-bootstrap.md`（否决原因/最强理由/复活条件）。技能数 44→43。
+
 ## [1.4.0] — 2026-09-20
 
 ### 移除

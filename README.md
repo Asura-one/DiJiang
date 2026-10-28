@@ -48,7 +48,6 @@ cp -r skills/ /path/to/your-project/
 | `dj-ask` | user | 全局 flow 路由图（有哪些 workflow/该走什么流程） |
 | `dj-grill` | user | 需求不清、范围需要对齐 |
 | `dj-output` | user | PRD、design、spec 文档 |
-| `dj-spec-bootstrap` | user | Spec 初始生成 |
 | `dj-split` | user | PRD 拆分 |
 | `dj-wayfinder` | user | 大块工作规划（决策票据地图） |
 | `dj-triage` | user | Issue/任务分诊 |
