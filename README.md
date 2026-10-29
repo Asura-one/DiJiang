@@ -38,14 +38,13 @@ cp -r skills/ /path/to/your-project/
 
 ## Skill 清单
 
-### Engineering（41 skills）
+### Engineering（38 skills）
 
 #### 核心流程
 
 | Skill | 调用模式 | 触发 |
 |-------|---------|------|
-| `dj-dispatch` | user | 新任务分流和技能路由 |
-| `dj-ask` | user | 全局 flow 路由图（有哪些 workflow/该走什么流程） |
+| `dj-ask` | user | 全局 flow 路由图 + 新任务分流（有哪些 workflow/该走什么/单请求路由） |
 | `dj-grill` | user | 需求不清、范围需要对齐 |
 | `dj-output` | user | PRD、design、spec 文档 |
 | `dj-split` | user | PRD 拆分 |
@@ -93,7 +92,7 @@ cp -r skills/ /path/to/your-project/
 | `dijiang-continue` | user | 继续会话 |
 | `dijiang-finish-work` | user | 收尾工作 |
 
-### Productivity（5 skills）
+### Productivity（4 skills）
 
 | Skill | 调用模式 | 触发 |
 |-------|---------|------|
@@ -106,7 +105,7 @@ cp -r skills/ /path/to/your-project/
 
 ```
 none
-  └─ dj-setup（初始化）或 dj-dispatch（创建任务）
+  └─ dj-setup（初始化）或 dj-ask（新任务分流）
 planning
   └─ dj-grill（对齐），必要时 dj-output → dj-split
 in_progress

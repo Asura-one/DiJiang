@@ -26,7 +26,7 @@ review_before: 2028-10-27
 
 | Skill | 输出标记 |
 |-------|----------|
-| dj-dispatch | `🥷 dispatch: 路由到 dj-implement` |
+| dj-ask | `🥷 ask: 路由到 dj-implement` |
 | dj-grill | `🥷 grill: 需求已对齐，6 个维度确认清晰` |
 | dj-implement | `🥷 implement: 功能 X 已完成，通过验证` |
 | dj-hunt | `🥷 hunt: 定位到空指针异常在 src/x.rs:42` |

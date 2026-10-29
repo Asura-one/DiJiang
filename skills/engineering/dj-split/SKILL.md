@@ -53,7 +53,7 @@ Issue 跟踪器同步的完整机制、task 类 issue 模板、结题评论模�
 
 ### 4. 输出
 
-任务列表用于 dj-dispatch 路由；保存到 `.dijiang/tasks/` 或输出到对话中。
+任务列表用于 dj-ask 路由；保存到 `.dijiang/tasks/` 或输出到对话中。
 
 ## 同步到 issue 跟踪器（可选）
 

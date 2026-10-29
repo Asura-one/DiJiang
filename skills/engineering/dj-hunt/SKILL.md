@@ -61,7 +61,7 @@ AIGC:
 
 ### Phase 5 — 修复 + regression 测试
 
-任务仍 `planning` 时用原始用户请求重新走 dj-dispatch，不绕过 worktree check（见 dj-git-guardrails）。
+任务仍 `planning` 时用原始用户请求重新走 dj-ask，不绕过 worktree check（见 dj-git-guardrails）。
 
 回归测试写在修复**之前**——仅当存在正确 seam；没有 seam → 本身就是发现：架构阻碍 bug 锁定。有 seam：最小化 repro → failing test → RED → 修 → GREEN → 重跑反馈环确认原始场景不复现。遵守 **Code Task TDD Contract**（RED/Repro evidence、GREEN command、Regression scope、Exception）。
 

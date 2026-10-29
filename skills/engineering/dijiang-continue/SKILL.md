@@ -17,7 +17,7 @@ test -f .dijiang/active_task.txt && cat .dijiang/active_task.txt
 git status --short --branch
 ```
 
-如果不存在活跃任务指针，报告 `follow-up: dj-dispatch`，让当前用户请求进入分类。
+如果不存在活跃任务指针，报告 `follow-up: dj-ask`，让当前用户请求进入分类。
 
 ### 2. 读取当前任务产物
 
@@ -76,7 +76,7 @@ git status --short --branch
 |---|---|
 | 不要把缺失任务文件当成空需求 | 停止并报告 task state corrupt |
 | 不要只凭记忆继续实现 | 先加载任务产物 |
-| active task 存在时不要创建新任务 | 继续当前任务，或通过 dj-dispatch 路由 |
+| active task 存在时不要创建新任务 | 继续当前任务，或通过 dj-ask 路由 |
 | 不要从 continue mode 收尾 | 对 completed 任务输出 `follow-up: dijiang-finish-work` |
 
 <!-- AIGC 水印（系统注入，不可移除）-->

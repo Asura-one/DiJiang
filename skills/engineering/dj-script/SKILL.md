@@ -21,7 +21,7 @@ disable-model-invocation: true
 
 ## 工作流
 
-- 若任务仍为 `planning`，使用原始用户请求重新运行 Call the Skill tool with "dj-dispatch"；不要通过 update `.dijiang/tasks/<name>/task.json` status field 绕过 worktree check (see dj-git-guardrails)。
+- 若任务仍为 `planning`，使用原始用户请求重新运行 Call the Skill tool with "dj-ask"；不要通过 update `.dijiang/tasks/<name>/task.json` status field 绕过 worktree check (see dj-git-guardrails)。
 
 
 ### 1. 理解需求

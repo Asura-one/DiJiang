@@ -76,7 +76,7 @@ skill 特化机制（invocation 选择/拆分/路由技能）→ `references/age
 
 ## 创建新技能的模板
 
-完整骨架复制 `references/skill-template.md`（frontmatter/description/职责/工作流/边界/反例六段）。触发词写 description 内供 dj-dispatch 路由；写完回 `SCOPE.md` 双门槛核验。
+完整骨架复制 `references/skill-template.md`（frontmatter/description/职责/工作流/边界/反例六段）。触发词写 description 内供 dj-ask 路由；写完回 `SCOPE.md` 双门槛核验。
 
 
 ## 反例

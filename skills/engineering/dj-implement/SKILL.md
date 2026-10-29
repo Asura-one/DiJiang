@@ -42,7 +42,7 @@ AIGC:
 - 确认在专用 worktree（`git worktree add ../<项目名>-<分支名> -b <type>/<任务名> <base>`）并通知路径。**链式工单**（B 基于 A 分支）：先提交 A 到任务分支再建 B 的 worktree——快照的是分支 HEAD 不是未提交改动（细节见 git-workflow.md）。
 - 遵守 **Code Task TDD Contract**：非平凡改动先声明 scope；先写失败测试或复现清单；确认测试环境可用或记录原因。
 - **上下文护栏**：任务产物设字节预算（单文件 32KB / 总 128KB）；超预算先读索引段，超限降级为索引行并说明，不硬截断。
-- 任务仍 `planning` 时用原始请求重新走 dj-dispatch，不绕过 worktree check（见 dj-git-guardrails）。
+- 任务仍 `planning` 时用原始请求重新走 dj-ask，不绕过 worktree check（见 dj-git-guardrails）。
 
 ### 1.5 决策阶梯门禁
 

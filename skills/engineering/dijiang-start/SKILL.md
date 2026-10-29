@@ -56,11 +56,11 @@ test -d .dijiang/spec && find .dijiang/spec -maxdepth 2 -type f -name "*.md" | s
 
 如果用户已给出具体任务描述，可以调用 `dj-memory` skill 记录初始发现。不要因为记忆持久化阻塞会话启动。
 
-### 5. 交接给 dj-dispatch
+### 5. 交接给 dj-ask
 
-不要在 `dijiang-start` 内部分类请求。启动只加载上下文；任务分类和路由委托给 `dj-dispatch`。
+不要在 `dijiang-start` 内部分类请求。启动只加载上下文；任务分类和路由委托给 `dj-ask`。
 
-Call the Skill tool with "dj-dispatch".
+Call the Skill tool with "dj-ask".
 
 ## 失败模式
 

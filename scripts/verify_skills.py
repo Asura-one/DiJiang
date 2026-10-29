@@ -144,7 +144,7 @@ def check_description(rep, bucket, name, props):
     if "Use when" not in desc and "use when" not in desc.lower():
         rep.warn(f"[description] {ident}: 缺 'Use when' 触发短语")
     if "触发词" not in desc:
-        rep.warn(f"[description] {ident}: 缺 '触发词' 段（dj-dispatch 路由锚点）")
+        rep.warn(f"[description] {ident}: 缺 '触发词' 段（dj-ask 路由锚点）")
     if re.match(r"^(The|A|This)\b", desc):
         rep.fail(f"[description] {ident}: 以 The/A/This 起头，应动词开头")
     return desc
@@ -354,8 +354,11 @@ def check_tail_pointers(rep, skills):
 # 索引载体文件（相对仓库根）；索引覆盖守卫用
 INDEX_FILES = {
     "agents": "AGENTS.md",
-    "ask": ["skills/engineering/dj-ask/SKILL.md", "skills/engineering/dj-ask/references/skill-catalog.md"],
-    "dispatch": ["skills/engineering/dj-dispatch/SKILL.md", "skills/engineering/dj-dispatch/references/routing-table.md"],
+    "ask": [
+        "skills/engineering/dj-ask/SKILL.md",
+        "skills/engineering/dj-ask/references/skill-catalog.md",
+        "skills/engineering/dj-ask/references/routing-table.md",
+    ],
 }
 
 def check_index_coverage(rep, skills):

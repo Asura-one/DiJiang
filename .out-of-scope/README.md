@@ -22,6 +22,7 @@
 |---|---|
 | workflow-state-machine | ADR-005 已放弃 CLI 路线，无运行时状态机 |
 | skill-retirement-dj-spec-bootstrap | 零使用孤儿：spec 目录为空、零入度、消费链断 |
+| skill-retirement-dj-dispatch | 双路由职责重叠成真，独有增量并入 dj-ask |
 | runtime-lifecycle-hooks | 纯 skill 架构无生命周期事件 |
 | changeset-release | 无 npm/插件发布链路 |
 | version-consistency-guard | 无多 manifest 版本声明场景 |

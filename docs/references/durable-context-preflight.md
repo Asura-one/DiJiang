@@ -25,7 +25,7 @@ review_before: 2028-10-27
 - 模式识别（dj-pattern）
 
 不需要 Preflight 的场合：
-- 纯路由（dj-dispatch）
+- 纯路由（dj-ask）
 - 需求对齐（dj-grill）
 - 即时代码审查（dj-check，含 PR/分支审查档）
 - 写作润色（dj-write）

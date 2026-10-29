@@ -28,14 +28,13 @@ AIGC:
 ### 常用入口
 
 1. **新项目**：`dj-setup` 初始化
-2. **全局流程**：`dj-ask` 查看 DiJiang 有哪些 workflow / 该走什么流程
-3. **新任务**：`dj-dispatch` 分流路由
-4. **需求对齐**：`dj-grill` 逐轮拷问
-5. **实现**：`dj-implement` 或 `dj-tdd`（改码护送走 `dj-regression-guard`）
-6. **排查**：`dj-hunt`
-7. **审查**：`dj-check`
-8. **全量测试**：`dj-fullstack-testing`
-9. **收尾**：`dijiang-finish-work`
+2. **路由 / 新任务**：`dj-ask` 全局流程图 + 新请求分流
+3. **需求对齐**：`dj-grill` 逐轮拷问
+4. **实现**：`dj-implement` 或 `dj-tdd`（改码护送走 `dj-regression-guard`）
+5. **排查**：`dj-hunt`
+6. **审查**：`dj-check`
+7. **全量测试**：`dj-fullstack-testing`
+8. **收尾**：`dijiang-finish-work`
 
 ### 任务状态
 

@@ -25,7 +25,7 @@ description: "测试驱动开发：红绿重构循环，一次一个垂直切片
 
 ## 工作流
 
-- 若任务仍为 `planning`，使用原始用户请求重新运行 Call the Skill tool with "dj-dispatch"；不要通过 update `.dijiang/tasks/<name>/task.json` status field 绕过 worktree check (see dj-git-guardrails)。
+- 若任务仍为 `planning`，使用原始用户请求重新运行 Call the Skill tool with "dj-ask"；不要通过 update `.dijiang/tasks/<name>/task.json` status field 绕过 worktree check (see dj-git-guardrails)。
 
 
 ### 1. 切片（确定本轮 RED）

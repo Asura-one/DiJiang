@@ -34,8 +34,7 @@ AIGC:
 
 | 场景 | Skill | 调用模式 |
 |------|-------|---------|
-| 新任务 / 不清楚的请求 | `dj-dispatch` | user |
-| 全局流程路由 / 有哪些 workflow | `dj-ask` | user |
+| 新任务 / 全局流程 / 该走什么 | `dj-ask` | user |
 | 需求对齐 | `dj-grill` | user |
 | PRD / 设计文档 | `dj-output` | user |
 | PRD 拆分 | `dj-split` | user |
@@ -104,7 +103,7 @@ none → planning → in_progress → completed → archived
 
 | 状态 | 允许的 skill |
 |------|-------------|
-| none | `dj-setup`（初始化）、`dj-dispatch`（创建任务） |
+| none | `dj-setup`（初始化）、`dj-ask`（新任务分流） |
 | planning | `dj-grill`（对齐）、`dj-output`（文档）、`dj-split` |
 | in_progress | `dj-implement`、`dj-tdd`、`dj-hunt`、`dj-regression-guard`、`dj-fullstack-testing`、`dj-check`（含 PR/分支审查档）、`dj-script`、`dj-design`、`dj-prototype` |
 | completed | `dijiang-finish-work`（收尾） |

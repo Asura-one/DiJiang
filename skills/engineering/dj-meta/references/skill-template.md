@@ -10,7 +10,7 @@ name: dj-<name>
 description: >
   <一句话说清楚做什么>
   Use when <触发条件，agent 判断依据>
-  触发词：<用户说的词，帮助 dj-dispatch 路由>
+  触发词：<用户说的词，帮助 dj-ask 路由>
 ---
 
 # <Title>: <中文描述>
@@ -39,6 +39,6 @@ description: >
 
 ## 使用提醒
 
-- 触发词写在 description 内，供 dj-dispatch 路由——两两 Jaccard >= 0.5 会被 verify FAIL
+- 触发词写在 description 内，供 dj-ask 路由——两两 Jaccard >= 0.5 会被 verify FAIL
 - 面向 agent 写（上下文指针/前置词纪律见 dj-meta「为 agent 写文档」节）
 - 引用带触发条件，深度 <= 1

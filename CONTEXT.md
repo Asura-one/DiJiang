@@ -77,13 +77,9 @@ Skill 的分类桶。DiJiang 使用两个 bucket：
 
 项目管理记忆的 skill（model-invoked）。其他 skill 通过 `Call the Skill tool with "dj-memory"` 调用。
 
-### dj-dispatch
-
-任务分流和技能路由的 skill（user-invoked）。逐请求战术路由：读取用户意图，一进一出推荐合适的 dj-* skill。
-
 ### dj-ask
 
-全局 flow 路由图的 skill（user-invoked）。以主流程/入口匝道/独立工具/词汇层的结构组织全部 skill，回答"这个任务该走什么流程""DiJiang 有哪些 workflow"。与 `dj-dispatch` 分工：dispatch 是逐请求路由（一进一出），dj-ask 是全局战略路由（多 skill 串联路径图）。
+全局路由入口的 skill（user-invoked）。以主流程/入口匝道/独立工具/词汇层的结构组织全部 skill，回答"这个任务该走什么流程""DiJiang 有哪些 workflow"；同时承担单请求路由：识别任务类型，一进一出推荐合适的 dj-* skill 并显式输出路由理由。
 
 ### dj-grill
 

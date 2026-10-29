@@ -60,7 +60,7 @@ DiJiang 是纯 skill 架构：所有工作流通过调用 skill 完成，无运�
 
 | 当前任务状态 | 允许的 skill | 说明 |
 |-------------|-------------|------|
-| `none` | `dj-dispatch` | 先分流，不要直接干活 |
+| `none` | `dj-ask` | 先分流，不要直接干活 |
 | `planning` | `dj-grill`、`dj-output` | 对齐阶段；实现类请求按 skill 纪律引导到 `dj-grill` |
 | `in_progress` | `dj-implement` / `dj-tdd` / `dj-hunt` / `dj-regression-guard` / `dj-fullstack-testing` / `dj-script` / `dj-check` 等 | 实现阶段，按需选择 |
 | `completed` | 无（走 `dijiang-finish-work`） | 收尾，不使用 skill |

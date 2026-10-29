@@ -23,7 +23,7 @@ review_before: 2028-10-27
 
 ## 设计原则
 
-- **路由 skills**（如 dj-dispatch、dj-ask、dj-grill）应为模型调用或用户调用——dispatch 是逐请求战术路由，dj-ask 是全局战略路由图，两者都是用户主动触发
+- **路由 skill**（dj-ask）为用户调用——全局 flow 路径图与单请求分流同一入口承载；dj-grill 为模型调用（需求模糊时自动对齐）
 - **执行 skills**（如 dj-implement、dj-tdd）应为模型调用——模型在 routing 后自动进入
 - **分析/报告 skills**（如 dj-audit）应为用户调用——只在用户要求时执行，减少不必要的上下文消耗
 - **写作/润色 skills**（如 dj-write）应为用户调用——改写原文需要用户确认
@@ -33,8 +33,7 @@ review_before: 2028-10-27
 
 | Skill | 调用类型 | 理由 |
 |-------|----------|------|
-| dj-dispatch | 模型调用 | 新请求入口路由 |
-| dj-ask | 用户调用 | 全局 flow 路由图（用户主动问有哪些流程） |
+| dj-ask | 用户调用 | 全局 flow 路由图 + 单请求分流（新请求入口） |
 | dj-grill | 模型调用 | 需求模糊时自动对齐 |
 | dj-implement | 模型调用 | 执行流程核心 |
 | dj-tdd | 模型调用 | 执行流程核心 |

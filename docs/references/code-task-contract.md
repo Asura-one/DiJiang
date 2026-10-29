@@ -25,6 +25,6 @@ review_before: 2028-10-27
 
 ## 注意
 
-- 本合约由 `dj-implement` / `dj-hunt` 在各自治流程中执行，`dj-dispatch` 只进行路由，不执行合约
+- 本合约由 `dj-implement` / `dj-hunt` 在各自治流程中执行，`dj-ask` 只进行路由，不执行合约
 - 改码任务的改前基线与改后回归护送由 `dj-regression-guard` 承接，全量回归由 `dj-fullstack-testing` 承接
 - 不可自动化验证的场景（如 UI 测试不可达、外部 API 无 sandbox）需要显式记录在异常条款中

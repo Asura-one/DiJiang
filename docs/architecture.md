@@ -29,17 +29,16 @@ DiJiang 是一个**纯 skill 架构**的工程工作流框架：没有编译、�
 
 ```
 skills/
-├── engineering/    # 41 个工程 skill（代码工作相关）
-│   ├── dj-ask/SKILL.md            # 全局 flow 路由图（战略层）
-│   ├── dj-dispatch/SKILL.md       # 逐请求战术路由器
+├── engineering/    # 38 个工程 skill（代码工作相关）
+│   ├── dj-ask/SKILL.md            # 全局 flow 路由图 + 单请求路由
 │   ├── dj-implement/SKILL.md      # 功能实现
 │   ├── dj-tdd/SKILL.md            # 测试驱动开发
 │   ├── dj-regression-guard/SKILL.md   # 改码三明治回归协议
 │   ├── dj-fullstack-testing/SKILL.md  # 全量回归引擎
 │   ├── dj-check/SKILL.md          # 交付质量门禁
 │   ├── dj-hunt/SKILL.md           # Bug 排查
-│   └── ...（共 41 个）
-└── productivity/   # 5 个 skill：通用工作流工具（文字润色等）
+│   └── ...（共 38 个）
+└── productivity/   # 4 个 skill：通用工作流工具（文字润色等）
 ```
 
 ### SKILL.md 文件结构
@@ -64,12 +63,11 @@ skills/
 
 ## 工作流路由
 
-路由分两层，互为补充：
+路由统一由 `dj-ask` 一个入口承载，两个视角一体：
 
-| 层 | Skill | 职责 |
-|----|-------|------|
-| 战略层 | `dj-ask` | 全局 flow 路由图（主流程 / 入口匝道 / 独立工具 / 词汇层） |
-| 战术层 | `dj-dispatch` | 逐请求分类路由：识别任务类型 → 路由到对应 skill（支持混合任务串联） |
+| Skill | 职责 |
+|-------|------|
+| `dj-ask` | 战略：全局 flow 路由图（主流程 / 入口匝道 / 独立工具 / 词汇层）；战术：逐请求分类路由（识别任务类型 → 路由到对应 skill，混合任务主类型串联） |
 
 任务状态机：`none → planning → in_progress → completed → archived`，另有 `paused`。
 
@@ -85,7 +83,7 @@ skills/
 
 | 原门禁 | 现形态 |
 |--------|--------|
-| **Route Gate** | 任务状态约束分散在状态机与 `dj-dispatch`/`dj-ask` 的路由文本中 |
+| **Route Gate** | 任务状态约束分散在状态机与 `dj-ask` 的路由文本中 |
 | **Git Gate** | `dj-git-guardrails` + AGENTS.md 的 Worktree-First 纪律：主目录保持干净、功能在独立 worktree 中开发、合并需用户确认 |
 | **Capability Gate** | 破坏性操作（reset --hard / force push / clean -f）在 skill 文本中明确禁止，收尾执行需用户确认 |
 

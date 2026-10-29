@@ -16,6 +16,7 @@ AIGC:
 ### 移除
 
 - **退役技能 `dj-spec-bootstrap`**（DJ-014）：零使用孤儿——`.dijiang/spec/` 从未产出、全库零入度、消费链已断。SCOPE 退役政策首个实例，档案见 `..out-of-scope/skill-retirement-dj-spec-bootstrap.md`（否决原因/最强理由/复活条件）。技能数 44→43。
+- **合并技能 `dj-dispatch` 入 `dj-ask`**（用户提案）：双路由职责重叠（design.md §4 预判的风险）成真——同一份 skill 映射维护两处、触发面模糊。dj-ask 吸收单请求路由职能（显式输出路由决策、混合任务串联、歧义消解、`planning` re-entry 锚点）与触发词；`routing-table.md` 下沉为 dj-ask 的 references；`verify_skills.py` 的 INDEX_FILES 索引载体同步。技能数 43→42，档案见 `.out-of-scope/skill-retirement-dj-dispatch.md`。
 
 ## [1.4.0] — 2026-09-20
 

@@ -1,17 +1,15 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'abd3f07f-7d9e-41eb-85fc-5429ffc677b3'
-  PropagateID: 'abd3f07f-7d9e-41eb-85fc-5429ffc677b3'
-  ReservedCode1: 'dc11b5af-9902-4db5-9191-c58b88572f03'
-  ReservedCode2: 'dc11b5af-9902-4db5-9191-c58b88572f03'
----
+# dj-ask: 单请求路由完整关键词表 + 歧义消解
 
-# dj-dispatch: 完整路由表
+SKILL.md 保留核心路由规则；不确定某句话路由到哪、或多个 skill 都匹配时读本表。
 
-SKILL.md 保留每阶段核心行与判定规则；不确定某句话路由到哪时读本表全量匹配。
+## 歧义消解
+
+| 规则 | 说明 |
+|---|---|
+| 最具体优先 | "设计登录页" → `dj-design`，不是 `dj-implement` |
+| 报错 vs 审查 | 有具体错误现象 → `dj-hunt`；已交付要检查 → `dj-check` |
+| 判断 vs 调试 | "判断一下" + 报错 → `dj-hunt`；"判断" + 值不值得 → `dj-reason` |
+| 兜底 | 都模糊时读相关 SKILL.md 边界段排除法；仍模糊问用户 |
 
 ## Pre-build（动手前）
 
@@ -67,4 +65,3 @@ SKILL.md 保留每阶段核心行与判定规则；不确定某句话路由到�
 | "写 skill、创建技能、技能指南" | `dj-meta` |
 | "出错了/不工作/报错" | `dj-hunt` |
 | "总结经验/沉淀技能/自进化" | `dj-evolve` |
-| "有哪些流程/该走什么" | `dj-ask` |

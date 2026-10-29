@@ -42,3 +42,17 @@
 
 - **`dj-audit`** 在有空时运行，保持代码库对 agent 友好。它扫描过度工程和安全性，也可用 `debt` profile（技术债）或 `health` profile（仓库健康）补充。它发现候选；**`dj-codebase-design`** 是设计选中项的工作台。
 - **`dj-pattern`** 从历史修复和代码模式中学习，发现可复用抽象和反模式。
+## Session 管理（详注）
+
+| Skill | 角色 |
+|-------|------|
+| **`dj-setup`** | 项目初始化（首次运行一次） |
+| **`dijiang-start`** | 启动 session：加载上下文 → 报告路线 |
+| **`dijiang-continue`** | 恢复 session：找活跃任务 → 加载产物 → 报告路线 |
+| **`dijiang-finish-work`** | 收尾 session：质量验证 → 提交 → 归档 |
+| **`dj-evolve`** | 沉淀经验进 skill 体系——衔接 finish-work 收口 |
+| **`dj-fullstack-testing`** | 全栈回归测试引擎——挂在 finish-work 与 implement 收口侧 |
+
+### 阶段边界（五选项）
+
+一个**阶段**是 session 内的一块工作（拷问/实现/QA）。**边界**五选项：**Continue**（零成本）/ **`dijiang-continue`**（恢复任务）/ **`dj-handoff`**（可移植 Markdown：新 harness、新目录、同事、中期分叉）/ **子 agent**（紧 scoped 发自己窗口拿报告）/ **`dj-memory`**（万不得已）。在边界**做**决定；阶段中期 continue 或拆子 agent。
