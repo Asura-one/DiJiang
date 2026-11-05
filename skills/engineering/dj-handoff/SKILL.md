@@ -67,6 +67,9 @@ git diff --name-only HEAD
 ### 风险
 - <risk or none>
 
+### 副作用未确认
+- <已执行但结果未知的操作：命令/预期影响/如何验证——有就列，交给人确认，不自动重试；无写 none>
+
 ### 建议 skill
 - <下一个 skill>
 

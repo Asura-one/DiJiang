@@ -58,6 +58,7 @@ AIGC:
 | 推理透镜 | `dj-reason` | model |
 | 技术调研 | `dj-research` | model |
 | 吸收外部材料 | `dj-absorb` | user |
+| 无人值守 loop 设计与评审 | `dj-loop` | user |
 | 领域建模 | `dj-domain-modeling` | model |
 | 代码结构设计 | `dj-codebase-design` | model |
 | UI/UX 设计实现 | `dj-design` | user |

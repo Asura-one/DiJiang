@@ -11,6 +11,29 @@ AIGC:
 
 # 变更日志
 
+## [1.4.0] — 2026-11-05
+
+琅嬛知识库吸收批（dj-absorb full 档：238 concepts 六母线 + 35 entities + 3 comparisons 并行拆解，四态判定 + 回声拦截后拍板 29 项 + 1 新技能；工单 `task-20261105-absorb-langhuan`）。
+
+### 新增
+
+- **新技能 `dj-loop`**：无人值守 loop 设计与评审——Fitness（ROI 四条件）/ Design（五件套 LOOP-SPEC）/ Review（九组上线检查），只产出设计文档与评审结论，不建调度器不运行（用户豁免 SCOPE Observed failure 门槛）。技能数 42→43（README/AGENTS/dj-ask catalog 与 routing-table、CONTEXT.md 同步注册）。references 三件：loop-spec / loop-state / agent-risk-review（琅嬛模板精简改写）。
+- **新跨技能参考 6 份**（`docs/references/`）：`three-asset-boundaries`（Skill/Memory/State 判别问句+三种退化模式）/ `evidence-gate`（三层证据阶梯+强软验证+结论三态+假完成形态清单，dj-check/dj-audit/finish-work/dj-loop 共用）/ `coverage-ledger`（跨轮 additive 台账+验证发现权分离+失败升级阶梯 L1-L7）/ `loop-design` + `loop-runtime-checklist`（loop 方法论基座）/ `api-doc-template`（示例优先六段）。
+- **ADR-008**：记忆 JSONL 字段扩展——`writer` 写入者、`[主题域]` 首标签、skill 相关记忆指针不复制、元记忆层四操作（lookup/merge/expire/review）。
+- **ADR 模板三增强**（GH1）：替代方案三态（否决+理由/暂缓+复活条件）、「明确不做」小节、复验日期字段（决策 TTL，巡检归 dj-gov）。
+- **references 新增 11 份**：dj-evolve `evolution-criteria`（阴性知识/复现门槛/候选四字段/存量体检）、dj-reason `steelman`（双向钢人）、dj-grill `diverge-first`（发散前段）、dj-regression-guard `jit-probes`（S2.5 临时探针）、dj-audit `git-archaeology` + `audit-playbook`、dj-check `delivery-risk`（pre-mortem）、dj-channel `role-separation`（权限矩阵+trace 协议）、dj-gov `release-checklist`、dj-memory `memory-layers`、dj-meta `extension-levels`（最低权限层选型矩阵）。
+
+### 变更
+
+- **anti-patterns +2 条**：#27 先有结论再找证据（取证推理分离）、#28 并行改同一批文件；#8 三态化（「测了但证据不足写未证实」）。
+- **reference-splitting**：增 L1 摘要头约定（L0 name+desc / L1 摘要块 / L2 全文），新 references 必带摘要头。
+- **version-management**：CHANGELOG 六类分组补「弃用/安全」，[YANKED] 撤版标记。
+- **14 个技能增强**：dj-evolve（第五类挖掘信号=阴性知识、候选必带反例/停止条件/复现次数）、dj-meta（停止条件硬规则+规则条数预算 150-200）、dj-reason（钢人档）、dj-grill（高模糊先发散）、dj-check（checker 不读 maker 自述+修复后增量复扫+结论四态）、dj-regression-guard（S2.5 JiT 探针补假阴性盲区）、dj-audit（+3 类信号：死依赖/死 CSS/非 repo 残留）、dj-fullstack-testing（断言标「需求依据 vs 经验臆测」+台账/阶梯接入）、dj-channel（组织三模式+角色工具边界+过程级 trace 交换）、dj-handoff（「副作用未确认」移交条目）、dj-gov（发版清单+ADR 复验巡检）、dj-hunt（失败升级阶梯铁律）、dj-write（+4 条正向指南）、dj-memory（字段约定指针）。
+
+### 已知债务
+
+- 7 个 SKILL.md 超 3000B 参考上限（WARN 级不阻断）：dj-grill/dj-memory 基线即超；dj-check/dj-fullstack-testing/dj-gov/dj-hunt/dj-regression-guard 由本次吸收推过线（超 5-192B，增量已压缩两轮）。瘦身任务另行安排，不在本批强行硬抠伤内容。
+
 ## [未发布] — 2026-10-28
 
 ### 移除

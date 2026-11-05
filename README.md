@@ -38,7 +38,7 @@ cp -r skills/ /path/to/your-project/
 
 ## Skill 清单
 
-### Engineering（38 skills）
+### Engineering（39 skills）
 
 #### 核心流程
 
@@ -67,6 +67,7 @@ cp -r skills/ /path/to/your-project/
 | `dj-reason` | model | 复杂判断、认知校准 |
 | `dj-research` | model | 技术调研 |
 | `dj-absorb` | user | 吸收外部材料 |
+| `dj-loop` | user | 无人值守 loop 设计与评审（只设计不运行） |
 | `dj-domain-modeling` | model | 领域建模 |
 | `dj-codebase-design` | model | 代码结构设计 |
 | `dj-design` | user | UI/UX 设计实现 |
@@ -134,7 +135,7 @@ paused
 ```
 DiJiang/
 ├── skills/
-│   ├── engineering/       # 41 skills
+│   ├── engineering/       # 39 skills
 │   │   ├── dj-grill/SKILL.md
 │   │   ├── dj-implement/SKILL.md
 │   │   ├── dj-tdd/SKILL.md
@@ -144,7 +145,7 @@ DiJiang/
 │   │   ├── dijiang-start/SKILL.md
 │   │   ├── dijiang-continue/SKILL.md
 │   │   └── dijiang-finish-work/SKILL.md
-│   └── productivity/      # 5 skills
+│   └── productivity/      # 4 skills
 │       └── dj-write/SKILL.md
 ├── docs/
 │   ├── adr/               # 架构决策记录

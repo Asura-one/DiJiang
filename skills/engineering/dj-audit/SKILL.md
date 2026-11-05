@@ -44,6 +44,11 @@ AIGC:
 - **过度配置** — 永远只会用默认值的配置项
 - **冗余层面** — 可以直接调用的中间层
 - **过大文件** — 300 行以上的单一文件
+- **死依赖** — 声明但零 import 的依赖（package.json / pyproject / Cargo.toml）
+- **死 CSS/资源** — 从未被模板/代码引用的样式与静态资源
+- **非 repo 跟踪残留** — 仓库目录内未进版本控制的生成物/编辑器残留
+
+六类扫描的量化基线（可删行数）、接线判定与审计后回归 → `references/audit-playbook.md`；接手陌生库或 debt/health profile 先跑历史诊断五命令 → `references/git-archaeology.md`。
 
 ### 2. 安全扫描
 
