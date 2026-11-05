@@ -34,7 +34,6 @@
 | dj-prototype | 用户调用 | 只在用户要求时做原型 |
 | dj-design | 用户调用 | 只在 UI 需求时执行 |
 | dj-audit | 用户调用 | 使用 default、debt 或 health profile 的全仓扫描 |
-| dj-pattern | 模型调用 | 代码审查时可自动触发 |
 | dj-reason | 用户调用 | 只在需要深度分析时执行 |
 | dj-write | 用户调用 | 润色需要用户确认 |
 | dj-handoff | 用户调用 | session 结束时的显式交接 |

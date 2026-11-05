@@ -24,7 +24,7 @@ disable-model-invocation: true
 
 ## 入口匝道
 
-- **Issue 堆积** → **`dj-triage`**：分诊状态机，产出 agent-ready issue 供 `dj-implement` 拾取。只处理**你没创建的** issue；`dj-split` 工单已 agent-ready。
+- **Issue 堆积** → **`dj-split`（分诊档）**：零散 issue/bug 报告/外部 PR 先分诊（分类→验证→归位）再拆分派发，产出 agent-ready 工单供 `dj-implement` 拾取。PRD 直拆主档不变；只处理**你没创建的** issue。
 - **东西坏了** → **`dj-hunt`**：一眼看不出的 bug、间歇 flake、两好状态间的回归。拒绝在**紧反馈环**建立前理论化；"没有好 seam 锁 bug"时复盘交 `dj-codebase-design`。
 - **巨大模糊工作**（超一个 session）→ **`dj-wayfinder`**：画**决策工单地图**一次解决一个，产出**决策而非交付物**直到路清。地图清后**它交出不构建**——在 **`dj-output`** 折叠决策汇入主流程再 `dj-split` → `dj-implement`；直接跳 `dj-implement` 会丢折叠细节。
 

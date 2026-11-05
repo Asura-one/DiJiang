@@ -316,7 +316,6 @@ TAIL_POINTERS = {
     "dj-implement": [("dj-check", "model")],
     "dj-check": [("dijiang-finish-work", "user")],
     "dijiang-finish-work": [("dj-evolve", "user")],
-    "dj-triage": [("dj-implement", "user")],
     "dj-wayfinder": [("dj-output", "user")],
     "dj-hunt": [("dj-check", "model")],
     "dj-research": [("dj-grill", "user")],

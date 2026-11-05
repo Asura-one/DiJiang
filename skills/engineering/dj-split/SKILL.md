@@ -1,18 +1,32 @@
 ---
 name: dj-split
-description: "将 PRD 文档拆分为独立可执行的 task：衔接 dj-output 的输出，产出可路由的任务列表并同步 issue 跟踪器。 Use when a PRD is finalized and needs decomposition into independently executable tasks. 触发词：拆分任务、分任务、切成 task、work breakdown、分批做、任务拆解。"
+description: "将 PRD 拆分为独立可执行任务，或把零散 issue/bug 报告分诊为 agent-ready 工单（原 dj-triage 职责已融合入本技能）；产出可路由任务列表并同步 issue 跟踪器。 Use when a PRD needs decomposition, or when raw issues/bug reports arrive and need classification into agent-ready briefs. 触发词：拆分任务、分任务、切成 task、work breakdown、任务拆解、分诊、triage、issue 处理、新 issue、问题分类、工单流转。"
 disable-model-invocation: true
 ---
 
-# Split: PRD → 可执行任务
+# Split: PRD/Issue → 可执行任务
 
-将 PRD 拆分为独立可执行的任务——可独立实现、独立验证、独立交付。
+两种输入同一使命——把输入变成 agent-ready 的可派发工作：
 
-Issue 跟踪器同步的完整机制、task 类 issue 模板、结题评论模板、关闭正规流程（三重证据+checklist 勾选）与平台陷阱 → `references/issue-sync.md`。
+- **PRD 档**：成形 PRD/功能描述 → 按依赖拆子任务（主流程）
+- **分诊档**：零散 issue / bug 报告 / 外部 PR → 先分诊再归位（原 dj-triage 融合，见下）
+
+Issue 跟踪器同步的完整机制、task/bug/feat 三类 issue 模板、结题评论模板、关闭正规流程（三重证据+checklist 勾选）与平台陷阱 → `references/issue-sync.md`。
 
 ## 输入
 
-- `.dijiang/prd/` 下的 PRD 文档，或用户提供的 PRD / issue / 功能描述
+- PRD 档：`.dijiang/prd/` 下的 PRD，或用户提供的 PRD / 功能描述
+- 分诊档：`.dijiang/tasks/` 内未分诊任务，或跟踪器新到的 issue / bug 报告 / 外部 PR
+
+## issue 分诊档（零散输入先分诊再派发）
+
+1. **类别先行**：`bug`（某处坏了）/ `enhancement`（新功能/改进），恰取其一
+2. **双检查**：(a) 冗余——按领域概念搜代码库是否已实现；(b) 先前拒绝——读 `.out-of-scope/` 与拒绝史看相似请求
+3. **验证主张**：bug 按报告步骤先复现再分诊；复现不了回问报告者（needs-info），不臆断根因
+4. **归类落地**：可直接做 → 转入 PRD 档拆分；需补信息 → needs-info 两段笔记（已确认/仍需你提供）；需人工 → ready-for-human 注明原因；不该做 → wontfix 按因关闭
+5. **快速覆盖**：维护者明说「把 xxx 移到 ready-for-agent」时信任直用不拷问，只确认是否写 brief
+
+bug/feat 正文骨架与类型映射表 → `references/issue-sync.md`。
 
 ## 拆分原则
 

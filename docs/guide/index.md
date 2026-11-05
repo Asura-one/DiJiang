@@ -35,8 +35,6 @@ DiJiang 是纯 skill 架构：所有工作流通过调用 skill 完成，无运�
 ├── 文档
 │   ├── 写 PRD / 设计文档 / API 文档 → dj-output
 │   └── 文本润色、去 AI 味 → dj-write
-├── 模式研究
-│   └── dj-pattern
 ├── 复杂判断 / 系统透镜
 │   └── dj-reason
 ├── 最小改动 / YAGNI 约束

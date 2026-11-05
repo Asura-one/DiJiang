@@ -1,5 +1,19 @@
 # 变更日志
 
+## [2.0.0] — 2026-11-05
+
+全库技能健康审计批（三源证据：派发记录/引用入度/边界精读；移除公开技能=major）。技能数 43→40。
+
+### 移除
+
+- **退役技能 `dj-pattern`**（模式识别）：三个扫描维度逐条被现有技能覆盖——重复代码≈dj-audit 过早抽象的镜像+dj-evolve 复现门槛；历史修复与 dj-audit git-archaeology（1.4.1 批吸收）完全同域；术语不一致≈dj-domain-modeling。零派发、非索引引用仅 4 处免责行。档案见 `.out-of-scope/skill-retirement-dj-pattern.md`（含复活条件：模式挖掘专项需求时作 audit pattern profile 复活）；引用全部改指 dj-audit。
+- **退役技能 `dj-teach`**（跨会话教学）：零派发、零消费链、入度 3 全为索引；跨 session 教学场景在用户画像与历史会话中完全缺席（学习流实为 linux.do→LangHuan ingest）。档案见 `.out-of-scope/skill-retirement-dj-teach.md`。
+- **融合退役技能 `dj-triage` 入 `dj-split`**（用户裁量「能用/可融合」→ 取融合）：双源实锤——两技能各持一份 95% 相同的 issue-sync.md（4089B/4208B）与一段近乎逐字的跟踪器同步节。dj-split 新增「issue 分诊档」（类别先行/冗余+先前拒绝双检查/验证主张/needs-info/快速覆盖），吸收 triage 的类型映射表与 bug/feat 正文骨架进 issue-sync.md 单一权威源，状态机五角色压缩进流程步骤；触发词（分诊/triage/新 issue）并入 split。档案见 `.out-of-scope/skill-retirement-dj-triage.md`（含复活条件：外部贡献者 issue 洪流需要独立分诊队列时）。
+
+### 变更
+
+- `verify_skills.py` TAIL_POINTERS 移除 dj-triage 条目；路由表「模式/重复/抽象」改指 dj-audit，issue 分诊改指 dj-split 分诊档；dj-ask 入口匝道同步。
+
 ## [1.4.1] — 2026-11-05
 
 全库幽灵命令审计修复批（user 报告「skill 引用的命令不存在」；根因=pi-runtime→纯 skill 迁移清理残留 + 门禁缺口）。
