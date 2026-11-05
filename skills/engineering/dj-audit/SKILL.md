@@ -1,6 +1,6 @@
 ---
 name: dj-audit
-description: "全仓审计：默认扫描过度工程和安全性；可按 debt 或 health profile 补充技术债或仓库健康检查。只报告，不修改。 Use when the user wants to audit the codebase for over-engineering, bloat, dead code, security issues, technical debt, or repository health. 触发词：审计、扫一下、过度工程、安全扫描、技术债、健康检查、audit、代码大检查。"
+description: "全仓审计：默认扫描过度工程和安全性；可按 debt、health 或 pattern profile 补充技术债、仓库健康或重复结构/抽象机会扫描（判「该合的」）。只报告，不修改。 Use when the user wants to audit the codebase for over-engineering, bloat, dead code, security issues, technical debt, repository health, or code duplication and abstraction opportunities. 触发词：审计、扫一下、过度工程、安全扫描、技术债、健康检查、audit、代码大检查、模式、重复、重复代码、抽象机会、历史修复。"
 disable-model-invocation: true
 ---
 
@@ -24,6 +24,7 @@ disable-model-invocation: true
 - 默认：过度工程和安全扫描。
 - `debt`：TODO/FIXME/HACK、弃用代码、依赖、测试和构建债务，并按严重度排序。
 - `health`：构建、测试、Git、依赖、格式、agent 配置和 CI 状态。
+- `pattern`：重复结构/抽象机会扫描（判「该合的」，与 default 档判「该拆的」互补）→ `references/pattern-profile.md`（原 dj-pattern 融合）。
 - `dj-debt` 与 `dj-health` 已归档（v1.3.0），其 debt / health profile 现由本 skill 直接承载。
 
 ## 工作流
