@@ -49,6 +49,10 @@ dj-channel skill stop <id>
 | 跨 agent 消息传递 | `channel send` 在 agent 之间传递中间结果 |
 | 调试卡住的 worker | 先 `channel list` 找到 id，再用 `channel status <id>` 检查 |
 
+## 组织模式与角色纪律
+
+三模式：主脑+专才（任务可拆分）/ 独立共享（多方案对比）/ **混合**（默认——主脑持目标、专才独立执行）。spawn 时在 task 里声明角色工具边界（coder 不碰浏览器、reviewer 只读、Builder 不得自审自己的产出）；spawn 模板要求子代理把关键过程观察（报错/意外响应/顺带发现）落盘 trace，主 agent 跨通道按关键词检索命中步骤——未升格为正式产物的观察不丢失，边界不变。Scout/Builder/Verifier 权限矩阵与 trace 格式 → `references/role-separation.md`
+
 ## 核心规则
 
 - 生成 agent 时指定明确的 task 描述。描述越清晰，agent 输出越精确。

@@ -17,6 +17,8 @@ description: "项目管理记忆：存储/召回发现、经验、纠正和模�
 | `patterns.jsonl` | 工作流模式/标准操作流程 | 每行一个 JSON 对象 |
 | `sessions.jsonl` | session 闭环记录 | 每行一个 JSON 对象 |
 
+字段约定：`content` 首标 `[主题域]` 标签（skill 相关用指针不复制正文）；`writer` 写入者与元记忆层治理（去重/合并/过期/复审）见 ADR-008 → `references/memory-layers.md`。
+
 ## 操作
 
 ### 存储发现 (store-finding)

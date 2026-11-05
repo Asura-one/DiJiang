@@ -53,6 +53,8 @@ AIGC:
 
 **PR/分支审查档双轴纪律**：Spec 匹配度与代码质量两轴独立审查再汇总，防互相污染；并行能力不可用时串行，不得省略任一轴；无源可对照时标注后只跑质量轴。全流程与汇总模板 → `references/review-dual-axis.md`。
 
+**交付风险评审**：发布/上线/大特性合并前跑 pre-mortem → `references/delivery-risk.md`；小改动不启用。
+
 ### 1. 理解变更
 
 ```bash

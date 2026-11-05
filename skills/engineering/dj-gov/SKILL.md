@@ -61,6 +61,8 @@ AIGC:
 顺序固定：① 完成知识收尾 → ② 只读预览待清理对象 → ③ 完整汇报 → ④ 用户明确确认 → ⑤ 执行清理 → ⑥ 重新审计并补充汇报。
 初始请求中的「做完后清理」不替代第④步确认。发布状态必须区分 merged、deployed、live verified、knowledge closed。
 
+发版场景先过清理清单 → `references/release-checklist.md`；ADR 复验日期到期巡检归本技能（`docs/adr/README.md` 规则 5）。
+
 ## 汇报模板
 
 清场前完整汇报按序：**影响**（用户视角：消除了哪些误导/风险/交接成本）→ **改动/新建**（改了什么文件、为什么）→ **待你决定**（仅越权、破坏性或无法裁决项）→ **遗留**（pending / out-of-scope / warning）。

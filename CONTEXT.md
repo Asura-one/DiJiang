@@ -128,3 +128,27 @@ user→user 边的接力形态：技能结束时说出建议的下一步（含�
 ### Worktree-First
 
 Git 安全工作流原则：所有代码变更在独立 worktree 中进行，主工作区永远干净。
+
+### Loop
+
+无人值守自动化循环。DiJiang 中由 `dj-loop` 承担**设计与评审**（Fitness / Design / Review），不运行——运行时实现归用户选择，DiJiang 无运行时（ADR-005）。
+
+### Loop 五件套
+
+最小可行 loop 的组成：Trigger（触发）、Context+Skill（知识）、Action Surface（动作白名单）、Objective Gate（完成门）、State+Stop Policy（状态与停止）。缺任何一件只是「反复手工跑 agent」。详见 `docs/references/loop-design.md`。
+
+### Loop Run State
+
+loop 单轮运行的轮次状态（stage / attempts / latest gate / budget / next action），区别于 **Task State**（`.dijiang/tasks/` 的任务进度）。state 是决策依据不是日志仓库——只存下一轮要读的字段。模板见 dj-loop references。
+
+### 成熟度 L1-L3
+
+loop 的权限阶梯：L1 只读观察（新 loop 一律起步）→ L2 出 PR 人审 → L3 白名单内低风险自治。跳级上线 = 用生产事故做测试。
+
+### Steering / Follow-up
+
+人工干预 loop 的两类语义：steering 打断当前轮；follow-up 追加到下轮。设计 loop 时两类干预点要显式区分。
+
+### 证据三态
+
+验收结论的合法枚举：**verified**（可复现证据在手）/ **not run**（没测 + 原因）/ **inconclusive**（测了但证据不足，不硬凑通过）。权威定义见 `docs/references/evidence-gate.md`。
