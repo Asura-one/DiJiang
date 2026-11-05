@@ -1,16 +1,15 @@
 # 新技能模板（创建时复制此骨架）
 
 > 从 dj-meta SKILL.md 外溢（DJ-012，meta 自身超 3000B 身先士卒）。步骤见 dj-meta 正文「治理门槛」；填完回 SCOPE.md 双门槛核验。
+>
+> ⚠️ description 必须是**单行双引号字符串**——不要用 YAML 折叠块（`>` 多行缩进）：`verify_skills.py` 的 frontmatter 解析器不认折叠块，会报「长度 1 / 缺 Use when / 缺触发词」三条假 WARN（实测 dj-loop 首版踩坑）。
 
 ## 创建新技能的模板
 
 ```markdown
 ---
 name: dj-<name>
-description: >
-  <一句话说清楚做什么>
-  Use when <触发条件，agent 判断依据>
-  触发词：<用户说的词，帮助 dj-ask 路由>
+description: "<一句话说清楚做什么> Use when <触发条件，agent 判断依据> 触发词：<用户说的词，帮助 dj-ask 路由>"
 ---
 
 # <Title>: <中文描述>
