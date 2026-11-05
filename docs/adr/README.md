@@ -37,5 +37,5 @@
 1. ADR 编号仅用作文件名前缀（`NNN-title.md`），不做层级嵌套
 2. 已接受的 ADR 不再修改，只追加后续 ADR 来修正
 3. 每个跨技能的设计决策都应有 ADR；结构性改动（技能拆分/合并/门禁变更）必配 ADR
-4. ADR 由 `dijiang mem` 关联记忆
+4. ADR 关联记忆经 dj-memory 落录（store-learning，正文引用 ADR 编号）
 5. 复验日期到期由 dj-gov 知识治理巡检发现：继续有效则刷新复验日期，失效则改 `deprecated` 并注明替代者

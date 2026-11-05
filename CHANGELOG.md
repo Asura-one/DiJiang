@@ -1,5 +1,23 @@
 # 变更日志
 
+## [1.4.1] — 2026-11-05
+
+全库幽灵命令审计修复批（user 报告「skill 引用的命令不存在」；根因=pi-runtime→纯 skill 迁移清理残留 + 门禁缺口）。
+
+### 修复
+
+- **dj-channel 幽灵 CLI 命令块**（A1）：`dj-channel skill list/spawn/...` 8 条命令 CLI 不存在（pi 时代 `dijiang channel` 改名残留）——重写为「运行形态自适配」三档（平台 CLI / 子代理 spawn / 单 agent 串行降级）+ 通道生命周期语义表；「命令不存在还硬跑」入反例
+- **docs/adr/README 规则 4**（A3）：`dijiang mem` → 「ADR 关联记忆经 dj-memory 落录」
+- **dj-gov/agent-paths.md 布局表**（B1）：删 pi 时代 `~/.dijiang/AGENTS.md`、`~/.dijiang/skills/`、`.pi/skills/`、`.dijiang/spec/`、`.dijiang/workspace/`；工作区记忆改正 `.dijiang/memory/*.jsonl`
+- **dj-meta `.dijiang/spec/` 孤儿落点**（B2，4 处）：生产者 dj-spec-bootstrap 已退役——改「本技能 references/，跨技能进 docs/references/」
+- **dj-gov SKILL.md L41 无 fallback 盲跑**：随 audit-inventory.sh 补齐自然成立
+
+### 新增
+
+- **`scripts/audit-inventory.sh`**（A2 配套）：dj-gov 盘点只读脚本——规则链/Markdown 清单/Git+worktree 状态/软链探测四节，实测通过
+- **`scripts/wizard-template.sh`**：dj-wizard 标准模板（**审计新发现**：人工 grep 漏掉、新门禁首跑咬出）——阶段进度/确认门/跨平台 URL/隐藏输入/幂等 .env upsert，实测通过
+- **verify_skills.py `phantom-scripts` 门禁**（D 防复发）：skills/、docs/ 与根部三文档的反引号内 `scripts/xxx` 引用存在性检查，幽灵即 FAIL；突变测试 2 用例（咬合 + 绿灯基线）
+
 ## [1.4.0] — 2026-11-05
 
 琅嬛知识库吸收批（dj-absorb full 档：238 concepts 六母线 + 35 entities + 3 comparisons 并行拆解，四态判定 + 回声拦截后拍板 29 项 + 1 新技能；工单 `task-20261105-absorb-langhuan`）。
