@@ -8,8 +8,8 @@
 
 - **dj-channel 幽灵 CLI 命令块**（A1）：`dj-channel skill list/spawn/...` 8 条命令 CLI 不存在（pi 时代 `dijiang channel` 改名残留）——重写为「运行形态自适配」三档（平台 CLI / 子代理 spawn / 单 agent 串行降级）+ 通道生命周期语义表；「命令不存在还硬跑」入反例
 - **docs/adr/README 规则 4**（A3）：`dijiang mem` → 「ADR 关联记忆经 dj-memory 落录」
-- **dj-gov/agent-paths.md 布局表**（B1）：删 pi 时代 `~/.dijiang/AGENTS.md`、`~/.dijiang/skills/`、`.pi/skills/`、`.dijiang/spec/`、`.dijiang/workspace/`；工作区记忆改正 `.dijiang/memory/*.jsonl`
-- **dj-meta `.dijiang/spec/` 孤儿落点**（B2，4 处）：生产者 dj-spec-bootstrap 已退役——改「本技能 references/，跨技能进 docs/references/」
+- **dj-gov/agent-paths.md 布局表**（B1）：删 pi 时代 `~/.dijiang/AGENTS.md`、`~/.dijiang/skills/`、`.pi/skills/`、`.dijiang/workspace/`；工作区记忆改正 `.dijiang/memory/*.jsonl`（项目 Specs 行经 B2 复核恢复，见下）
+- **dj-meta `.dijiang/spec/` 落点（B2，4 处，user 复核裁决保留）**：初判「孤儿落点」有误——dj-spec-bootstrap 退役只终结自动扫描生成流程，落点约定仍由 dj-meta 消费（`.dijiang/` 为每项目 dj-setup 标配目录，项目级辅助规格落此、留在当前项目不回上游库）。保留原语义并补注「项目级落点，不污染 skill 库」；agent-paths.md 恢复「项目 Specs」行
 - **dj-gov SKILL.md L41 无 fallback 盲跑**：随 audit-inventory.sh 补齐自然成立
 
 ### 新增

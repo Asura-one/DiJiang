@@ -13,6 +13,7 @@
 | 用途 | 路径 |
 |---|---|
 | 项目指令 | 项目根 `AGENTS.md` + `.dijiang/config.toml` |
+| 项目 Specs | `.dijiang/spec/`（各技能项目级辅助规格，dj-meta 外溢落点，惰性创建） |
 | 项目 Skills | 仓库内 `skills/<bucket>/<name>/SKILL.md`（安装面随平台，见下方各平台表） |
 | 任务文档 | `.dijiang/tasks/<name>/prd.md`、`design.md`、`implement.md` |
 | 工作区记忆 | `.dijiang/memory/*.jsonl` |
