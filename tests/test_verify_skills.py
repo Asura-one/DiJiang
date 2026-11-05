@@ -93,7 +93,7 @@ def build_fixture(tmp, kind):
         with open(os.path.join(skills, "dj-abs", "SKILL.md"), "w", encoding="utf-8") as f:
             f.write(ABS_PATH_SKILL)
 
-    refs = os.path.join(tmp, "docs", "references")
+    refs = os.path.join(tmp, "skills", "engineering", "dj-meta", "references")
     os.makedirs(refs, exist_ok=True)
     ap_path = os.path.join(refs, "anti-patterns.md")
     if kind == "ap-broken":
@@ -121,11 +121,13 @@ def build_fixture(tmp, kind):
             f.write(PHANTOM_SKILL)
 
     if kind == "doc-rot":
+        os.makedirs(os.path.join(tmp, "docs"), exist_ok=True)
         with open(os.path.join(tmp, "docs", "sample.md"), "w", encoding="utf-8") as f:
             f.write(DOC_ROT)
 
     if kind == "ttl-expired":
-        with open(os.path.join(refs, "stale.md"), "w", encoding="utf-8") as f:
+        os.makedirs(os.path.join(tmp, "docs", "references"), exist_ok=True)
+        with open(os.path.join(tmp, "docs", "references", "stale.md"), "w", encoding="utf-8") as f:
             f.write("---\nreview_before: 2020-01-01\n---\n\n# 过期样本\n\n正文。\n")
 
     rep = vs.Report()

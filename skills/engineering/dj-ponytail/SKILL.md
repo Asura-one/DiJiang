@@ -60,4 +60,4 @@ argument-hint: "[lite|full|ultra]"
 
 ## 参考
 
-- `docs/references/decision-ladder.md` — 决策阶梯完整版
+- `references/decision-ladder.md` — 决策阶梯完整版

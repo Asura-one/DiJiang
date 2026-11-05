@@ -4,7 +4,7 @@ description: "造废品验证设计：用可运行的代码回答\"这个方案�
 disable-model-invocation: true
 ---
 
-参考规范：`docs/references/decision-ladder.md`（原型中的必要代码判断）。
+参考规范：`skills/engineering/dj-ponytail/references/decision-ladder.md`（原型中的必要代码判断）。
 
 ## Outcome Contract
 
@@ -81,7 +81,7 @@ disable-model-invocation: true
 | 原型代码合并到 main | 原型是废品，不保留 |
 | 超过 2 小时还在调 | 到时间就汇报 |
 
-参考规范：`docs/references/anti-patterns.md`（跨技能行为约束）。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`（跨技能行为约束）。
 
 ## Hard Rules
 

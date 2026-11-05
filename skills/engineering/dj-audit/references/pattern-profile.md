@@ -40,7 +40,7 @@ review_before: 2028-11-06
 ## 纪律
 
 - **先查镜像**：报抽象建议前先确认不是「已有抽象被绕过」——若调用方各自为政绕开了现成公共函数，正确建议是**收敛调用方**而不是建第二抽象（这正是 default 档会抓到的冗余）
-- **疑似 vs 确定**：拿不准是否同一模式的标「疑似」（证据分级见 `docs/references/evidence-gate.md`）
+- **疑似 vs 确定**：拿不准是否同一模式的标「疑似」（证据分级见 `skills/engineering/dj-check/references/evidence-gate.md`）
 - **只报告不修改**（dj-audit 红线）；抽象落地的实施走 `dj-implement`（受 `dj-regression-guard` 三明治护送，迁移成本在这步兑现验证）
 
 ## 来源

@@ -4,7 +4,7 @@ description: "系统化地 1:1 复刻一个网站或 App 的界面与功能，�
 disable-model-invocation: true
 ---
 
-参考规范：`docs/references/decision-ladder.md`（编码前的决策阶梯）、`docs/references/anti-patterns.md`（跨技能行为约束）。
+参考规范：`skills/engineering/dj-ponytail/references/decision-ladder.md`（编码前的决策阶梯）、`skills/engineering/dj-meta/references/anti-patterns.md`（跨技能行为约束）。
 深度细节：Phase 0 输入来源处理、本地不完整复刻项目的补全流程 → `references/input-and-resume.md`；Phase 1 拆解维度与分类型清单（电商/SaaS后台/内容站/社交/营销页/移动App）→ `references/decomposition-checklist.md`；Phase 4 差异化改造手法 → `references/variation-playbook.md`。
 
 ## Outcome Contract

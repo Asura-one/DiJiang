@@ -40,7 +40,7 @@ description: "推理增强：用认知矩阵和系统透镜分析复杂判断、
 
 | **钢人档** | 单点判断怕谄媚/单向论证：先把对立立场强化到最强再裁决 | 双向钢人对比 + 关键分歧变量 + 裁决；细则 `references/steelman.md` |
 
-详见 `docs/references/design-modes.md`。
+详见 `skills/engineering/dj-check/references/design-modes.md`。
 
 ## 系统透镜
 

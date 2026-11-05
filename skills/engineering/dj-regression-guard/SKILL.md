@@ -3,7 +3,7 @@ name: dj-regression-guard
 description: "改码三明治回归协议：对每一次代码修改任务执行『改前基线 → 修改 → 专项验证 → 改后回归』护送，防止改码引入回归、区分『本来就坏』与『我改坏的』。 Use when a code modification task needs pre/post change regression protection. 触发词：回归保护、改前基线、三明治、回归守卫、regression guard、baseline、改码护送。"
 ---
 
-参考：`docs/references/code-task-contract.md`、`docs/references/decision-ladder.md`、`docs/references/intensity-levels.md`。
+参考：`skills/engineering/dj-implement/references/code-task-contract.md`、`skills/engineering/dj-ponytail/references/decision-ladder.md`、`skills/engineering/dj-check/references/intensity-levels.md`。
 深度细节：零基建退路、S5 全量触发条件、技能边界表、任务报告要素、反例全表 → `references/protocol-details.md`。
 
 ## Outcome Contract

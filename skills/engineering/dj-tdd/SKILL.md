@@ -3,7 +3,7 @@ name: dj-tdd
 description: "测试驱动开发：红绿重构循环，一次一个垂直切片。 Use when the user wants to build features or fix bugs test-first, mentions TDD, test-driven, red-green-refactor, or vertical slice. 触发词：TDD、测试驱动、红绿重构、先写测试。"
 ---
 
-参考规范：`docs/references/decision-ladder.md`（编码前的决策阶梯）、`docs/references/code-task-contract.md`（代码任务合约）。
+参考规范：`skills/engineering/dj-ponytail/references/decision-ladder.md`（编码前的决策阶梯）、`skills/engineering/dj-implement/references/code-task-contract.md`（代码任务合约）。
 
 ## Outcome Contract
 
@@ -83,7 +83,7 @@ description: "测试驱动开发：红绿重构循环，一次一个垂直切片
 | GREEN 后不重构 | 重构是 TDD 的三分之一 |
 | 测内部实现 | 测公共接口的行为 |
 
-参考规范：`docs/references/anti-patterns.md`（跨技能行为约束）。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`（跨技能行为约束）。
 
 ## Hard Rules
 

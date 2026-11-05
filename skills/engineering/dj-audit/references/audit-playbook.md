@@ -18,7 +18,7 @@
 ## 判定陷阱
 
 - **有 API 无调用方 ≠ 死代码**：先查是否被外部消费（公开库导出、动态分发、CLI 入口）——是则标「疑似接线缺失」，不是「删除」
-- grep 前先读 `docs/references/anti-patterns.md` #26（去冗余不验载体）：删除建议必须验证别处无替代载体
+- grep 前先读 `skills/engineering/dj-meta/references/anti-patterns.md` #26（去冗余不验载体）：删除建议必须验证别处无替代载体
 - 测试文件里的"死代码"单独列：可能是测试基建的待补路径
 
 ## 审计后联动（报告的"下一步"节）

@@ -44,6 +44,6 @@ review_before: 2028-11-05
 
 ## 关联
 
-- `docs/references/evidence-gate.md` — findings 状态对应的证据层
+- `skills/engineering/dj-check/references/evidence-gate.md` — findings 状态对应的证据层
 - `dj-fullstack-testing/references/` — 覆盖度 MISSING=0 闸
 - 来源：琅嬛「覆盖台账 + 对抗验证：Cloudflare 六阶段安全审计 Skill」「CK-Skills：触发路由与线索板」

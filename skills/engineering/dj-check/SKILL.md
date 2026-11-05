@@ -41,7 +41,7 @@ description: "交付质量闸门：验证 diff 质量、功能完整性、安全
 | **项目审计** | 定期全仓质量检查 | 项目级质量报告 |
 | **PR/分支审查** | 审 diff/PR、交付前看代码 | 双轴审查报告（Spec 匹配 + 代码质量，独立汇报） |
 
-参考 `docs/references/design-modes.md` 了解模式选择原则。
+参考 `references/design-modes.md` 了解模式选择原则。
 
 **PR/分支审查档双轴纪律**：Spec 匹配度与代码质量两轴独立审查再汇总，防互相污染；并行能力不可用时串行，不得省略任一轴；无源可对照时标注后只跑质量轴。全流程与汇总模板 → `references/review-dual-axis.md`。
 
@@ -136,6 +136,6 @@ git diff --stat HEAD
 | 没验证命令就默认通过 | 验证不充分 | 问用户验收命令 |
 | 分类标准模糊 | 阻塞/非阻塞不清 | 每个问题必须标注 |
 
-参考规范：`docs/references/intensity-levels.md`（强度等级：支持 lite/full/ultra）、`docs/references/output-markers.md`（输出标记）。
+参考规范：`references/intensity-levels.md`（强度等级：支持 lite/full/ultra）、`references/output-markers.md`（输出标记）。
 
 **下一步**：质量报告产出后，建议下一步调用 `dijiang-finish-work` 收口（提交/归档/版本决策；issue 镜像复用本报告关单）。

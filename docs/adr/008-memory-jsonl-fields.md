@@ -43,5 +43,5 @@ dj-memory 的五类 JSONL 此前无写入者身份、无主题标签、无元记
 ## 关联
 
 - `skills/engineering/dj-memory/`（执行方）
-- `docs/references/three-asset-boundaries.md`（槽位边界）
+- `skills/engineering/dj-loop/references/three-asset-boundaries.md`（槽位边界）
 - ADR-005（无运行时约束——本决策在纯文本形态内）

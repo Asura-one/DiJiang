@@ -87,7 +87,7 @@ corrections 不是只进不出的记录桶——同类纠正重复出现时必�
 - **同类纠正第 2 次出现** → 向用户提议晋升（第一次是聊天，第二次是漏洞）
 - **第 3 次复现** → 强制生成晋升候选，不再只是记录
 
-晋升落点（按纠正性质）：领域术语 → `CONTEXT.md`；单技能行为约束 → 对应 skill 的 Hard Rules；跨技能通用反模式 → `docs/references/anti-patterns.md` 新条目。
+晋升落点（按纠正性质）：领域术语 → `CONTEXT.md`；单技能行为约束 → 对应 skill 的 Hard Rules；跨技能通用反模式 → `skills/engineering/dj-meta/references/anti-patterns.md` 新条目。
 
 recall 读取 corrections.jsonl 后必须统计同类纠正计数：达到阈值时在回复中附晋升建议（含落点判断）；🛑 晋升落库需用户确认，不静默改写规则文件。
 

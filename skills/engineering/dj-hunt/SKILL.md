@@ -3,7 +3,7 @@ name: dj-hunt
 description: "系统化排查 bug：先定位根因，再修复。尤其擅长回归和\"以前好现在坏\"的情况。 Use when the user reports errors, crashes, regressions, failing tests, or unexpected behavior changes — anything that needs root cause investigation. 触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。"
 ---
 
-参考：`docs/references/decision-ladder.md`、`docs/references/code-task-contract.md`。深度细节：反馈环 10 方法 → `references/diagnose-feedback-loop.md`；置信度门禁与实战长案例（重叠原因/静默降级/生成未消费/防护路径）→ `references/hypothesis-and-cases.md`。
+参考：`skills/engineering/dj-ponytail/references/decision-ladder.md`、`skills/engineering/dj-implement/references/code-task-contract.md`。深度细节：反馈环 10 方法 → `references/diagnose-feedback-loop.md`；置信度门禁与实战长案例（重叠原因/静默降级/生成未消费/防护路径）→ `references/hypothesis-and-cases.md`。
 
 ## Outcome Contract
 
@@ -30,7 +30,7 @@ description: "系统化排查 bug：先定位根因，再修复。尤其擅长�
 2. **先定位，再修复** — 找到根因（特定函数/变量/逻辑行）再修，不"顺便修周边"
 3. **一次改一个变量** — 不绿就回退换方向，不堆叠补丁
 4. **修复后跑 regression** — 护送走 `dj-regression-guard` 三明治协议；本 skill 定位根因+写专项，基线与回归由它承接
-5. **验证「无缺陷」走失败升级阶梯** — 未到 L4 只写「未充分排查」（`docs/references/coverage-ledger.md`）
+5. **验证「无缺陷」走失败升级阶梯** — 未到 L4 只写「未充分排查」（`skills/engineering/dj-audit/references/coverage-ledger.md`）
 
 ## 工作流
 

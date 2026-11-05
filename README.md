@@ -16,12 +16,14 @@ DiJiang 是一套纯 skill 集合，提供 AI 辅助开发的工作流能力。�
 ## 安装
 
 ```bash
-# 1. 复制 skills/ 目录到你的项目
+# 1. 复制 skills/ 整个目录到你的项目（保持内部结构——共读参考随技能走）
 cp -r skills/ /path/to/your-project/
 
 # 2. 在 agent 中运行 dj-setup 初始化
 # Call the Skill tool with "dj-setup"
 ```
+
+> 只装 skills 即完备：技能引用的纪律文档（反模式/证据门/决策阶梯等）在各技能 `references/` 内，随 `skills/` 整体迁移；`docs/` 是本仓库开发面文档（ADR/架构/发版），使用方无需复制。
 
 新项目会创建 `.dijiang/` 目录（tasks/ + memory/ + spec/ + config.toml）。
 

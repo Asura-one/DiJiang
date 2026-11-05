@@ -71,8 +71,8 @@ Loop 不是 prompt 技巧，是**运行时设计**：目标、触发、状态、
 
 ## 关联
 
-- `docs/references/evidence-gate.md` — gate 与完成判定
-- `docs/references/coverage-ledger.md` — 覆盖记账
-- `docs/references/three-asset-boundaries.md` — 知识回写三槽位
+- `skills/engineering/dj-check/references/evidence-gate.md` — gate 与完成判定
+- `skills/engineering/dj-audit/references/coverage-ledger.md` — 覆盖记账
+- `references/three-asset-boundaries.md` — 知识回写三槽位
 - `skills/engineering/dj-loop/` — 设计与评审技能
 - 来源：琅嬛 Loop 母线（方法边界与落地路线 / 叠层 Agent Loop / Loop ROI / 六坑五件套 / 长跑 Harness 模式 / 主动型 Agent）
