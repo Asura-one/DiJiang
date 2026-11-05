@@ -11,7 +11,7 @@ disable-model-invocation: true
 
 收尾当前 DiJiang session。提交、归档只在这里发生，不依赖 CLI，全部通过文件读写和 git 命令完成。
 
-深度细节：失败归因基线复测、主 checkout 例外、首次提交特例、issue 同步流程、反模式全表 → `references/finish-gates.md`；远程部署命令与陷阱 → `references/restricted-network-deploy.md`。
+深度细节：失败归因基线复测、主 checkout 例外、首次提交特例、issue 同步、反模式全表 → `references/finish-gates.md`；远程部署命令与陷阱 → `references/restricted-network-deploy.md`。
 
 ## 调用契约
 
@@ -46,6 +46,7 @@ Exception: <none or justified gap>
 版本决策: <major|minor|patch|none; reason>
 记忆: <written/skipped; reason>
 Issue 同步: <closed+全勾+复核/none/skipped; reason>
+Live 同步: <synced/skipped; reason>
 提交模式: <yes/no; reason>
 ```
 
@@ -90,6 +91,10 @@ major=不兼容的公开 API/行为变更；minor=向后兼容新增；patch=向
 ### 10. 远程部署交付（如任务含远程/生产部署）
 
 执行时机：第 6 步提交之后、第 8 步归档之前——**部署验证通过才算交付闭环**。完整命令与陷阱见 `references/restricted-network-deploy.md`。要点：改前备份（tar 快照+config+.env、旧镜像留回滚锚点）、服务器 build 超时→本地 podman 构建+save/load、compose 卡死手动重建、部署后必 `docker exec grep` 验证新代码标记、凭证双端即用即毁。
+
+### 11. Live 副本同步（技能增删改批，合并 main 后执行）
+
+repo 是权威源，live 目录（`~/.config/TeleAgent/users/<id>/skills/` dj 系）是投放快照——**只单向 repo→live，永不反向**。命令/三验收/跳过条件 → `references/live-sync-checklist.md`；第三方技能零触碰。
 
 ## 反模式
 
