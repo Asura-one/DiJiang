@@ -12,13 +12,10 @@
 
 | 用途 | 路径 |
 |---|---|
-| 全局指令 | `~/.dijiang/AGENTS.md` |
-| 项目指令 | 项目根 `AGENTS.md`、`.dijiang/` 下的配置 |
-| 项目 Specs | `.dijiang/spec/` |
-| 全局 Skills | `~/.dijiang/skills/<name>/SKILL.md` |
-| 项目 Skills | `.pi/skills/<name>/SKILL.md` |
+| 项目指令 | 项目根 `AGENTS.md` + `.dijiang/config.toml` |
+| 项目 Skills | 仓库内 `skills/<bucket>/<name>/SKILL.md`（安装面随平台，见下方各平台表） |
 | 任务文档 | `.dijiang/tasks/<name>/prd.md`、`design.md`、`implement.md` |
-| 工作区记忆 | `.dijiang/workspace/` |
+| 工作区记忆 | `.dijiang/memory/*.jsonl` |
 | Git Gate worktree | `.git/worktrees/` 或 `../<project>-<branch>` |
 
 ## Claude Code

@@ -383,6 +383,44 @@ def check_index_coverage(rep, skills):
         rep.ok(f"index coverage {len(skills)}/{len(skills)}")
 
 
+# ---------- 幽灵脚本守卫（phantom-scripts，2026-11 全库审计批） ----------
+# 提取 skills/、docs/ 与根部三文档中反引号包裹的仓库相对脚本引用（scripts/xxx.sh 等），
+# 核对文件存在性——防「教 agent 跑不存在的命令」类迁移残留（例：dj-channel CLI、
+# audit-inventory.sh 缺失）。占位符（含 <>）与 .dijiang/ 惰性路径天然不匹配。
+SCRIPT_REF_RE = re.compile(r"`(scripts/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+)`")
+
+def check_phantom_scripts(rep):
+    """幽灵脚本守卫：引用的仓库内 scripts 路径必须存在，幽灵即 FAIL。"""
+    targets = []
+    for d in ("skills", "docs"):
+        base = os.path.join(ROOT, d)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, _, files in os.walk(base):
+            targets.extend(os.path.join(dirpath, fn) for fn in files if fn.endswith(".md"))
+    for fn in ("AGENTS.md", "README.md", "CONTEXT.md"):
+        p = os.path.join(ROOT, fn)
+        if os.path.exists(p):
+            targets.append(p)
+    ghosts = []
+    for p in targets:
+        rel = os.path.relpath(p, ROOT)
+        try:
+            text = open(p, encoding="utf-8").read()
+        except OSError as e:
+            rep.fail(f"[phantom-script] 读取失败 {rel}: {e}")
+            continue
+        for m in SCRIPT_REF_RE.finditer(text):
+            ref = m.group(1)
+            if not os.path.exists(os.path.join(ROOT, *ref.split("/"))):
+                ghosts.append(f"{rel} → {ref}")
+    if ghosts:
+        for g in ghosts:
+            rep.fail(f"[phantom-script] 幽灵脚本引用: {g}——引用的仓库脚本不存在（迁移残留或笔误）")
+    else:
+        rep.ok(f"phantom scripts：{len(targets)} 文件扫描零幽灵")
+
+
 def main():
     strict = "--strict" in sys.argv
     rep = Report()
@@ -407,6 +445,7 @@ def main():
     check_ttl(rep)
     check_tail_pointers(rep, skills)
     check_index_coverage(rep, skills)
+    check_phantom_scripts(rep)
 
     print(f"PASS {len(rep.passes)}  |  WARN {len(rep.warns)}  |  FAIL {len(rep.fails)}")
     for w in rep.warns:

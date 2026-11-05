@@ -62,6 +62,16 @@ AP_EMPTY = """# 反模式表（空表样本）
 |---|--------|----------|----------|
 """
 
+PHANTOM_SKILL = """---
+name: dj-ghosty
+description: "引用幽灵脚本的样本。Use when testing phantom script detection. 触发词：幽灵脚本。"
+---
+
+# Ghosty Skill
+
+盘点时运行 `scripts/ghost-audit.sh`（此文件不存在，应被 phantom-script 门禁咬出）。
+"""
+
 DOC_ROT = """# 样本文档
 
 这个模块不再使用旧方案，以前是另一套。这个模块不再使用旧方案，以前是另一套。这个模块不再使用旧方案，以前是另一套。这个模块不再使用旧方案，以前是另一套。"""
@@ -105,6 +115,11 @@ def build_fixture(tmp, kind):
         with open(os.path.join(tmp, "AGENTS.md"), "w", encoding="utf-8") as f:
             f.write("只有 AGENTS，README 缺失。\n")
 
+    if kind == "phantom-script":
+        os.makedirs(os.path.join(skills, "dj-ghosty"), exist_ok=True)
+        with open(os.path.join(skills, "dj-ghosty", "SKILL.md"), "w", encoding="utf-8") as f:
+            f.write(PHANTOM_SKILL)
+
     if kind == "doc-rot":
         with open(os.path.join(tmp, "docs", "sample.md"), "w", encoding="utf-8") as f:
             f.write(DOC_ROT)
@@ -141,6 +156,7 @@ class MutationTests(unittest.TestCase):
         vs.check_canary(rep)
         vs.check_docs_freshness(rep)
         vs.check_ttl(rep)
+        vs.check_phantom_scripts(rep)
         return rep
 
     def test_positive_baseline(self):
@@ -180,6 +196,11 @@ class MutationTests(unittest.TestCase):
         """TTL：过期 review_before 报 WARN。"""
         rep = self.run_checks("ttl-expired")
         self.assertTrue(any("已过期" in w for w in rep.warns), rep.warns)
+
+    def test_phantom_script_bites(self):
+        """幽灵脚本守卫：SKILL.md 引用不存在的 scripts/ 路径必须 FAIL。"""
+        rep = self.run_checks("phantom-script")
+        self.assertTrue(any("幽灵脚本" in f and "ghost-audit.sh" in f for f in rep.fails), rep.fails)
 
 
 if __name__ == "__main__":
@@ -231,3 +252,11 @@ class TestTailPointerGuards:
         vs.check_tail_pointers(rep, skills)
         vs.check_index_coverage(rep, skills)
         assert not rep.fails, f"基线必须全绿：{rep.fails}"
+
+    def test_phantom_scripts_green_on_current_repo(self):
+        """幽灵脚本守卫回归：当前仓库全量扫描必须零 FAIL——
+        修复批（audit-inventory.sh 补齐 + dj-channel CLI 残留清理）后引入此门禁，
+        再引入幽灵脚本引用会在此处亮红。"""
+        rep = vs.Report()
+        vs.check_phantom_scripts(rep)
+        assert not rep.fails, f"当前仓库基线必须零幽灵: {rep.fails}"

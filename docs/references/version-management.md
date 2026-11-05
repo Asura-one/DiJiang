@@ -17,7 +17,7 @@ review_before: 2028-10-27
 纯 skill 架构无 Cargo workspace，版本权威面为 `CHANGELOG.md` 的最新版本标题。
 
 - 文件：根目录 `CHANGELOG.md`
-- 当前版本：`1.4.0`
+- 当前版本：`1.4.1`
 - 版本号格式：`## [X.Y.Z] — YYYY-MM-DD`
 
 ## 发版 / bump 步骤
