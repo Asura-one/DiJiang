@@ -1,5 +1,15 @@
 # 变更日志
 
+## [2.4.0] — 2026-11-05
+
+dj-ask 路由图同步批：正文对齐 2.0.0–2.3.0 四批结构性变动（此前 triage 匝道改写已随 2.0.0 批完成，本批补齐其余缺口）。
+
+### 变更
+
+- **入口匝道 3→5 条**：补「堆熵/变糟了 → dj-audit」（四档 profile 含 2.1.0 pattern，只报告不修改）与「无人值守自动化 → dj-loop」（Fitness→Design→Review，只设计不运行——1.4.0 新能力线此前在正文零存在）；dj-hunt 匝道补失败升级阶梯口径。
+- **主流程补收尾闭环**：dj-check 结论走证据三态（verified / not run / inconclusive）；交付后 finish-work 收口 → evolve 沉淀——正文此前止于「dj-check 后提交」，闭环断头。
+- 体量 2723 字符（红线 3000 内）；routing-table 关键词表与匝道核对一致。
+
 ## [2.3.0] — 2026-11-05
 
 只装 skills 场景适配批（ADR-009）：真实使用模型是 `cp -r skills/` 不带 docs/，13 份被技能消费的 docs/references 安装后断链——按消费者归家迁徙（git mv 保历史）。

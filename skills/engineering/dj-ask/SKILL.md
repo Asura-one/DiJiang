@@ -18,14 +18,16 @@ disable-model-invocation: true
    - **是** → **`dj-output`** 生成 PRD/spec → **`dj-split`** 拆子弹式工单（各声明**阻塞边**），blockers-first 逐个 kickoff **`dj-implement`**，之间清上下文。
    - **否** → **`dj-implement`** 就地，同一上下文窗口内。
 
-   无论哪种，`dj-implement` 内部驱动 **`dj-tdd`** 红绿切片，改码被 **`dj-regression-guard`** 三明治护送，完结跑 **`dj-check`**（Standards + Spec 两轴）后提交。
+   无论哪种，`dj-implement` 内部驱动 **`dj-tdd`** 红绿切片，改码被 **`dj-regression-guard`** 三明治护送，完结跑 **`dj-check`**（Standards + Spec 两轴，结论走证据三态 verified / not run / inconclusive）后提交。交付后 **`dijiang-finish-work`** 收口（质量验证/提交/归档）→ **`dj-evolve`** 沉淀可复用经验进技能体系——完成闭环。
 
 步骤 1–3 保持在**一个不断开的上下文窗口**内（`dj-split` 前不要 compact/clear）；每个 `dj-implement` 从工单全新启动。阶段边界的五个切换选项（Continue / continue / handoff / 子 agent / memory）见 catalog 的 Session 管理。
 
 ## 入口匝道
 
 - **Issue 堆积** → **`dj-split`（分诊档）**：零散 issue/bug 报告/外部 PR 先分诊（分类→验证→归位）再拆分派发，产出 agent-ready 工单供 `dj-implement` 拾取。PRD 直拆主档不变；只处理**你没创建的** issue。
-- **东西坏了** → **`dj-hunt`**：一眼看不出的 bug、间歇 flake、两好状态间的回归。拒绝在**紧反馈环**建立前理论化；"没有好 seam 锁 bug"时复盘交 `dj-codebase-design`。
+- **东西坏了** → **`dj-hunt`**：一眼看不出的 bug、间歇 flake、两好状态间的回归。验证「无缺陷」结论走失败升级阶梯（未到 L4 只写「未充分排查」）；紧反馈环建立前拒绝理论化，"没有好 seam 锁 bug"时复盘交 `dj-codebase-design`。
+- **堆熵/变糟了** → **`dj-audit`**：全仓审计四档——default（过度工程+安全，判「该拆的」）/ debt（技术债台账）/ health（仓库健康）/ pattern（重复结构+抽象机会，判「该合的」）。只报告不修改，修复回 `dj-implement`；接手陌生库先跑 git 考古。
+- **无人值守自动化** → **`dj-loop`**：任务想 loop 化（定时/触发/自治）先过 Fitness（ROI 四条件，不值得就拦下）；Design 产出五件套 LOOP-SPEC，Review 过九组上线检查。**只设计不运行**——实现归 `dj-implement`/`dj-script`。
 - **巨大模糊工作**（超一个 session）→ **`dj-wayfinder`**：画**决策工单地图**一次解决一个，产出**决策而非交付物**直到路清。地图清后**它交出不构建**——在 **`dj-output`** 折叠决策汇入主流程再 `dj-split` → `dj-implement`；直接跳 `dj-implement` 会丢折叠细节。
 
 ## 单请求路由
