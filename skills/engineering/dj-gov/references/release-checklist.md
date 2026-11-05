@@ -14,7 +14,7 @@
 - [ ] ADR 编号连续无空洞；已 superseded 的有跳转指向
 - [ ] CHANGELOG 按六类分组（新增/变更/修复/移除/弃用/安全），无 git log 流水
 - [ ] 文档标点规范（全角/半角一致，无混用残留）
-- [ ] API 端点文档覆盖度：新端点有文档（对照 `docs/references/api-doc-template.md`）
+- [ ] API 端点文档覆盖度：新端点有文档（对照 `skills/engineering/dj-output/references/api-doc-template.md`）
 
 ## 已知缺陷确认
 - [ ] 已知缺陷清单明确列出（不是藏着）——发版说明如实披露

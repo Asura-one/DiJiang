@@ -44,7 +44,7 @@ description: "文字润色：去除 AI 味，让中英文文本读起来自然�
 | 虚伪谦虚 | "希望这能为你提供一些参考" | "可参考" |
 | 完美主义 | "通过深入分析，我们可以发现" | "分析显示" |
 
-参考规范：`references/chinese-writing.md`（中文反 AI 模式）、`docs/references/anti-patterns.md`（跨技能行为约束）。
+参考规范：`references/chinese-writing.md`（中文反 AI 模式）、`skills/engineering/dj-meta/references/anti-patterns.md`（跨技能行为约束）。
 
 ## 失败模式
 

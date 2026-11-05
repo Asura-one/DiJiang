@@ -48,7 +48,7 @@ review_before: 2028-11-05
 
 ## 关联
 
-- `docs/references/anti-patterns.md` #8（不验证就交付，已三态化）
+- `skills/engineering/dj-meta/references/anti-patterns.md` #8（不验证就交付，已三态化）
 - `dj-regression-guard/references/jit-probes.md` — 覆盖盲区的探针补法
-- `docs/references/coverage-ledger.md` — 跨轮覆盖记账
+- `skills/engineering/dj-audit/references/coverage-ledger.md` — 跨轮覆盖记账
 - 来源：琅嬛「渗透测试 Skill 工作台：三层确认门」「Objective Gate：强验证与软验证」「SRC 假点清单与认错闸」+ AegisLoop 结论三态

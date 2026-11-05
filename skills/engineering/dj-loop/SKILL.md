@@ -13,15 +13,15 @@ description: "无人值守 loop 的设计与评审：判断任务值不值得 lo
 
 ### 1. Fitness——先算账再设计
 
-对照 `docs/references/loop-design.md` 的 ROI 四条件（频率 × token 预算 × 验证成本 × review 吞吐）逐项量化。任一条件不成立 → 结论「不值得 loop 化」，给替代路径（人跑 + dj-memory 记经验 / dj-script 单次自动化）。量化不了就先设计一个 L1 只读观察轮收集数据。
+对照 `references/loop-design.md` 的 ROI 四条件（频率 × token 预算 × 验证成本 × review 吞吐）逐项量化。任一条件不成立 → 结论「不值得 loop 化」，给替代路径（人跑 + dj-memory 记经验 / dj-script 单次自动化）。量化不了就先设计一个 L1 只读观察轮收集数据。
 
 ### 2. Design——五件套 + 模板
 
-复制 `references/loop-spec.md` 逐节填写；gate 引用 `docs/references/evidence-gate.md`（强验证优先，不自创标准）；运行态用 `references/loop-state.md`。成熟度一律 L1 起步，写明升 L2/L3 的观察条件。
+复制 `references/loop-spec.md` 逐节填写；gate 引用 `skills/engineering/dj-check/references/evidence-gate.md`（强验证优先，不自创标准）；运行态用 `references/loop-state.md`。成熟度一律 L1 起步，写明升 L2/L3 的观察条件。
 
 ### 3. Review——上线门
 
-对照 `docs/references/loop-runtime-checklist.md` 九组逐项作答；权限/升级/接管面过 `references/agent-risk-review.md`。结论三选一：**可托管 / 有条件通过（列条件）/ 不可托管（列缺口）**——任何一组只能答「应该没问题」即不可托管。
+对照 `references/loop-runtime-checklist.md` 九组逐项作答；权限/升级/接管面过 `references/agent-risk-review.md`。结论三选一：**可托管 / 有条件通过（列条件）/ 不可托管（列缺口）**——任何一组只能答「应该没问题」即不可托管。
 
 ## 边界
 

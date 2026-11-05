@@ -1,5 +1,18 @@
 # 变更日志
 
+## [2.3.0] — 2026-11-05
+
+只装 skills 场景适配批（ADR-009）：真实使用模型是 `cp -r skills/` 不带 docs/，13 份被技能消费的 docs/references 安装后断链——按消费者归家迁徙（git mv 保历史）。
+
+### 变更
+
+- **13 份共读参考归家技能 references**：anti-patterns→dj-meta（11 消费者）、decision-ladder→dj-ponytail（9）、code-task-contract→dj-implement（5）、evidence-gate/design-modes/output-markers/intensity-levels→dj-check（门禁面）、coverage-ledger→dj-audit、三槽位边界/loop-design/loop-runtime-checklist→dj-loop、api-doc-template→dj-output、read-pattern→dj-read。8 份开发面文档（version-management/model-invocation/reference-splitting/outcome-contract/durable-context-preflight/agent-platform-adapters/release-verification/triage-pattern）留 docs/。
+- **引用规范确立**：技能内自引用相对路径（`references/X.md`）；跨技能引用仓库相对完整路径；全库 38+7 处改写，旧路径零残留。
+- **README 安装节强化**：说明只装 skills 即完备，共读参考随技能整体迁移。
+- **顺手修复**：dj-wait-what 引用不存在的 CONTEXT-MAP.md（pi 时代多上下文残留）已清。
+- ADR-009 记录归家映射与替代方案三态（B 全搬否决/A 安装器否决/安装脚本暂缓）。
+- **门禁同步**：resolve_ref 认 `skills/` 前缀完整形态；anti-patterns 承重文档路径随迁 dj-meta/references；TTL 巡检扩到 `skills/engineering/*/references`（glob 展开，覆盖 30 目录 90 文件，此前仅 docs 15 文件）；突变测试夹具路径同步（AP 表/ttl/doc-rot 三处）。安装面模拟（只带 skills/）：断链引用 0。
+
 ## [2.2.0] — 2026-11-05
 
 ### 新增
@@ -92,7 +105,7 @@
 ### 变更
 
 - `docs/references/version-management.md`：重写为纯 skill 版本管理（CHANGELOG 为权威面，删除 Cargo/workspace/CLI 引用）。
-- `docs/references/anti-patterns.md`：移除 `DIJIANG_CONTEXT_ID` 引用。
+- `skills/engineering/dj-meta/references/anti-patterns.md`：移除 `DIJIANG_CONTEXT_ID` 引用。
 - `.gitignore`：清理已归档目录的忽略规则。
 
 ## [1.3.0] — 2026-09-20

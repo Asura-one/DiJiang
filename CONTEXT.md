@@ -127,7 +127,7 @@ Git 安全工作流原则：所有代码变更在独立 worktree 中进行，主
 
 ### Loop 五件套
 
-最小可行 loop 的组成：Trigger（触发）、Context+Skill（知识）、Action Surface（动作白名单）、Objective Gate（完成门）、State+Stop Policy（状态与停止）。缺任何一件只是「反复手工跑 agent」。详见 `docs/references/loop-design.md`。
+最小可行 loop 的组成：Trigger（触发）、Context+Skill（知识）、Action Surface（动作白名单）、Objective Gate（完成门）、State+Stop Policy（状态与停止）。缺任何一件只是「反复手工跑 agent」。详见 `skills/engineering/dj-loop/references/loop-design.md`。
 
 ### Loop Run State
 
@@ -143,4 +143,4 @@ loop 的权限阶梯：L1 只读观察（新 loop 一律起步）→ L2 出 PR �
 
 ### 证据三态
 
-验收结论的合法枚举：**verified**（可复现证据在手）/ **not run**（没测 + 原因）/ **inconclusive**（测了但证据不足，不硬凑通过）。权威定义见 `docs/references/evidence-gate.md`。
+验收结论的合法枚举：**verified**（可复现证据在手）/ **not run**（没测 + 原因）/ **inconclusive**（测了但证据不足，不硬凑通过）。权威定义见 `skills/engineering/dj-check/references/evidence-gate.md`。

@@ -3,7 +3,7 @@ name: dj-fullstack-testing
 description: "全栈系统回归测试引擎：后端分批 pytest、API 深度验证（契约/Schema 校验、状态码语义、限流、幂等、落盘回读）、业务逻辑正确性校验、Playwright UI 交互测试、UX 启发式评估、结构化测试报告。 Use when the user asks for comprehensive/systematic/regression testing covering all modules, pages, and interactions. 触发词：全量回归、全面测试、系统测试、全栈测试、fullstack testing、覆盖度核对。"
 ---
 
-参考规范：`docs/references/anti-patterns.md`、`docs/references/output-markers.md`、`docs/references/code-task-contract.md`。步骤 1-7 细化操作：读 `references/execution-detail.md`。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`、`skills/engineering/dj-check/references/output-markers.md`、`skills/engineering/dj-implement/references/code-task-contract.md`。步骤 1-7 细化操作：读 `references/execution-detail.md`。
 
 ## Outcome Contract
 
@@ -67,7 +67,7 @@ description: "全栈系统回归测试引擎：后端分批 pytest、API 深度�
 
 ## 🔴 反例与黑名单
 
-25 条反模式全表见 `references/execution-detail.md`。核心：凭记忆写清单、只测 API 不测 UI、不做覆盖度核对、弹窗只测确认、不测边界、全量一次跑、不查 commit-id、只看状态码不查结构、不测限流幂等、业务流不测、越权只靠前端隐藏、不验业务正确性、不冒烟直接全量、报告不给发布建议、浅层排查就下「没问题」结论（无缺陷验证走失败升级阶梯 L1-L7，未到 L4 改写为「未充分排查」，见 `docs/references/coverage-ledger.md`）。多轮审计/测试的覆盖范围记入跨轮 additive 台账（同上文档），新轮只补缺口。
+25 条反模式全表见 `references/execution-detail.md`。核心：凭记忆写清单、只测 API 不测 UI、不做覆盖度核对、弹窗只测确认、不测边界、全量一次跑、不查 commit-id、只看状态码不查结构、不测限流幂等、业务流不测、越权只靠前端隐藏、不验业务正确性、不冒烟直接全量、报告不给发布建议、浅层排查就下「没问题」结论（无缺陷验证走失败升级阶梯 L1-L7，未到 L4 改写为「未充分排查」，见 `skills/engineering/dj-audit/references/coverage-ledger.md`）。多轮审计/测试的覆盖范围记入跨轮 additive 台账（同上文档），新轮只补缺口。
 
 ## 实战关键教训
 

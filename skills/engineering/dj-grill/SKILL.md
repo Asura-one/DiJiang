@@ -52,7 +52,7 @@ disable-model-invocation: true
   }
 }
 ```
-参考规范：`docs/references/anti-patterns.md`（跨技能行为约束）。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`（跨技能行为约束）。
 
 ## Artifact Rules
 grilling 过程中同步维护以下任务文档：
@@ -109,5 +109,5 @@ grilling 过程中同步维护以下任务文档：
 | 不问验收条件 | 实现完了对不上 | 验收是必须问的维度 |
 | 不捕捉术语 | 后面代码用词不统一 | 听到新术语就记下来 |
 
-如果问题涉及设计决策而非需求对齐，参考 `docs/references/design-modes.md` 选择分析模式。
+如果问题涉及设计决策而非需求对齐，参考 `skills/engineering/dj-check/references/design-modes.md` 选择分析模式。
 **下一步**：需求对齐确认后，建议下一步调用 `dj-output` 把共识沉淀为 PRD（含 TBD 项与验收标准），供 `dj-split` 拆分。

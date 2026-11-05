@@ -50,4 +50,4 @@ DiJiang 作为纯 skill 架构（mattpocock/skills 风格），拥有完整的�
 
 - 关联技能：`dj-regression-guard`、`dj-fullstack-testing`、`dj-check`、`dj-hunt`、`dj-implement`
 - 关联 ADR：ADR-0005（纯 Skill 架构）
-- 关联规范：`docs/references/code-task-contract.md`、`docs/references/model-invocation.md`
+- 关联规范：`skills/engineering/dj-implement/references/code-task-contract.md`、`docs/references/model-invocation.md`

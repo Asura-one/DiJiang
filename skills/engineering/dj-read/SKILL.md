@@ -102,4 +102,4 @@ URL:    {original url}
 
 ## 参考
 
-- `docs/references/read-pattern.md` — 阅读模式参考
+- `references/read-pattern.md` — 阅读模式参考

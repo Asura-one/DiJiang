@@ -4,7 +4,7 @@ description: "全仓审计：默认扫描过度工程和安全性；可按 debt�
 disable-model-invocation: true
 ---
 
-参考规范：`docs/references/decision-ladder.md`（扫描时评估代码必要性）。
+参考规范：`skills/engineering/dj-ponytail/references/decision-ladder.md`（扫描时评估代码必要性）。
 
 ## Outcome Contract
 
@@ -92,7 +92,7 @@ git grep --no-index --exclude-standard -nE '(#|//) ?(shortcut|ponytail):'
 - 不检查第三方依赖
 - 对 false positive 标注为"疑似"而非"确认"
 
-参考规范：`docs/references/anti-patterns.md`（跨技能行为约束）。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`（跨技能行为约束）。
 
 ## Hard Rules
 

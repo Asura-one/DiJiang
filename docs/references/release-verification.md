@@ -41,6 +41,6 @@ review_before: 2028-11-06
 
 - `docs/references/version-management.md` — 版本号策略
 - `skills/engineering/dj-gov/references/release-checklist.md` — 发版可勾选清单
-- `docs/references/evidence-gate.md` — 假完成形态（坑表第 1 条的理论根）
+- `skills/engineering/dj-check/references/evidence-gate.md` — 假完成形态（坑表第 1 条的理论根）
 
 来源：live skills 的 go-release-workflow（用户实战技能）栈无关提炼

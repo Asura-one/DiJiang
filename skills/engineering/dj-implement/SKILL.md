@@ -5,7 +5,7 @@ description_cn: "按计划实现特性代码，遵守 git 安全工作流。用�
 description: "按计划实现特性代码，遵守 git 安全工作流。 Use when the user wants to implement a feature, fix, or change based on a plan or issue. 触发词：实现、写代码、implement、开始做、按计划做、开发。"
 ---
 
-参考：`docs/references/decision-ladder.md`、`docs/references/code-task-contract.md`。深度细节：Git 工作流（链式工单基线/配置分层/依赖借用）→ `references/git-workflow.md`；验证陷阱与观察 SOP → `references/verification-pitfalls.md`；edit 冲突与 Python 补丁 → `references/edit-conflicts.md`；SFTP → `references/go-sftp-transfer.md`；spec 拆分 → `references/ticket-decomposition.md`。
+参考：`skills/engineering/dj-ponytail/references/decision-ladder.md`、`references/code-task-contract.md`。深度细节：Git 工作流（链式工单基线/配置分层/依赖借用）→ `references/git-workflow.md`；验证陷阱与观察 SOP → `references/verification-pitfalls.md`；edit 冲突与 Python 补丁 → `references/edit-conflicts.md`；SFTP → `references/go-sftp-transfer.md`；spec 拆分 → `references/ticket-decomposition.md`。
 
 ## Outcome Contract
 
@@ -38,7 +38,7 @@ description: "按计划实现特性代码，遵守 git 安全工作流。 Use wh
 
 ### 1.5 决策阶梯门禁
 
-走 **Ponytail 7-rung 决策阶梯**（`docs/references/decision-ladder.md`：YAGNI → 复用现有 → 标准库 → 原生特性 → 已有依赖 → 一行代码 → 最小代码）。通过一层不进下一层；跳层须注释原因。
+走 **Ponytail 7-rung 决策阶梯**（`skills/engineering/dj-ponytail/references/decision-ladder.md`：YAGNI → 复用现有 → 标准库 → 原生特性 → 已有依赖 → 一行代码 → 最小代码）。通过一层不进下一层；跳层须注释原因。
 
 **shortcut 债务注释**：砍功能/接受限制时留 `shortcut: <上限>, <升级触发点>`；写不出触发点就不要简化。
 

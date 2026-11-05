@@ -6,7 +6,7 @@ description: "有选择地吸收外部项目的设计模式、交互方式、功
 disable-model-invocation: true
 ---
 
-参考规范：`docs/references/anti-patterns.md`、`docs/references/intensity-levels.md`、`docs/references/output-markers.md`、`docs/references/design-modes.md`。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`、`skills/engineering/dj-check/references/intensity-levels.md`、`skills/engineering/dj-check/references/output-markers.md`、`skills/engineering/dj-check/references/design-modes.md`。
 深度细节：卡片/融合方案/快照与范围确认模板、Phase 4 验证清单、四态重验与多目标并行调研细则 → `references/fusion-templates.md`；拆解维度 → `references/absorption-checklist.md`。
 
 ## Outcome Contract

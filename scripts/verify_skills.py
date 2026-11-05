@@ -25,6 +25,7 @@
 "检查器抓不到东西"不等于"没有问题"；--strict 下解析失配必须阻断。
 突变测试见 tests/test_verify_skills.py：故意注入损坏夹具断言门禁咬合。
 """
+import glob
 import os
 import re
 import sys
@@ -52,12 +53,16 @@ ROT_WORDS_RE = re.compile(r"不再|以前|曾经|现在改为|已废弃|原先")
 
 BODY_MAX = 3000      # dj-meta 硬上限：SKILL.md 正文 3000B
 DOC_MAX = 2000       # 单篇 docs 文档字数参考上限
-TTL_DIRS = ("docs/references", "docs/adr")
+TTL_DIRS = ("docs/references", "docs/adr", "skills/engineering/*/references")
 
 
 def resolve_ref(skill_dir, ref):
-    """解析引用真实路径：docs/ 前缀 -> 仓库根；<技能名>/references/ -> 跨技能引用；references/ -> 本技能目录。"""
-    if ref.startswith("docs/"):
+    """解析引用真实路径：docs/ 或 skills/ 前缀 -> 仓库根；<技能名>/references/ -> 跨技能引用；references/ -> 本技能目录。
+
+    跨技能引用两种形态（ADR-009）：短形态 `<技能名>/references/X.md` 与完整形态
+    `skills/<bucket>/<技能名>/references/X.md`（安装场景下保持可达）。
+    """
+    if ref.startswith(("docs/", "skills/")):
         return os.path.join(ROOT, ref)
     parts = ref.split("/")
     if len(parts) >= 3 and parts[0] != "references" and parts[1] == "references":
@@ -205,7 +210,7 @@ def check_jaccard(rep, descs):
 
 
 def check_antipatterns(rep):
-    p = os.path.join(ROOT, "docs", "references", "anti-patterns.md")
+    p = os.path.join(ROOT, "skills", "engineering", "dj-meta", "references", "anti-patterns.md")
     if not os.path.exists(p):
         rep.fail("[anti-patterns] 文件不存在——承重文档丢失，门禁拒绝放行")
         return
@@ -279,26 +284,28 @@ def check_ttl(rep):
     today = date.today()
     missing, expired = [], []
     for d in TTL_DIRS:
-        base = os.path.join(ROOT, d)
-        if not os.path.isdir(base):
-            continue
-        for fn in sorted(os.listdir(base)):
-            if not fn.endswith(".md"):
+        # 支持通配目录（如 skills/engineering/*/references），glob 展开后逐个扫描
+        bases = glob.glob(os.path.join(ROOT, d)) if "*" in d else [os.path.join(ROOT, d)]
+        for base in bases:
+            if not os.path.isdir(base):
                 continue
-            p = os.path.join(base, fn)
-            text = open(p, encoding="utf-8").read()
-            props, _ = parse_frontmatter(text) if text.startswith("---") else ({}, None)
-            rb = (props or {}).get("review_before", "")
-            rel = os.path.relpath(p, ROOT)
-            if not rb:
-                missing.append(rel)
-                continue
-            try:
-                if date.fromisoformat(rb.strip()) < today:
-                    expired.append(rel)
-                    rep.warn(f"[ttl] {rel}: review_before={rb} 已过期——复核后四选一留痕（顺延/修订/归档/废止）")
-            except ValueError:
-                rep.warn(f"[ttl] {rel}: review_before={rb!r} 非 ISO 日期")
+            for fn in sorted(os.listdir(base)):
+                if not fn.endswith(".md"):
+                    continue
+                p = os.path.join(base, fn)
+                text = open(p, encoding="utf-8").read()
+                props, _ = parse_frontmatter(text) if text.startswith("---") else ({}, None)
+                rb = (props or {}).get("review_before", "")
+                rel = os.path.relpath(p, ROOT)
+                if not rb:
+                    missing.append(rel)
+                    continue
+                try:
+                    if date.fromisoformat(rb.strip()) < today:
+                        expired.append(rel)
+                        rep.warn(f"[ttl] {rel}: review_before={rb} 已过期——复核后四选一留痕（顺延/修订/归档/废止）")
+                except ValueError:
+                    rep.warn(f"[ttl] {rel}: review_before={rb!r} 非 ISO 日期")
     if expired or missing:
         rep.ok(f"ttl 扫描完成：过期 {len(expired)}，缺 review_before {len(missing)}（存量补齐项，不阻塞）")
     else:

@@ -4,7 +4,7 @@ description: "脚本和工具编写：独立于特性实现，专注于一次性
 disable-model-invocation: true
 ---
 
-参考规范：`docs/references/decision-ladder.md`（写脚本前的决策阶梯）。
+参考规范：`skills/engineering/dj-ponytail/references/decision-ladder.md`（写脚本前的决策阶梯）。
 
 ## Outcome Contract
 
@@ -68,7 +68,7 @@ disable-model-invocation: true
 | 脚本放 repo 根目录 | 放 scripts/ 目录 |
 | 删除文件直接 rm | 先 `--dry-run` 确认目标 |
 
-参考规范：`docs/references/anti-patterns.md`（跨技能行为约束）。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`（跨技能行为约束）。
 
 ## Hard Rules
 
