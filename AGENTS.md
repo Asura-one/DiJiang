@@ -26,9 +26,8 @@
 | 新任务 / 全局流程 / 该走什么 | `dj-ask` | user |
 | 需求对齐 | `dj-grill` | user |
 | PRD / 设计文档 | `dj-output` | user |
-| PRD 拆分 | `dj-split` | user |
+| PRD 拆分 / Issue 分诊 | `dj-split`（分诊档：零散 issue 先分诊再拆） | user |
 | 大块工作规划 | `dj-wayfinder` | user |
-| Issue/任务分诊 | `dj-triage` | user |
 | 功能实现 | `dj-implement` | model |
 | 测试驱动开发 | `dj-tdd` | model |
 | Bug / 回归排查 | `dj-hunt` | model |
@@ -42,7 +41,6 @@
 | 场景 | Skill | 调用模式 |
 |------|-------|---------|
 | 全仓审计 / 技术债 / 健康检查 | `dj-audit` | user |
-| 模式研究 | `dj-pattern` | user |
 | 架构自省 / 为 agent 写文档 | `dj-meta` | user |
 | 推理透镜 | `dj-reason` | model |
 | 技术调研 | `dj-research` | model |
@@ -79,7 +77,6 @@
 | 场景 | Skill | 调用模式 |
 |------|-------|---------|
 | 文字润色 | `dj-write` | model |
-| 跨会话教学 | `dj-teach` | user |
 | 决策问卷 | `dj-questionnaire` | user |
 | 消息重述 | `dj-wait-what` | user |
 

@@ -22,7 +22,7 @@ SKILL.md 保留核心路由规则；不确定某句话路由到哪、或多个 s
 | "术语、统一语言" | `dj-domain-modeling` |
 | "调研、研究、技术选型" | `dj-research` |
 | "写 PRD、产品文档、把需求写下来" | `dj-output` |
-| "issue 堆积/工单分诊/帮我处理 issue" | `dj-triage` |
+| "issue 堆积/工单分诊/帮我处理 issue" | `dj-split`（分诊档：先分诊再拆分/归位） |
 | "大块工作/绿地规划/路线图/决策地图" | `dj-wayfinder` |
 
 ## Build（实现中）
@@ -35,7 +35,7 @@ SKILL.md 保留核心路由规则；不确定某句话路由到哪、或多个 s
 | "极简/少写/简单点" | 对应实现 skill，并应用 workflow 的最小变更约束 |
 | "写个脚本/做个小工具" | `dj-script` |
 | "拆分任务、切任务、分批做" | `dj-split` |
-| "模式/重复/抽象" | `dj-pattern` |
+| "模式/重复/抽象/历史修复" | `dj-audit`（含 git 考古与重复信号） |
 | "merge 冲突/rebase 冲突/解决冲突" | `dj-merge-conflict` |
 
 ## Post-build（交付前）

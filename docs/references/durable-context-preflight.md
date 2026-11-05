@@ -10,7 +10,6 @@
 - 改码回归护送（dj-regression-guard）
 - 设计或架构决策（dj-design、dj-reason）
 - Session 交接（dj-handoff）
-- 模式识别（dj-pattern）
 
 不需要 Preflight 的场合：
 - 纯路由（dj-ask）

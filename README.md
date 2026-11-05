@@ -27,7 +27,7 @@ cp -r skills/ /path/to/your-project/
 
 ## Skill 清单
 
-### Engineering（39 skills）
+### Engineering（37 skills）
 
 #### 核心流程
 
@@ -36,9 +36,8 @@ cp -r skills/ /path/to/your-project/
 | `dj-ask` | user | 全局 flow 路由图 + 新任务分流（有哪些 workflow/该走什么/单请求路由） |
 | `dj-grill` | user | 需求不清、范围需要对齐 |
 | `dj-output` | user | PRD、design、spec 文档 |
-| `dj-split` | user | PRD 拆分 |
+| `dj-split` | user | PRD 拆分 / Issue 分诊（分诊档） |
 | `dj-wayfinder` | user | 大块工作规划（决策票据地图） |
-| `dj-triage` | user | Issue/任务分诊 |
 | `dj-implement` | model | 特性代码实现 |
 | `dj-tdd` | model | 测试驱动开发 |
 | `dj-hunt` | model | bug、回归、根因排查 |
@@ -52,7 +51,6 @@ cp -r skills/ /path/to/your-project/
 | Skill | 调用模式 | 触发 |
 |-------|---------|------|
 | `dj-audit` | user | 全仓审计（含技术债/健康检查 profile） |
-| `dj-pattern` | user | 模式研究 |
 | `dj-reason` | model | 复杂判断、认知校准 |
 | `dj-research` | model | 技术调研 |
 | `dj-absorb` | user | 吸收外部材料 |
@@ -82,12 +80,11 @@ cp -r skills/ /path/to/your-project/
 | `dijiang-continue` | user | 继续会话 |
 | `dijiang-finish-work` | user | 收尾工作 |
 
-### Productivity（4 skills）
+### Productivity（3 skills）
 
 | Skill | 调用模式 | 触发 |
 |-------|---------|------|
 | `dj-write` | model | 文字润色、去 AI 味 |
-| `dj-teach` | user | 跨会话教学 |
 | `dj-questionnaire` | user | 决策问卷生成 |
 | `dj-wait-what` | user | 消息重述 |
 
@@ -124,7 +121,7 @@ paused
 ```
 DiJiang/
 ├── skills/
-│   ├── engineering/       # 39 skills
+│   ├── engineering/       # 37 skills
 │   │   ├── dj-grill/SKILL.md
 │   │   ├── dj-implement/SKILL.md
 │   │   ├── dj-tdd/SKILL.md
@@ -134,7 +131,7 @@ DiJiang/
 │   │   ├── dijiang-start/SKILL.md
 │   │   ├── dijiang-continue/SKILL.md
 │   │   └── dijiang-finish-work/SKILL.md
-│   └── productivity/      # 4 skills
+│   └── productivity/      # 3 skills
 │       └── dj-write/SKILL.md
 ├── docs/
 │   ├── adr/               # 架构决策记录
