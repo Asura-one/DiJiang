@@ -1,14 +1,6 @@
 ---
 name: dj-check
 description: "交付质量闸门：验证 diff 质量、功能完整性、安全性和回归风险，输出 finish-work 收口证据；也承担 PR/分支审查（Spec 匹配 + 代码质量双轴独立汇报）。 Use when the user needs a delivery quality gate, completion verification, release-blocking check, finish-work handoff, or a PR/diff review. 触发词：check、质量门禁、验收、验证、检查交付、finish-work 前检查、审查、检查代码、审一下、code review、帮我看一下代码。"
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '571a45f4-9ad4-413e-8263-f669dde47114'
-  PropagateID: '571a45f4-9ad4-413e-8263-f669dde47114'
-  ReservedCode1: '05784647-9544-4e91-9a16-3124ba14c28b'
-  ReservedCode2: '05784647-9544-4e91-9a16-3124ba14c28b'
 ---
 
 ## Outcome Contract

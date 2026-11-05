@@ -114,13 +114,3 @@ Wayfinder 默认是**规划**：每张票据解决一个决策，地图在路清
 
 - `dj-domain-modeling` 提供领域语言和 ADR 纪律
 - `dj-split` 可将已清晰的工作拆为实施票据
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '667c1dc7-73c6-4f53-ac00-d780b999e2fa'
-  PropagateID: '667c1dc7-73c6-4f53-ac00-d780b999e2fa'
-  ReservedCode1: 'ad76d93e-e09c-4257-b774-318abbd81a22'
-  ReservedCode2: 'ad76d93e-e09c-4257-b774-318abbd81a22'

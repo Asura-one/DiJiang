@@ -1,14 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '5f4030c5-7f4d-4229-ad7a-d62f8b8f5836'
-  PropagateID: '5f4030c5-7f4d-4229-ad7a-d62f8b8f5836'
-  ReservedCode1: '51b27821-3039-4388-90f7-f87b37779c2b'
-  ReservedCode2: '51b27821-3039-4388-90f7-f87b37779c2b'
----
-
 # DiJiang 架构
 
 ## 概述

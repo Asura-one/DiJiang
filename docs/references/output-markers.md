@@ -1,15 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '4e336291-ff70-4378-955e-b3b7d01fdcb7'
-  PropagateID: '4e336291-ff70-4378-955e-b3b7d01fdcb7'
-  ReservedCode1: '9ee27ad5-bf3f-4358-a3eb-a7ee7926dbb6'
-  ReservedCode2: '9ee27ad5-bf3f-4358-a3eb-a7ee7926dbb6'
-review_before: 2028-10-27
----
-
 # 输出标记（Output Markers）
 
 为 skill 产出添加统一前缀标记，使其在对话中可快速识别。

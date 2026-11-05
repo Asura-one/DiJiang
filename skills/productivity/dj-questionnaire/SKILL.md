@@ -58,13 +58,3 @@ disable-model-invocation: true
 
 
 **下一步**：问卷回收后，建议下一步调用 `dj-grill` 把答案折进需求（或已充分时直接 `dj-output` 成 PRD）。
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '0b796093-7dc7-4362-a2a8-a2f716527686'
-  PropagateID: '0b796093-7dc7-4362-a2a8-a2f716527686'
-  ReservedCode1: 'c30bec7a-0dfe-421e-a11d-8f4924e3fcbb'
-  ReservedCode2: 'c30bec7a-0dfe-421e-a11d-8f4924e3fcbb'

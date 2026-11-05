@@ -78,13 +78,3 @@ git status --short --branch
 | 不要只凭记忆继续实现 | 先加载任务产物 |
 | active task 存在时不要创建新任务 | 继续当前任务，或通过 dj-ask 路由 |
 | 不要从 continue mode 收尾 | 对 completed 任务输出 `follow-up: dijiang-finish-work` |
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '42d95e2a-b138-445d-bd4f-9e3f119231b2'
-  PropagateID: '42d95e2a-b138-445d-bd4f-9e3f119231b2'
-  ReservedCode1: '6cd43ed8-285d-42ba-b5d0-770c4c6f114f'
-  ReservedCode2: '6cd43ed8-285d-42ba-b5d0-770c4c6f114f'

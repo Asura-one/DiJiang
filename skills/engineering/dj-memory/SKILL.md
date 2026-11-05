@@ -133,13 +133,3 @@ recall 读取 corrections.jsonl 后必须统计同类纠正计数：达到阈值
 | 不要写入不可执行的经验 | 经验必须含 actionability |
 | 不要让记忆阻塞工作 | 记忆失败时继续工作，在 handoff 中说明 |
 | 不要让纠正停在记录层 | 同类第 2 次提议晋升，第 3 次强制候选 |
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'e93f7bc8-1c6a-4587-b470-53a9b1a9759e'
-  PropagateID: 'e93f7bc8-1c6a-4587-b470-53a9b1a9759e'
-  ReservedCode1: 'a31b7aaf-41c4-49e4-ba01-88aafbeabf06'
-  ReservedCode2: 'a31b7aaf-41c4-49e4-ba01-88aafbeabf06'

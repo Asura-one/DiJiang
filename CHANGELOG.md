@@ -1,14 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'f8aac43f-4b03-453e-ba51-51b951ab0cb0'
-  PropagateID: 'f8aac43f-4b03-453e-ba51-51b951ab0cb0'
-  ReservedCode1: '23128256-50da-40fb-a243-74a6ab133fd3'
-  ReservedCode2: '23128256-50da-40fb-a243-74a6ab133fd3'
----
-
 # 变更日志
 
 ## [1.4.0] — 2026-11-05

@@ -34,13 +34,3 @@ disable-model-invocation: true
 
 - `CONTEXT.md` — 项目领域术语表（通用语言）
 - `CONTEXT-MAP.md` — 多上下文时的术语表索引
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '0e0076ea-c489-4e19-9f14-795338e73c44'
-  PropagateID: '0e0076ea-c489-4e19-9f14-795338e73c44'
-  ReservedCode1: '1f7f3840-3deb-4339-9c21-3204f6011078'
-  ReservedCode2: '1f7f3840-3deb-4339-9c21-3204f6011078'

@@ -2,14 +2,6 @@
 name: dj-audit
 description: "全仓审计：默认扫描过度工程和安全性；可按 debt 或 health profile 补充技术债或仓库健康检查。只报告，不修改。 Use when the user wants to audit the codebase for over-engineering, bloat, dead code, security issues, technical debt, or repository health. 触发词：审计、扫一下、过度工程、安全扫描、技术债、健康检查、audit、代码大检查。"
 disable-model-invocation: true
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '1e07d552-93b4-4140-9687-0a15f58920e3'
-  PropagateID: '1e07d552-93b4-4140-9687-0a15f58920e3'
-  ReservedCode1: '530f2c58-3f56-4040-95de-0102d00f3440'
-  ReservedCode2: '530f2c58-3f56-4040-95de-0102d00f3440'
 ---
 
 参考规范：`docs/references/decision-ladder.md`（扫描时评估代码必要性）。

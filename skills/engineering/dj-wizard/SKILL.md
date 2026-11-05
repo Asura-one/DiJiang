@@ -50,13 +50,3 @@ description: "生成一个交互式 bash 向导，引导人类走过只有他们
 | 用 wizard 做 agent 自己能的步骤 | 直接做 |
 | 把 secrets 打到输出 | 隐藏密文录入 |
 | 一次做完所有阶段 | 每阶段确认门 |
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'af24e606-0072-4b07-8dd0-a9f1cb147244'
-  PropagateID: 'af24e606-0072-4b07-8dd0-a9f1cb147244'
-  ReservedCode1: 'b54271dd-1a6d-43b7-b3ad-4ea22db59b86'
-  ReservedCode2: 'b54271dd-1a6d-43b7-b3ad-4ea22db59b86'

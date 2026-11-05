@@ -2,14 +2,6 @@
 name: dj-ask
 description: "DiJiang 全局路由：flow 路径图 + 单请求分流。回答『这个任务该走什么流程』『DiJiang 有哪些 workflow』，也识别单个新请求并路由到对应 skill（显式输出目标与理由）。 Use when the user asks what workflow/flow/skill-path to use, wants an overview of available flows, or gives a new task that isn't already in a specific skill workflow. 触发词：有什么流程、workflow、flow、该走什么、用哪个 skill、技能路线、ask、新任务、帮忙、做一下、有个想法、有个需求。"
 disable-model-invocation: true
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '14071ce1-e0d5-4bd6-9581-7a4da7823827'
-  PropagateID: '14071ce1-e0d5-4bd6-9581-7a4da7823827'
-  ReservedCode1: 'bb6c9f32-1b0c-429b-aa6b-a2c42d32d63f'
-  ReservedCode2: 'bb6c9f32-1b0c-429b-aa6b-a2c42d32d63f'
 ---
 
 # Ask: DiJiang 全局 Flow 路由图 + 单请求路由

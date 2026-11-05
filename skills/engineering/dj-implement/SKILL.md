@@ -3,14 +3,6 @@ name: dj-implement
 name_cn: 实现代码
 description_cn: "按计划实现特性代码，遵守 git 安全工作流。用于实现特性、修复或基于计划/issue 的变更。"
 description: "按计划实现特性代码，遵守 git 安全工作流。 Use when the user wants to implement a feature, fix, or change based on a plan or issue. 触发词：实现、写代码、implement、开始做、按计划做、开发。"
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '4d003b51-2252-45d7-99df-934b36445d6b'
-  PropagateID: '4d003b51-2252-45d7-99df-934b36445d6b'
-  ReservedCode1: 'bfbfe6a7-89ad-4e9e-80a6-57fdf93df580'
-  ReservedCode2: 'bfbfe6a7-89ad-4e9e-80a6-57fdf93df580'
 ---
 
 参考：`docs/references/decision-ladder.md`、`docs/references/code-task-contract.md`。深度细节：Git 工作流（链式工单基线/配置分层/依赖借用）→ `references/git-workflow.md`；验证陷阱与观察 SOP → `references/verification-pitfalls.md`；edit 冲突与 Python 补丁 → `references/edit-conflicts.md`；SFTP → `references/go-sftp-transfer.md`；spec 拆分 → `references/ticket-decomposition.md`。

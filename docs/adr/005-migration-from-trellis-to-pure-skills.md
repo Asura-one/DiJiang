@@ -1,15 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '21588a9a-1bab-4771-8a57-3f9f18c32b73'
-  PropagateID: '21588a9a-1bab-4771-8a57-3f9f18c32b73'
-  ReservedCode1: '49516a37-dfae-4e8b-9f7c-ae2719712233'
-  ReservedCode2: '49516a37-dfae-4e8b-9f7c-ae2719712233'
-review_before: 2028-10-27
----
-
 # ADR 0005: 从 Trellis 兼容迁移到纯 Skill 架构
 
 **状态**: Accepted  

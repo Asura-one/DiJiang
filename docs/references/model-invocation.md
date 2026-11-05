@@ -1,15 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'b96e337d-a0aa-4d9d-bd62-3f9bfded1a5e'
-  PropagateID: 'b96e337d-a0aa-4d9d-bd62-3f9bfded1a5e'
-  ReservedCode1: 'f1fbdde4-2706-4d46-9d12-2135bb4bf003'
-  ReservedCode2: 'f1fbdde4-2706-4d46-9d12-2135bb4bf003'
-review_before: 2028-10-27
----
-
 # 技能调用分类（Model Invocation）
 
 每个 `dj-*` skill 在 `disable_model_invocation` 字段声明其调用方式。

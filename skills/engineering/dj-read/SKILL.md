@@ -103,13 +103,3 @@ URL:    {original url}
 ## 参考
 
 - `docs/references/read-pattern.md` — 阅读模式参考
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '4b836008-5224-40bc-b1a1-5e29e5b43974'
-  PropagateID: '4b836008-5224-40bc-b1a1-5e29e5b43974'
-  ReservedCode1: '0cb50bc0-409c-4617-8375-bfef0c875dec'
-  ReservedCode2: '0cb50bc0-409c-4617-8375-bfef0c875dec'

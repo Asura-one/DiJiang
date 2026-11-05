@@ -91,13 +91,3 @@ Call the Skill tool with "dj-ask".
 | 不要臆造任务状态 | 如果 .dijiang/ 缺失，提示运行 dj-setup |
 | 不要忽略 git 脏改状态 | 报告它，并要求编辑前使用 worktree |
 | 不要从猜测写入记忆 | 将不确定上下文保留在任务产物中 |
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '49901892-17a0-452d-bcfd-6be3bc03a04a'
-  PropagateID: '49901892-17a0-452d-bcfd-6be3bc03a04a'
-  ReservedCode1: 'f0937a1e-6196-4b4a-bb2c-eaef0500bebc'
-  ReservedCode2: 'f0937a1e-6196-4b4a-bb2c-eaef0500bebc'

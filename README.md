@@ -1,14 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '9d69ecbf-2f95-4703-8c8d-ab04575dc620'
-  PropagateID: '9d69ecbf-2f95-4703-8c8d-ab04575dc620'
-  ReservedCode1: '57bb34c3-abd1-4e67-b243-66e9efbf3249'
-  ReservedCode2: '57bb34c3-abd1-4e67-b243-66e9efbf3249'
----
-
 # 帝江 (DiJiang)
 
 > 浑敦无面目，是识歌舞。——《山海经·西山经》

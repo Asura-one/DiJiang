@@ -61,13 +61,3 @@ argument-hint: "[lite|full|ultra]"
 ## 参考
 
 - `docs/references/decision-ladder.md` — 决策阶梯完整版
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'e00358e0-6c47-4185-999f-a896632eff69'
-  PropagateID: 'e00358e0-6c47-4185-999f-a896632eff69'
-  ReservedCode1: 'dcce4897-2e7e-4b9d-a04d-1e6ce675139d'
-  ReservedCode2: 'dcce4897-2e7e-4b9d-a04d-1e6ce675139d'

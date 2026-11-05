@@ -1,14 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '7728f6ee-8dd6-4079-9d5d-3433eae2a003'
-  PropagateID: '7728f6ee-8dd6-4079-9d5d-3433eae2a003'
-  ReservedCode1: '980bc2f3-5e55-44f3-ba33-8672e2cb6a05'
-  ReservedCode2: '980bc2f3-5e55-44f3-ba33-8672e2cb6a05'
----
-
 # 设计决策
 
 本文档记录 DiJiang 在纯 skill 架构（ADR-005）下的设计决策，为当前唯一有效版本。

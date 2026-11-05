@@ -1,14 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '0e22a5b9-46cb-4c78-a19f-d4631cf3ebc5'
-  PropagateID: '0e22a5b9-46cb-4c78-a19f-d4631cf3ebc5'
-  ReservedCode1: 'b8f8d4f2-83a1-4b96-b975-f4c95f2c7d17'
-  ReservedCode2: 'b8f8d4f2-83a1-4b96-b975-f4c95f2c7d17'
----
-
 # ADR 007: 文字点火不改拓扑（尾部指针的接力形态）
 
 ## 状态

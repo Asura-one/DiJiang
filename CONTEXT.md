@@ -1,14 +1,6 @@
 ---
 name: CONTEXT.md
 description: DiJiang 项目领域术语表
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '73410e28-3e0d-49eb-b2fe-8b4c1e593d45'
-  PropagateID: '73410e28-3e0d-49eb-b2fe-8b4c1e593d45'
-  ReservedCode1: '2523ac4b-667f-4fe5-8959-90585fc598eb'
-  ReservedCode2: '2523ac4b-667f-4fe5-8959-90585fc598eb'
 ---
 
 # DiJiang 领域语言

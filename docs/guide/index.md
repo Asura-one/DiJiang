@@ -1,14 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'fdcec1cf-004d-4d08-9754-55b28f1fddf1'
-  PropagateID: 'fdcec1cf-004d-4d08-9754-55b28f1fddf1'
-  ReservedCode1: '250ba61a-8fa2-4775-b6e7-b0ff30ae5bdc'
-  ReservedCode2: '250ba61a-8fa2-4775-b6e7-b0ff30ae5bdc'
----
-
 # 用户指南
 
 DiJiang 是纯 skill 架构：所有工作流通过调用 skill 完成，无运行时依赖。调用方式统一为 `Call the Skill tool with "dj-xxx"`。

@@ -43,13 +43,3 @@ git diff --name-only --diff-filter=U
 | `git merge --abort` | 逐 hunk 解决，从不放弃 |
 | 直接接受一边删除另一边的代码 | 先理解两边意图再决定 |
 | 复制粘贴新逻辑解决冲突 | 保留现有行为，最小改动 |
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '47c9620d-bf72-449e-a637-f81b11ebdf05'
-  PropagateID: '47c9620d-bf72-449e-a637-f81b11ebdf05'
-  ReservedCode1: 'e594bf10-df03-4d5c-83d8-f0ddc57c3332'
-  ReservedCode2: 'e594bf10-df03-4d5c-83d8-f0ddc57c3332'

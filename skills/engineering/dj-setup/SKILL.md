@@ -108,13 +108,3 @@ type = "local"  # local | github | linear
 | 不要删除已有记忆数据 | 保留 memory/ 中的 JSONL 文件 |
 | 不要覆盖已存在的 config.toml | 读取后合并新字段 |
 | 不要在迁移中丢失 spec 内容 | 保留 spec/ 目录原位 |
-
-<!-- AIGC 水印（系统注入，不可移除）-->
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '7d796554-4239-45e4-a921-80bae38b608f'
-  PropagateID: '7d796554-4239-45e4-a921-80bae38b608f'
-  ReservedCode1: 'f91af608-ecd1-4211-bdac-540102ec74a1'
-  ReservedCode2: 'f91af608-ecd1-4211-bdac-540102ec74a1'

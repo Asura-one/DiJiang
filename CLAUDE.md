@@ -1,14 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '648c7f03-394d-483a-a023-036bcd6074f1'
-  PropagateID: '648c7f03-394d-483a-a023-036bcd6074f1'
-  ReservedCode1: 'ad573154-4fdf-4fdc-9283-689b30f631ad'
-  ReservedCode2: 'ad573154-4fdf-4fdc-9283-689b30f631ad'
----
-
 # DiJiang
 
 本文件为 Claude 提供 DiJiang 项目上下文。

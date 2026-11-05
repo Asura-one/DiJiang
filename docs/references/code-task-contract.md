@@ -1,15 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: 'cc608c04-f228-4c88-82a6-4911e5fd5e53'
-  PropagateID: 'cc608c04-f228-4c88-82a6-4911e5fd5e53'
-  ReservedCode1: '9c37cb11-2107-4dc9-8269-b346c2bf35cd'
-  ReservedCode2: '9c37cb11-2107-4dc9-8269-b346c2bf35cd'
-review_before: 2028-10-27
----
-
 # Code Task Contract
 
 所有涉及代码实现或 bug 修复的任务自动适用以下合约。

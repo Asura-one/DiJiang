@@ -1,14 +1,3 @@
----
-AIGC:
-  ContentProducer: '001191110102MAD55U9H0F10002'
-  ContentPropagator: '001191110102MAD55U9H0F10002'
-  Label: '1'
-  ProduceID: '74afed85-0c13-40ec-8854-3de3ba08c6e8'
-  PropagateID: '74afed85-0c13-40ec-8854-3de3ba08c6e8'
-  ReservedCode1: '385c18c6-4487-4815-9bc7-18ce662c6c85'
-  ReservedCode2: '385c18c6-4487-4815-9bc7-18ce662c6c85'
----
-
 # DiJiang Project Instructions
 
 本文件是 agent 的最小路由索引，不是第二份 workflow 定义。所有工作流逻辑分散在 skill 中。
