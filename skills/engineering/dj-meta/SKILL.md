@@ -14,7 +14,7 @@ disable-model-invocation: true
 
 SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考文档、不是培训材料、不是项目管理文件。
 
-| ✅ 保留 | ❌ 移到 references/ |
+| ✅ 保留 | ❌ 移到 `.dijiang/spec/` |
 |---|---|
 | 职责（一句话） | 输入/输出规格表 |
 | 工作流步骤（编号列表） | 失败处理表 |
@@ -72,7 +72,7 @@ skill 特化机制（invocation 选择/拆分/路由技能）→ `references/age
 | 触发条件 | 一线修复 | 仍失败兜底 |
 |---|---|---|
 | 新技能概念与现有技能重叠 | 并入现有技能的增量段落或 references | 过 SCOPE 双门槛后再定 |
-| SKILL.md 超 3000B | 规格/模板/失败表移到本技能 references/，跨技能进 docs/references/ | 拆分技能，只留可路由的最小指令 |
+| SKILL.md 超 3000B | 规格/模板/失败表移到 `.dijiang/spec/`（项目级落点，不污染 skill 库） | 拆分技能，只留可路由的最小指令 |
 | 规则缺 why 被后续放宽 | 补一句理由说明边界 | 承重级禁令升级为 SCOPE 双门槛保护 |
 
 ## 创建新技能的模板
@@ -85,7 +85,7 @@ skill 特化机制（invocation 选择/拆分/路由技能）→ `references/age
 | ❌ 不要做 | ✅ 正确做法 |
 |---|---|
 | SKILL.md 超过 3000B | 精简到 800-2500B |
-| 把培训材料写进技能 | 移到 references/ |
+| 把培训材料写进技能 | 移到 `.dijiang/spec/` |
 | 一个技能做多件事 | 拆成多个技能串联 |
 | 技能之间内容重复 | 引用已有的技能 |
 
@@ -94,4 +94,4 @@ skill 特化机制（invocation 选择/拆分/路由技能）→ `references/age
 - `references/skill-fusion-pattern.md` — 跨仓库技能分析与融合方法论，用于从外部 skill 项目中提取模式并融合到本地技能库
 - `references/extension-levels.md` — 能力落层选型矩阵（prompt/skill/script/tool 的最低权限层判定）
 - `references/skill-template.md` — 新技能骨架（含 description 单行格式警告）
-- 深度内容去哪：本技能私有的进 references/，跨技能共享的进 `docs/references/`（判定见 reference-splitting.md）
+- `.dijiang/spec/` — 各技能的项目级辅助参考文档（输入/输出规格、失败处理、原则等；每个使用 DiJiang 的项目由 dj-setup 建好 `.dijiang/`，落这里留在当前项目、不回上游库）
