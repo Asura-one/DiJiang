@@ -1,10 +1,18 @@
 # 变更日志
 
+## [2.2.0] — 2026-11-05
+
+### 新增
+
+- **`docs/references/release-verification.md`**（构建发版验证协议）：从 live 目录 go-release-workflow（用户实战技能，栈特定细节留原处）提炼四段栈无关方法论——摸底先行（方案由现状决定）/拍板决策点（平台矩阵/发版模式/版本注入/命令面逐项确认）/坑表四件套（现象→根因→修复→排查手法；含烂尾脚本假绿、PATH 旧二进制、构建链静默状态污染三条通用排查纪律）/解包实测验证协议（不信文件名，解包跑 --version + file 架构 + checksum 对账）。
+- **anti-patterns #31 顺手改非目标代码 / #32 孤儿清理越界**（karpathy surgical 纪律，live karpathy-guidelines 90% 已覆盖后的 3 条真增量收敛为 2 条）：每行改动可追溯到用户请求；自己改动产生的孤儿必清、既有死代码只提不删。
+
 ## [2.1.0] — 2026-11-05
 
 ### 新增
 
 - **dj-audit 第 4 档 profile：`pattern`**（用户复核 dj-pattern 退役决策后按档案复活条件融合，落点经 evolve/audit 对比拍板）：重复结构/抽象机会扫描——判「该合的」（default 档判「该拆的」，互补镜像）。精华落地 `references/pattern-profile.md`：≥3 次判定、抽象建议五元组门禁（模式/证据/建议/成本/价值）、镜像警示（先查是否已有抽象被绕过）；历史修复聚类引用 git-archaeology、命名漂移协同 domain-modeling，不重复承载。触发词「模式、重复、重复代码、抽象机会、历史修复」并入 dj-audit description（2.0.0 批路由已指向 dj-audit，本批补齐认领）。dj-evolve 落点被否：触发场景（收尾沉淀 vs 随时扫描）、产物类型（SOP 候选 vs 代码报告）、对象域（session 经验 vs repo 结构）三不合。退役档案已补复活执行留痕。
+
 
 ## [2.0.0] — 2026-11-05
 
