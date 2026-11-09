@@ -12,6 +12,21 @@ review_before: 2027-11-06
 - live 目录属于用户 skmanager 域：写入前用户已知晓；第三方技能（mattpocock/ponytail/平台域，非 dj 系）**零触碰**。
 - 跳过条件：本批次纯文档变更（无技能增删改，如仅动 docs/、scripts/、tests/）→ 跳过整步并在 gate 报告里写明。
 
+## 第 0 步：同步前对账（rsync 前必跑）
+
+rsync `--delete` 是单向覆盖：live 侧若有本批次没进 repo 的内容（典型：平台 skill-evolution 直接改 live 不改 repo），会被抹掉。先跑：
+
+```bash
+for s in $(ls "$LIVE" | grep -E "^(dj-|dijiang-)"); do
+  if   [ -d "$REPO/engineering/$s" ]; then src="$REPO/engineering/$s"
+  elif [ -d "$REPO/productivity/$s" ]; then src="$REPO/productivity/$s"
+  else continue; fi
+  diff -rq --exclude=".DS_Store" "$src" "$LIVE/$s" >/dev/null 2>&1 || echo "⚠️ 与 repo 不同：$s"
+done
+```
+
+有差异先判性质：live 比 repo 多内容（平台进化/热修）→ **先回灌 repo 再同步**；live 只是旧版落后 → 直接同步。跳过回灌直接 rsync = 抹掉平台工作。
+
 ## 同步命令
 
 ```bash
@@ -51,5 +66,6 @@ done; echo "检查完毕"
 - **2026-11-05 早**：skmanager 侧误删 4 个活跃技能（questionnaire/teach/wait-what/write），自动同步把它传播到 live——productivity 桶两连击，恢复靠 git 历史（父提交检出）
 - **2026-11-05 晚**：live 全量漂移 32/37——近六批结构变动（吸收/退役/融合/迁徙）都没到 live，dj-ask 用着 8 天前的旧路由图，catalog 还指着已退役技能的坟头
 - 共因：**双向同步 + 无方向权威声明**。本清单把方向红线和验收固化进 finish-work，发版后同步不再是记在人脑里的口头习惯
+- **2026-11-09**：两轮 dj-absorb 平台进化（只写 live）被 finish-work 第 11 步 rsync 覆盖——平台进化 × 单向同步的盲区。靠 `.backup` + 会话记录回灌修复，本文件「第 0 步」由此而生
 
 来源：finish-work 收尾批新增（2026-11-05 拍板「干吧」），承接 live 漂移全量审计结论

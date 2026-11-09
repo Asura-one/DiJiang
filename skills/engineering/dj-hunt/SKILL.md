@@ -1,5 +1,6 @@
 ---
 name: dj-hunt
+name_cn: 系统化排障
 description: "系统化排查 bug：先定位根因，再修复。尤其擅长回归和\"以前好现在坏\"的情况。 Use when the user reports errors, crashes, regressions, failing tests, or unexpected behavior changes — anything that needs root cause investigation. 触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。"
 ---
 
