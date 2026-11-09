@@ -10,6 +10,7 @@
 - **name_cn 补链**：`dj-meta`（技能写作指南）/`dj-hunt`（系统化排障）/`dj-regression-guard`（回归守卫）——修平台进化链路的结构性阻断（live 副本缺 name_cn 时 skill-evolution 无法写入）。
 - **live-sync-checklist 加第 0 步「同步前对账」**：rsync 前先 diff，live 有 repo 没有的内容（平台进化/热修）先回灌再同步——根治单向同步抹掉平台工作的盲区（2026-11-09 实证）。
 - **新增 `docs/guide/pstack-fusion-usage.md`**：v2.5.0 融合批实用指南（说什么/会发生什么/什么时候值得说），index.md 挂链接与新技能叶。
+- **第 0 步对账实战产出——live 旧快照回灌二批**：`dj-implement` 回灌平台进化实测陷阱集（multiedit 部分落盘/CRLF 假 diff/uv 三连坑/stash 归因/go:embed/端口影子/PowerShell 判定 → `references/tooling-pitfalls.md`）+ live 独有 references 两件（`openapi-codegen.md`/`windows-wsl-toolchain.md`）；`dijiang-finish-work` 回灌 Forgejo 无 token 认证兜底（Basic Auth 取 credential store，perimeter 8 issue 实战 → `references/finish-gates.md`）。其余 live 差异经全库比对确认为版本旧漂移，rsync 覆盖处置。
 
 ### 已知债务
 
