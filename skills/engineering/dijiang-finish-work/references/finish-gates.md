@@ -43,6 +43,25 @@ git worktree remove --force .temp/wt-verify-head
 - 任务未完成/放弃/挂起 → issue 保持 open，评论说明当前状态、原因与再启动触发条件（挂起工单写明触发条件，防数据空白期提前动工）
 - 两侧状态一致才收口，Gate 的「Issue 同步」字段必须如实报告
 
+### API 认证兕底（无 token 时不新建）
+
+（perimeter 2026-11-05 实战，8 条 issue 批量关闭全程验证）项目没配 API token 时不必新建——Forgejo/Gitea `/api/v1` 全端点接受 HTTP Basic Auth，凭证直接取 git credential store（`credential.helper=store` → `~/.git-credentials`）中该 Forgejo 主机的条目，git push 用过的账号密码即可调 API：
+
+```powershell
+$cred=(Get-Content "$env:USERPROFILE\.git-credentials" | Where-Object {$_ -match '<forgejo-host>'} | Select-Object -First 1)
+$m=[regex]::Match($cred,'^http://([^:]+):([^@]+)@')  # 凭证文件可能多条，按主机过滤取第一条
+$b64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("$($m.Groups[1].Value):$($m.Groups[2].Value)"))
+$headers=@{Authorization="Basic $b64"}               # 密码不回显、不落盘
+```
+
+### 批量关闭实操（Windows/PowerShell）
+
+- 多条 issue 的 评论→勾选正文→closed→GET 复核 放在**同一个 PowerShell 循环**内完成（变量不跨工具调用保留，凭证读取与使用必须同一条命令）
+- JSON body 用 `Invoke-RestMethod` + `@{body=...}|ConvertTo-Json` 自动转义，可替代 curl.exe+临时文件（实测评论/正文回写/关闭全通）
+- GET 复核用正则计数断言：`- \[ \]` 计数为 0 且 `- \[x\]` 数与验收项数一致
+- 插值坑：`"$n:"` 直接 ParserError（冒号被当变量名分隔符），改用 `("issue {0}" -f $n)` 或 `${n}:`
+- 验收措辞与实现有出入但意图达成（如 issue 写 `02-seed.sql`、实现为 `02-seed.sh`）→ 该项可勾选，但结题评论中如实注记差异，不得悄悄改写验收措辞
+
 ## 5. 反模式全表
 
 | 不要 | 改为这样做 |
@@ -58,3 +77,4 @@ git worktree remove --force .temp/wt-verify-head
 | 不要只改服务器代码文件不重建镜像 | compose 烤入镜像的部署，源码改了不生效；必须 build/load + recreate 容器 |
 | 不要 compose 卡死就死等 | 换真实目录/`-p 原项目名`重试，仍卡则 inspect 提参 + docker run 手动复刻（带上 compose labels） |
 | 不要部署完不进容器验证 | `docker exec grep` 新代码标记 + health + 日志；不验证的部署不算交付 |
+| 不要因项目没配 API token 就卡住或新建 token | Forgejo `/api/v1` 接受 Basic Auth，凭证取 `~/.git-credentials` 该主机条目 |
