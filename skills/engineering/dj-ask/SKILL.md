@@ -25,19 +25,21 @@ disable-model-invocation: true
 ## 入口匝道
 
 - **Issue 堆积** → **`dj-split`（分诊档）**：零散 issue/bug 报告/外部 PR 先分诊（分类→验证→归位）再拆分派发，产出 agent-ready 工单供 `dj-implement` 拾取。PRD 直拆主档不变；只处理**你没创建的** issue。
-- **东西坏了** → **`dj-hunt`**：一眼看不出的 bug、间歇 flake、两好状态间的回归。验证「无缺陷」结论走失败升级阶梯（未到 L4 只写「未充分排查」）；紧反馈环建立前拒绝理论化，"没有好 seam 锁 bug"时复盘交 `dj-codebase-design`。
+- **东西坏了** → **`dj-hunt`**：一眼看不出的 bug、间歇 flake、两好状态间的回归。验证「无缺陷」结论走失败升级阶梯（未到 L4 只写「未充分排查」）；紧反馈环建立前拒绝理论化，"没有好 seam 锁 bug"时复盘交 `dj-codebase-design`。同类错第二次 → **`dj-correct`** 逐级强制防复发（hunt 修单次，correct 灭一类）。
 - **堆熵/变糟了** → **`dj-audit`**：全仓审计四档——default（过度工程+安全，判「该拆的」）/ debt（技术债台账）/ health（仓库健康）/ pattern（重复结构+抽象机会，判「该合的」）。只报告不修改，修复回 `dj-implement`；接手陌生库先跑 git 考古。
-- **无人值守自动化** → **`dj-loop`**：任务想 loop 化（定时/触发/自治）先过 Fitness（ROI 四条件，不值得就拦下）；Design 产出五件套 LOOP-SPEC，Review 过九组上线检查。**只设计不运行**——实现归 `dj-implement`/`dj-script`。
+- **重复回归的重复成本** → **`dj-verify`**：把验证能力物化成项目本地 verify-<app> 技能 + feature map（先跑通再交付），后续回归直接复用。
+- **无人值守自动化** → **`dj-loop`**：任务想 loop 化（定时/触发/自治）先过 Fitness（ROI 四条件，不值得就拦下）；Design 产出五件套 LOOP-SPEC，Review 过九组上线检查。**只设计不运行**——实现归 `dj-implement`/`dj-script`。人走后要回审的长期任务 → **`dj-decision`** 留可审计决策轨迹（TSV 日志+收尾对账+跨模型扫风险）。
 - **巨大模糊工作**（超一个 session）→ **`dj-wayfinder`**：画**决策工单地图**一次解决一个，产出**决策而非交付物**直到路清。地图清后**它交出不构建**——在 **`dj-output`** 折叠决策汇入主流程再 `dj-split` → `dj-implement`；直接跳 `dj-implement` 会丢折叠细节。
 
 ## 单请求路由
 
-收到具体请求（"实现登录""修个 bug"）而非问全貌时：匹配关键词 → 路由到单个 skill，**显式输出目标 skill + 理由**。
+收到具体请求（"实现登录""修个 bug"）而非问全貌时：匹配关键词 → 路由到单个 skill，**显式输出目标 skill + 理由**，并用自己话回述：用户要解决什么问题、若发改动预期什么最小改动——**回述即开工，不等确认**，方向偏了用户会纠；证据表明所求的改动行不通则摆出证据停下，不硬做。
 
 1. **混合任务**取主要类型串联执行（先 `dj-grill` 对齐再 `dj-implement`），不并排路由两个 skill
 2. **低置信度** → `dj-grill` 澄清，不可猜
 3. **re-entry**：任务仍 `planning` 时，用原始用户请求重新走本 skill 路由，不绕过 worktree check（见 `dj-git-guardrails`）
 4. 关键词或歧义拿不准 → 读 `references/routing-table.md`（全量关键词表 + 歧义消解细则）
+5. **回述与 grill 分层**：`dj-grill` 是需求不清时的逐轮拷问门禁（要共享理解确认）；回述是清晰任务开工前的 3 秒防跑偏校验（说了就走）
 
 路由器不是执行器：不替其他 skill 决策、不执行实现、不修改代码；需用户确认的操作（发送、删除、推送）显式提示确认。
 

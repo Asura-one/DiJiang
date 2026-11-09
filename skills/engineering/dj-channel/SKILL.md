@@ -42,7 +42,7 @@ disable-model-invocation: true
 
 ## 组织模式与角色纪律
 
-三模式：主脑+专才（任务可拆分）/ 独立共享（多方案对比）/ **混合**（默认——主脑持目标、专才独立执行）。spawn 时在 task 里声明角色工具边界（coder 不碰浏览器、reviewer 只读、Builder 不得自审自己的产出）；spawn 模板要求子代理把关键过程观察（报错/意外响应/顺带发现）落盘 trace，主 agent 跨通道按关键词检索命中步骤——未升格为正式产物的观察不丢失，边界不变。Scout/Builder/Verifier 权限矩阵与 trace 格式 → `references/role-separation.md`
+三模式：主脑+专才（任务可拆分）/ 独立共享（多方案对比——**一次尝试可能锁死错误形状的非平凡产物升级为竞争择优**：N 候选按先定的评分规则竞争 → 跨agent 交叉评审 → 选基 → 落选者亮点嫁接，六阶段见 `references/arena.md`）/ **混合**（默认——主脑持目标、专才独立执行）。spawn 时在 task 里声明角色工具边界（coder 不碰浏览器、reviewer 只读、Builder 不得自审自己的产出）；spawn 模板要求子代理把关键过程观察（报错/意外响应/顺带发现）落盘 trace，主 agent 跨通道按关键词检索命中步骤——未升格为正式产物的观察不丢失，边界不变。Scout/Builder/Verifier 权限矩阵与 trace 格式 → `references/role-separation.md`
 
 ## 核心规则
 
