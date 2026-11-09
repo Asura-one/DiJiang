@@ -15,6 +15,7 @@
 - **`dj-handoff`**：session 交接——把当前对话压缩为结构化交接文档，供新 session 无缝接手。
 - **`dj-absorb`**：有选择地吸收外部项目的设计模式/交互方式/功能模块/视觉语言，融合到自有项目中。
 - **`dj-loop`**：无人值守 loop 的设计与评审——Fitness（值不值得 loop 化）/ Design（五件套 LOOP-SPEC）/ Review（上线检查清单）。只产出设计文档与评审结论，不建调度器不运行（纯 skill 红线）。
+- **`dj-decision`**：无人值守/长期/多阶段任务的**可审计决策轨迹**——追加式 TSV 决策日志（ts/decision/why/evidence/result，evidence 用指针非散文），默认本地、任务够大才提交；收尾对账日志与 transcript 诚实性，并跨模型扫风险。`dj-loop` 设计它跑起来的任务，人走开后由本技能留轨迹供回审。
 - **`dj-remix`**：系统化 1:1 复刻一个网站/App 的界面与功能，复刻后做差异化改造。
 - **`dj-script`**：一次性或可复用的自动化脚本编写。
 - **`dj-design`**：前端 UI 设计——产出有观点的界面，不是千篇一律的默认样式。
@@ -25,6 +26,7 @@
 - **`dj-memory`** 跨会话检索面：召回时机（何时/何时不用）与召回后落点已并入其正文——"上次怎么解的""之前讨论过吗"直接走 dj-memory 召回。
 - **`dj-evolve`**：任务收尾时回顾发现/经验/纠正，按升格判据筛选可复用经验生成技能更新候选——session 管理的沉淀面，衔接 `dijiang-finish-work` 收口。
 - **`dj-fullstack-testing`**：全栈回归测试引擎（后端分批/API 深度/业务校验/UI 交互/UX 评估）——implement/收口侧的全量档，`dj-check` 是门禁它是火力。
+- **`dj-verify`**：生成项目本地验证技能——为 repo 物化可复用的 verify-<app> 资产（Launch/Doctor/Drive/Evidence/Cleanup 五段 + 用户视角 feature map），先跑通再交付。`dj-fullstack-testing` 的弹药库：引擎每次回归消耗 map，本 skill 一次性投资建 map；feature map 维护走 `dj-gov` 对账。
 - **`dj-meta`** 也为 agent 写文档提供写作规范（AGENTS.md/CLAUDE.md、指针文档；含上下文指针/前置词/修剪纪律，机制详注见其 references/）。
 
 ## 词汇层（详注）
@@ -41,6 +43,7 @@
 不是功能工作，只是养护。
 
 - **`dj-audit`** 在有空时运行，保持代码库对 agent 友好。它扫描过度工程和安全性（含 git 历史考古与重复信号），也可用 `debt` profile（技术债）或 `health` profile（仓库健康）补充。它发现候选；**`dj-codebase-design`** 是设计选中项的工作台。
+- **`dj-correct`**：纠正防复发——挖 agent 重复犯的错误类别（≥2 次才算 class），逐级强制到最高层（架构消除→类型强制→lint/CI→行为测试→文档规则），每个新检查用真实历史错误证明会失败，并在 agent 指令文件维护「规则↔强制者」对照表。衔接：`dj-hunt` 修单次 bug 后交它防复发，`dj-evolve` 是它的文档层兜底，`dj-memory` 的 corrections 是输入素材。
 ## Session 管理（详注）
 
 | Skill | 角色 |

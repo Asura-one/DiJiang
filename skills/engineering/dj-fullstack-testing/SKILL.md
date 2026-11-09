@@ -3,7 +3,7 @@ name: dj-fullstack-testing
 description: "全栈系统回归测试引擎：后端分批 pytest、API 深度验证（契约/Schema 校验、状态码语义、限流、幂等、落盘回读）、业务逻辑正确性校验、Playwright UI 交互测试、UX 启发式评估、结构化测试报告。 Use when the user asks for comprehensive/systematic/regression testing covering all modules, pages, and interactions. 触发词：全量回归、全面测试、系统测试、全栈测试、fullstack testing、覆盖度核对。"
 ---
 
-参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`、`skills/engineering/dj-check/references/output-markers.md`、`skills/engineering/dj-implement/references/code-task-contract.md`。步骤 1-7 细化操作：读 `references/execution-detail.md`。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`、`skills/engineering/dj-check/references/output-markers.md`、`skills/engineering/dj-implement/references/code-task-contract.md`。步骤 1-7 细化操作：读 `references/execution-detail.md`。性能数字发布/决策前过七问：读 `references/benchmark-checklist.md`。
 
 ## Outcome Contract
 
@@ -46,7 +46,7 @@ description: "全栈系统回归测试引擎：后端分批 pytest、API 深度�
 
 ## 配套专项技能
 
-性能/安全/跨浏览器 → `nonfunctional-testing` 承担，完成后如需转它执行，结论回填报告。
+性能/安全/跨浏览器 → `nonfunctional-testing` 承担，完成后如需转它执行，结论回填报告。**任何性能数字（自测耗时或专项回填）写入报告或作为决策依据前，逐问过 `references/benchmark-checklist.md` 七问**（限制器/调平/极限/错误/复现/相关性/真发生），说不出限制器或没查错误与真发生 → 标 inconclusive，不硬下结论。
 
 ## 陷阱
 

@@ -1,5 +1,29 @@
 # 变更日志
 
+## [2.5.0] — 2026-11-09
+
+pstack 融合批（P0 四项 + P1 四项，dj-absorb 五阶段全流程；融合结论固化为「内嵌，或新建+同批挂 dj-ask 三处路由」两条合法出路）。
+
+### 新增
+
+- **`dj-decision`**：可审计决策轨迹——无人值守/长期任务留追加式 TSV 决策日志（ts/phase/decision/why/evidence/result，evidence 指针非散文），收尾对账 transcript 诚实性 + 跨模型扫风险（来源 show-me-your-work）。默认本地，任务够大才提交。模板 `references/decision-log-template.tsv`。
+- **`dj-correct`**：纠正防复发——agent 同类错第二次起，挖错误类别逐级强制到最高层（架构消除→类型→lint/CI→行为测试→文档规则），新检查须在真实历史错误上证明会失败，维护「规则↔强制者」rule table（来源 correct）。分层：dj-hunt 修单次，本 skill 灭一类，dj-evolve 是文档层兜底。
+- **`dj-verify`**：项目本地验证技能生成——interview repo 五问（Surface/Run/Drive/Observe/Isolate）→ 生成 verify-<app> 五段技能 + 用户视角 feature map → 先跑通再交付（来源 create-verification-skill）。与 dj-fullstack-testing 互补（引擎 vs 资产）；feature map 维护走 dj-gov 对账。模板 `references/verify-template.md`。
+- **dj-ask 路由三件套** 全部挂载：SKILL.md 入口匝道 / routing-table.md 触发行 / skill-catalog.md 详注。
+
+### 变更
+
+- **`dj-ask` 单请求路由加回述规则**：路由确认后用自己话回述用户目标 + 最小改动预期，回述即开工不等确认（来源 in-your-own-words）；与 dj-grill 分层写死（grill 是需求不清门禁，回述是 3 秒防跑偏）。新增「重复回归的重复成本 → dj-verify」匝道。
+- **`dj-fullstack-testing`**：性能数字发布/决策前过七问（限制器/调平/极限/错误/复现/相关性/真发生），说不出限制器标 inconclusive → `references/benchmark-checklist.md`（来源 benchmark-checklist）。
+- **`dj-channel`**：「独立共享」模式升级竞争择优——N 候选按先定评分规则竞争 → 跨 agent 交叉评审 → 选基 → 落选者亮点嫁接，六阶段 → `references/arena.md`（来源 arena）。
+- **`dj-evolve`**：大 session 回顾升级三透镜并行评审（判断力/工具链/发散）；候选分类新增「能被 lint/脚本/类型/CI 强制的优先走 dj-correct 机制层，不进 skill 文本」。
+- 新增 `docs/references/principles-glossary.md`：pstack 24 原则四档映射（已有对应 13 / 本轮落地 7 / 真缺口 7 待 evolve 判 / 不采纳 1——Never Block on the Human 与确认红线冲突）。
+
+### 已知债务
+
+- dj-ask 正文 5521B→6354B（存量超线，本批新增已按一句话角色压缩，细节在 catalog）；dj-fullstack-testing 7017B（存量）。
+- principles-glossary 2193 字超 docs 2000 参考上限（映射表信息密度优先，入债）。
+
 ## [2.4.1] — 2026-11-05
 
 live 副本同步机制固化（承接 live 漂移全量审计：32/37 漂移 + productivity 桶两连击误删 + dj-ask 旧路由图）。

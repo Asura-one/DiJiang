@@ -1,0 +1,5 @@
+ts	phase	decision	why	evidence	result
+2026-11-09T10:00:00Z	frame	先盘点覆盖范围再开跑	想先知道工作量再开始长任务	commit abc1234	found 5 件事要处理才开工
+2026-11-09T10:30:00Z	harness	改动前先截图旧版本	以便新旧对比、抓任何视觉变化	scripts/snapshot.sh, baseline/	saved 120 参考截图
+2026-11-09T11:00:00Z	widget	迁移样式且不改外观	保持改动小、结果一致	commit def5678, pixel-diff 0	looks identical, tests pass
+2026-11-09T11:45:00Z	widget	弃用某个 helper 的输出，因截图空白	核实真实文件而非信它的摘要	worktree reset	reverted, tightened instructions

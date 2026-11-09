@@ -26,7 +26,7 @@ description: "任务收尾时回顾本 session 的发现、经验与纠正，按
 
 ### 1. 回顾
 
-扫描本 session 的任务产物与记忆写入（findings / learnings / corrections），列出全部候选经验。先读 `.dijiang/evolution-rejections.md` 拒绝史（若存在），已被拒绝过的不再重复提案。
+扫描本 session 的任务产物与记忆写入（findings / learnings / corrections），列出全部候选经验。先读 `.dijiang/evolution-rejections.md` 拒绝史（若存在），已被拒绝过的不再重复提案。**session 大或经验密度高时升级多视角评审**：spawn 三个并行只读评审子代理，各用一付透镜找候选——判断力透镜（决策质量/边界案例）、工具链透镜（工具错误/流程浪费）、发散透镜（被忽略的可能性/反直觉发现）——单 agent 自扫有盲区，三透镜交叉显著降遗漏；小 session 直接自扫不硬派。
 
 ### 2. 判据筛选（SCOPE.md 升格五问）
 
@@ -43,6 +43,7 @@ description: "任务收尾时回顾本 session 的发现、经验与纠正，按
 |---|---|
 | 单技能流程增强 | 对应 SKILL.md 增量段落 |
 | 跨技能通用纪律 | `docs/references/` 反模式新条目或参考文档 |
+| 能被 lint/脚本/类型/CI 强制的 | **优先走 `dj-correct` 机制层升级**（架构→类型→检查→测试），不进 skill 文本——文字规则 agent 会跳过，机制不会 |
 | 路由不命中 | description 触发词补充 |
 | 全新能力 | 走 `SCOPE.md` 门槛提案——可组合则不建新技能 |
 
