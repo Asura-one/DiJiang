@@ -15,6 +15,7 @@ DiJiang 是纯 skill 架构：所有工作流通过调用 skill 完成，无运�
 │   └── 无测试要求 → dj-implement
 ├── Bug / 回归
 │   ├── 排查根因 → dj-hunt
+│   ├── 同类错防复发（第二次起）→ dj-correct
 │   ├── 改码回归保护 → dj-regression-guard
 │   └── 全量回归测试 → dj-fullstack-testing
 ├── 需求不明确 / 范围模糊
@@ -28,6 +29,8 @@ DiJiang 是纯 skill 架构：所有工作流通过调用 skill 完成，无运�
 ├── 吸收融合 / 复刻
 │   ├── 吸收外部项目模式 → dj-absorb
 │   └── 1:1 复刻界面功能 → dj-remix
+├── 验证资产 / 功能地图生成
+│   └── dj-verify
 ├── 原型验证
 │   └── dj-prototype
 ├── 脚本 / 工具编写
@@ -39,9 +42,13 @@ DiJiang 是纯 skill 架构：所有工作流通过调用 skill 完成，无运�
 │   └── dj-reason
 ├── 最小改动 / YAGNI 约束
 │   └── dj-ponytail
+├── 无人值守长任务决策轨迹
+│   └── dj-decision
 └── Session 交接
     └── dj-handoff
 ```
+
+> 说话方式触发这些能力（含 v2.5.0 融合批）：见 [pstack-fusion-usage.md](pstack-fusion-usage.md)——说什么、会发生什么、什么时候值得说。
 
 ### 按任务状态选择
 

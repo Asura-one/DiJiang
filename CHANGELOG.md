@@ -1,5 +1,20 @@
 # 变更日志
 
+## [2.5.1] — 2026-11-09
+
+平台进化回灌 + 同步护栏 + 融合批使用指南（承接 2.5.0：finish-work 的 repo→live rsync 覆盖了平台 skill-evolution 写入 live 的两轮 dj-absorb 更新，本批从 `.backup` + 会话记录回灌修复）。
+
+### 变更
+
+- **`dj-absorb` 平台进化回灌**：融合形式前置判定终局规则（两条合法出路：内嵌，或新建 + 同批挂 dj-ask 三处路由，缺一即死技能；『必须内嵌不可新建』是过度矫正）+ Hard Rule 9（grill 逐轮拷问，live 抢先版首次入库）+ 四 Gotchas（四态分类/单一入口不挂路由/体积红线写前预算）；新增 `references/pstack-fusion-evaluation.md`（融合任务全存档：同构判断/落地清单/摸底备忘/Phase 3 实证教训，含平台进化 × 单向同步冲突复盘）。
+- **name_cn 补链**：`dj-meta`（技能写作指南）/`dj-hunt`（系统化排障）/`dj-regression-guard`（回归守卫）——修平台进化链路的结构性阻断（live 副本缺 name_cn 时 skill-evolution 无法写入）。
+- **live-sync-checklist 加第 0 步「同步前对账」**：rsync 前先 diff，live 有 repo 没有的内容（平台进化/热修）先回灌再同步——根治单向同步抹掉平台工作的盲区（2026-11-09 实证）。
+- **新增 `docs/guide/pstack-fusion-usage.md`**：v2.5.0 融合批实用指南（说什么/会发生什么/什么时候值得说），index.md 挂链接与新技能叶。
+
+### 已知债务
+
+- dj-absorb 正文 3631B（存量 3054 + 本批净增 ~577，细则已外溢 pstack-fusion-evaluation.md，再压将损失红线表述完整性，入债）。
+
 ## [2.5.0] — 2026-11-09
 
 pstack 融合批（P0 四项 + P1 四项，dj-absorb 五阶段全流程；融合结论固化为「内嵌，或新建+同批挂 dj-ask 三处路由」两条合法出路）。
