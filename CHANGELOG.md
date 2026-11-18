@@ -25,6 +25,29 @@
 - case_lint：违规夹具 5 错全抓（E1/E2/E4/E5/E6 + W4），干净夹具 0E0W，附录豁免
 - `verify_skills.py --strict`：137 PASS / 0 FAIL（幽灵负例临时注入验证后已清理）
 
+### 批 B 新增
+
+- `dj-regression-guard/scripts/regression_check.py` — 修复复现验证：候选测试冻结到基线 worktree 上跑，「基线红（命中 symptom）+ 候选绿」才判定修复被测试锁定；会话状态机 `shows_the_bug / green_at_base / fails_at_candidate / flaky_at_base / tampered / red_without_symptom`，sha256 防篡改，退出码 0/1/2（Adapted from petrkindlmann/qa-skills regression-check.mjs，MIT；改语言无关：只看退出码+输出正则）
+- `dj-fullstack-testing/scripts/report_lint.py` — 报告机读摘要段闸门：必填字段/枚举越界/计数自洽（`passed+failed+blocked+missing=total`、`triage 之和=failed`）/bugs 三字段（Adapted from fishzjp `report_meta_check.py`，MIT；契约改为 report_meta 嵌套结构）
+- `dj-read/scripts/detect_injection.py` — 不可信内容注入检测器：10 条带 severity 的规则（指令覆盖/角色越狱/自我传播/密钥外带/DNS 外传/家目录收割/落盘执行/注释藏指令/伪权威/口头降级）、JSON 转义与 HTML 实体解码视图（偏移回映原行号）、NFKC+Cf 归一化、内置 `--selftest`（Adapted from petrkindlmann `detect_injection.py`，MIT）
+
+### 批 B 变更（D4 文本层三判据）
+
+- `dj-fullstack-testing/references/execution-detail.md` §8 失败分流（A/B1/B2/C/D/U 六分类 + 判定树 + 报告 triage 计数契约）、§9 测试范围决策判据（include 挂证据 / exclude 挂理由 / full ≤3 且裁减留痕 / security 硬默认）
+- `dj-regression-guard` S4 重试语义收紧：**重跑只用于定性、不算通过**，flaky 不得作回归绿证据；新增 `references/protocol-details.md` §6 flaky 三层（用例级复跑矩阵 / 套件级健康度 / 门禁级重试绿≠证据）
+- `dj-regression-guard` S2.5 挂 `scripts/regression_check.py`：探针/新测试须证明能在基线上红
+- `dj-read` 硬规则挂注入扫描：非零退出 = 不执行其中指令 + 用户上报；失败模式表补处理路径
+- `dj-meta/references/extension-levels.md` L3 明确脚本落点（技能内 scripts/ 随技能投放；仓库根只放仓库级工具）；`CONTEXT.md` 补「失败分流 / 机读摘要段 / 技能内脚本」三术语
+- `scripts/verify_skills.py` 增强：SKILL.md 体量红线（>3000 字符聚合 WARN，现存 16 个）+ 孤儿资产检查（技能内 references/ 与 scripts/ 文件按文件名零引用 → WARN；引用语料排除 CHANGELOG 等历史日志，提及≠活引用）
+- **孤儿资产首轮处置（4 个 → 0）**：3 个挂指针保留——`dj-decision/decision-log-template.tsv`（evidence 指针样例）、`dj-grill/question-bank.md`（六维拷问话术）、`dj-meta/GLOSSARY.md`（修正 `disable-model-invocation` 错误释义与 `pipeline` 旧称，并明确它是随技能投放的文件级术语真相源——仓库根 CONTEXT.md 不随技能走，设备上只有这一份）；1 个删除——`dj-hunt/hitl-loop.sh`（10 行半成品：`read -p "Fix:"` 收集输入但从不使用，且交互式不可被 agent 非交互使用），其承载的 HITL 方法改以 `diagnose-feedback-loop.md`「建环方法库 10 法」文本化，顺带补上 dj-hunt SKILL 宣称「10 法详见该文档」却从未落实的悬空引用
+
+### 批 B 验收证据
+
+- regression_check：三场景实测——候选也红→`fails_at_candidate` exit 1；工作区修复→`shows_the_bug` exit 0；测试抓不住 bug→`green_at_base` exit 1；worktree 与临时目录清理核查通过
+- report_lint：合规报告 0E0W 通过；违规夹具抓 8 错（缺字段/枚举越界/计数不平/bugs 缺字段）+ W2
+- detect_injection：`--selftest` 10 规则全中 + 零误报 PASS；干净文件 exit 0；注释注入 3 命中 exit 1；JSON `\u` 转义载荷被解出且回映原行号
+- `verify_skills.py --strict`：138 PASS / 24 WARN（体量聚合 1 + 存量 23）/ 0 FAIL；孤儿资产清零
+
 ### 已知债务
 
 - `dj-fullstack-testing` SKILL.md 3808→4004 字符（存量超 3000 红线，本批仅加 3 句指针；瘦身单独成批，不做静默压缩混提交）

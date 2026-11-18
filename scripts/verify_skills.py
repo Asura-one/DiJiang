@@ -450,6 +450,74 @@ def check_phantom_scripts(rep):
         rep.ok(f"phantom scripts：{len(targets)} 文件扫描零幽灵")
 
 
+def check_skill_size(rep, skills):
+    """SKILL.md 体量红线：正文超 3000 字符（存量债务如实暴露，聚合为一条 WARN）。"""
+    over = []
+    for bucket, name, path in skills:
+        try:
+            n = len(open(path, encoding="utf-8").read())
+        except OSError as e:
+            rep.fail(f"[size] 读取失败 {bucket}/{name}: {e}")
+            continue
+        if n > 3000:
+            over.append((f"{bucket}/{name}", n))
+    if over:
+        listing = "、".join(f"{n}({c})" for n, c in sorted(over, key=lambda x: -x[1]))
+        rep.warn(f"[size] SKILL.md 超 3000 字符红线 {len(over)} 个：{listing}")
+    else:
+        rep.ok("SKILL.md 体量：全部 ≤3000 字符")
+
+
+def check_orphan_assets(rep, skills):
+    """孤儿资产：技能内 references/ 与 scripts/ 文件未被任何 Markdown 按文件名引用。
+
+    豁免：README.md（目录索引）、隐藏文件。只做 WARN——引用也可能是目录级指针，
+    文件名检索不到不等于死资产，交人工判定。
+    """
+    md_texts = {}
+    for d in ("skills", "docs"):
+        base = os.path.join(ROOT, d)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, _, files in os.walk(base):
+            for fn in files:
+                if fn.endswith(".md"):
+                    p = os.path.join(dirpath, fn)
+                    try:
+                        md_texts[p] = open(p, encoding="utf-8").read()
+                    except OSError:
+                        pass
+    for fn in ("AGENTS.md", "README.md", "CONTEXT.md"):  # CHANGELOG 是历史日志，提及≠活引用
+        p = os.path.join(ROOT, fn)
+        if os.path.exists(p):
+            try:
+                md_texts[p] = open(p, encoding="utf-8").read()
+            except OSError:
+                pass
+
+    orphans = []
+    checked = 0
+    for bucket, name, _path in skills:
+        skill_dir = os.path.join(ROOT, "skills", bucket, name)
+        for sub in ("references", "scripts"):
+            base = os.path.join(skill_dir, sub)
+            if not os.path.isdir(base):
+                continue
+            for dirpath, _, files in os.walk(base):
+                for fn in files:
+                    if fn.startswith(".") or fn == "README.md":
+                        continue
+                    checked += 1
+                    if not any(fn in text for t_path, text in md_texts.items()
+                               if os.path.abspath(t_path) != os.path.abspath(os.path.join(dirpath, fn))):
+                        orphans.append(f"{bucket}/{name}/{sub}/{fn}")
+    if orphans:
+        for o in orphans:
+            rep.warn(f"[orphan-asset] {o} 未被任何 Markdown 按文件名引用（死资产或目录级指针，人工判定）")
+    else:
+        rep.ok(f"orphan assets：{checked} 个技能内资产全部有引用")
+
+
 def main():
     strict = "--strict" in sys.argv
     rep = Report()
@@ -475,6 +543,8 @@ def main():
     check_tail_pointers(rep, skills)
     check_index_coverage(rep, skills)
     check_phantom_scripts(rep)
+    check_skill_size(rep, skills)
+    check_orphan_assets(rep, skills)
 
     print(f"PASS {len(rep.passes)}  |  WARN {len(rep.warns)}  |  FAIL {len(rep.fails)}")
     for w in rep.warns:

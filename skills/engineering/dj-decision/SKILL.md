@@ -16,6 +16,8 @@ disable-model-invocation: true
 
 单个 TSV，一行一个决策点（cell 单行）。列：`ts`（ISO8601）｜`phase`｜`decision`（做了什么，一行）｜`why`（白话讲原因）｜`evidence`（**指针非散文**：commit SHA / PR 号 / `file:line` / 产物或截图路径）｜`result`（`tests green` / `reverted` / `INCONCLUSIVE` / `open`）。
 
+填充示例（含 evidence 指针写法）见 `references/decision-log-template.tsv`。
+
 记**决策点与检查点**，非每个动作：分叉的选择、单元完成及其验证结果、转向/回滚及其触发、阻塞浮出、门禁被修。loop 一轮一行，跳过琐碎与不言自明的。
 
 ### 2. 位置与提交

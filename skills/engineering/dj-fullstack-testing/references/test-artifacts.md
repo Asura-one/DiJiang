@@ -46,7 +46,7 @@ report_meta:
     blocked: 1                # 环境阻塞待重跑
     missing: 0                # 覆盖度核对 MISSING，必须为 0 才允许出报告
   exit_code_hint: 1           # 0 可发布 | 1 存在阻断缺陷 | 2 有条件发布 | 3 未完成
-  triage:                     # failed 条目的失败四分类计数（A 真缺陷/B1 预期未跟上/B2 用例写错/C 环境故障/D flaky/U 待判）
+  triage:                     # failed 条目的失败六分类计数（判定树见 execution-detail.md §8；六类之和 = failed）
     A: 2                      # 真缺陷 → 缺陷清单
     B1: 0                     # 预期变更未跟上（须挂变更依据）
     B2: 0                     # 用例自身写错 → 修订用例

@@ -144,3 +144,15 @@ loop 的权限阶梯：L1 只读观察（新 loop 一律起步）→ L2 出 PR �
 ### 证据三态
 
 验收结论的合法枚举：**verified**（可复现证据在手）/ **not run**（没测 + 原因）/ **inconclusive**（测了但证据不足，不硬凑通过）。权威定义见 `skills/engineering/dj-check/references/evidence-gate.md`。
+
+### 失败分流（triage）
+
+一轮测试失败 ≥3 条时的首轮分类：**A** 真缺陷 / **B1** 预期变更未跟上（挂变更依据）/ **B2** 用例自己写错 / **C** 环境与依赖故障（修复后原样重跑）/ **D** flaky（重跑只定性、不算通过）/ **U** 证据不足待人工。六类计数写入报告机读摘要段 `triage`，之和 = `failed`。判定树见 `skills/engineering/dj-fullstack-testing/references/execution-detail.md` §8。
+
+### 机读摘要段（report_meta）
+
+测试报告文末唯一 yaml 代码块：project/date/source_run/summary/exit_code_hint/triage/bugs。流水线与门禁**只解析此段**，契约见 `skills/engineering/dj-fullstack-testing/references/test-artifacts.md` §2，校验脚本 `report_lint.py`。
+
+### 技能内脚本（skill-local scripts）
+
+挂在 `skills/<bucket>/<skill>/scripts/` 的确定性工具，随技能目录整目录投放 live（rsync），技能文档里的 scripts/ 相对路径按本技能目录解析（如 enum_count.py 就挂在 dj-fullstack-testing 下）；仓库根 `scripts/` 只放仓库级工具、不随技能走。落层判据见 `skills/engineering/dj-meta/references/extension-levels.md` L3。

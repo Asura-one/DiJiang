@@ -38,11 +38,11 @@ description: "全栈系统回归测试引擎：后端分批 pytest、API 深度�
 
 **4. API 端点深度验证**：基础（状态码+体量+耗时）+ 契约/Schema（有 OpenAPI 用 schemathesis，无则快照落盘 diff）+ 状态码语义（201/204/400/401/403/404/409）+ 限流（429+Retry-After）+ 幂等（重复 POST/Idempotency-Key）+ 数据落盘回读。矩阵细节见 references。
 
-**5. UI 交互测试（双层）**：API 通过 ≠ UI 通过。5.1 逐个调用命令验 CRUD+边界；5.2 逐页验证矩阵 + 视觉基线 + axe + 控制台；5.3 UX 维度评估（能用 ≠ 好用，UX 清单独立计数）；5.4 oracle 比对（好用 ≠ 结果对），核心写操作多层次追踪（UI→HTTP→后端→DB→下游）。细节见 references。
+**5. UI 交互测试（双层）**：API 通过 ≠ UI 通过。5.1 逐个调用命令验 CRUD+边界；5.2 逐页验证矩阵 + 视觉基线 + axe + 控制台（页面侦察/控制台与网络抓取走 `scripts/webapp_probe.py` 的 discover/console/shot）；5.3 UX 维度评估（能用 ≠ 好用，UX 清单独立计数）；5.4 oracle 比对（好用 ≠ 结果对），核心写操作多层次追踪（UI→HTTP→后端→DB→下游）。细节见 references。
 
 **6. 覆盖度核对（🔴 强制 — 完成后才允许输出报告）**：🛑 STOP：MISSING > 0 必须补测。逐项 ✅/❌/⏭️/⬜；只验证"无报错"未比对结果的标 SKIP 注明。
 
-**7. 结构化测试报告（→ docs/testing/）**：覆盖度总表 + API 结论 + 业务逻辑校验 + UX 清单 + 双覆盖率差异 + 视觉/可访问 + 非功能引用 + 缺陷清单 + **发布建议**（✅/⚠️/❌）。结构细节见 references。
+**7. 结构化测试报告（→ docs/testing/）**：覆盖度总表 + API 结论 + 业务逻辑校验 + UX 清单 + 双覆盖率差异 + 视觉/可访问 + 非功能引用 + 缺陷清单 + **发布建议**（✅/⚠️/❌）。批量失败按六分类分流（references §8）；文末必附机读摘要段（契约 `references/test-artifacts.md` §2，落盘后跑 `scripts/report_lint.py`）。结构细节见 references。
 
 ## 配套专项技能
 
