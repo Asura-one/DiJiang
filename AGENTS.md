@@ -79,6 +79,7 @@
 | 文字润色 | `dj-write` | model |
 | 决策问卷 | `dj-questionnaire` | user |
 | 消息重述 | `dj-wait-what` | user |
+| 跨会话教学 | `dj-teach` | user |
 
 ## 工作流状态机
 

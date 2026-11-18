@@ -1,6 +1,7 @@
 ---
 name: dj-meta
 name_cn: 技能写作指南
+description_cn: "Skill 写作指南：dj-* 设计原则与写作规范，创建审查技能并为 agent 写文档提供规范。"
 description: "Skill 写作指南：记录 dj-* 的设计原则和写作规范，用于创建和审查技能；也为 agent 写文档（AGENTS.md/CLAUDE.md 及指针文档）提供写作规范。 触发词：写 skill、创建技能、skill 规范、技能指南、agent 文档、AGENTS.md、写作规范、为 agent 写、文档规范、meta。"
 disable-model-invocation: true
 ---
@@ -95,5 +96,6 @@ skill 特化机制（invocation 选择/拆分/路由技能）→ `references/age
 - `references/skill-fusion-pattern.md` — 跨仓库技能分析与融合方法论，用于从外部 skill 项目中提取模式并融合到本地技能库
 - `references/extension-levels.md` — 能力落层选型矩阵（prompt/skill/script/tool 的最低权限层判定）
 - `references/skill-template.md` — 新技能骨架（含 description 单行格式警告）
+- `references/context-diet.md` — 指令层瘦身 runbook（每轮注入内容审计/归位/压缩 13 步 + 实测坑：触发词是路由锚点与守卫数据源，不可挪出 description）
 - `references/GLOSSARY.md` — 技能写作术语表（SKILL.md/references/scripts/frontmatter/flow 等，随技能投放的文件级真相源）
 - `.dijiang/spec/` — 各技能的项目级辅助参考文档（输入/输出规格、失败处理、原则等；每个使用 DiJiang 的项目由 dj-setup 建好 `.dijiang/`，落这里留在当前项目、不回上游库）

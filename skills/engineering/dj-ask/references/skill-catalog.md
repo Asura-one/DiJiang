@@ -7,6 +7,7 @@
 - **`dj-merge-conflict`**：解决进行中的 merge/rebase 冲突，逐 hunk 按 **意图** 追溯到两侧的原始来源，不靠挑行。永不 `--abort`。已在冲突中时用它。
 - **`dj-research`**：把阅读腿活委托给后台 agent：它调查问题、查原始来源、在仓库里留一份带引用的 Markdown 文件。你继续干活，它在读。产出拿进主流程的 `dj-grill`。
 - **`dj-questionnaire`**：阻塞你的东西不在你脑子里或代码库里，而在**别人**那里时用。它写一份问卷给那个人填。它是 `dj-grill` 的反面：不拷问你关于主题，而是拷问你关于**发送**（给谁、需要什么回来）。回来的东西是 `dj-grill` 或 `dj-output` 的素材。
+- **`dj-teach`**：用户要**跨多个 session 学一个主题**（不是问一次）时用。把当前工作区变成教学工作区：MISSION 锚定学习动机，lessons 逐课窄话题输出，learning-records 累积教训计算最近发展区。一次性问答不走它。
 - **`dj-wizard`**：只有**人类**能做的步骤：配置基础设施、设置凭据或 CI secret、点过陌生的三方仪表盘、跑一次性迁移。生成一个交互式 bash 脚本，开每个 URL、抓每个值、写进 `.env`，让流程不再每次重新跟 agent 解释。
 - **`dj-wait-what`**：消息没接住时的纠正。在对话中任何 skill 内部使用，agent 用 `CONTEXT.md` 的词汇重新讲一遍刚才说的，补上你缺的上下文。
 - **`dj-read`**：获取 URL 和 PDF，总结或返回干净 Markdown。

@@ -82,13 +82,14 @@ cp -r skills/ /path/to/your-project/
 | `dijiang-continue` | user | 继续会话 |
 | `dijiang-finish-work` | user | 收尾工作 |
 
-### Productivity（3 skills）
+### Productivity（4 skills）
 
 | Skill | 调用模式 | 触发 |
 |-------|---------|------|
 | `dj-write` | model | 文字润色、去 AI 味 |
 | `dj-questionnaire` | user | 决策问卷生成 |
 | `dj-wait-what` | user | 消息重述 |
+| `dj-teach` | user | 跨会话教学（状态化教学工作区） |
 
 ## Canonical Workflow
 
