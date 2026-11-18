@@ -1,5 +1,34 @@
 # 变更日志
 
+## [2.5.2] — 2026-11-18
+
+测试脚本资产批：从三个开源 QA 技能库（anthropics/skills webapp-testing、fishzjp/qa-skills、petrkindlmann/qa-skills）吸收通用脚本，补上「纯 skill 库无脚本」的结构性缺口。落点定为技能内 `scripts/`（随 rsync 整目录投放 live），非仓库根 `scripts/`（不随技能走，单独安装即断链）。
+
+### 批 A 新增
+
+- `dj-fullstack-testing/scripts/with_server.py` — 多服务编排：端口+HTTP 双探活、日志落盘 `.temp/with-server/`、进程组级清理不留孤儿、退出码透传（Adapted from anthropics/skills webapp-testing，Apache-2.0；改造点见文件头）
+- `dj-fullstack-testing/scripts/webapp_probe.py` — 页面探测三合一：`discover` 元素发现（喂步骤 1 枚举清单）/ `console` 控制台+网络失败监听（`--click` 触发 + `--fail-on-error`）/ `shot` 截图（Apache-2.0）
+- `dj-fullstack-testing/scripts/enum_count.py` — 枚举交叉校验闸门：代码 grep 计数 vs checklist 条数，数差即 FAIL（Adapted from fishzjp/qa-skills `scan_signals.py` 确定性扫描思路，MIT）
+- `dj-fullstack-testing/scripts/case_lint.py` — 用例红线闸门：编号规范/重复/模块号/占位符/不可判定预期（「不报错」红线）/异步时限/P0 占比（Adapted from fishzjp `case_lint.py`，MIT）
+- `dj-fullstack-testing/references/test-artifacts.md` — 用例格式与报告机读摘要段契约（case_lint 的权威定义；§2 报告摘要是 report_lint 的校验对象）
+
+### 批 A 变更
+
+- `scripts/verify_skills.py` 幽灵脚本守卫改双解析：技能内文档先解析 `<技能目录>/scripts/`、再回退仓库根——技能内脚本随技能投放 live 后引用不断链
+- `dj-fullstack-testing` SKILL.md / execution-detail.md 三处最小指针（交叉校验走 enum_count、编排走 with_server、用例契约读 test-artifacts）
+
+### 验收证据（批 A）
+
+- with_server：就绪探测→命令→清理（`lsof` 0 LISTEN）；失败路径打印日志尾部 exit 1
+- webapp_probe：discover 抓全 4 按钮/2 链接/3 控件；console 点击触发 404+pageerror → `--fail-on-error` exit 1；shot 移动端整页落盘
+- enum_count：fixture 3≤3 PASS / 4>3 FAIL exit 1；表头行正确剔除
+- case_lint：违规夹具 5 错全抓（E1/E2/E4/E5/E6 + W4），干净夹具 0E0W，附录豁免
+- `verify_skills.py --strict`：137 PASS / 0 FAIL（幽灵负例临时注入验证后已清理）
+
+### 已知债务
+
+- `dj-fullstack-testing` SKILL.md 3808→4004 字符（存量超 3000 红线，本批仅加 3 句指针；瘦身单独成批，不做静默压缩混提交）
+
 ## [2.5.1] — 2026-11-09
 
 平台进化回灌 + 同步护栏 + 融合批使用指南（承接 2.5.0：finish-work 的 repo→live rsync 覆盖了平台 skill-evolution 写入 live 的两轮 dj-absorb 更新，本批从 `.backup` + 会话记录回灌修复）。

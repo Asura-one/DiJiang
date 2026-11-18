@@ -22,8 +22,10 @@
 | 后端 API | `grep -rE "@app\.(get\|post\|put\|delete)\|#\[tauri::command\]" -r .` | 后端命令清单行数 |
 | 交互入口 | `grep -rE "@click\|@submit\|@change\|onClick=" --include="*.vue" --include="*.tsx" -r src` | 交互入口清单行数 |
 
+三行均可机械执行：`scripts/enum_count.py --preset <routes-vue|api-fastapi|api-tauri|ui-vue|ui-react> --root <目录> --checklist <枚举文档> --section "<章节>"`（预设清单 `--list`；代码计数 > 清单条数即 FAIL）。
+
 ### 1.7 测试用例生成
-可自动化 → `tests/`：`test_api_<module>.py` / `test_ui_<page>.spec.ts`，脚本头部注释 commit id + `# Covers: TC-xxx`。不可自动化 → `docs/test-cases/test-case-spec.md`（TC-xxx：触发方式/预期行为/测试方法/优先级）。同一功能点脚本与文档不重复定义，互相引用编号。
+可自动化 → `tests/`：`test_api_<module>.py` / `test_ui_<page>.spec.ts`，脚本头部注释 commit id + `# Covers: TC-xxx`。不可自动化 → `docs/test-cases/*.md`（格式与红线契约见 `references/test-artifacts.md` §1，落盘后必跑 `scripts/case_lint.py`）。同一功能点脚本与文档不重复定义，互相引用编号。
 
 ## 2. 后端分批执行
 

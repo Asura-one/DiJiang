@@ -3,7 +3,7 @@ name: dj-fullstack-testing
 description: "全栈系统回归测试引擎：后端分批 pytest、API 深度验证（契约/Schema 校验、状态码语义、限流、幂等、落盘回读）、业务逻辑正确性校验、Playwright UI 交互测试、UX 启发式评估、结构化测试报告。 Use when the user asks for comprehensive/systematic/regression testing covering all modules, pages, and interactions. 触发词：全量回归、全面测试、系统测试、全栈测试、fullstack testing、覆盖度核对。"
 ---
 
-参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`、`skills/engineering/dj-check/references/output-markers.md`、`skills/engineering/dj-implement/references/code-task-contract.md`。步骤 1-7 细化操作：读 `references/execution-detail.md`。性能数字发布/决策前过七问：读 `references/benchmark-checklist.md`。
+参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`、`skills/engineering/dj-check/references/output-markers.md`、`skills/engineering/dj-implement/references/code-task-contract.md`。步骤 1-7 细化操作：读 `references/execution-detail.md`。性能数字发布/决策前过七问：读 `references/benchmark-checklist.md`。用例/报告产物契约（`scripts/case_lint.py` 红线的权威定义）：读 `references/test-artifacts.md`。
 
 ## Outcome Contract
 
@@ -28,11 +28,11 @@ description: "全栈系统回归测试引擎：后端分批 pytest、API 深度�
 
 **0. 文档触发检查（commit-id 守门）**：读枚举文档头 commit 字段比对 `git log -1`；相同复用，不同才枚举。首次建档 `docs/project-understanding.md`（技术栈/启动/产物/风险分级），基础设施变更时才增量更新。变更按 diff 映射缩范围分级（见 references）。**缺陷验证 ≠ 回归测试**：先窄范围复测被修复项。
 
-**1. 功能枚举（🔴 强制）**：从代码自动提取，不靠记忆。路由/后端命令/交互入口/异常路径/业务场景五清单合并为 checklist 总表（**预期结果必须写具体断言**，禁止"不报错"占位），落盘 enumeration 文档。每条断言标来源：**需求依据**（PRD/验收标准明写）vs **经验臆测**（补猜，标 ⚠️ 待确认）——报告单列臆测页供评审只翻此页。🔴 交叉校验：每类 grep 独立计数，大于清单 → 回补。变更时生成测试用例（可自动化 → tests/，否则 test-case-spec.md）。
+**1. 功能枚举（🔴 强制）**：从代码自动提取，不靠记忆。路由/后端命令/交互入口/异常路径/业务场景五清单合并为 checklist 总表（**预期结果必须写具体断言**，禁止"不报错"占位），落盘 enumeration 文档。每条断言标来源：**需求依据**（PRD/验收标准明写）vs **经验臆测**（补猜，标 ⚠️ 待确认）——报告单列臆测页供评审只翻此页。🔴 交叉校验：每类独立计数（可机械走 `scripts/enum_count.py --preset <类别> --checklist <枚举文档> --section <章节>`），大于清单 → 回补。变更时生成测试用例（可自动化 → tests/，否则 test-case-spec.md）。
 
 **2. 后端分批执行**：不一次跑全量。Web 每批 1-3 文件 `pytest ... --timeout=30`；Rust 每批一模块；清单与代码覆盖率双指标互为校验。注意 Cargo 子目录 `.rs` 发现陷阱（需显式 `[[test]]`）。细节见 references。
 
-**3. 启动前后端**：按建档优先级（产物→Makefile→scripts→兜底），不临时现拼。FastAPI 例 `NO_PROXY=127.0.0.1,localhost uvicorn ... --port 8010 --reload` + curl health 200。Tauri 走 CDP；无设备降级（Rust 走 cargo test、UI 走 Playwright，报告标 SKIP 原因）。**平台陷阱**：系统代理拦截 localhost → `--noproxy`/`NO_PROXY`；httpx `trust_env=False`。
+**3. 启动前后端**：按建档优先级（产物→Makefile→scripts→兜底），不临时现拼；多服务编排与就绪探测走 `scripts/with_server.py`（进程组级清理不留孤儿）。FastAPI 例 `NO_PROXY=127.0.0.1,localhost uvicorn ... --port 8010 --reload` + curl health 200。Tauri 走 CDP；无设备降级（Rust 走 cargo test、UI 走 Playwright，报告标 SKIP 原因）。**平台陷阱**：系统代理拦截 localhost → `--noproxy`/`NO_PROXY`；httpx `trust_env=False`。
 
 **3a. 冒烟测试（🔴 强制关卡 — 不通过禁止进 4/5/6）**：服务启动 + health 200 + 首页无白屏 + 登录走通 + 高风险核心 API 正常。任一失败 → 🛑 STOP，输出阻断性缺陷报告。
 

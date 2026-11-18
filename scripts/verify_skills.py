@@ -395,8 +395,22 @@ def check_index_coverage(rep, skills):
 # audit-inventory.sh 缺失）。占位符（含 <>）与 .dijiang/ 惰性路径天然不匹配。
 SCRIPT_REF_RE = re.compile(r"`(scripts/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+)`")
 
+
+def _skill_dir_of(md_path):
+    """md 若位于 skills/<bucket>/<name>/ 下，返回该技能目录；否则 None（如 docs/ 或根部文档）。"""
+    rel = os.path.relpath(md_path, ROOT)
+    parts = rel.split(os.sep)
+    if len(parts) >= 4 and parts[0] == "skills":
+        return os.path.join(ROOT, *parts[:3])
+    return None
+
+
 def check_phantom_scripts(rep):
-    """幽灵脚本守卫：引用的仓库内 scripts 路径必须存在，幽灵即 FAIL。"""
+    """幽灵脚本守卫：引用的脚本必须存在——技能内文档先解析到技能目录 scripts/，再回退仓库根。
+
+    解析顺序（F2.5 脚本资产吸收约定）：技能内 scripts/ 随 rsync 整目录投放 live，
+    技能文档里的 `scripts/xxx.py` 相对本技能目录；仓库级根 scripts/ 只服务根部文档。
+    """
     targets = []
     for d in ("skills", "docs"):
         base = os.path.join(ROOT, d)
@@ -416,13 +430,22 @@ def check_phantom_scripts(rep):
         except OSError as e:
             rep.fail(f"[phantom-script] 读取失败 {rel}: {e}")
             continue
+        skill_dir = _skill_dir_of(p)
         for m in SCRIPT_REF_RE.finditer(text):
             ref = m.group(1)
-            if not os.path.exists(os.path.join(ROOT, *ref.split("/"))):
+            frag = ref.split("/")
+            resolved = None
+            if skill_dir is not None:
+                cand = os.path.join(skill_dir, *frag)
+                if os.path.exists(cand):
+                    resolved = cand
+            if resolved is None and os.path.exists(os.path.join(ROOT, *frag)):
+                resolved = os.path.join(ROOT, *frag)
+            if resolved is None:
                 ghosts.append(f"{rel} → {ref}")
     if ghosts:
         for g in ghosts:
-            rep.fail(f"[phantom-script] 幽灵脚本引用: {g}——引用的仓库脚本不存在（迁移残留或笔误）")
+            rep.fail(f"[phantom-script] 幽灵脚本引用: {g}——技能目录与仓库根均不存在（迁移残留或笔误）")
     else:
         rep.ok(f"phantom scripts：{len(targets)} 文件扫描零幽灵")
 
