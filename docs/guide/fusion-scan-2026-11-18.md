@@ -115,7 +115,7 @@
 
 | # | 落点 | 验证 |
 |---|---|---|
-| A1 | `dj-regression-guard/references/quality-contract.md` + `scripts/floor_guard.py` | `tests/test_floor_guard.py` 8/8 通过 |
+| A1 | `dj-regression-guard/references/quality-contract.md` + `skills/engineering/dj-regression-guard/scripts/floor_guard.py` | `tests/test_floor_guard.py` 8/8 通过 |
 | A2 | `dj-meta/references/trigger-testing.md`；dj-meta 引用行、dj-evolve 验证步接入 | 结构体检：44 技能、触发词 44/44、负向边界仅 2 处 |
 | A3 | `dj-check/references/review-dual-axis.md` + SKILL 报告模板 | 四级分档与复核节写入 |
 | A4 | `dj-check/references/delivery-risk.md` | L1–L5 证据阶梯 |
@@ -125,8 +125,20 @@
 
 机械守卫：PASS 141 / WARN 28 / FAIL 0；门禁突变测试 9/9。新增 WARN 来源：本报告 2 条（长度/历史词）、SKILL 超红线清单 14→15（dj-evolve 增一行判据，存量债务）。
 
-## 七、待拍板（B 批与后续）
+## 七、B 批落地记录（2026-11-18）
 
-1. **B2 形态**：并入 dj-decision，或新 `dj-recap`（需同批挂 dj-ask 三处路由），或不收。
-2. **落地节奏**：B 批一次收口，还是按单项逐个 commit。
-3. **超红线瘦身**：15 个 SKILL.md 超 3000 字符（存量债务），是否另开一批。
+| # | 落点 | 说明 |
+|---|---|---|
+| B1 | `dj-channel/references/worker-contract.md` + SKILL 一节 | WORKER.md 开工契约、注入协议、四类停止条件 |
+| B2 | `dj-decision` 第 5 步「回来播报」 | 拍板并入 dj-decision，不新建技能 |
+| B3 | 同 worker-contract §2 | 委托产出验收：契约一致性 / SHA 记录 / 三态 / 门禁骗过则加固判据 |
+| B4 | 同 worker-contract §3 | 模型三护栏：不超顶、slug 拒绝记忆、昂贵模型例外门 |
+| B5 | `dj-split/references/task-graph.md` + 拆分原则一行 | frontier、集成分支、merger；票少或冲突面大仍走串行 |
+| B6 | `dijiang-finish-work/references/merge-request.md` + 步骤 6.5 | Summary / Evidence / Door + Blast Radius；申请不等于授权 |
+
+机械守卫：PASS 141 / WARN 28 / FAIL 0；三组自测 21/21。
+
+## 八、待拍板（后续）
+
+1. **超红线瘦身**：15 个 SKILL.md 超 3000 字符（存量债务，本轮各技能只加指针行），是否另开一批。
+2. **C 批微增量**：11 项单行/小段（grill 置信度、tdd seam、memory 断言日期、benchmark 七问、loop 刹车词汇等），按「顺手并入」执行。

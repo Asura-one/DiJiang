@@ -76,6 +76,10 @@ major=不兼容的公开 API/行为变更；minor=向后兼容新增；patch=向
 
 **批量 add 前先看 `git status --short` 首列**：已 staged 的删除（`D`）不要放进 add 列表——`git add` 遇不存在的 pathspec 会整条 fatal 中止，随后 commit 只提交孤立删除。提交后回读 `N files changed` 与计划比对（详见 references/finish-gates.md §5）。
 
+### 6.5 放行申请（合并 / 推送 / live 同步 / 部署前）
+
+每个要用户点头的动作写三段：**Summary**（最小可视化）、**Evidence**（Before/After 成对，至少到可重跑命令输出）、**Merge Danger**（单向门/双向门 + 一个词的爆炸半径）。模板与判据见 `references/merge-request.md`；三段写不完整 = 还没准备好放行。申请不等于授权，用户说「可以」才算。
+
 ### 7. 清理 worktree 与分支
 
 提交及 merge 完成后清理任务 worktree 与已合并分支。只清理已合并（或用户确认放弃）的；未合并的保留并报告分支名与路径。主 checkout 永不清理。
