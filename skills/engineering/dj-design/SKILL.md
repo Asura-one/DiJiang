@@ -1,6 +1,8 @@
 ---
 name: dj-design
-description: "前端 UI 设计：产出有观点的界面，不是千篇一律的默认样式。 Use when the user asks for UI design, page layout, component styling, or visual polish. 触发词：设计、做页面、做组件、不好看、很丑、前端、UI、design、page、component、排版、截图改样式。"
+name_cn: 前端视觉设计
+description: "前端 UI 设计：产出有观点的界面，不是千篇一律的默认样式。 触发词：设计、做页面、做组件、不好看、很丑、前端、UI、design、page、component、排版、截图改样式。"
+description_cn: 产出有观点的界面设计：方向锁定、design token、明暗双主题、程序化验证（溢出/对比度/canvas 响应式），拒绝千篇一律的默认样式与 AI 模板味。
 disable-model-invocation: true
 ---
 
@@ -74,10 +76,11 @@ disable-model-invocation: true
 
 - **排版**：拒 Reflex 字体（表见 references）；三词→拒三→选适配品牌；字号/字重/行高用 scale；行宽 ~65ch
 - **颜色**：OKLCH；60-30-10；中性色带品牌色；深底不用纯白文字
-- **间距布局**：命名间距标尺；同心圆角；阴影>边框；热区 ≥40px；多列共享基线
+- **间距布局**：命名间距标尺；同心圆角；阴影>边框；热区 ≥40px；多列共享基线；**grid 轨道一律 `minmax(0,1fr)`**（1fr 在 375px 必炸，详见 verification-pitfalls）
 - **动效**：频率决定动不动；只用 transform/opacity；尊重 reduced-motion；按压 100-160ms
 - **CJK**：拉丁栈+PingFang/Noto Sans SC；行高 1.7-1.8；lang 标注；负字距仅拉丁
 - **无障碍**：图标按钮 aria-label；button/a 语义；focus 焦点环；对比度 ≥4.5:1
+- **双主题**：明暗同命名空间两组变量、色温连续、彩色角色各主题调档、所有色走变量（方法见 `references/dual-theme-tokens.md`）
 
 ## 8. 验证
 
@@ -88,6 +91,14 @@ Desktop/Mobile(375px)/Overflow/Keyboard/Contrast/States: <pass/fail>
 ```
 
 加验：生产级 UI 过设计体检 7 问（references）+ AI Slop；真图/真数据；实跑浏览器看过。
+
+**程序化验证三件套**（目测截图不可靠，溢出与对比度必须跑代码）：
+
+- 溢出：`scrollWidth > clientWidth` 程序化检查，修复后必复验；定位元凶用 `getBoundingClientRect().right` 逐层下钻
+- 对比度：OKLCH 计算色需 OKLCH→线性 sRGB 转换，WCAG 亮度用线性值（误用伽马校正值得出假比率）；**明暗双主题各验一轮，只验 light 是常见偷懒**
+- canvas 响应式：G6 等 canvas 库不随容器收缩，ResizeObserver + setSize/fitView；React Flow（DOM）无此问题
+
+详细坑与脚本见 `references/verification-pitfalls.md`，双主题方法见 `references/dual-theme-tokens.md`。
 
 ## 失败模式
 
@@ -119,5 +130,8 @@ Desktop/Mobile(375px)/Overflow/Keyboard/Contrast/States: <pass/fail>
 | 用 Reflex 字体 | 一眼 AI 味 | 三词→拒三→选 |
 | 只做桌面端 | 手机上坏 | 桌面 + 375px 移动 |
 | 忽略 CJK 排版 | 中文撕裂感 | 拉丁栈+CJK 回退+lang 标注 |
+| grid 用裸 1fr | 375px 必横向溢出，截图看不出来 | 一律 minmax(0,1fr)，程序化溢出检查 |
+| 双主题只验 light | dark 下暗底暗字（实测 1.24:1） | accent-foreground 语义翻转，两主题各验 |
+| 硬编码色值 | dark 下对比度崩（实测 2.71:1） | 所有色走变量，写 light 时就抽 |
 
 *细节参数表（字体拒绝表、OKLCH、动效时长、CJK、表面细节、无障碍、性能、响应式、设计体检 7 问、DESIGN.md 九节）见 `references/design-details.md`。*

@@ -1,6 +1,6 @@
 ---
 name: dj-verify
-description: "为项目生成可复用的本地验证技能 verify-<app>：interview repo → 生成五段技能（Launch/Doctor/Drive/Evidence/Cleanup）+ 用户视角 feature map → 端到端跑通后才交付。 Use when 要给一个 repo 建立可持续复用的验证能力、生成功能地图，或厌倦每次回归都重新摸一遍。 触发词：做个验证技能、验证资产、功能地图、feature map、验证可复用、verify skill。"
+description: "为项目生成可复用的本地验证技能 verify-<app>：interview repo → 生成五段技能（Launch/Doctor/Drive/Evidence/Cleanup）+ 用户视角 feature map → 端到端跑通后才交付。 触发词：做个验证技能、验证资产、功能地图、feature map、验证可复用、verify skill。"
 disable-model-invocation: true
 ---
 

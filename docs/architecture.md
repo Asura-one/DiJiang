@@ -89,7 +89,6 @@ DiJiang/
 │   └── guide/             # 使用指南
 ├── CONTEXT.md             # 领域术语表（skill/bucket/task 等）
 ├── AGENTS.md              # Agent 路由索引（最小路由，非 workflow 定义）
-├── CLAUDE.md              # Claude 项目上下文
 ├── CHANGELOG.md           # 变更日志
 ├── README.md              # 项目入口
 └── .gitignore

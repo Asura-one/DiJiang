@@ -1,6 +1,6 @@
 ---
 name: dj-write
-description: "文字润色：去除 AI 味，让中英文文本读起来自然。不改词汇，只删表演。 Use when the user asks to draft, rewrite, proofread, polish, remove AI-like wording, or improve tone of text. 触发词：润色、改文字、rewrite、polish、去 AI 味、改语气、写得更自然。"
+description: "文字润色：去除 AI 味，让中英文文本读起来自然。不改词汇，只删表演。 触发词：润色、改文字、rewrite、polish、去 AI 味、改语气、写得更自然。"
 ---
 
 ## Outcome Contract

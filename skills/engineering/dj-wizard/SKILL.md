@@ -1,6 +1,6 @@
 ---
 name: dj-wizard
-description: "生成一个交互式 bash 向导，引导人类走过只有他们能做的步骤。 Use when provisioning infrastructure, setting up credentials or CI secrets, or walking an unfamiliar third-party dashboard. 触发词：向导、wizard、引导步骤、bash 向导、手动步骤、带我走。"
+description: "生成一个交互式 bash 向导，引导人类走过只有他们能做的步骤。 触发词：向导、wizard、引导步骤、bash 向导、手动步骤、带我走。"
 ---
 
 # Wizard 向导

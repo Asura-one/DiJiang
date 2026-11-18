@@ -2,7 +2,7 @@
 name: dj-evolve
 name_cn: 技能自进化
 description_cn: "任务收尾时回顾本 session 的发现/经验/纠正，按升格判据筛选可复用经验，生成技能更新候选并验证后落库。打通'记录→规则'闭环。"
-description: "任务收尾时回顾本 session 的发现、经验与纠正，按升格判据筛选可复用经验，生成技能更新候选，差分验证后经用户确认落库。 Use when a task session produced reusable lessons, or the user asks to consolidate experience into skills. 触发词：总结经验、沉淀技能、自进化、evolve、升格技能、经验进技能。"
+description: "任务收尾时回顾本 session 的发现、经验与纠正，按升格判据筛选可复用经验，生成技能更新候选，差分验证后经用户确认落库。 触发词：总结经验、沉淀技能、自进化、evolve、升格技能、经验进技能。"
 ---
 
 ## Outcome Contract

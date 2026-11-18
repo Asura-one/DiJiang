@@ -1,6 +1,6 @@
 ---
 name: dj-split
-description: "将 PRD 拆分为独立可执行任务，或把零散 issue/bug 报告分诊为 agent-ready 工单（原 dj-triage 职责已融合入本技能）；产出可路由任务列表并同步 issue 跟踪器。 Use when a PRD needs decomposition, or when raw issues/bug reports arrive and need classification into agent-ready briefs. 触发词：拆分任务、分任务、切成 task、work breakdown、任务拆解、分诊、triage、issue 处理、新 issue、问题分类、工单流转。"
+description: "将 PRD 拆分为独立可执行任务，或把零散 issue/bug 报告分诊为 agent-ready 工单（原 dj-triage 职责已融合入本技能）；产出可路由任务列表并同步 issue 跟踪器。 触发词：拆分任务、分任务、切成 task、work breakdown、任务拆解、分诊、triage、issue 处理、新 issue、问题分类、工单流转。"
 disable-model-invocation: true
 ---
 

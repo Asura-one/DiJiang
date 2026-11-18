@@ -2,7 +2,7 @@
 name: dj-implement
 name_cn: 实现代码
 description_cn: "按计划实现特性代码，遵守 git 安全工作流。用于实现特性、修复或基于计划/issue 的变更。"
-description: "按计划实现特性代码，遵守 git 安全工作流。 Use when the user wants to implement a feature, fix, or change based on a plan or issue. 触发词：实现、写代码、implement、开始做、按计划做、开发。"
+description: "按计划实现特性代码，遵守 git 安全工作流。 触发词：实现、写代码、implement、开始做、按计划做、开发。"
 ---
 
 参考：`skills/engineering/dj-ponytail/references/decision-ladder.md`、`references/code-task-contract.md`。深度细节：Git 工作流（链式工单基线/配置分层/依赖借用）→ `references/git-workflow.md`；验证陷阱与观察 SOP → `references/verification-pitfalls.md`；edit 冲突与 Python 补丁 → `references/edit-conflicts.md`；工具链陷阱（multiedit 部分落盘/CRLF 假 diff/uv 测试/stash 归因/go:embed/端口影子/PowerShell 判定）→ `references/tooling-pitfalls.md`；SFTP → `references/go-sftp-transfer.md`；spec 拆分 → `references/ticket-decomposition.md`；Windows 主机 + WSL 混合工具链 → `references/windows-wsl-toolchain.md`；OpenAPI 契约先行与代码生成 → `references/openapi-codegen.md`。

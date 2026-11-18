@@ -5,7 +5,7 @@
 检查项：
   1. glob 自动发现 skills/*/*/SKILL.md（不维护手工清单，防清单漂移）
   2. frontmatter 完整性（--- 开头 / 闭合 / name 字段）
-  3. description 契约（长度 40-500 / 含 "Use when" / 含 "触发词" / 不以 The/A/This 起）
+  3. description 契约（长度 40-500 / 含 "触发词" / 不以 The/A/This 起）
   4. 引用文件存在性（references/ 与 docs/references/ 相对路径真实存在）
   5. 触发词两两 Jaccard 重叠（>= 0.5 报 FAIL，防两技能抢同一触发面）
   6. 反模式表机械完整性（编号连续 / 无重名 / 解析 0 条目即 FAIL）
@@ -146,8 +146,6 @@ def check_description(rep, bucket, name, props):
     n = len(desc)
     if not (40 <= n <= 500):
         rep.warn(f"[description] {ident}: 长度 {n} 超出 40-500 参考")
-    if "Use when" not in desc and "use when" not in desc.lower():
-        rep.warn(f"[description] {ident}: 缺 'Use when' 触发短语")
     if "触发词" not in desc:
         rep.warn(f"[description] {ident}: 缺 '触发词' 段（dj-ask 路由锚点）")
     if re.match(r"^(The|A|This)\b", desc):

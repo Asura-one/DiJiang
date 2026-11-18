@@ -1,6 +1,6 @@
 ---
 name: dj-gov
-description: "知识治理收尾：审计和同步项目文档、规则文件、Agent 记忆和工作区残留与代码实际行为一致。区别于 dj-output（创建 PRD/design 等任务文档），本 skill 后向对账已有文件与实现。兼容性：需要文件系统读取权限；scripts/audit-inventory.sh 需要 Bash 环境。 Use when syncing docs after development, cleaning up workspace, or reconciling stale docs/code. 触发词：整理文档、收尾、知识治理、文档同步、洁癖、neat-freak、清理工作区、文档和代码对不上了、收尾时把文档同步掉、docs 和代码对不上了。"
+description: "知识治理收尾：审计和同步项目文档、规则文件、Agent 记忆和工作区残留与代码实际行为一致。区别于 dj-output（创建 PRD/design 等任务文档），本 skill 后向对账已有文件与实现。兼容性：需要文件系统读取权限；scripts/audit-inventory.sh 需要 Bash 环境。 触发词：整理文档、收尾、知识治理、文档同步、洁癖、neat-freak、清理工作区、文档和代码对不上了、收尾时把文档同步掉、docs 和代码对不上了。"
 disable-model-invocation: true
 ---
 

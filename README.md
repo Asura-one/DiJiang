@@ -140,8 +140,7 @@ DiJiang/
 │   ├── references/        # 跨技能参考文档
 │   └── guide/             # 使用指南
 ├── CONTEXT.md             # 领域术语表
-├── AGENTS.md              # Agent 路由索引
-├── CLAUDE.md              # Claude 项目上下文
+├── AGENTS.md              # Agent 路由索引（唯一入口文档）
 ├── CHANGELOG.md           # 变更日志
 └── .gitignore
 ```

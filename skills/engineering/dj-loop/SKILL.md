@@ -1,6 +1,6 @@
 ---
 name: dj-loop
-description: "无人值守 loop 的设计与评审：判断任务值不值得 loop 化、产出 LOOP-SPEC 设计文档、跑上线检查清单出评审结论，只设计不运行。 Use when 用户想搭建/设计/评审自动化循环、无人值守任务、定时任务工作流，或现有 loop 出问题要复盘设计。 触发词：loop、无人值守、自动化循环、定时任务、autonomous loop、loop 设计、loop 评审、loop 复盘。"
+description: "无人值守 loop 的设计与评审：判断任务值不值得 loop 化、产出 LOOP-SPEC 设计文档、跑上线检查清单出评审结论，只设计不运行。 触发词：loop、无人值守、自动化循环、定时任务、autonomous loop、loop 设计、loop 评审、loop 复盘。"
 ---
 
 # Loop: 无人值守 loop 设计与评审

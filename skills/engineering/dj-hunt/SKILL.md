@@ -1,7 +1,8 @@
 ---
 name: dj-hunt
 name_cn: 系统化排障
-description: "系统化排查 bug：先定位根因，再修复。尤其擅长回归和\"以前好现在坏\"的情况。 Use when the user reports errors, crashes, regressions, failing tests, or unexpected behavior changes — anything that needs root cause investigation. 触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。"
+description_cn: "系统化排查 bug：先定位根因再修复，擅长回归与『以前好现在坏』；覆盖反馈环、假设排名与回归护送。"
+description: "系统化排查 bug：先定位根因，再修复。尤其擅长回归和\"以前好现在坏\"的情况。 触发词：修 bug、出错了、报错、crash、不工作、坏了、hunt、调查、排查。"
 ---
 
 参考：`skills/engineering/dj-ponytail/references/decision-ladder.md`、`skills/engineering/dj-implement/references/code-task-contract.md`。深度细节：反馈环 10 方法 → `references/diagnose-feedback-loop.md`；置信度门禁与实战长案例（重叠原因/静默降级/生成未消费/防护路径）→ `references/hypothesis-and-cases.md`。
@@ -85,7 +86,8 @@ description: "系统化排查 bug：先定位根因，再修复。尤其擅长�
 | 静默降级无标记 | fallback 显式标记，不注入 preferred 专属参数 |
 | 生成字段未消费 | 审查输出字段提取代码；token 超耗优先排查 |
 | 防护只在降级路径 | 预算/截断/校验全路径执行 |
+| 服务端验证通过但用户端仍复现 | 验证层级对齐症状层级：浏览器症状在真实浏览器 network 复验（实际请求 URL/加载的资源 hash），中间层（缓存/代理/端口占用者）逐层排除 |
 
-后四条的实测案例详情见 `references/hypothesis-and-cases.md`。
+后五条的实测案例详情见 `references/hypothesis-and-cases.md`。
 
 **下一步**：修复完成且红测转绿后，完成后调用 `dj-check` 验证交付质量（回归护送已由 dj-regression-guard 三明治承接）。

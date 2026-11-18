@@ -62,12 +62,35 @@ $headers=@{Authorization="Basic $b64"}               # 密码不回显、不落�
 - 插值坑：`"$n:"` 直接 ParserError（冒号被当变量名分隔符），改用 `("issue {0}" -f $n)` 或 `${n}:`
 - 验收措辞与实现有出入但意图达成（如 issue 写 `02-seed.sql`、实现为 `02-seed.sh`）→ 该项可勾选，但结题评论中如实注记差异，不得悄悄改写验收措辞
 
-## 5. 反模式全表
+## 5. 批量 `git add` 的 pathspec 陷阱（列表含已暂存删除文件）
+
+`git add -- <path1> <path2> ...` 是**原子失败**：只要有一个 pathspec 匹配不到工作区文件，整条命令 `fatal: pathspec '<p>' did not match any files` 中止，**其余路径一个都不会进 index**。若此时 index 里已有先前暂存的删除（`git status --short` 首列 `D`，如 `D  console/web/pnpm-workspace.yaml`），紧接着的 `git commit` 会把这个孤立删除单独提交成一笔残缺 commit，看起来「提交成功」但实际只含 1 个文件。
+
+成因：已删除文件在工作区已不存在，把它当 pathspec 传给 `git add` 必然匹配失败；而它的删除早已在 index 中，根本不需要再 add。
+
+处理：
+
+```bash
+# 1. 暂存前先看首列：D/ R 等已 staged 项不要放进 add 列表
+git status --short
+# 2. 只 add 工作区仍存在的已修改文件（M/??）
+git add -- <仅 M 与 ?? 的路径>
+# 3. 核对暂存清单再提交，确认文件数与计划一致
+git diff --cached --stat
+# 4. 若已误提交成孤立 commit：软撤销（保留改动与暂存），重新 add 后提交
+git reset --soft HEAD~1
+```
+
+- 需要把「删除 + 修改」放进同一笔提交时，删除项无需 add（已在 index），或改用 `git add -A -- <目录>` 让 git 自行处理删除
+- 提交后必须回读 `git log --oneline -1` 的 `N files changed` 与计划文件数比对，不一致即视为提交失败
+
+## 6. 反模式全表
 
 | 不要 | 改为这样做 |
 |---|---|
 | 不要从主 checkout 提交代码变更 | 只从任务 worktree 收尾 |
 | 不要盲目 `git add .` | 暂存已审查路径 |
+| 不要把已 staged 的删除文件放进 `git add` 列表 | 先看 `git status --short` 首列，只 add 工作区仍存在的 M/??；误提交用 `git reset --soft HEAD~1` 重来 |
 | 不要隐藏验证失败 | 报告命令和失败 |
 | 不要写 "fixed bug" 这类模糊记忆 | 写入有 source、scope、已验证的 finding |
 | 不要带着无关脏改关闭任务 | 拆分或清理范围 |

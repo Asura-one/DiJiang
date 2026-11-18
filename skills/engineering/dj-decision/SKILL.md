@@ -1,6 +1,6 @@
 ---
 name: dj-decision
-description: "为无人值守/长期/多阶段任务保留可审计的决策轨迹：追加式 TSV 决策日志，结尾对 transcript 对账诚实性并跨模型扫风险。任务够大才提交，默认本地。 Use when 用户说无人值守、回头检查、你看着办、loop、长期任务、决策轨迹、show work、我信得过你，或任何人类走开后要回来审核的长任务。 触发词：无人值守、回头检查、你看着办、loop、长期、决策轨迹、可审计、show your work。"
+description: "为无人值守/长期/多阶段任务保留可审计的决策轨迹：追加式 TSV 决策日志，结尾对 transcript 对账诚实性并跨模型扫风险。任务够大才提交，默认本地。 触发词：我信得过你、无人值守、回头检查、你看着办、loop、长期、决策轨迹、可审计、show your work。"
 disable-model-invocation: true
 ---
 

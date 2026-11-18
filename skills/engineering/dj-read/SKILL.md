@@ -1,6 +1,6 @@
 ---
 name: dj-read
-description: "获取 URL 和 PDF，然后总结或返回干净的 Markdown。Use when asked to read, fetch, quote, cite, convert, or save a URL or PDF. Not for local text files already in the repo. 触发词：看这个链接、读一下、看看这个网页、抓取网页、read this、check this URL、fetch this page"
+description: "获取 URL 和 PDF，然后总结或返回干净的 Markdown。不用于仓库里已有的本地文本文件（直接读取即可）。 触发词：看这个链接、读一下、看看这个网页、抓取网页、read this、check this URL、fetch this page"
 ---
 
 # Read: 阅读任何 URL 或 PDF

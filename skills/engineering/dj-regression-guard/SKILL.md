@@ -1,7 +1,8 @@
 ---
 name: dj-regression-guard
 name_cn: 回归守卫
-description: "改码三明治回归协议：对每一次代码修改任务执行『改前基线 → 修改 → 专项验证 → 改后回归』护送，防止改码引入回归、区分『本来就坏』与『我改坏的』。 Use when a code modification task needs pre/post change regression protection. 触发词：回归保护、改前基线、三明治、回归守卫、regression guard、baseline、改码护送。"
+description_cn: 改码三明治回归协议：改前基线→修改→专项验证→改后回归护送，防回归、区分本来就坏与我改坏的。
+description: "改码三明治回归协议：对每一次代码修改任务执行『改前基线 → 修改 → 专项验证 → 改后回归』护送，防止改码引入回归、区分『本来就坏』与『我改坏的』。 触发词：回归保护、改前基线、三明治、回归守卫、regression guard、baseline、改码护送。"
 ---
 
 参考：`skills/engineering/dj-implement/references/code-task-contract.md`、`skills/engineering/dj-ponytail/references/decision-ladder.md`、`skills/engineering/dj-check/references/intensity-levels.md`。
@@ -70,7 +71,7 @@ description: "改码三明治回归协议：对每一次代码修改任务执行
 
 ### S4 · 新增失败处置（按序，失败才进下一步）
 
-1. **基线 diff 滤噪**：确认不在已知失败清单
+1. **基线 diff 滤噪**：确认不在已知失败清单；基线缺失/过期时用 `git stash` 重跑**同一条命令、同一组测试**甄别存量（单跑/合跑不可比）。**只 stash 自己改动的文件**（`git stash push -- <path>`）——工作区有他人未提交改动时，全量 stash 回干净 HEAD 会把别人的改动一起抽走，「本来就坏」的现场消失、存量被误判成自己的回归。stash 循环被中断会把修改埋进 stash、后续 pop 按 LIFO 弹错条目**静默丢失修改**——中断后先 `git stash list` + `git status` 对账，pop 后 grep 标志行确认修改还在
 2. **flaky 重试 ×1**：单独重跑，过则标记 flaky 放行（连续两次任务同 flaky 项建议隔离修复）。**重跑只用于定性、不算通过**：flaky 项不得作为"回归已绿"证据，须记入测试债台账跨轮追踪；发布卡点的 flaky 不得静默放过（语义细节见 `references/protocol-details.md` §6）
 3. **自动修复 ≤ 2 轮**：定位修复，重跑 S3
 4. **🛑 STOP · 回滚+报告**：回滚修改，保留失败现场，报告"改动导致回归已回滚"。**回滚后等用户裁决，不得自行重新改码**
@@ -102,3 +103,5 @@ description: "改码三明治回归协议：对每一次代码修改任务执行
 | 基线全红仍改码 | S1 冒烟全红先 STOP |
 | 快照存 docs/ | 生命周期=本任务 |
 | 混跑专项与回归 | 专项先行，回归后行 |
+| stash 甄别存量被中断埋掉修改 | `git stash list` + `git status` 对账，pop 后验证标志行还在 |
+| 脏工作区全量 stash 甄别（抽走他人未提交改动） | 只 stash 自己的文件：`git stash push -- <path>` |

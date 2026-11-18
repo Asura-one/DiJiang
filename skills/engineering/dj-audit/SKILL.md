@@ -1,6 +1,6 @@
 ---
 name: dj-audit
-description: "全仓审计：默认扫描过度工程和安全性；可按 debt、health 或 pattern profile 补充技术债、仓库健康或重复结构/抽象机会扫描（判「该合的」）。只报告，不修改。 Use when the user wants to audit the codebase for over-engineering, bloat, dead code, security issues, technical debt, repository health, or code duplication and abstraction opportunities. 触发词：审计、扫一下、过度工程、安全扫描、技术债、健康检查、audit、代码大检查、模式、重复、重复代码、抽象机会、历史修复。"
+description: "全仓审计：默认扫描过度工程和安全性；可按 debt、health 或 pattern profile 补充技术债、仓库健康或重复结构/抽象机会扫描（判「该合的」）。只报告，不修改。 触发词：审计、扫一下、过度工程、安全扫描、技术债、健康检查、audit、代码大检查、模式、重复、重复代码、抽象机会、历史修复。"
 disable-model-invocation: true
 ---
 

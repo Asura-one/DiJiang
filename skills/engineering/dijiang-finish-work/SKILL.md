@@ -2,7 +2,7 @@
 name: dijiang-finish-work
 name_cn: 收尾工作
 description_cn: "收尾当前 session：质量验证、版本决策、提交、归档任务。所有 git 提交和任务归档只在这里发生。"
-description: "收尾当前 session：质量验证、版本决策、提交、归档任务。所有 git 提交和任务归档只在这里发生。 Use when the session's work is done and ready for commit, archive, or issue closure. 触发词：收尾、提交、归档、收工、finish work、commit、结束会话。
+description: "收尾当前 session：质量验证、版本决策、提交、归档任务。所有 git 提交和任务归档只在这里发生。 触发词：收尾、提交、归档、收工、finish work、commit、结束会话。
 **下一步**：收口归档后，建议下一步调用 `dj-evolve` 复盘本 session 的可复用经验（有升格候选时按 SCOPE 升格判据筛选）。"
 disable-model-invocation: true
 ---
@@ -73,6 +73,8 @@ major=不兼容的公开 API/行为变更；minor=向后兼容新增；patch=向
 **未识别文件分类（并行开发防护）**：dirty 文件分两组——**AI 本次编辑**（本 session 明确改动的）与**无法识别**（用户手动改的、其他窗口/worktree 的、历史遗留）。无法识别组单列展示、默认不入库，逐一向用户确认。
 
 一次性列出完整提交计划（文件清单 + message）等用户确认；用户拒绝后转手动模式，不自动生成第二版计划。commit message 用中文，Conventional Commits 格式：`git add <reviewed paths> && git commit -m "<类型>(<范围>): 中文描述"`。
+
+**批量 add 前先看 `git status --short` 首列**：已 staged 的删除（`D`）不要放进 add 列表——`git add` 遇不存在的 pathspec 会整条 fatal 中止，随后 commit 只提交孤立删除。提交后回读 `N files changed` 与计划比对（详见 references/finish-gates.md §5）。
 
 ### 7. 清理 worktree 与分支
 
