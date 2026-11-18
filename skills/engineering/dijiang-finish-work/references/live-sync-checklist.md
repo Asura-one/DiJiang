@@ -43,8 +43,8 @@ done
 ## 三条验收（全绿才算完）
 
 ```bash
-# 1) 死技能引用零命中（退役/已并入技能，列表随退役档案增长需维护）
-grep -rn "dj-pattern\|dj-teach\|dj-triage\|dj-dispatch\|dj-review\|dj-spec-bootstrap" \
+# 1) 死技能引用零命中（退役/已并入技能；名单以 .out-of-scope/ 退役档案为准，dj-teach 已于 a70c01c 收编复活、不在死名单）
+grep -rn "dj-pattern\|dj-triage\|dj-dispatch\|dj-review\|dj-spec-bootstrap" \
   "$LIVE"/dj-ask/SKILL.md "$LIVE"/dj-ask/references/*.md \
   && echo "❌ 仍有残留" || echo "✅ 零残留"
 

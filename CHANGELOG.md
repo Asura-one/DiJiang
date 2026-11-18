@@ -27,7 +27,7 @@ dj-grill 把握度与委托识别、dj-tdd seam 注记、dj-hunt 突变落盘 di
 
 ### 批 D：遗留瘦身（红线清零）
 
-- 45 技能 SKILL.md 超 3000 字符红线 **15 → 0**；只搬不删，整块原文外溢本技能 references（新增 evidence-artifacts/phase-details/final-selfcheck/report-template 等），正文留带条件指针
+- 44 技能 SKILL.md 超 3000 字符红线 **15 → 0**；只搬不删，整块原文外溢本技能 references（新增 evidence-artifacts/phase-details/final-selfcheck/report-template 等），正文留带条件指针
 - 行守恒审计：`check_moved_lines.py` 报 70 条缺失行，逐条语义复核 0 条丢失（均为指针替换枚举、表格式重组、双份冗余去重）
 - 报告文档拆分：速览 ≤2000 字 + 归档全文，历史词误报清除
 

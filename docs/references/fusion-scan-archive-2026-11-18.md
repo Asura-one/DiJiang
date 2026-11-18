@@ -86,7 +86,7 @@
 |---|---|
 | Addy 七个域：frontend-ui-engineering / performance-optimization / observability / ci-cd / deprecation / security-and-hardening / shipping-and-launch | 无真实失败背书；部分已被 dj-design / dj-audit / dj-check / dj-hunt 覆盖。出现首个真实漏判再收。 |
 | software-factory 完整服务槽词汇表 | 词汇冲突痛点尚未在本仓发生第二次；只收 C9 的刹车语义，整表留给 pentest-core 设计时按需引用。 |
-| Skill 工厂（Skill IR / 多平台编译 / SkillOps） | 团队级多平台治理，对单人 45 技能纯文本体系过重，且引入平台锁定。 |
+| Skill 工厂（Skill IR / 多平台编译 / SkillOps） | 团队级多平台治理，对单人 44 技能纯文本体系过重，且引入平台锁定。 |
 | 总控 Skill 自动编排 | 与 dj-ask 分流重复，且与「对外动作逐项放行、一次一个变量」冲突。 |
 | Trellis 状态层（workflow 状态机、task tree、hooks、spec manifest） | ADR-005 已退役纯 skill 架构；近期改动全在其自属状态层。 |
 | ponytail band / board / statusline | 编辑器 hook 注入层，纯 skill 库无载体。 |
