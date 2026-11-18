@@ -41,7 +41,7 @@ description: "改码三明治回归协议：对每一次代码修改任务执行
 
 ### S0 · 快速层定义（每项目首次付一次成本）
 
-"快速层" = 改前/改后双跑的测试子集，目标 < 3 分钟。按序判定：项目有冒烟标记（`@pytest.mark.smoke` 等）→ 跑标记子集；无标记 → 按 `dj-fullstack-testing` 0.1a 映射表圈受影响模块测试 + 3a 冒烟最小集；无测试基建 → 走零基建退路（见 references）。选法持久化到 `docs/project-understanding.md`"快速层定义"节，基础设施文件变更时重判。
+"快速层" = 改前/改后双跑的测试子集，目标 < 3 分钟。按序判定：项目有冒烟标记（`@pytest.mark.smoke` 等）→ 跑标记子集；无标记 → 按 `dj-fullstack-testing` 0.1a 映射表圈受影响模块测试 + 3a 冒烟最小集；无测试基建 → 走零基建退路（见 references）。选法持久化到 `docs/project-understanding.md`"快速层定义"节，基础设施文件变更时重判。首次接入的项目同时建 `CONSTRAINTS.md` 质量契约（四列表，见 references/quality-contract.md）。
 
 **超时降级**：S1 执行时快速层超 3 分钟 → 收窄为"冒烟最小集 + 直接触及模块测试"，记入基线快照（S3 跑同一子集保可比）；仍超时则保留并标注建议拆分，不阻塞。
 
@@ -68,6 +68,7 @@ description: "改码三明治回归协议：对每一次代码修改任务执行
 
 1. 校验 commit-id 与基线一致：中途有其他提交（基线过期）→ 重跑 S1
 2. 重跑快速层，与基线逐项 diff：已知失败保持失败不算回归；**新增失败 → S4**；已知失败转绿 → 顺带修复记录（不放行条件）
+3. **门禁自检**：`scripts/floor_guard.py --base <分支点>` 查五类「最便宜变绿」与契约缺命令行；exit 2 不得读作通过（详 `references/quality-contract.md`）
 
 ### S4 · 新增失败处置（按序，失败才进下一步）
 

@@ -96,6 +96,7 @@ skill 特化机制（invocation 选择/拆分/路由技能）→ `references/age
 - `references/skill-fusion-pattern.md` — 跨仓库技能分析与融合方法论，用于从外部 skill 项目中提取模式并融合到本地技能库
 - `references/extension-levels.md` — 能力落层选型矩阵（prompt/skill/script/tool 的最低权限层判定）
 - `references/skill-template.md` — 新技能骨架（含 description 单行格式警告）
+- `references/trigger-testing.md` — 触发层测试（description 是路由杠杆；结构/触发/行为三层、配对案例、版本钉死、2026-11-18 结构体检基线）
 - `references/context-diet.md` — 指令层瘦身 runbook（每轮注入内容审计/归位/压缩 13 步 + 实测坑：触发词是路由锚点与守卫数据源，不可挪出 description）
 - `references/GLOSSARY.md` — 技能写作术语表（SKILL.md/references/scripts/frontmatter/flow 等，随技能投放的文件级真相源）
 - `.dijiang/spec/` — 各技能的项目级辅助参考文档（输入/输出规格、失败处理、原则等；每个使用 DiJiang 的项目由 dj-setup 建好 `.dijiang/`，落这里留在当前项目、不回上游库）

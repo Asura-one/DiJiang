@@ -95,7 +95,7 @@ git diff --stat HEAD
 | Exception | none/原因 | <不可验证的具体原因> |
 
 ### 问题清单
-- <问题描述>（严重/中等/轻微）
+- <问题描述>（阻塞 / 应改 / Nit / FYI；只有前两档进阻塞清单，分档语义见 references/review-dual-axis.md）
 
 ### 结论
 ✅ 通过 / ❌ 阻塞 / ⚠ 有条件通过
