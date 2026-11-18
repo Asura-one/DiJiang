@@ -1,0 +1,31 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "请为『加一个导出报表功能』写一份 PRD，包含用户故事、验收标准、范围。",
+   "checks": [
+     "产出是结构化文档（PRD），不是一段话",
+     "包含 User Stories，格式可识别",
+     "包含可执行的 Acceptance Criteria",
+     "有 Out of Scope 或方案概述"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "我们刚改完了导出功能的代码，请帮我更新对应的设计文档，保持文档与代码一致。",
+   "checks": [
+     "产出对设计文档的更新内容",
+     "标注了代码与文档的对应/更新点",
+     "遵循文档与代码对齐原则（改了一方改另一方）"
+   ]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "为加一个搜索功能写一份 PRD 文档。",
+   "checks": [
+     "产出结构化 PRD",
+     "含用户故事与验收标准",
+     "有范围或方案描述"
+   ]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "写一份设计文档，记录我们选择 PostgreSQL 而放弃 MySQL 的决策理由。",
+   "checks": [
+     "产出结构化设计/决策文档",
+     "记录了决策理由与取舍",
+     "有影响范围或背景"
+   ]}
+]
