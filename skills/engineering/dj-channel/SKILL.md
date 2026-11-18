@@ -30,6 +30,8 @@ disable-model-invocation: true
 | list / status | 监控活跃通道，不假设已完成 |
 | stop | 不再需要的通道清理 |
 
+🔴 **spawn 与 stop 前**：spawn 的 task 描述必须写明角色边界与工具权限（reviewer 只读、coder 不碰浏览器）；**stop/清理通道前先确认该通道产出已回收或确实不再需要——误清活跃通道会丢工作成果**，拿不准就 list/status 核对后再停。
+
 ## 何时使用
 
 | 场景 | 做法 |

@@ -45,7 +45,7 @@ developer = "<从 git config user.name 推断>"
 如果 `.dijiang/` 已存在且包含旧版子目录（agents/、references/、scripts/、workflow-templates/、benchmarks/、channels/、prd/、.runtime/、workspace/、queue.toml、.template-hashes.json 等），执行迁移：
 
 1. **保留** `tasks/`、`memory/`、`spec/`、`config.toml`、`active_task.txt`（如果存在）
-2. **移除** 旧版子目录：`agents/`、`references/`、`scripts/`、`workflow-templates/`、`benchmarks/`、`channels/`、`prd/`、`.runtime/`、`workspace/`、`queue.toml`、`.template-hashes.json`、`workflow.md`、`glossary.md`
+2. 🔴 **移除旧版子目录前：STOP**——先展示删除清单（哪些目录/文件将被移除、哪些数据保留），经用户放行后再执行。移除对象仅限：`agents/`、`references/`、`scripts/`、`workflow-templates/`、`benchmarks/`、`channels/`、`prd/`、`.runtime/`、`workspace/`、`queue.toml`、`.template-hashes.json`、`workflow.md`、`glossary.md`——**不在清单内的一律不动**（如 `spec/` 是保留项，不得误删）
 3. **迁移 task.json 格式**：将每个 `tasks/*/task.json` 的 24 字段 Trellis 格式转换为简化格式：
 
 ```json
