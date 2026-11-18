@@ -17,6 +17,10 @@
 用法：
   python scripts/verify_skills.py           # 全量检查，存量 FAIL 以告警清单输出，exit 0
   python scripts/verify_skills.py --strict  # 任何 FAIL 退出码 1（CI/门禁用）
+  python scripts/verify_skills.py --root <仓库根>   # 校验指定仓库根（脚本随技能分发到技能目录时用）
+
+副本防漂移：本脚本存在仓库根 scripts/ 与 dj-evolve/scripts/ 两份（live 分发需要技能自包含）。
+两份必须逐字节一致，不一致即 FAIL——改任何一份前先同步另一份。
 
 设计来源：Waza checks_content.py（description 契约 + Jaccard）、ponytail check-rule-copies.js（canary）、
 琅嬛 skill-token-optimization（STOM）、dsh-agent-notes-maintenance（docs 防腐）、knowledge-base-lifecycle-governance（TTL）
@@ -516,8 +520,30 @@ def check_orphan_assets(rep, skills):
         rep.ok(f"orphan assets：{checked} 个技能内资产全部有引用")
 
 
+def check_replica_consistency(rep):
+    """两份副本防漂移：本脚本若位于技能目录（非仓库根 scripts/），必须与仓库根权威副本逐字节一致。"""
+    here = os.path.abspath(__file__)
+    root_scripts = os.path.join(ROOT, "scripts", "verify_skills.py")
+    if os.path.abspath(here) == os.path.abspath(root_scripts):
+        return  # 权威副本在仓库根，天然一致
+    if not os.path.exists(root_scripts):
+        rep.fail("[replica] 找不到仓库根权威副本 scripts/verify_skills.py——本副本漂移无参照")
+        return
+    with open(here, "rb") as f1, open(root_scripts, "rb") as f2:
+        if f1.read() != f2.read():
+            rep.fail("[replica] 技能目录副本与仓库根 scripts/verify_skills.py 不一致——改任一份前必须先同步另一份（防漂移）")
+        else:
+            rep.ok("replica 一致性：技能目录副本与仓库根权威逐字节一致")
+
+
 def main():
-    strict = "--strict" in sys.argv
+    global ROOT
+    argv = sys.argv
+    strict = "--strict" in argv
+    if "--root" in argv:
+        idx = argv.index("--root")
+        if idx + 1 < len(argv):
+            ROOT = os.path.abspath(argv[idx + 1])
     rep = Report()
     skills = discover()
     if not skills:
@@ -543,6 +569,7 @@ def main():
     check_phantom_scripts(rep)
     check_skill_size(rep, skills)
     check_orphan_assets(rep, skills)
+    check_replica_consistency(rep)
 
     print(f"PASS {len(rep.passes)}  |  WARN {len(rep.warns)}  |  FAIL {len(rep.fails)}")
     for w in rep.warns:

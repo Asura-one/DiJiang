@@ -26,6 +26,8 @@ description: "交付质量闸门：验证 diff 质量、功能完整性、安全
 - **可验证** — 每个断言都必须有对应的运行命令或可复核操作
 - **不自欺** — 跑不了的测试写 `not run` + 原因，不美化
 - **只报告，不改代码** — 发现问题时标注位置和方向，不在本 skill 修
+- **证据三态** — 结论按 `references/evidence-gate.md` 三层证据分态：verified / not run / inconclusive，「证据不足」是合法结论
+- **性能数字** — 报告或据此决策性能数字前，先过 `references/measurement-review.md` 七问，审的是一句话不是「测过没有」
 
 ## 工作流
 

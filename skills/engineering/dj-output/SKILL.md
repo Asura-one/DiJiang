@@ -136,4 +136,4 @@ disable-model-invocation: true
 3. 双方不一致时以代码为准，但必须标注文档已过时
 4. 面向读者写——PM 看 PRD、开发者看设计文档、新人看 README
 
-参考规范：`references/doc-template.md`（文档模板标准框架）。
+参考规范：`references/doc-template.md`（文档模板标准框架）；产出 API 接口文档时另用 `references/api-doc-template.md`（六段最小结构，示例优先）。

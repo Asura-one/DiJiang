@@ -51,7 +51,7 @@ description: "任务收尾时回顾本 session 的发现、经验与纠正，按
 - **零回归硬条件**：任何既有案例或检查劣化即否决，无例外
 - **红线冻结**：反模式表授权类条目（#19/#20/#21）与 SCOPE 双门槛是受保护区，候选削弱或绕过即判负并留档
 - **动到 description 就跑触发层结构检查**：候选改写了技能 description 时，按 `dj-meta/references/trigger-testing.md` 的四查复跑（触发词/负向边界/长度/同族撞词），记录是否影响既有触发路径；没有独立评测入口时写 `not run + 原因`，不写「应该没问题」
-- 结构合规跑 `python scripts/verify_skills.py --strict`
+- 结构合规跑 `python3 scripts/verify_skills.py --strict --root "$(git rev-parse --show-toplevel)"`（脚本在本技能目录 `scripts/` 下，live 分发不断链；`--root` 指向仓库根）
 
 ### 5. 🛑 确认与留痕
 

@@ -28,6 +28,7 @@ description: "无人值守 loop 的设计与评审：判断任务值不值得 lo
 - 不创建 cron/调度器/常驻进程，不自动触发/执行/合并——产物是文档与结论（why：纯 skill 库红线，越过撞 .out-of-scope 运行时否决）
 - gate 判据不自创——引用 evidence-gate.md 单一权威，防止与 dj-check 双标打架
 - session 内工作流的自动化不走本技能——那是 dj-implement + dj-regression-guard 的三明治
+- 产物知识回写按 `references/three-asset-boundaries.md` 三槽位判据：过程→State、方法→Skill、事实→Memory，防止槽位写串（写错槽位三个月后才显现）
 
 ## 失败模式
 

@@ -30,7 +30,7 @@ done
 ## 同步命令
 
 ```bash
-REPO=/Users/cimer/Project/DiJiang/skills
+REPO="${DIJIANG_SKILLS_ROOT:?请先 export DIJIANG_SKILLS_ROOT=<DiJiang 仓库根>/skills（如 $PWD/skills）}"  # 环境变量可移植，勿硬编码个人绝对路径
 LIVE=~/.config/TeleAgent/users/<id>/skills   # 按当前用户 id 替换
 
 for src in "$REPO"/engineering/* "$REPO"/productivity/*; do

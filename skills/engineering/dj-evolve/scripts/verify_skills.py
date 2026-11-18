@@ -1,0 +1,590 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""verify_skills.py — DiJiang 技能库机械校验（stdlib-only）
+
+检查项：
+  1. glob 自动发现 skills/*/*/SKILL.md（不维护手工清单，防清单漂移）
+  2. frontmatter 完整性（--- 开头 / 闭合 / name 字段）
+  3. description 契约（长度 40-500 / 含 "触发词" / 不以 The/A/This 起）
+  4. 引用文件存在性（references/ 与 docs/references/ 相对路径真实存在）
+  5. 触发词两两 Jaccard 重叠（>= 0.5 报 FAIL，防两技能抢同一触发面）
+  6. 反模式表机械完整性（编号连续 / 无重名 / 解析 0 条目即 FAIL）
+  7. canary 承重短语守卫（核心纪律短语在 AGENTS.md 与 README.md 双存活）
+  8. STOM 三纯净（禁平台斜杠命令 / 禁绝对路径 / 工具用能力描述）+ 3000B 体量上限
+  9. docs 防腐（历史变迁词 / 单文档限长）
+ 10. TTL 复核挂载（review_before frontmatter 过期报 WARN，缺失统计）
+
+用法：
+  python scripts/verify_skills.py           # 全量检查，存量 FAIL 以告警清单输出，exit 0
+  python scripts/verify_skills.py --strict  # 任何 FAIL 退出码 1（CI/门禁用）
+  python scripts/verify_skills.py --root <仓库根>   # 校验指定仓库根（脚本随技能分发到技能目录时用）
+
+副本防漂移：本脚本存在仓库根 scripts/ 与 dj-evolve/scripts/ 两份（live 分发需要技能自包含）。
+两份必须逐字节一致，不一致即 FAIL——改任何一份前先同步另一份。
+
+设计来源：Waza checks_content.py（description 契约 + Jaccard）、ponytail check-rule-copies.js（canary）、
+琅嬛 skill-token-optimization（STOM）、dsh-agent-notes-maintenance（docs 防腐）、knowledge-base-lifecycle-governance（TTL）
+
+门禁自愈语义（DJ-004）：检查器自身的"数据缺失/解析失败"路径一律 FAIL 而非 WARN——
+"检查器抓不到东西"不等于"没有问题"；--strict 下解析失配必须阻断。
+突变测试见 tests/test_verify_skills.py：故意注入损坏夹具断言门禁咬合。
+"""
+import glob
+import os
+import re
+import sys
+from datetime import date
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# canary 承重短语：DiJiang 核心纪律，要求在两个入口文档中逐字存活。
+# 改动这些措辞前必须同步两处，否则守卫报警。
+CANARY = {
+    "worktree": ["AGENTS.md", "README.md"],          # Worktree-First 纪律
+    "Conventional Commits": ["AGENTS.md", "README.md"],  # 提交格式约定
+    "使用中文编写": ["AGENTS.md", "README.md"],        # 中文提交信息
+}
+
+FM_RE = re.compile(r"\n?---\s*\n(.*?)\n---\s*\n", re.S)
+REF_RE = re.compile(r"`?([\w\-./]*references/[\w\-./]+\.(?:md|sh|py|fish|json))`?")
+TRIGGER_RE = re.compile(r"触发词[：:]\s*(.+)")
+# STOM：平台斜杠命令（换行后紧跟 /command 形式）；绝对路径；具体工具名而非能力描述
+SLASH_CMD_RE = re.compile(r"\n/[a-z][\w-]+[\s\n]")
+ABS_PATH_RE = re.compile(r"[A-Z]:\\\\|/Users/|/home/")
+TOOL_NAME_RE = re.compile(r"\b(Edit|Write|Read|Grep|Glob|Bash)\s*(?:工具|tool|Tool)\b")
+# docs 防腐：历史变迁词（历史应进 CHANGELOG，正文只写当前事实）
+ROT_WORDS_RE = re.compile(r"不再|以前|曾经|现在改为|已废弃|原先")
+
+BODY_MAX = 3000      # dj-meta 硬上限：SKILL.md 正文 3000B
+DOC_MAX = 2000       # 单篇 docs 文档字数参考上限
+TTL_DIRS = ("docs/references", "docs/adr", "skills/engineering/*/references")
+
+
+def resolve_ref(skill_dir, ref):
+    """解析引用真实路径：docs/ 或 skills/ 前缀 -> 仓库根；<技能名>/references/ -> 跨技能引用；references/ -> 本技能目录。
+
+    跨技能引用两种形态（ADR-009）：短形态 `<技能名>/references/X.md` 与完整形态
+    `skills/<bucket>/<技能名>/references/X.md`（安装场景下保持可达）。
+    """
+    if ref.startswith(("docs/", "skills/")):
+        return os.path.join(ROOT, ref)
+    parts = ref.split("/")
+    if len(parts) >= 3 and parts[0] != "references" and parts[1] == "references":
+        for bucket in ("engineering", "productivity"):
+            cand = os.path.join(ROOT, "skills", bucket, parts[0], *parts[1:])
+            if os.path.exists(cand):
+                return cand
+        return os.path.join(ROOT, "skills", "__missing__", ref)
+    return os.path.join(skill_dir, ref)
+
+
+class Report:
+    def __init__(self):
+        self.passes, self.warns, self.fails = [], [], []
+
+    def ok(self, msg):
+        self.passes.append(msg)
+
+    def warn(self, msg):
+        self.warns.append(msg)
+
+    def fail(self, msg):
+        self.fails.append(msg)
+
+
+def discover():
+    """glob 自动发现全部 SKILL.md，不维护手工清单。"""
+    out = []
+    for bucket in sorted(os.listdir(os.path.join(ROOT, "skills"))):
+        bdir = os.path.join(ROOT, "skills", bucket)
+        if not os.path.isdir(bdir):
+            continue
+        for name in sorted(os.listdir(bdir)):
+            p = os.path.join(bdir, name, "SKILL.md")
+            if os.path.isfile(p):
+                out.append((bucket, name, p))
+    return out
+
+
+def parse_frontmatter(text):
+    """返回 (frontmatter_dict, body)。frontmatter 损坏返回 (None, None)。"""
+    if not text.startswith("---"):
+        return None, None
+    m = FM_RE.match(text)
+    if not m:
+        return None, None
+    fm_text = m.group(1)
+    props = {}
+    for line in fm_text.splitlines():
+        if ":" in line and not line.startswith((" ", "-", "AIGC")):
+            k, _, v = line.partition(":")
+            props[k.strip()] = v.strip().strip("'\"")
+    body = text[m.end():]
+    return props, body
+
+
+def check_frontmatter(rep, bucket, name, path):
+    text = open(path, encoding="utf-8").read()
+    props, body = parse_frontmatter(text)
+    ident = f"{bucket}/{name}"
+    if props is None:
+        rep.fail(f"[frontmatter] {ident}: frontmatter 缺失或未闭合")
+        return None, None
+    if not props.get("name"):
+        rep.fail(f"[frontmatter] {ident}: 缺 name 字段")
+    elif props["name"] != name:
+        rep.fail(f"[frontmatter] {ident}: name 字段 ({props['name']}) 与目录名不一致")
+    else:
+        rep.ok(f"frontmatter {ident}")
+    if body is not None and len(body.strip()) < 50:
+        rep.warn(f"[body] {ident}: 正文过短（<50 字符）")
+    return props, body
+
+
+def check_description(rep, bucket, name, props):
+    desc = (props or {}).get("description", "")
+    ident = f"{bucket}/{name}"
+    if not desc:
+        rep.fail(f"[description] {ident}: description 缺失")
+        return ""
+    n = len(desc)
+    if not (40 <= n <= 500):
+        rep.warn(f"[description] {ident}: 长度 {n} 超出 40-500 参考")
+    if "触发词" not in desc:
+        rep.warn(f"[description] {ident}: 缺 '触发词' 段（dj-ask 路由锚点）")
+    if re.match(r"^(The|A|This)\b", desc):
+        rep.fail(f"[description] {ident}: 以 The/A/This 起头，应动词开头")
+    return desc
+
+
+def check_refs(rep, bucket, name, path):
+    """SKILL.md 引用的 references/ 与 docs/references/ 文件必须真实存在。"""
+    text = open(path, encoding="utf-8").read()
+    ident = f"{bucket}/{name}"
+    skill_dir = os.path.dirname(path)
+    for ref in set(REF_RE.findall(text)):
+        target = resolve_ref(skill_dir, ref)
+        if not os.path.exists(target):
+            rep.fail(f"[ref] {ident}: 引用不存在 -> {ref}")
+    rep.ok(f"refs {ident}")
+
+
+def check_stom(rep, bucket, name, body):
+    """STOM 三纯净 + 体量上限：平台可移植性 + 跨环境可读性。"""
+    ident = f"{bucket}/{name}"
+    text = body or ""
+    if SLASH_CMD_RE.search("\n" + text):
+        rep.warn(f"[stom] {ident}: 疑似平台斜杠命令（/xxx）——纯 skill 库应写能力描述而非平台触发符")
+    hits = ABS_PATH_RE.findall(text)
+    if hits:
+        rep.warn(f"[stom] {ident}: 含绝对路径 {sorted(set(hits))[:3]}——改用仓库相对路径")
+    if TOOL_NAME_RE.search(text):
+        rep.warn(f"[stom] {ident}: 以具体工具名指代操作——改用能力描述（'修改文件'而非'Edit 工具'）")
+    if len(text) > BODY_MAX:
+        rep.warn(f"[stom] {ident}: 正文 {len(text)}B 超过 dj-meta 硬上限 {BODY_MAX}B——把深度内容外溢到 references/")
+    rep.ok(f"stom {ident}")
+
+
+def trigger_tokens(desc):
+    m = TRIGGER_RE.search(desc or "")
+    if not m:
+        return []
+    return [t for t in re.split(r"[、，,；;/\s]+", m.group(1)) if t]
+
+
+def check_jaccard(rep, descs):
+    """两两技能触发词 Jaccard >= 0.5 报 FAIL（防两技能抢同一触发面）。"""
+    keys = sorted(descs)
+    reported = 0
+    for i, a in enumerate(keys):
+        for b in keys[i + 1:]:
+            ta, tb = trigger_tokens(descs[a]), trigger_tokens(descs[b])
+            if not ta or not tb:
+                continue
+            inter = len(set(ta) & set(tb))
+            union = len(set(ta) | set(tb))
+            j = inter / union if union else 0.0
+            if j >= 0.5:
+                rep.fail(f"[jaccard] {a} vs {b}: 触发词重叠度 {j:.2f} >= 0.5（{sorted(set(ta) & set(tb))}）")
+                reported += 1
+    if not reported:
+        rep.ok("jaccard 全库无高重叠技能对")
+
+
+def check_antipatterns(rep):
+    p = os.path.join(ROOT, "skills", "engineering", "dj-meta", "references", "anti-patterns.md")
+    if not os.path.exists(p):
+        rep.fail("[anti-patterns] 文件不存在——承重文档丢失，门禁拒绝放行")
+        return
+    rows = re.findall(r"^\|\s*(\d+)\s*\|\s*\*{2}(.+?)\*{2}\s*\|", open(p, encoding="utf-8").read(), re.M)
+    nums = [int(n) for n, _ in rows]
+    names = [nm for _, nm in rows]
+    if not nums:
+        # 门禁自愈语义（DJ-004）：解析器抓不到东西 ≠ 没有问题
+        rep.fail("[anti-patterns] 解析到 0 条目——表格格式漂移导致检查器失明，strict 下必须阻断")
+        return
+    if nums != list(range(1, len(nums) + 1)):
+        rep.fail(f"[anti-patterns] 编号不连续: {nums}")
+    else:
+        rep.ok(f"anti-patterns 编号连续 1-{len(nums)}")
+    dup = {n for n in names if names.count(n) > 1}
+    if dup:
+        rep.fail(f"[anti-patterns] 条目重名: {sorted(dup)}")
+    banned = re.compile(r"DiJiang|Forgejo|pentest")
+    for nm in names:
+        if banned.search(nm):
+            rep.fail(f"[anti-patterns] 条目含项目专名: {nm}")
+
+
+def check_canary(rep):
+    for phrase, files in CANARY.items():
+        for fn in files:
+            p = os.path.join(ROOT, fn)
+            if not os.path.exists(p):
+                # 门禁自愈语义（DJ-004）：入口文档丢失必须 FAIL，不能静默跳过
+                rep.fail(f"[canary] {fn} 不存在——承重文档丢失，无法核实短语 '{phrase}'")
+                continue
+            if phrase not in open(p, encoding="utf-8").read():
+                rep.fail(f"[canary] 承重短语丢失: '{phrase}' 不在 {fn} —— 核心纪律措辞被改动，检查是否需要同步两处")
+    rep.ok("canary 承重短语")
+
+
+def _iter_docs():
+    for fn in ("AGENTS.md", "README.md", "CONTEXT.md", "SCOPE.md"):
+        p = os.path.join(ROOT, fn)
+        if os.path.isfile(p):
+            yield p
+    for dirpath, _dirs, files in os.walk(os.path.join(ROOT, "docs")):
+        for f in files:
+            if f.endswith(".md"):
+                yield os.path.join(dirpath, f)
+
+
+def check_docs_freshness(rep):
+    """docs 防腐：历史变迁词（历史进 CHANGELOG，正文写当前事实）+ 单文档限长。"""
+    rot_hits = 0
+    for p in _iter_docs():
+        rel = os.path.relpath(p, ROOT)
+        with open(p, encoding="utf-8") as f:
+            text = f.read()
+        if os.sep + "adr" + os.sep in p:
+            # ADR 是决策历史记录，变迁词是其正当用法，只查限长
+            words = set()
+        else:
+            words = {w for w in ROT_WORDS_RE.findall(text)}
+        if words:
+            rot_hits += 1
+            rep.warn(f"[docs-fresh] {rel}: 含历史变迁词 {sorted(words)}——历史应进 CHANGELOG，正文只写当前事实")
+        if len(text) > DOC_MAX:
+            rep.warn(f"[docs-fresh] {rel}: {len(text)} 字超过 {DOC_MAX} 参考上限——考虑拆分或外溢 references/")
+    if rot_hits == 0:
+        rep.ok("docs 无历史变迁词")
+
+
+def check_ttl(rep):
+    """TTL 复核挂载：review_before 过期报 WARN；缺失统计（存量逐步补齐，不强制）。"""
+    today = date.today()
+    missing, expired = [], []
+    for d in TTL_DIRS:
+        # 支持通配目录（如 skills/engineering/*/references），glob 展开后逐个扫描
+        bases = glob.glob(os.path.join(ROOT, d)) if "*" in d else [os.path.join(ROOT, d)]
+        for base in bases:
+            if not os.path.isdir(base):
+                continue
+            for fn in sorted(os.listdir(base)):
+                if not fn.endswith(".md"):
+                    continue
+                p = os.path.join(base, fn)
+                text = open(p, encoding="utf-8").read()
+                props, _ = parse_frontmatter(text) if text.startswith("---") else ({}, None)
+                rb = (props or {}).get("review_before", "")
+                rel = os.path.relpath(p, ROOT)
+                if not rb:
+                    missing.append(rel)
+                    continue
+                try:
+                    if date.fromisoformat(rb.strip()) < today:
+                        expired.append(rel)
+                        rep.warn(f"[ttl] {rel}: review_before={rb} 已过期——复核后四选一留痕（顺延/修订/归档/废止）")
+                except ValueError:
+                    rep.warn(f"[ttl] {rel}: review_before={rb!r} 非 ISO 日期")
+    if expired or missing:
+        rep.ok(f"ttl 扫描完成：过期 {len(expired)}，缺 review_before {len(missing)}（存量补齐项，不阻塞）")
+    else:
+        rep.ok("ttl 全部在册且未过期")
+
+
+
+
+# ---------- 尾部指针与索引覆盖守卫（DJ-016, fusion-chain T6） ----------
+# 主流程清单：技能 -> [(指向技能, 边类型)]；model 边写「完成后调用」，user 边写「建议下一步调用」。
+TAIL_POINTERS = {
+    "dj-grill": [("dj-output", "user")],
+    "dj-output": [("dj-split", "user")],
+    "dj-split": [("dj-implement", "user")],
+    "dj-implement": [("dj-check", "model")],
+    "dj-check": [("dijiang-finish-work", "user")],
+    "dijiang-finish-work": [("dj-evolve", "user")],
+    "dj-wayfinder": [("dj-output", "user")],
+    "dj-hunt": [("dj-check", "model")],
+    "dj-research": [("dj-grill", "user")],
+    "dj-questionnaire": [("dj-grill", "user")],
+}
+
+# 指针措辞标记（存在即认可文中已给推荐，不必逐字匹配——文案措辞留给技能作者）
+POINTER_HINT = ("建议下一步", "完成后调用", "建议加载", "建议开启")
+
+def check_tail_pointers(rep, skills):
+    """尾部指针守卫：清单技能必含下一步指向；指向不存在技能报 FAIL。"""
+    all_names = {name for _, name, _ in skills}
+    for src, edges in TAIL_POINTERS.items():
+        if src not in all_names:
+            rep.fail(f"[tail-ptr] 主流程清单含不存在的技能: {src}——清单与 skills/ 漂移")
+            continue
+        path = None
+        for _, name, p in skills:
+            if name == src:
+                path = p
+                break
+        text = open(path, encoding="utf-8").read()
+        for dst, edge in edges:
+            if dst not in all_names:
+                rep.fail(f"[tail-ptr] {src} 的指针指向不存在技能: {dst}")
+                continue
+            # 措辞两型：指向 user-invoked 用「建议」句式；model-invoked 用「完成后调用」
+            if dst not in text:
+                rep.fail(f"[tail-ptr] {src} 未含指向 {dst} 的下一步推荐——主流程接力断链")
+            elif edge == "user" and not any(h in text for h in POINTER_HINT):
+                rep.fail(f"[tail-ptr] {src} 指向 user-invoked {dst} 但缺「建议」句式（文字点火而非自动调用）")
+    rep.ok(f"tail pointers {len(TAIL_POINTERS)} 项")
+
+
+# 索引载体文件（相对仓库根）；索引覆盖守卫用
+INDEX_FILES = {
+    "agents": "AGENTS.md",
+    "ask": [
+        "skills/engineering/dj-ask/SKILL.md",
+        "skills/engineering/dj-ask/references/skill-catalog.md",
+        "skills/engineering/dj-ask/references/routing-table.md",
+    ],
+}
+
+def check_index_coverage(rep, skills):
+    """索引覆盖守卫：每技能至少一层索引有场景行——防孤儿技能只靠单点索引养着。"""
+    texts = {}
+    for layer, targets in INDEX_FILES.items():
+        targets_list = [targets] if isinstance(targets, str) else targets
+        for rel in targets_list:
+            p = os.path.join(ROOT, rel)
+            if not os.path.exists(p):
+                rep.fail(f"[index-cov] 索引载体丢失: {rel}——索引层残缺")
+                continue
+            texts.setdefault(layer, []).append(open(p, encoding="utf-8").read())
+    orphans = []
+    for _, name, _ in skills:
+        hits = any(re.search(r"\b" + re.escape(name) + r"\b", t) for layer in texts for t in texts[layer])
+        if not hits:
+            orphans.append(name)
+    if orphans:
+        rep.fail(f"[index-cov] 零索引覆盖孤儿: {orphans}——至少一层索引须有场景行")
+    else:
+        rep.ok(f"index coverage {len(skills)}/{len(skills)}")
+
+
+# ---------- 幽灵脚本守卫（phantom-scripts，2026-11 全库审计批） ----------
+# 提取 skills/、docs/ 与根部三文档中反引号包裹的仓库相对脚本引用（scripts/xxx.sh 等），
+# 核对文件存在性——防「教 agent 跑不存在的命令」类迁移残留（例：dj-channel CLI、
+# audit-inventory.sh 缺失）。占位符（含 <>）与 .dijiang/ 惰性路径天然不匹配。
+SCRIPT_REF_RE = re.compile(r"`(scripts/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+)`")
+
+
+def _skill_dir_of(md_path):
+    """md 若位于 skills/<bucket>/<name>/ 下，返回该技能目录；否则 None（如 docs/ 或根部文档）。"""
+    rel = os.path.relpath(md_path, ROOT)
+    parts = rel.split(os.sep)
+    if len(parts) >= 4 and parts[0] == "skills":
+        return os.path.join(ROOT, *parts[:3])
+    return None
+
+
+def check_phantom_scripts(rep):
+    """幽灵脚本守卫：引用的脚本必须存在——技能内文档先解析到技能目录 scripts/，再回退仓库根。
+
+    解析顺序（F2.5 脚本资产吸收约定）：技能内 scripts/ 随 rsync 整目录投放 live，
+    技能文档里的 `scripts/xxx.py` 相对本技能目录；仓库级根 scripts/ 只服务根部文档。
+    """
+    targets = []
+    for d in ("skills", "docs"):
+        base = os.path.join(ROOT, d)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, _, files in os.walk(base):
+            targets.extend(os.path.join(dirpath, fn) for fn in files if fn.endswith(".md"))
+    for fn in ("AGENTS.md", "README.md", "CONTEXT.md"):
+        p = os.path.join(ROOT, fn)
+        if os.path.exists(p):
+            targets.append(p)
+    ghosts = []
+    for p in targets:
+        rel = os.path.relpath(p, ROOT)
+        try:
+            text = open(p, encoding="utf-8").read()
+        except OSError as e:
+            rep.fail(f"[phantom-script] 读取失败 {rel}: {e}")
+            continue
+        skill_dir = _skill_dir_of(p)
+        for m in SCRIPT_REF_RE.finditer(text):
+            ref = m.group(1)
+            frag = ref.split("/")
+            resolved = None
+            if skill_dir is not None:
+                cand = os.path.join(skill_dir, *frag)
+                if os.path.exists(cand):
+                    resolved = cand
+            if resolved is None and os.path.exists(os.path.join(ROOT, *frag)):
+                resolved = os.path.join(ROOT, *frag)
+            if resolved is None:
+                ghosts.append(f"{rel} → {ref}")
+    if ghosts:
+        for g in ghosts:
+            rep.fail(f"[phantom-script] 幽灵脚本引用: {g}——技能目录与仓库根均不存在（迁移残留或笔误）")
+    else:
+        rep.ok(f"phantom scripts：{len(targets)} 文件扫描零幽灵")
+
+
+def check_skill_size(rep, skills):
+    """SKILL.md 体量红线：正文超 3000 字符（存量债务如实暴露，聚合为一条 WARN）。"""
+    over = []
+    for bucket, name, path in skills:
+        try:
+            n = len(open(path, encoding="utf-8").read())
+        except OSError as e:
+            rep.fail(f"[size] 读取失败 {bucket}/{name}: {e}")
+            continue
+        if n > 3000:
+            over.append((f"{bucket}/{name}", n))
+    if over:
+        listing = "、".join(f"{n}({c})" for n, c in sorted(over, key=lambda x: -x[1]))
+        rep.warn(f"[size] SKILL.md 超 3000 字符红线 {len(over)} 个：{listing}")
+    else:
+        rep.ok("SKILL.md 体量：全部 ≤3000 字符")
+
+
+def check_orphan_assets(rep, skills):
+    """孤儿资产：技能内 references/ 与 scripts/ 文件未被任何 Markdown 按文件名引用。
+
+    豁免：README.md（目录索引）、隐藏文件。只做 WARN——引用也可能是目录级指针，
+    文件名检索不到不等于死资产，交人工判定。
+    """
+    md_texts = {}
+    for d in ("skills", "docs"):
+        base = os.path.join(ROOT, d)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, _, files in os.walk(base):
+            for fn in files:
+                if fn.endswith(".md"):
+                    p = os.path.join(dirpath, fn)
+                    try:
+                        md_texts[p] = open(p, encoding="utf-8").read()
+                    except OSError:
+                        pass
+    for fn in ("AGENTS.md", "README.md", "CONTEXT.md"):  # CHANGELOG 是历史日志，提及≠活引用
+        p = os.path.join(ROOT, fn)
+        if os.path.exists(p):
+            try:
+                md_texts[p] = open(p, encoding="utf-8").read()
+            except OSError:
+                pass
+
+    orphans = []
+    checked = 0
+    for bucket, name, _path in skills:
+        skill_dir = os.path.join(ROOT, "skills", bucket, name)
+        for sub in ("references", "scripts"):
+            base = os.path.join(skill_dir, sub)
+            if not os.path.isdir(base):
+                continue
+            for dirpath, _, files in os.walk(base):
+                for fn in files:
+                    if fn.startswith(".") or fn == "README.md":
+                        continue
+                    checked += 1
+                    if not any(fn in text for t_path, text in md_texts.items()
+                               if os.path.abspath(t_path) != os.path.abspath(os.path.join(dirpath, fn))):
+                        orphans.append(f"{bucket}/{name}/{sub}/{fn}")
+    if orphans:
+        for o in orphans:
+            rep.warn(f"[orphan-asset] {o} 未被任何 Markdown 按文件名引用（死资产或目录级指针，人工判定）")
+    else:
+        rep.ok(f"orphan assets：{checked} 个技能内资产全部有引用")
+
+
+def check_replica_consistency(rep):
+    """两份副本防漂移：本脚本若位于技能目录（非仓库根 scripts/），必须与仓库根权威副本逐字节一致。"""
+    here = os.path.abspath(__file__)
+    root_scripts = os.path.join(ROOT, "scripts", "verify_skills.py")
+    if os.path.abspath(here) == os.path.abspath(root_scripts):
+        return  # 权威副本在仓库根，天然一致
+    if not os.path.exists(root_scripts):
+        rep.fail("[replica] 找不到仓库根权威副本 scripts/verify_skills.py——本副本漂移无参照")
+        return
+    with open(here, "rb") as f1, open(root_scripts, "rb") as f2:
+        if f1.read() != f2.read():
+            rep.fail("[replica] 技能目录副本与仓库根 scripts/verify_skills.py 不一致——改任一份前必须先同步另一份（防漂移）")
+        else:
+            rep.ok("replica 一致性：技能目录副本与仓库根权威逐字节一致")
+
+
+def main():
+    global ROOT
+    argv = sys.argv
+    strict = "--strict" in argv
+    if "--root" in argv:
+        idx = argv.index("--root")
+        if idx + 1 < len(argv):
+            ROOT = os.path.abspath(argv[idx + 1])
+    rep = Report()
+    skills = discover()
+    if not skills:
+        print("FATAL: 未发现任何 SKILL.md")
+        return 2
+    rep.ok(f"发现 {len(skills)} 个技能（glob 自动发现）")
+
+    descs = {}
+    for bucket, name, path in skills:
+        props, body = check_frontmatter(rep, bucket, name, path)
+        desc = check_description(rep, bucket, name, props)
+        check_refs(rep, bucket, name, path)
+        check_stom(rep, bucket, name, body)
+        descs[f"{bucket}/{name}"] = desc
+
+    check_jaccard(rep, descs)
+    check_antipatterns(rep)
+    check_canary(rep)
+    check_docs_freshness(rep)
+    check_ttl(rep)
+    check_tail_pointers(rep, skills)
+    check_index_coverage(rep, skills)
+    check_phantom_scripts(rep)
+    check_skill_size(rep, skills)
+    check_orphan_assets(rep, skills)
+    check_replica_consistency(rep)
+
+    print(f"PASS {len(rep.passes)}  |  WARN {len(rep.warns)}  |  FAIL {len(rep.fails)}")
+    for w in rep.warns:
+        print("WARN ", w)
+    for f in rep.fails:
+        print("FAIL ", f)
+    if not rep.warns and not rep.fails:
+        print("ALL CLEAN")
+    if strict and rep.fails:
+        print("\n--strict 模式：FAIL 阻断（exit 1）")
+        return 1
+    if strict and rep.warns:
+        print("\n--strict 模式：WARN 不阻断，但请清理存量")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

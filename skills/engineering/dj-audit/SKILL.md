@@ -58,6 +58,10 @@ git grep --no-index --exclude-standard -nE '(#|//) ?(shortcut|ponytail):'
 
 逐行输出 `<文件:行号> — 简化了什么 / 上限 / 升级触发点`。没有升级触发点的标记 `no-trigger` 并高亮——那是会默默腐烂的简化。declutter/简化类改动较多的仓库，本节为必查项。
 
+### 2.6 覆盖记账与结论分级
+
+跨轮审计按 `references/coverage-ledger.md` 记账（additive ledger：只补缺口、不重扫已审单元）；「无问题/未找到」类结论需走 L1-L7 失败升级阶梯，至少推进到 L4 才准下「没找到」→ `references/coverage-ledger.md`。
+
 ### 3. 输出
 
 每项发现包含：
