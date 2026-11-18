@@ -58,7 +58,7 @@ description: "系统化排查 bug：先定位根因，再修复。尤其擅长�
 
 任务仍 `planning` 时用原始用户请求重新走 dj-ask，不绕过 worktree check（见 dj-git-guardrails）。
 
-回归测试写在修复**之前**——仅当存在正确 seam；没有 seam → 本身就是发现：架构阻碍 bug 锁定。有 seam：最小化 repro → failing test → RED → 修 → GREEN → 重跑反馈环确认原始场景不复现。遵守 **Code Task TDD Contract**（RED/Repro evidence、GREEN command、Regression scope、Exception）。
+回归测试写在修复**之前**——仅当存在正确 seam；没有 seam → 本身就是发现：架构阻碍 bug 锁定。有 seam：最小化 repro → failing test → RED → 修 → GREEN → 重跑反馈环确认原始场景不复现。**RED 是人为突变造出来的**（改代码/夹具强制失败）时，用 `diff` 对干净副本证明突变确实落盘——否则你不知道测的是不是旧二进制。遵守 **Code Task TDD Contract**（RED/Repro evidence、GREEN command、Regression scope、Exception）。
 
 ### Phase 6 — 清理 + 复盘
 

@@ -14,9 +14,9 @@ disable-model-invocation: true
 
 1. **`dj-grill`** 逐轮拷问打磨想法。有 working directory 时从此开始：状态化，所学留在 `CONTEXT.md` 和 ADR。
 2. **问题需要可运行的答案？**（状态、业务逻辑、UI）→ 原型支路：双向 **`dj-handoff`** 桥接，新 session 里 **`dj-prototype`** 一次性代码回答，带回来。
-3. **多 session 构建？**
-   - **是** → **`dj-output`** 生成 PRD/spec → **`dj-split`** 拆子弹式工单（各声明**阻塞边**），blockers-first 逐个 kickoff **`dj-implement`**，之间清上下文。
-   - **否** → **`dj-implement`** 就地，同一上下文窗口内。
+3. **多 session 构建？** 用剩余上下文预算判，不靠感觉（上下文越长性能非均匀下降，早期约束会被稀释）：
+   - **够**（grill 完仍余量充足，能一口气做完）→ **`dj-implement`** 就地，同一上下文窗口内。
+   - **不够** → **`dj-output`** 生成 PRD/spec → **`dj-split`** 拆子弹式工单（各声明**阻塞边**），blockers-first 逐个 kickoff **`dj-implement`**，之间清上下文。
 
    无论哪种，`dj-implement` 内部驱动 **`dj-tdd`** 红绿切片，改码被 **`dj-regression-guard`** 三明治护送，完结跑 **`dj-check`**（Standards + Spec 两轴，结论走证据三态 verified / not run / inconclusive）后提交。交付后 **`dijiang-finish-work`** 收口（质量验证/提交/归档）→ **`dj-evolve`** 沉淀可复用经验进技能体系——完成闭环。
 

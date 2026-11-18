@@ -138,7 +138,24 @@
 
 机械守卫：PASS 141 / WARN 28 / FAIL 0；三组自测 21/21。
 
-## 八、待拍板（后续）
+## 八、C 批落地记录（2026-11-18，微增量顺手并入）
 
-1. **超红线瘦身**：15 个 SKILL.md 超 3000 字符（存量债务，本轮各技能只加指针行），是否另开一批。
-2. **C 批微增量**：11 项单行/小段（grill 置信度、tdd seam、memory 断言日期、benchmark 七问、loop 刹车词汇等），按「顺手并入」执行。
+| # | 落点 | 内容 |
+|---|---|---|
+| C1 | dj-grill | 推荐答案附把握度；「你定」是委托不是决策；want-vs-should 探针；可检验的停止判据 |
+| C2 | dj-tdd / dj-hunt / dj-teach / dj-wayfinder | seam 一行注记；突变造红的 diff 证明；答案位置轮换；标签独占 + 真实编号 + research 只推不合 |
+| C3 | dj-ponytail | ultra 增「动手前质疑需求」 |
+| C4 | dj-domain-modeling/context-format.md | `_Avoid_` 别名、通用概念不入表、多上下文 MAP、改名不自动做 |
+| C5 | dj-memory + quality-gates.md | 断言带日期/commit、旧条目标 superseded 不改写 |
+| C6 | dj-ask / dj-split | 按剩余上下文预算判岔路；切片上限 = 新会话能否稳定做完 |
+| C7 | dj-check/references/measurement-review.md | 性能数字七问 |
+| C8 | dj-verify/verify-template.md | 先证明检查会失败 + 覆盖记录绑 commit；工具链挂账 |
+| C9 | dj-loop/loop-design.md | run 永不等人、刹车三档、先节流后开阀、防双跑五问 |
+| C10 | dj-evolve/evolution-criteria.md | 口径冻结、逐 case 归因、存量体检四维（含从未触发） |
+| C11 | dj-meta/anti-patterns.md #34 | 建议与命令分层，冲突时命令优先 |
+
+## 九、遗留
+
+1. **超红线瘦身**：15 个 SKILL.md 超 3000 字符（基线 14，本批 dj-evolve 增一行判据跨线），另开一批处理。
+2. **触发层实测**：等平台提供独立评测入口后再跑，不在会话内自测。
+3. **观察项**：Addy 七个域 checklist、software-factory 完整词汇表、Skill 工厂、Trellis 状态层——维持不收，出现真实失败再评估。

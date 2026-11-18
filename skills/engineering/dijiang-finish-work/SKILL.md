@@ -78,7 +78,7 @@ major=不兼容的公开 API/行为变更；minor=向后兼容新增；patch=向
 
 ### 6.5 放行申请（合并 / 推送 / live 同步 / 部署前）
 
-每个要用户点头的动作写三段：**Summary**（最小可视化）、**Evidence**（Before/After 成对，至少到可重跑命令输出）、**Merge Danger**（单向门/双向门 + 一个词的爆炸半径）。模板与判据见 `references/merge-request.md`；三段写不完整 = 还没准备好放行。申请不等于授权，用户说「可以」才算。
+每个要用户点头的动作写三段：Summary / Evidence（Before-After 成对）/ Merge Danger（门 + 爆炸半径）。模板见 `references/merge-request.md`；写不完整 = 没准备好放行，申请不等于授权。
 
 ### 7. 清理 worktree 与分支
 

@@ -118,6 +118,8 @@ recall 读取 corrections.jsonl 后必须统计同类纠正计数：达到阈值
 
 **写入前过质量门**：六审视（来源/范围/时效/可验证/冲突/去偶然）+ What NOT to save 排除清单 + 最低信号门——判据全文见 `references/quality-gates.md`，未过门不写入。
 
+**断言带时间锚**：事实性断言带日期，能指 commit 的带 commit；变化时追加新断言、旧条目标 superseded，不改写（判据见 `references/quality-gates.md` §时间锚）。
+
 写入前检查：
 - **content** 不为空，不模糊（"fixed bug" 不合格）
 - **source** 必须明确（不能是 "guess"）
