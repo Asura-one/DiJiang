@@ -1,0 +1,32 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "我的项目里已经有一个旧版 .dijiang/ 目录，包含 agents/、references/、scripts/ 这些旧子目录，还有 tasks/ 和 memory/ 里存着真实数据。请帮我把项目迁移到新版结构。",
+   "checks": [
+     "识别为迁移场景而非新初始化",
+     "保留 tasks/memory/spec/config 等有效数据",
+     "移除旧版子目录前有确认或分步处理",
+     "迁移中间断时保留原数据不覆盖"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "user",
+   "prompt": "帮我初始化一个新项目的 DiJiang 工作区。",
+   "checks": [
+     "创建 .dijiang/ 目录结构",
+     "推断 project.name 并写 config.toml",
+     "创建 CONTEXT.md",
+     "验证结构完整"
+   ]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "项目里有个旧版 .dijiang 要迁移，但我不想丢任务数据。帮我做。",
+   "checks": [
+     "保留并迁移任务数据",
+     "移除旧目录有保护/确认",
+     "迁移中断保留原数据"
+   ]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "初始化项目并配置 config.toml，把 workflow.grill_mode 设为 grill-me。",
+   "checks": [
+     "创建 config.toml 含 grill_mode",
+     "完整目录结构",
+     "验证"
+   ]}
+]
