@@ -59,3 +59,5 @@
 ### 阶段边界（五选项）
 
 一个**阶段**是 session 内的一块工作（拷问/实现/QA）。**边界**五选项：**Continue**（零成本）/ **`dijiang-continue`**（恢复任务）/ **`dj-handoff`**（可移植 Markdown：新 harness、新目录、同事、中期分叉）/ **子 agent**（紧 scoped 发自己窗口拿报告）/ **`dj-memory`**（万不得已）。在边界**做**决定；阶段中期 continue 或拆子 agent。
+
+主流程步骤 1–3 保持在**一个不断开的上下文窗口**内（`dj-split` 前不要 compact/clear）；每个 `dj-implement` 从工单全新启动。

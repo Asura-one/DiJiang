@@ -11,7 +11,7 @@ disable-model-invocation: true
 
 收尾当前 DiJiang session。提交、归档只在这里发生，不依赖 CLI，全部通过文件读写和 git 命令完成。
 
-深度细节：失败归因基线复测、主 checkout 例外、首次提交特例、issue 同步、反模式全表 → `references/finish-gates.md`；远程部署命令与陷阱 → `references/restricted-network-deploy.md`。
+深度细节（各步检查/模板/判定原文、反模式全表）→ `references/finish-gates.md`；远程部署 → `references/restricted-network-deploy.md`。
 
 ## 调用契约
 
@@ -21,9 +21,9 @@ disable-model-invocation: true
 
 ### 1. 验证状态和质量
 
-先检查真实项目状态，不依赖对话历史：`cat .dijiang/active_task.txt`（有则读 `.dijiang/tasks/<name>/task.json` 和产物）、`git status --short --branch`、`git diff --stat HEAD`、`git diff --name-only HEAD`、`git log --oneline @{u}..HEAD`。
+先检查真实项目状态，不依赖对话历史（命令清单 → `references/finish-gates.md`）
 
-代码或行为变化时，收尾前运行相关测试、typecheck、lint，失败会阻塞 finish-work。**失败先归因**：用 HEAD 干净基线复测区分「本来就坏」与「本次改坏」（见 references/finish-gates.md），结论写入 TDD Contract 的 Exception 字段。变更必须在验证输出中含 **Code Task TDD Contract** 证据：RED/Repro evidence、GREEN command、Regression scope、Exception。纯文档变更可设 `n/a` 并写明原因。
+代码或行为变化时，收尾前跑相关测试、typecheck、lint，失败阻塞 finish-work。**失败先归因**（HEAD 基线复测 → `references/finish-gates.md`）。变更须含 **TDD Contract** 证据：RED/Repro、GREEN、Regression scope、Exception；纯文档可 `n/a` 写明原因
 
 ### 清洁状态
 
@@ -31,24 +31,7 @@ disable-model-invocation: true
 
 ### 2. Pre-finish Gate
 
-暂存前先报告：
-
-```text
-任务: <name or none>
-分支: <branch>
-变更文件: <paths>
-验证: <commands => result>
-RED/Repro: <command or n/a + reason>
-GREEN command: <command> => <result>
-Regression scope: <checks> => <result>
-Exception: <none or justified gap>
-文档同步: <updated/none/skipped; reason>
-版本决策: <major|minor|patch|none; reason>
-记忆: <written/skipped; reason>
-Issue 同步: <closed+全勾+复核/none/skipped; reason>
-Live 同步: <synced/skipped; reason>
-提交模式: <yes/no; reason>
-```
+暂存前报告下列各项（模板与逐项要求 → `references/finish-gates.md`）：任务、分支、变更文件、验证、RED/Repro、GREEN、Regression scope、Exception、文档同步、版本决策、记忆、Issue 同步、Live 同步、提交模式
 
 缺验证、代码变更缺 TDD evidence、缺文档同步证据、缺记忆或版本决策不清 → 停止。
 
@@ -56,11 +39,11 @@ Live 同步: <synced/skipped; reason>
 
 执行 `git worktree list` + `git rev-parse --show-toplevel` 确认隔离。如果当前在主 checkout 且有代码变更，停止。diff 混入无关文件时，只暂存已审查路径。
 
-两个例外（细节见 references/finish-gates.md）：① 主 checkout 遗留成果且用户明确要求提交 → 提交拆分与是否 push 交用户拍板；② 仓库尚无 commit（首次提交）→ 提交模式交用户拍板，先建 `.gitignore` 审计入库范围。
+两个例外（主 checkout 遗留成果、仓库尚无 commit 首次提交）→ `references/finish-gates.md`
 
 ### 4. 判断版本影响
 
-major=不兼容的公开 API/行为变更；minor=向后兼容新增；patch=向后兼容修复；none=文档/测试/内部变更。只有存在版本元数据且决策非 `none` 时，才更新版本文件和 CHANGELOG。
+major=不兼容公开 API/行为变更；minor=兼容新增；patch=兼容修复；none=文档/测试/内部。有版本元数据且非 `none` 才更新版本文件和 CHANGELOG。
 
 ### 5. 同步产物
 
@@ -70,15 +53,15 @@ major=不兼容的公开 API/行为变更；minor=向后兼容新增；patch=向
 
 提交前先执行 `git diff --stat HEAD` 获取变更事实；commit message 必须基于变更事实总结。
 
-**未识别文件分类（并行开发防护）**：dirty 文件分两组——**AI 本次编辑**（本 session 明确改动的）与**无法识别**（用户手动改的、其他窗口/worktree 的、历史遗留）。无法识别组单列展示、默认不入库，逐一向用户确认。
+**未识别文件分类（并行开发防护）**：无法识别的 dirty 文件单列展示、默认不入库、逐一确认 → `references/finish-gates.md`
 
-一次性列出完整提交计划（文件清单 + message）等用户确认；用户拒绝后转手动模式，不自动生成第二版计划。commit message 用中文，Conventional Commits 格式：`git add <reviewed paths> && git commit -m "<类型>(<范围>): 中文描述"`。
+一次性列出完整提交计划（文件清单 + message）等用户确认；拒绝后转手动模式，不生成第二版；commit message 中文、Conventional Commits 格式
 
-**批量 add 前先看 `git status --short` 首列**：已 staged 的删除（`D`）不要放进 add 列表——`git add` 遇不存在的 pathspec 会整条 fatal 中止，随后 commit 只提交孤立删除。提交后回读 `N files changed` 与计划比对（详见 references/finish-gates.md §5）。
+**批量 add 前看 `git status --short` 首列**：已 staged 删除（`D`）不进 add 列表（pathspec 落空整条 fatal）；提交后回读 `N files changed` 比对 → `references/finish-gates.md`
 
 ### 6.5 放行申请（合并 / 推送 / live 同步 / 部署前）
 
-每个要用户点头的动作写三段：Summary / Evidence（Before-After 成对）/ Merge Danger（门 + 爆炸半径）。模板见 `references/merge-request.md`；写不完整 = 没准备好放行，申请不等于授权。
+每个要用户点头的动作写三段：Summary / Evidence（Before-After 成对）/ Merge Danger（门 + 爆炸半径）→ `references/merge-request.md`；写不完整 = 没准备好放行，申请不等于授权。
 
 ### 7. 清理 worktree 与分支
 
@@ -88,7 +71,7 @@ major=不兼容的公开 API/行为变更；minor=向后兼容新增；patch=向
 
 如果有活跃任务，将 task.json 的 status 更新为 `archived`，并从 `.dijiang/active_task.txt` 移除指针。
 
-**工单已镜像到 Forgejo（task.json 记 issue 编号）**：归档前必须同步 issue 侧，机制以 dj-split「同步到 issue 跟踪器」为权威，判定规则见 references/finish-gates.md（已完成→三重证据+结题评论+checklist 勾选+复核；挂起→保持 open 写明触发条件）。两侧一致才收口。
+**工单已镜像 Forgejo 时**：归档前必须同步 issue 侧、两侧一致才收口（判定规则 → `references/finish-gates.md`）
 
 ### 9. 记录记忆
 
@@ -96,7 +79,7 @@ major=不兼容的公开 API/行为变更；minor=向后兼容新增；patch=向
 
 ### 10. 远程部署交付（如任务含远程/生产部署）
 
-执行时机：第 6 步提交之后、第 8 步归档之前——**部署验证通过才算交付闭环**。完整命令与陷阱见 `references/restricted-network-deploy.md`。要点：改前备份（tar 快照+config+.env、旧镜像留回滚锚点）、服务器 build 超时→本地 podman 构建+save/load、compose 卡死手动重建、部署后必 `docker exec grep` 验证新代码标记、凭证双端即用即毁。
+执行时机：第 6 步提交后、第 8 步归档前——**部署验证通过才算交付闭环**（备份/回退/容器内验证/凭证要点 → `references/restricted-network-deploy.md`）
 
 ### 11. Live 副本同步（技能增删改批，合并 main 后执行）
 

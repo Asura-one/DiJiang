@@ -20,7 +20,7 @@ disable-model-invocation: true
 
    无论哪种，`dj-implement` 内部驱动 **`dj-tdd`** 红绿切片，改码被 **`dj-regression-guard`** 三明治护送，完结跑 **`dj-check`**（Standards + Spec 两轴，结论走证据三态 verified / not run / inconclusive）后提交。交付后 **`dijiang-finish-work`** 收口（质量验证/提交/归档）→ **`dj-evolve`** 沉淀可复用经验进技能体系——完成闭环。
 
-步骤 1–3 保持在**一个不断开的上下文窗口**内（`dj-split` 前不要 compact/clear）；每个 `dj-implement` 从工单全新启动。阶段边界的五个切换选项（Continue / continue / handoff / 子 agent / memory）见 catalog 的 Session 管理。
+步骤 1–3 的上下文窗口与阶段边界纪律 → `references/skill-catalog.md`
 
 ## 入口匝道
 
@@ -35,11 +35,7 @@ disable-model-invocation: true
 
 收到具体请求（"实现登录""修个 bug"）而非问全貌时：匹配关键词 → 路由到单个 skill，**显式输出目标 skill + 理由**，并用自己话回述用户目标与预期最小改动——**回述即开工，不等确认**；证据表明行不通则停下摆证据。
 
-1. **混合任务**取主要类型串联执行（先 `dj-grill` 对齐再 `dj-implement`），不并排路由两个 skill
-2. **低置信度** → `dj-grill` 澄清，不可猜
-3. **re-entry**：任务仍 `planning` 时，用原始用户请求重新走本 skill 路由，不绕过 worktree check（见 `dj-git-guardrails`）
-4. 关键词或歧义拿不准 → 读 `references/routing-table.md`（全量关键词表 + 歧义消解细则）
-5. **回述与 grill 分层**：grill 是需求不清的逐轮拷问门禁；回述是清晰任务的 3 秒防跑偏，说了就走
+路由细则（混合任务 / 低置信度 / re-entry / 回述与 grill 分层）与全量关键词表、歧义消解 → `references/routing-table.md`。
 
 路由器不是执行器：不替其他 skill 决策、不执行实现、不修改代码；需用户确认的操作（发送、删除、推送）显式提示确认。
 

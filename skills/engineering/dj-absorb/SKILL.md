@@ -7,7 +7,7 @@ disable-model-invocation: true
 ---
 
 参考规范：`skills/engineering/dj-meta/references/anti-patterns.md`、`skills/engineering/dj-check/references/intensity-levels.md`、`skills/engineering/dj-check/references/output-markers.md`、`skills/engineering/dj-check/references/design-modes.md`。
-深度细节：卡片/融合方案/快照与范围确认模板、Phase 4 验证清单、四态重验与多目标并行调研细则 → `references/fusion-templates.md`；拆解维度 → `references/absorption-checklist.md`；pstack 融合评估与落地进度存档（P0+P1 已完成）→ `references/pstack-fusion-evaluation.md`。
+深度细节：卡片/融合方案/快照与范围确认模板、Phase 4 验证清单、四态重验与多目标并行调研细则 → `references/fusion-templates.md`；拆解维度 → `references/absorption-checklist.md`；pstack 融合评估与落地进度存档 → `references/pstack-fusion-evaluation.md`。
 
 ## Outcome Contract
 
@@ -22,43 +22,41 @@ disable-model-invocation: true
 
 ## 要解决的问题
 
-**复刻**（`dj-remix`）整站抄来再差异化；**吸收融合**（本 skill）以自有项目为主体提取特定元素增量融入。主要风险不是漏功能，而是：**风格冲突**、**架构不匹配**（外部模式在自有技术栈下不适用）、**过度吸收**（拼凑品）、**选择性偏误**（只看好部分，忽略设计在源项目的上下文约束——交互简洁可能是后端强大撑的）、**入口失配**（融合产物不被入口路由触达，成了永远不会执行的死技能）。
+吸收 vs 复刻边界、五大主要风险详释 → `references/fusion-templates.md`
 
-五步：摸底 → 拆解与筛选（有框架地挑）→ 融合方案（逐候选适配+评冲突）→ 落地实现（一条一条做）→ 最终验证。
+五步流程概览 → `references/fusion-templates.md`
 
 ## 强度等级
 
-lite（1-2 个明确元素快速落地，跳过完整拆解）/ full 默认（全 Phase）/ ultra（多目标、架构级吸收，加冲突分析与替代方案评估）。
+三档定义（lite/full/ultra）→ `references/fusion-templates.md`
 
 ## Phase 0：摸底
 
-拆解外部目标前先搞清自有项目现状：快照（结构/组件体系/设计规范/代码风格/架构/痛点，要点见 references）；外部目标确认（URL fetch_content / 截图 read / 关键词先消歧义再 web_search）；**吸收范围确认**（看中什么/到什么程度/融合方向/单多目标，问题清单见 references）。
-
-**摸底以源码为准，不以 README 为准**：README 可能落后代码多个版本（实证：README 停 v0.1.x 而代码已 v0.2.0，差距分析 78% 误报）。功能现状盘点基于实际源码（组件目录/hooks/lib 真实实现），README 只作线索不作结论。
+摸底细则 → `references/fusion-templates.md`
 
 **🔴 借鉴前先查许可证（商业化红线）**：外部目标是开源代码、且自有项目要商业化/闭源交付时，**先查外部目标的开源许可证**再谈吸收深度——这是最高优先级的前置决策，决定整个吸收的参考方式。三档风险：**机制级借鉴**（读懂原理自行实现，如"800ms 去抖 + CAS 状态机"思想）风险最低；**结构级参照**（同类 schema/表/包命名）次之；**代码级平移**（逐段翻译/搬运）风险最直接。若是 AGPL 类传染性许可证，代码级平移会把自有商业化产品拖入开源义务。查证动作：读外部仓库 LICENSE 全文 + 仓库元数据（标注 URL 与访问日期），并核验衍生项目自身如何标注来源。**同时查依赖树**：参考项目的核心能力可能来自宽松许可的独立依赖（实证：ARTEX 的 agent 循环来自 Apache-2.0 的 norma），那是唯一可代码级复用的通道——"自研 vs 外挂第三方 CLI"之外还有第三条路：自研业务层 + 复用宽松许可的底层库。**取证基线**：上游删库或镜像不可信时（实证：原仓库 404、流行镜像被 CERT 确认投毒），以本地带完整 git 历史的快照为唯一可信基线，绝不用网上镜像作代码源。产出"可搬/必须改写/不能碰"三档红线清单，写进吸收方案供所有后续步骤引用。**参考外部代码做架构级吸收时，许可证票应作为第一张决策票优先解决**（实证：Go 重写参考闭源前开源版 ARTEX，许可证票决定机制/结构/代码三档借鉴深度，先于所有下游设计）。
 
 ## Phase 1：拆解与筛选
 
-吸收视角（而非复刻视角）系统化拆解——关注"有什么值得借鉴的元素"。维度见 `references/absorption-checklist.md`。每个候选记一张**卡片**（来源/类型/价值/成本/冲突风险/是否吸收/理由，模板见 fusion-templates.md）。
+拆解维度 → `references/absorption-checklist.md`；候选元素卡片 → `references/fusion-templates.md`
 
-两条硬纪律：**输入含调研报告/差距清单时逐条对照源码重验**——四态判定（已有/真实差距/前提失效/不适合），直接采信会把已实现功能当新需求重做、把已放弃路线的机制重新引入（细则见 references/fusion-templates.md）；**多目标并行调研**——每目标派一个只读研究子代理并行拆解，主 session 只做归并去重与冲突评估（提示词四要素见 references）。
+调研报告四态重验与多目标并行调研细则 → `references/fusion-templates.md`
 
 ## Phase 2：融合方案
 
-对标记"是/待讨论"的候选逐个设计融合方案——不是照搬而是适配。方案含适配分析（源实现/现有方案/适配方式/改动范围）、冲突解决（风格/架构/命名）、实现策略（新增 vs 修改/依赖影响）、验证方式（模板见 references）。多目标融合以自有项目为主体，外来元素适配自有风格，反之不行。
+方案模板与适配/冲突/实现策略要素 → `references/fusion-templates.md`
 
-**融合形式前置判定（新增 vs 内嵌，2026-11 pstack 批教训）**：定实现策略前先回答『这个机制将来怎么被触发？』——融合的是机制/流程，不是照搬技能文件。单一入口体系两条合法出路：内嵌进入口已路由的现有技能流程（用户入口零改动），或新建独立技能 + **同批挂 dj-ask 三处路由**（`dj-ask/SKILL.md` 入口匝道、`dj-ask/references/routing-table.md` 触发行、`dj-ask/references/skill-catalog.md` 详注，缺一即死技能）；『必须内嵌不可新建』是过度矫正，形式拿不准先问用户使用入口。三处清单与纠偏链实证 → `references/pstack-fusion-evaluation.md`。
+融合形式前置判定（新增 vs 内嵌）与 dj-ask 三处路由 → `references/pstack-fusion-evaluation.md`
 
 **🔴 🛑 STOP：展示所有融合方案给用户确认**后再进 Phase 3；用户可能调整范围、修改方案或放弃某些元素。
 
 ## Phase 3：落地实现
 
-核心原则：**一条一条做，做完一条验证一条，不堆在一起验收**。每次只实现一个元素；实现前确认不依赖其他未实现元素（有依赖先实现被依赖的）；每条按 Phase 2 验证方式快速验证；视觉改动参考 `dj-design` 一致部分；实现困难（技术限制/冲突超预期）暂停评估——降要求/换方式/放弃。**Phase 3 发现 Phase 2 方案有问题不硬撑，回 Phase 2 调整再继续。**
+逐条落地纪律 → `references/fusion-templates.md`
 
 ## Phase 4：最终验证
 
-全部完成后整体验证（六项清单见 references/fusion-templates.md）：一致性、视觉一致性（主题变量非硬编码）、回归检查、多目标协调、差异清单、用户确认。
+六项验证清单 → `references/fusion-templates.md`
 
 ## Hard Rules
 
@@ -76,18 +74,6 @@ lite（1-2 个明确元素快速落地，跳过完整拆解）/ full 默认（�
 
 | Gotcha | 预防 |
 |---|---|
-| 跳过 Phase 0 直接拆解 | 先摸底再拆解 |
-| 只看想借鉴部分忽略上下文约束 | 拆解时同时关注依赖条件 |
-| 一次吸收太多元素 | 3-5 个后做一致性检查 |
-| 忽略自有项目风格 | 每元素做冲突分析 |
-| 懒得改方案直接搬代码 | 融合方案阶段做好适配设计 |
-| 从多目标吸收同类元素 | 优先兼容好的，或设计统一方案 |
-| Phase 3 遇冲突不回头 | 暂停，回 Phase 2 调整 |
-| "借鉴这个"不指明具体元素 | Phase 0 追问看中什么 |
-| 采信调研报告差距结论不重验 | 逐条对照源码四态核实 |
-| 按 README 盘点功能现状 | 以源码为准，README 只作线索 |
-| 把"本轮不做/YAGNI 取舍"归入"已覆盖" | 四态显式分类：**已有/真缺口/边界项/不适用**——"不做"≠"已有"，混类漏报真缺口（实证见 references/fusion-templates.md） |
-| 单一入口体系下新建技能不挂路由 | 新建必须同批挂进入口路由三处；全内嵌仅当机制天然属现有流程 |
 | 商业化产品直接搬外部开源代码 | **先查许可证再谈吸收深度**：机制级/结构级/代码级三档风险不同，AGPL 类传染性许可证下代码级平移会拖入开源义务；许可证票作为第一张决策票优先解决 |
-| 融合产出 SKILL.md 写完才查体积红线 | 动笔前预算（硬上限 3000、目标 800-2500；中文 3B/字，字数直觉低估） |
-| 效果不如外部参考，却只补工程严谨性 | **效果是硬指标**：机制层"已强于"≠效果。当自有项目效果不如外部参考时，不要轻信报告里"原则层已强于"的结论，按实际执行架构反推根因——真实差距常在结构（并行调度/重规划/收敛证据/执行层协作），而非计量/索引/状态机这类严谨性；并核对提示词宣称的能力（如 parallelizable/delegation）与调度器实际行为是否一致，自相矛盾是效果落空的常见根因 |
+
+上述余下短条目与全部长条目教训实证 → `references/fusion-templates.md`、`references/pstack-fusion-evaluation.md`

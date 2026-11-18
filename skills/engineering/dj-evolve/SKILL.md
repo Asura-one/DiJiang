@@ -26,16 +26,11 @@ description: "任务收尾时回顾本 session 的发现、经验与纠正，按
 
 ### 1. 回顾
 
-扫描本 session 的任务产物与记忆写入（findings / learnings / corrections），列出全部候选经验。先读 `.dijiang/evolution-rejections.md` 拒绝史（若存在），已被拒绝过的不再重复提案。**session 大或经验密度高时升级多视角评审**：spawn 三个并行只读评审子代理，各用一付透镜找候选——判断力透镜（决策质量/边界案例）、工具链透镜（工具错误/流程浪费）、发散透镜（被忽略的可能性/反直觉发现）——单 agent 自扫有盲区，三透镜交叉显著降遗漏；小 session 直接自扫不硬派。
+扫描本 session 的任务产物与记忆写入（findings / learnings / corrections），列出全部候选经验。先读 `.dijiang/evolution-rejections.md` 拒绝史（若存在），已被拒绝过的不再重复提案。**session 大或经验密度高时升级多视角评审**（三透镜交叉降遗漏，小 session 自扫）→ `references/evolution-criteria.md`。
 
 ### 2. 判据筛选（SCOPE.md 升格五问）
 
-- 它未来还会跨任务重复出现吗？
-- 带明确的做事方法吗（不只是观察）？
-- 写进 skill 比留在 memory 更省 token 和错误率吗？
-- 有验证基础吗（未验证的先暂存 dj-memory 标待验证）？
-
-五类挖掘信号：重复人工纠正 / 稳定成功的长流程 / 高频工具错误 / 反复查询的外部知识 / **阴性知识**（dj-memory `kind=negative` 的死路与失败——技能层只存「如何避免」，死路本体留记忆层）。未过判据 → 记忆层暂存；过 → 进入候选（判据细化见 `references/evolution-criteria.md`）。
+升格五问与五类挖掘信号详注 → `references/evolution-criteria.md`；未过判据 → 记忆层暂存；过 → 进入候选。
 
 ### 3. 候选分类
 
@@ -47,7 +42,7 @@ description: "任务收尾时回顾本 session 的发现、经验与纠正，按
 | 路由不命中 | description 触发词补充 |
 | 全新能力 | 走 `SCOPE.md` 门槛提案——可组合则不建新技能 |
 
-**单候选单边界**：一个候选只动一个文件/一个技能；跨多边界的改动拆成多候选独立评估——可审计、可公平比较。
+**单候选单边界**（跨边界改动拆多候选独立评估）→ `references/evolution-criteria.md`。
 
 ### 4. 差分验证（棘轮：只进不退）
 
@@ -60,7 +55,7 @@ description: "任务收尾时回顾本 session 的发现、经验与纠正，按
 
 ### 5. 🛑 确认与留痕
 
-展示候选（≤3 个/次）：判据核对 + 差分结果 + 落点 + **反例与停止条件**（适用性何时失效 / 何时交还人工）+ **复现次数**（单次出现只暂存，第二次复现才提候选）。用户裁决：
+展示候选（≤3 个/次）：判据核对 + 差分结果 + 落点 + **反例与停止条件** + **复现次数**（展示格式 → `references/evolution-criteria.md`）。用户裁决：
 
 - **确认** → 按 `dj-implement` 纪律实施，worktree 开发、`dijiang-finish-work` 收尾
 - **拒绝** → 追加 `.dijiang/evolution-rejections.md` 一行（日期 / 候选摘要 / 拒绝理由），下轮先读拒绝史

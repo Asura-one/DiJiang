@@ -102,3 +102,8 @@ sudo docker logs --tail 30 <dispatcher>                          # 正常轮询�
 - 服务器 `/tmp`：image tar、代码 tar、`.pw_b64`、inspect dump 全删并复核
 - 本地 `.temp`：tar、密码编码文件删（回收站）
 - 见 `dj-hunt/references/ssh-sudo-patterns.md` §2 的凭证规则
+
+
+## 部署时机与要点原文（正文迁入）
+
+执行时机：第 6 步提交之后、第 8 步归档之前——**部署验证通过才算交付闭环**。改前备份（tar 快照+config+.env、旧镜像留回滚锚点）、服务器 build 超时→本地 podman 构建+save/load、compose 卡死手动重建、部署后必 `docker exec grep` 验证新代码标记、凭证双端即用即毁。

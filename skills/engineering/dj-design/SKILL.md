@@ -21,66 +21,31 @@ disable-model-invocation: true
 
 ## 1. 起点：从已有上下文长出来
 
-按优先级取：现有 tokens/组件库（grep `theme`/`tokens`/`colors`）→ 用户截图/参考站/品牌资产 → 对话品味原话。品牌色**绝不用记忆猜**；无资产走 §2，搜不到就问。
-
-参考站不是方向："像 Linear/Claude/Vercel"不是答案，抽 3 个属性（圆角/表面深度/强调色）再命名。
+起点按优先级取（现有 tokens/组件库 → 用户截图/参考站/品牌资产 → 对话品味原话）；品牌色**绝不用记忆猜**，无资产走品牌协议，搜不到就问（参考站抽三属性再命名 → `references/design-details.md`）
 
 ## 2. 品牌协议（涉及品牌/logo 强制）
 
-1. 问：有 brand guidelines 吗
-2. 搜：官方品牌页/官网 HTML/产品截图
-3. 取：SVG → 网页全文 → 截图取色（逐级兜底）
-4. grep 色值，过滤黑白灰
-5. 写 `brand-spec.md`+CSS 变量，HTML 引用 `var(--brand-*)`
-
-资产>规范：logo/产品图/截图比色值重要。
+涉及品牌强制走品牌协议（问 → 搜 → 取 → grep 色值 → 写 `brand-spec.md`+CSS 变量；资产 > 规范，五步详见 → `references/design-details.md`）
 
 ## 3. 提交一个方向（内部多候选，交付一个）
 
-内部探索 2-3 个候选（不同布局/气质/字体），**交付一个主推方向 + 一句话理由**，不给三个方案盲选。
-
-```text
-设计方向：<一句话>
-布局：<导航/内容/操作层次>
-视觉系统：<颜色、字号、间距、图标>
-状态覆盖：<空/加载/错误/成功>
-```
-
-**大任务例外（品牌/首页/新视觉系统）：** 做 2-3 个真实首屏预览，**摆出来就停**让用户选。
-
-方向三行句：视觉论点（材质+情绪+能量）/ 内容计划（hero→支撑→CTA；App/dashboard 默认工具态）/ 交互论点（none 给证据或 2-3 动效）。
+内部探索 2-3 个候选（不同布局/气质/字体），**交付一个主推方向 + 一句话理由**，不给三个方案盲选；大任务（品牌/首页/新视觉系统）做 2-3 个真实首屏预览摆出来让用户选（方向模板与三行句 → `references/design-details.md`）
 
 ## 4. 从现有系统开始实现
 
-优先级：现有组件/token → CSS 工具类/本地模式 → 浏览器原生控件 → 新样式。
-
-**五维锁定**（写前）：谁用/语境、美学方向、设计签名（字体/色彩/动效挑一个）、硬约束（框架/bundle/对比度/键盘）、签名微交互；不写代码直到有证据或假设。
-
-**已有产品追加面**：方向就是产品本身，grep 同款组件复用容器/动效/字号 token。原生 App 默认增量打磨，不做全平台风格迁移，除非用户明说。
+优先级：现有组件/token → CSS 工具类 → 原生控件 → 新样式（五维锁定与已有产品追加面细则 → `references/design-details.md`）
 
 ## 5. 诚实内容
 
-不编造统计/价格/评价/logo 墙。占位符优于仿制品（缺图用灰矩形+标签，绝不内联 SVG 画人脸）。不用 Lorem Ipsum，数字用不刻意对齐的值（99.94% 不是 99.9%）。UI 文案 sentence case、成功态无感叹号、错误不说 "Oops" 不被动语态。禁 AI 营销词：Elevate/Seamless/Unleash/Delve/Game-changer。
+不编造统计/价格/评价/logo 墙；占位符优于仿制品（禁 AI 营销词、文案纪律清单 → `references/design-details.md`）
 
 ## 6. 反 AI Slop 清单（自查非事后 lint）
 
-- **旧代**：紫→蓝渐变、玻璃态卡片、圆角卡片网格、白/灰交替、居中图标+标题+正文、四列 footer、Inter 大字
-- **新代**：标题上全大写小标签、中点连串（A · B · C）、按钮尾巴 →、标题单字换色、无序列用 01/02/03、彩色底灰字
-- **结构**：中心 hero + 双侧 CTA、三张相同卡片、logo 左/链接中/按钮右顶栏
-
-**测试：** 陌生人看第一屏会说"AI 做的"？会就改掉再交。
-
-**家族纪律：** 外观家族（暖纸衬线/深底单点缀）不算错，错在三版挤同一家族；允许家族，禁止复用。
+**测试：** 陌生人看第一屏会说“AI 做的”？会就改掉再交。三清单与家族纪律 → `references/design-details.md`
 
 ## 7. 实现质量底线
 
-- **排版**：拒 Reflex 字体（表见 references）；三词→拒三→选适配品牌；字号/字重/行高用 scale；行宽 ~65ch
-- **颜色**：OKLCH；60-30-10；中性色带品牌色；深底不用纯白文字
-- **间距布局**：命名间距标尺；同心圆角；阴影>边框；热区 ≥40px；多列共享基线；**grid 轨道一律 `minmax(0,1fr)`**（1fr 在 375px 必炸，详见 verification-pitfalls）
-- **动效**：频率决定动不动；只用 transform/opacity；尊重 reduced-motion；按压 100-160ms
-- **CJK**：拉丁栈+PingFang/Noto Sans SC；行高 1.7-1.8；lang 标注；负字距仅拉丁
-- **无障碍**：图标按钮 aria-label；button/a 语义；focus 焦点环；对比度 ≥4.5:1
-- **双主题**：明暗同命名空间两组变量、色温连续、彩色角色各主题调档、所有色走变量（方法见 `references/dual-theme-tokens.md`）
+七个维度实现底线与参数（排版拒 Reflex/OKLCH/命名间距标尺/动效 transform+opacity/CJK 回退/无障碍/双主题变量）→ `references/design-details.md`（双主题方法 `references/dual-theme-tokens.md`）
 
 ## 8. 验证
 
@@ -92,12 +57,7 @@ Desktop/Mobile(375px)/Overflow/Keyboard/Contrast/States: <pass/fail>
 
 加验：生产级 UI 过设计体检 7 问（references）+ AI Slop；真图/真数据；实跑浏览器看过。
 
-**程序化验证三件套**（目测截图不可靠，溢出与对比度必须跑代码）：
-
-- 溢出：`scrollWidth > clientWidth` 程序化检查，修复后必复验；定位元凶用 `getBoundingClientRect().right` 逐层下钻
-- 对比度：OKLCH 计算色需 OKLCH→线性 sRGB 转换，WCAG 亮度用线性值（误用伽马校正值得出假比率）；**明暗双主题各验一轮，只验 light 是常见偷懒**
-- canvas 响应式：G6 等 canvas 库不随容器收缩，ResizeObserver + setSize/fitView；React Flow（DOM）无此问题
-
+**程序化验证三件套**（目测截图不可靠）：溢出 `scrollWidth > clientWidth`、对比度（OKLCH→线性 sRGB、双主题各验一轮）、canvas 响应式（ResizeObserver）→ `references/verification-pitfalls.md`
 详细坑与脚本见 `references/verification-pitfalls.md`，双主题方法见 `references/dual-theme-tokens.md`。
 
 ## 失败模式

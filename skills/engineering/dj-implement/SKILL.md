@@ -5,7 +5,7 @@ description_cn: "按计划实现特性代码，遵守 git 安全工作流。用�
 description: "按计划实现特性代码，遵守 git 安全工作流。 触发词：实现、写代码、implement、开始做、按计划做、开发。"
 ---
 
-参考：`skills/engineering/dj-ponytail/references/decision-ladder.md`、`references/code-task-contract.md`。深度细节：Git 工作流（链式工单基线/配置分层/依赖借用）→ `references/git-workflow.md`；验证陷阱与观察 SOP → `references/verification-pitfalls.md`；edit 冲突与 Python 补丁 → `references/edit-conflicts.md`；工具链陷阱（multiedit 部分落盘/CRLF 假 diff/uv 测试/stash 归因/go:embed/端口影子/PowerShell 判定）→ `references/tooling-pitfalls.md`；SFTP → `references/go-sftp-transfer.md`；spec 拆分 → `references/ticket-decomposition.md`；Windows 主机 + WSL 混合工具链 → `references/windows-wsl-toolchain.md`；OpenAPI 契约先行与代码生成 → `references/openapi-codegen.md`。
+深度细节：edit 冲突与 Python 补丁 → `references/edit-conflicts.md`；工具链陷阱（multiedit 部分落盘/CRLF 假 diff/uv 测试/stash 归因/go:embed/端口影子/PowerShell 判定）→ `references/tooling-pitfalls.md`；spec 拆分 → `references/ticket-decomposition.md`；Windows 主机 + WSL 混合工具链 → `references/windows-wsl-toolchain.md`；OpenAPI 契约先行与代码生成 → `references/openapi-codegen.md`。
 
 ## Outcome Contract
 
@@ -31,14 +31,14 @@ description: "按计划实现特性代码，遵守 git 安全工作流。 触发
 - 读取 PRD / 设计文档 / issue；核心行为不明确 → 停止报告需要需求对齐。
 - **新功能先搜全项目现有管理面**（API 路由/前端页面/CLI 子命令）与参考项目同类实现，优先扩展现有流程不新建平行入口；做完再向用户提功能形态问题。
 - 查历史教训（dj-memory recall，看相关 findings/learnings/patterns）。
-- 确认在专用 worktree（`git worktree add ../<项目名>-<分支名> -b <type>/<任务名> <base>`）并通知路径。**链式工单**（B 基于 A 分支）：先提交 A 到任务分支再建 B 的 worktree——快照的是分支 HEAD 不是未提交改动（细节见 git-workflow.md）。
-- 遵守 **Code Task TDD Contract**：非平凡改动先声明 scope；先写失败测试或复现清单；确认测试环境可用或记录原因。
+- 确认在专用 worktree 并通知路径；**链式工单**（B 基于 A 分支）建法与基线陷阱 → `references/git-workflow.md`。
+- 遵守 **Code Task TDD Contract**（`references/code-task-contract.md`）：非平凡改动先声明 scope；确认测试环境可用或记录原因。
 - **上下文护栏**：任务产物设字节预算（单文件 32KB / 总 128KB）；超预算先读索引段，超限降级为索引行并说明，不硬截断。
 - 任务仍 `planning` 时用原始请求重新走 dj-ask，不绕过 worktree check（见 dj-git-guardrails）。
 
 ### 1.5 决策阶梯门禁
 
-走 **Ponytail 7-rung 决策阶梯**（`skills/engineering/dj-ponytail/references/decision-ladder.md`：YAGNI → 复用现有 → 标准库 → 原生特性 → 已有依赖 → 一行代码 → 最小代码）。通过一层不进下一层；跳层须注释原因。
+走 **Ponytail 7-rung 决策阶梯**（`skills/engineering/dj-ponytail/references/decision-ladder.md`）。通过一层不进下一层；跳层须注释原因。
 
 **shortcut 债务注释**：砍功能/接受限制时留 `shortcut: <上限>, <升级触发点>`；写不出触发点就不要简化。
 
@@ -48,7 +48,7 @@ description: "按计划实现特性代码，遵守 git 安全工作流。 触发
 
 **改前/改后回归护送**：S0-S1（快速层+基线）确认后开始，S2-S3（专项+回归）由 `dj-regression-guard` 承接；本 skill 写专项（红测转绿），不重复实现基线与回归。
 
-**配置值改动先查 git 状态**（`git check-ignore`）：example 模板约定的项目需 tracked/untracked 两层落地（默认值+模板进 commit；本地实例改主工作区），冒烟两层都跑（见 git-workflow.md）。
+**配置值改动先查 git 状态**（`git check-ignore`）；example 模板项目的两层落地与两层冒烟 → `references/git-workflow.md`。
 
 复杂变更前自问：「有没有不新增抽象、不新增依赖的简单方案？」
 
@@ -56,13 +56,13 @@ description: "按计划实现特性代码，遵守 git 安全工作流。 触发
 
 输出验证清单（Typecheck / RED·Repro / GREEN / Relevant·Full tests / UI 实测 / Regression scope·risk / Exception，各带命令与结果）：
 typecheck → RED → GREEN → 相关 → 全量，有新失败修好再交接，没跑写 `not run`+原因；**UI/前端**用真实浏览器实测（改动先确认已在运行环境生效——容器/挂载热重载可能失效需重启）。
-- **后端协议链路** → mock 服务绑**固定端口**走真实客户端全链路；**异步攒批** → 「轮询+deadline」替代固定 sleep；**SFTP** → `net.Pipe()` 内存 server（`references/go-sftp-transfer.md`）；框架陷阱（StaticFiles/FastAPI 联合注解）→ `references/verification-pitfalls.md`
+- **后端协议链路 / 异步攒批 / SFTP / 框架陷阱**的验证做法 → `references/verification-pitfalls.md`、`references/go-sftp-transfer.md`
 
 ### 4. 收尾
 
 给 `dijiang-finish-work` 准备：git status/diff --stat、已验证命令与结果、版本决策建议。
 
-**验收含 agent 无法执行的实测项**（如 30 分钟观察窗口）→ 完成 agent 可验证部分即停，交付**观察 SOP**（配置生效方式/指标/回报格式/岔路选项，结构见 verification-pitfalls.md），worktree 保留待实测数据，禁纸面推演收尾。
+**验收含 agent 无法执行的实测项** → 完成 agent 可验证部分即停，交付**观察 SOP**（worktree 保留待实测数据，禁纸面推演收尾）→ `references/verification-pitfalls.md`。
 
 ## Hard Rules（含反例）
 

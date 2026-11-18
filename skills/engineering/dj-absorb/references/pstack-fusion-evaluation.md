@@ -35,3 +35,14 @@ pstack 与 DiJiang 结构同构：poteto-mode hub ↔ dj-ask 单一入口路由�
 - **新技能落点**：`skills/engineering/<dj-xxx>/SKILL.md` + frontmatter（name/description 含触发词/disable-model-invocation: true）
 - **session 结束时仓库改动未提交需先核对**：finish-work 前确认 git 状态，未提交的融合产物先走收口流程
 - **平台进化 × 单向同步冲突（2026-11-09 实证）**：skill-evolution 直接改 live 不改 repo，repo→live 的 rsync `--delete` 会把它抹掉（两轮 dj-absorb 进化被 finish-work 第 11 步覆盖，靠 `.backup` + 会话记录回灌）。护栏已加入 live-sync-checklist「第 0 步：同步前对账」
+
+
+## 融合形式前置判定细则（正文迁入）
+
+**融合形式前置判定（新增 vs 内嵌，2026-11 pstack 批教训）**：定实现策略前先回答『这个机制将来怎么被触发？』——融合的是机制/流程，不是照搬技能文件。单一入口体系两条合法出路：内嵌进入口已路由的现有技能流程（用户入口零改动），或新建独立技能 + **同批挂 dj-ask 三处路由**（`dj-ask/SKILL.md` 入口匝道、`dj-ask/references/routing-table.md` 触发行、`dj-ask/references/skill-catalog.md` 详注，缺一即死技能）；『必须内嵌不可新建』是过度矫正，形式拿不准先问用户使用入口。
+
+## Gotchas 长条目（正文迁入）
+
+| 单一入口体系下新建技能不挂路由 | 新建必须同批挂进入口路由三处；全内嵌仅当机制天然属现有流程 |
+
+| 融合产出 SKILL.md 写完才查体积红线 | 动笔前预算（硬上限 3000、目标 800-2500；中文 3B/字，字数直觉低估） |

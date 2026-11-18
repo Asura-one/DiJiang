@@ -37,3 +37,11 @@
 3. 溢出 → 下钻定位 → 修 → **复验**
 4. 关键色对跑对比度脚本（本文件 §3，注意明暗两主题都要跑）
 5. Tab 一次看焦点环是否可见
+
+
+## 程序化验证三件套（正文迁入）
+
+**程序化验证三件套**（目测截图不可靠，溢出与对比度必须跑代码）：
+- 溢出：`scrollWidth > clientWidth` 程序化检查，修复后必复验；定位元凶用 `getBoundingClientRect().right` 逐层下钻
+- 对比度：OKLCH 计算色需 OKLCH→线性 sRGB 转换，WCAG 亮度用线性值（误用伽马校正值得出假比率）；**明暗双主题各验一轮，只验 light 是常见偷懒**
+- canvas 响应式：G6 等 canvas 库不随容器收缩，ResizeObserver + setSize/fitView；React Flow（DOM）无此问题

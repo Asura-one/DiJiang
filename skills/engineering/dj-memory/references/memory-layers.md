@@ -1,6 +1,6 @@
 # 记忆分层与元记忆层治理
 
-> 摘要：dj-memory 五类 JSONL 与 Agent 五层记忆分类的映射、元记忆层（Meta-Memory）的四操作治理（去重/合并/过期/复审）；ADR-008 的执行细化。
+> 摘要：dj-memory 五类 JSONL 与 Agent 五层记忆分类的映射、元记忆层（Meta-Memory）的四操作治理（去重/合并/过期/复审）、五类 JSONL 写入 schema 示例；ADR-008 的执行细化。
 
 ## 五层映射（分类自检用）
 
@@ -31,6 +31,71 @@
 - **`[主题域]` 首标签**：content 首个方括号短标签（`[ENV]` `[GIT-SAFETY]` `[SKILL-名]`…），供 grep 快速过滤
 - **skill 相关记忆用指针不复制**：content 写「见 skills/xxx 的 Y 节」而非复制技能正文——防记忆与技能双写漂移（单一权威源原则）
 - **`last_confirmed`**：条目最近一次被验证的时间戳，元记忆 review 操作的依据
+
+## 写入 schema 示例（五类 JSONL）
+
+### 存储发现 (store-finding)
+
+```json
+{
+  "type": "finding",
+  "content": "<发现内容>",
+  "source": "<来源：task|user|investigation>",
+  "scope": "<范围：project|task|module>",
+  "confidence": "verified|probable|speculative",
+  "createdAt": "<ISO 8601 时间>"
+}
+```
+
+写入 `.dijiang/memory/findings.jsonl`（追加一行）。
+
+### 存储经验 (store-learning)
+
+```json
+{
+  "type": "learning",
+  "content": "<经验内容>",
+  "kind": "<positive|negative>",
+  "context": "<适用上下文>",
+  "actionability": "<可执行描述>",
+  "confidence": "<verified|probable|speculative>",
+  "scope": "<project|task|module>",
+  "createdAt": "<ISO 8601 时间>"
+}
+```
+
+写入 `.dijiang/memory/learnings.jsonl`（追加一行）。
+
+### 存储纠正 (store-correction)
+
+```json
+{
+  "type": "correction",
+  "content": "<纠正内容>",
+  "lesson": "<教训>",
+  "actionability": "<未来行为调整>",
+  "scope": "<适用范围>",
+  "confidence": "high|medium|low",
+  "createdAt": "<ISO 8601 时间>"
+}
+```
+
+写入 `.dijiang/memory/corrections.jsonl`（追加一行）。
+
+### 存储 session 闭环 (store-session)
+
+```json
+{
+  "type": "session",
+  "task": "<任务名>",
+  "verification": "<验证摘要>",
+  "versionImpact": "<major|minor|patch|none>",
+  "status": "<completed|archived>",
+  "createdAt": "<ISO 8601 时间>"
+}
+```
+
+写入 `.dijiang/memory/sessions.jsonl`（追加一行）。
 
 ## 不做的
 

@@ -23,54 +23,18 @@ description: "项目管理记忆：存储/召回发现、经验、纠正和模�
 
 ### 存储发现 (store-finding)
 
-```json
-{
-  "type": "finding",
-  "content": "<发现内容>",
-  "source": "<来源：task|user|investigation>",
-  "scope": "<范围：project|task|module>",
-  "confidence": "verified|probable|speculative",
-  "createdAt": "<ISO 8601 时间>"
-}
-```
-
-写入 `.dijiang/memory/findings.jsonl`（追加一行）。
+字段 schema（JSON 示例）→ `references/memory-layers.md` §写入 schema。写入 `.dijiang/memory/findings.jsonl`（追加一行）。
 
 ### 存储经验 (store-learning)
 
-```json
-{
-  "type": "learning",
-  "content": "<经验内容>",
-  "kind": "<positive|negative>",
-  "context": "<适用上下文>",
-  "actionability": "<可执行描述>",
-  "confidence": "<verified|probable|speculative>",
-  "scope": "<project|task|module>",
-  "createdAt": "<ISO 8601 时间>"
-}
-```
-
-写入 `.dijiang/memory/learnings.jsonl`（追加一行）。
+字段 schema（JSON 示例）→ `references/memory-layers.md` §写入 schema。写入 `.dijiang/memory/learnings.jsonl`（追加一行）。
 
 - **kind=negative 记阴性知识**："试过不对的路、为什么不通"。排查类任务（dj-hunt/dj-audit）必记阴性发现——避免重复踩坑是最值钱的记忆。
 - findings 的 `source` 用可追溯锚点（如 `task:<id>`），不用泛化词。
 
 ### 存储纠正 (store-correction)
 
-```json
-{
-  "type": "correction",
-  "content": "<纠正内容>",
-  "lesson": "<教训>",
-  "actionability": "<未来行为调整>",
-  "scope": "<适用范围>",
-  "confidence": "high|medium|low",
-  "createdAt": "<ISO 8601 时间>"
-}
-```
-
-写入 `.dijiang/memory/corrections.jsonl`（追加一行）。
+字段 schema（JSON 示例）→ `references/memory-layers.md` §写入 schema。写入 `.dijiang/memory/corrections.jsonl`（追加一行）。
 
 ### 回忆 (recall)
 
@@ -78,7 +42,7 @@ description: "项目管理记忆：存储/召回发现、经验、纠正和模�
 
 ### 何时召回（跨会话判断）
 
-召回是工具不是仪式：脑暴重复风险 / 熟悉 bug 调试 / 跨会话续接 / 决策检索 / 模式发现 / finish-work 回顾六场景才召回；当前上下文够用、问代码事实、用户明说不翻历史时不召回。**召回后按现场判断落点（引用/prd/仅内化），不强制写固定文件**——判断表见 `references/recall-playbook.md`。
+召回是工具不是仪式；六场景/不召回三条件、召回后落点判断（不强制写固定文件）→ `references/recall-playbook.md`。
 
 ### 纠正晋升 (promote)
 
@@ -93,18 +57,7 @@ recall 读取 corrections.jsonl 后必须统计同类纠正计数：达到阈值
 
 ### 存储 session 闭环 (store-session)
 
-```json
-{
-  "type": "session",
-  "task": "<任务名>",
-  "verification": "<验证摘要>",
-  "versionImpact": "<major|minor|patch|none>",
-  "status": "completed|archived",
-  "createdAt": "<ISO 8601 时间>"
-}
-```
-
-写入 `.dijiang/memory/sessions.jsonl`（追加一行）。
+字段 schema（JSON 示例）→ `references/memory-layers.md` §写入 schema。写入 `.dijiang/memory/sessions.jsonl`（追加一行）。
 
 ## 失败模式
 

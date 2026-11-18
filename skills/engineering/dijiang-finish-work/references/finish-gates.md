@@ -101,3 +101,57 @@ git reset --soft HEAD~1
 | 不要 compose 卡死就死等 | 换真实目录/`-p 原项目名`重试，仍卡则 inspect 提参 + docker run 手动复刻（带上 compose labels） |
 | 不要部署完不进容器验证 | `docker exec grep` 新代码标记 + health + 日志；不验证的部署不算交付 |
 | 不要因项目没配 API token 就卡住或新建 token | Forgejo `/api/v1` 接受 Basic Auth，凭证取 `~/.git-credentials` 该主机条目 |
+
+## 7. 步骤 1 检查与验证原文（正文迁入）
+
+### 步骤 1 检查命令清单
+
+先检查真实项目状态，不依赖对话历史：`cat .dijiang/active_task.txt`（有则读 `.dijiang/tasks/<name>/task.json` 和产物）、`git status --short --branch`、`git diff --stat HEAD`、`git diff --name-only HEAD`、`git log --oneline @{u}..HEAD`。
+
+### 步骤 1 验证与 TDD Contract
+
+代码或行为变化时，收尾前运行相关测试、typecheck、lint，失败会阻塞 finish-work。**失败先归因**：用 HEAD 干净基线复测区分「本来就坏」与「本次改坏」，结论写入 TDD Contract 的 Exception 字段。变更必须在验证输出中含 **Code Task TDD Contract** 证据：RED/Repro evidence、GREEN command、Regression scope、Exception。纯文档变更可设 `n/a` 并写明原因。
+
+## 8. Pre-finish Gate 模板（正文迁入）
+
+暂存前先报告：
+
+```text
+任务: <name or none>
+分支: <branch>
+变更文件: <paths>
+验证: <commands => result>
+RED/Repro: <command or n/a + reason>
+GREEN command: <command> => <result>
+Regression scope: <checks> => <result>
+Exception: <none or justified gap>
+文档同步: <updated/none/skipped; reason>
+版本决策: <major|minor|patch|none; reason>
+记忆: <written/skipped; reason>
+Issue 同步: <closed+全勾+复核/none/skipped; reason>
+Live 同步: <synced/skipped; reason>
+提交模式: <yes/no; reason>
+```
+
+## 9. 未识别文件分类（正文迁入）
+
+**未识别文件分类（并行开发防护）**：dirty 文件分两组——**AI 本次编辑**（本 session 明确改动的）与**无法识别**（用户手动改的、其他窗口/worktree 的、历史遗留）。无法识别组单列展示、默认不入库，逐一向用户确认。
+
+## 10. 批量 git add pathspec 陷阱（正文迁入，与 §5 互补）
+
+**批量 add 前先看 `git status --short` 首列**：已 staged 的删除（`D`）不要放进 add 列表——`git add` 遇不存在的 pathspec 会整条 fatal 中止，随后 commit 只提交孤立删除。提交后回读 `N files changed` 与计划比对。
+
+## 11. Forgejo issue 同步判据原文（正文迁入，与 §4 互补）
+
+**工单已镜像到 Forgejo（task.json 记 issue 编号）**：归档前必须同步 issue 侧，机制以 dj-split「同步到 issue 跟踪器」为权威，判定规则：已完成→三重证据+结题评论+checklist 勾选+复核；挂起→保持 open 写明触发条件（本文件 §4 为权威细则）。两侧一致才收口。
+
+
+## 12. Git 隔离两个例外与提交计划原文（正文迁入）
+
+### Git 隔离两个例外
+
+两个例外：① 主 checkout 遗留成果且用户明确要求提交 → 提交拆分与是否 push 交用户拍板；② 仓库尚无 commit（首次提交）→ 提交模式交用户拍板，先建 `.gitignore` 审计入库范围。
+
+### 提交计划与确认模式
+
+一次性列出完整提交计划（文件清单 + message）等用户确认；用户拒绝后转手动模式，不自动生成第二版计划。commit message 用中文，Conventional Commits 格式：`git add <reviewed paths> && git commit -m "<类型>(<范围>): 中文描述"`。

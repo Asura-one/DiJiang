@@ -1,5 +1,42 @@
 # 变更日志
 
+## [2.6.0] — 2026-11-18
+
+参考项目融合批（A/B/C 三批 + 遗留瘦身批）：输入 referens/ 六项目更新、校样台对比报告（26 阶段 × Addy/Matt/Pstack）与琅嬛 11-09 后增量；经 5 只读子代理并行拆解 + 回源码四态重验，只收机制级可迁移点。全档案见 `docs/references/fusion-scan-archive-2026-11-18.md`（速览 `docs/guide/fusion-scan-2026-11-18.md`）。
+
+### 批 A：门禁与验证强化（门禁自身不被削弱）
+
+- `dj-regression-guard/references/quality-contract.md` + `scripts/floor_guard.py` — CONSTRAINTS 四列表 + ratchet + 五类「最便宜变绿」diff 检测（阈值下调/测试变易/检查器被禁/未完成 stub/例外表增行）+ 契约缺命令行检测；exit 2 绝不读作 0；`tests/test_floor_guard.py` 8 类突变自测（Adapted from Addy Osmani agent-skills constraint-driven-development，MIT）
+- `dj-meta/references/trigger-testing.md` — 触发层测试：结构/触发/行为三层、fire/stays-quiet 配对案例、版本钉死；附 44 技能结构体检基线（触发词 44/44、负向边界仅 2 处）；dj-evolve 验证步接入「动到 description 就跑结构四查」
+- `dj-check/references/review-dual-axis.md` — 发现反驳复核（直读即溶解降级/契约误读先修契约/3 轮上限/doubt theater 信号）+ 严重度四档（阻塞/应改/Nit/FYI）+ 结构处方 + 突变式审测试
+- `dj-check/references/delivery-risk.md` — 风险主张 L1–L5 证据阶梯 + 单一安全事实
+- `dj-implement/references/code-task-contract.md` — 版本敏感 API 的 DETECT/FETCH/CONFLICT/CITE 与 `UNVERIFIED` 标记
+- `dj-meta/scripts/check_moved_lines.py` + context-diet 步骤 11/12 — 瘦身行守恒机械列举与已提交事后审计（Adapted from Waza 3.42 health，MIT）；`tests/test_check_moved_lines.py` 4 用例
+- `dj-meta/references/anti-patterns.md` #33 分发态坍塌（每分发层单独取证）
+
+### 批 B：多 agent 与无人值守治理
+
+- `dj-channel/references/worker-contract.md` — WORKER.md 开工契约注入协议、委托产出验收（SHA/方法记录缺失重派一次、二次 gap 不算通过、worker 骗门禁→加固判据、门禁错→单独修不绕过）、模型路由三护栏（不超顶/slug 拒绝记忆/昂贵模型例外门）
+- `dj-decision` 第 5 步「回来播报」— 假定用户只记得最后一条消息；白话进展 + 可当场拍板的待决清单（影响/证据/风险/推荐），不凑数不缩水
+- `dj-split/references/task-graph.md` — frontier 并行 / 集成分支 / 独立 merger；串行仍是默认，票 ≥4 且互不阻塞才开并行
+- `dijiang-finish-work` 步骤 6.5 + `references/merge-request.md` — 放行申请三段式：Summary / Evidence（Before-After 成对）/ Merge Danger（Door + Blast Radius）；申请不等于授权
+
+### 批 C：微增量（11 项单行/小段）
+
+dj-grill 把握度与委托识别、dj-tdd seam 注记、dj-hunt 突变落盘 diff 证明、dj-teach 答案位置轮换、dj-wayfinder 标签独占与真实编号、dj-ponytail ultra 质疑需求、dj-domain-modeling 词汇纪律（_Avoid_/通用概念排除/多上下文）、dj-memory 断言时间锚与 superseded、dj-ask/dj-split 上下文预算岔路与切片上限、dj-check 性能数字七问（measurement-review.md）、dj-verify 形式化验证两轻量机制、dj-loop 刹车词汇与防双跑、dj-evolve 口径冻结与逐 case 归因、anti-patterns #34 建议与命令分层。
+
+### 批 D：遗留瘦身（红线清零）
+
+- 45 技能 SKILL.md 超 3000 字符红线 **15 → 0**；只搬不删，整块原文外溢本技能 references（新增 evidence-artifacts/phase-details/final-selfcheck/report-template 等），正文留带条件指针
+- 行守恒审计：`check_moved_lines.py` 报 70 条缺失行，逐条语义复核 0 条丢失（均为指针替换枚举、表格式重组、双份冗余去重）
+- 报告文档拆分：速览 ≤2000 字 + 归档全文，历史词误报清除
+
+### 验收证据
+
+- `verify_skills.py`：**PASS 142 / WARN 13 / FAIL 0**（红线聚合条目清零；较基线 PASS 141/WARN 25）
+- 门禁突变测试 9/9；floor_guard 8/8；check_moved_lines 4/4
+- 触发层真实火率 not run（平台路由快照冻结、无可信评测入口，runbook 已声明「不测就别报数字」）
+
 ## [2.5.2] — 2026-11-18
 
 测试脚本资产批：从三个开源 QA 技能库（anthropics/skills webapp-testing、fishzjp/qa-skills、petrkindlmann/qa-skills）吸收通用脚本，补上「纯 skill 库无脚本」的结构性缺口。落点定为技能内 `scripts/`（随 rsync 整目录投放 live），非仓库根 `scripts/`（不随技能走，单独安装即断链）。

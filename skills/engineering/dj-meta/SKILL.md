@@ -14,15 +14,7 @@ disable-model-invocation: true
 
 ### 1. SKILL.md 只保留执行指令
 
-SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考文档、不是培训材料、不是项目管理文件。
-
-| ✅ 保留 | ❌ 移到 `.dijiang/spec/` |
-|---|---|
-| 职责（一句话） | 输入/输出规格表 |
-| 工作流步骤（编号列表） | 失败处理表 |
-| 核心规则（3-5 条） | CHECKPOINT 完整模板 |
-| 精简短例（3-4 条） | 深度设计原则 |
-| 验证命令 | 模板化内容 |
+SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考文档、不是培训材料、不是项目管理文件。保留/移走判据表（✅ SKILL.md / ❌ `.dijiang/spec/`）→ `references/context-diet.md`。
 
 ### 2. 技能体量控制
 
@@ -51,23 +43,15 @@ SKILL.md 是 **agent 执行时必须逐条读的最小指令集**。不是参考
 ### 6. 引用带条件，具体度匹配任务脆弱性
 
 - **条件细节引用**：references/ 引用带触发条件（"If 任务涉及 X：读 `references/<主题>.md`"）；引用深度 ≤1——references 内再引用 references 是反模式
-- **自由度校准**：脆弱操作（git 红线、格式破坏风险）写死步骤——窄桥要护栏；灵活任务（排查、设计）给目标不给清单——开阔地允许多条路
-- **具体判据**：要求具体到数字、来源、代码、步骤；空泛描述视为未完成
+- **自由度校准与具体判据**细则 → `references/context-diet.md`
 
 ## 为 agent 写文档（含 AGENTS.md/CLAUDE.md）
 
-skill、`AGENTS.md`/`CLAUDE.md`、任何 agent 通过指针到达的文档——包装不同，写作相同：同一套杠杆让每个可预测，因为 agent 每次运行走同一**过程**而非产出相同输出。
-
-- **上下文指针**：agent 上下文中持有的引用。**指针的措辞**而非目标决定 agent 何时到达材料、多可靠——高价值目标配弱措辞是变异 bug：先锐化措辞，锐化失败才内联
-- **信息层级**：始终在上下文（指针本身）/ 可按需取（指针目标）/ 几乎不需要（省略或深藏）
-- **前置词**（触发词）：覆盖触发场景多种表达、清晰区分用与不用、用领域语言不用空泛词
-- **修剪**：一刀砍一半；指令用祈使句；例外和反模式进表格不进散文；参考文件大则 SKILL.md 保持窄
-
-skill 特化机制（invocation 选择/拆分/路由技能）→ `references/agent-doc-mechanics.md`。
+skill、`AGENTS.md`/`CLAUDE.md`、任何 agent 通过指针到达的文档——包装不同，写作相同：同一套杠杆让每个可预测，因为 agent 每次运行走同一**过程**而非产出相同输出。写作杠杆（上下文指针/信息层级/前置词/修剪）与 skill 特化机制（invocation 选择/拆分/路由技能）→ `references/agent-doc-mechanics.md`。
 
 ## 治理门槛（先于模板）
 
-创建新技能前先过 `SCOPE.md` 双门槛（真实失败 + 契合哲学）；**可由现有技能组合的行为不建新技能**，落点优先是现有技能的增量段落或 `references/` 文档。被否决的概念登记到 `.out-of-scope/`，防止重复提案。
+创建新技能前先过 `SCOPE.md` 双门槛（真实失败 + 契合哲学）；**可由现有技能组合的行为不建新技能**（落点见失败模式表）。被否决的概念登记到 `.out-of-scope/`，防止重复提案。
 
 ## 失败模式
 
@@ -79,7 +63,7 @@ skill 特化机制（invocation 选择/拆分/路由技能）→ `references/age
 
 ## 创建新技能的模板
 
-完整骨架复制 `references/skill-template.md`（frontmatter/description/职责/工作流/边界/反例六段）。触发词写 description 内供 dj-ask 路由；写完回 `SCOPE.md` 双门槛核验。
+完整骨架与触发词写法（供 dj-ask 路由）复制 `references/skill-template.md`；写完回 `SCOPE.md` 双门槛核验。
 
 
 ## 反例

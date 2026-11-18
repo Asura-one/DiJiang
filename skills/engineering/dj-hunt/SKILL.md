@@ -52,7 +52,7 @@ description: "系统化排查 bug：先定位根因，再修复。尤其擅长�
 
 ### Phase 4 — 探针
 
-每个探针映射 Phase 3 一个特定预测，一次只改一个变量。工具偏好：调试器/REPL（一断点胜十 log）> 定向日志（加在区分假设的边界）> **永不"log 一切再 grep"**。Perf 分支：性能 regression 改用 baseline→bisect，先测量再修。
+探针工具偏好（调试器/REPL > 定向日志，永不"log 一切再 grep"）与 Perf 分支 baseline→bisect 细则 → `references/phase-details.md`。
 
 ### Phase 5 — 修复 + regression 测试
 
@@ -62,7 +62,7 @@ description: "系统化排查 bug：先定位根因，再修复。尤其擅长�
 
 ### Phase 6 — 清理 + 复盘
 
-完成前检查：场景不复现（重跑反馈环）；regression 过（或无 seam 已记录）；探针全清（grep 唯一前缀）；一次性原型删除；正确假设进 commit message。再问"什么能预防这个 bug"——涉及架构变更（无好 seam、耦合、隐藏依赖）的，修复**后**转交相应 skill。同一 bug 连续 3 次修复失败 → 停止方向做 Break-Loop 报告（当前假设与验证/未查路径/是否换工具）。
+完成前检查清单、复盘提问与 Break-Loop 报告规则 → `references/phase-details.md`。
 
 ## Hard Rules
 
@@ -75,19 +75,6 @@ description: "系统化排查 bug：先定位根因，再修复。尤其擅长�
 
 ## Gotchas
 
-| Gotcha | 预防 |
-|---|---|
-| 没确认复现就改 | 先建反馈环 |
-| 一次改太多可能原因 | 一次一个改动 |
-| 修完不验证 | 跑全量测试或冒烟 |
-| 不确认 root cause 就改 | 先确认再改 |
-| 存量失败未甄别 | 干净基线对比区分存量/新引入 |
-| 多原因只修一个 | 重跑反馈环，列候选清单逐个验证 |
-| 静默降级无标记 | fallback 显式标记，不注入 preferred 专属参数 |
-| 生成字段未消费 | 审查输出字段提取代码；token 超耗优先排查 |
-| 防护只在降级路径 | 预算/截断/校验全路径执行 |
-| 服务端验证通过但用户端仍复现 | 验证层级对齐症状层级：浏览器症状在真实浏览器 network 复验（实际请求 URL/加载的资源 hash），中间层（缓存/代理/端口占用者）逐层排除 |
-
-后五条的实测案例详情见 `references/hypothesis-and-cases.md`。
+排查陷阱速查表（10 条含预防）与后五条的实测案例详情 → `references/hypothesis-and-cases.md`。
 
 **下一步**：修复完成且红测转绿后，完成后调用 `dj-check` 验证交付质量（回归护送已由 dj-regression-guard 三明治承接）。
