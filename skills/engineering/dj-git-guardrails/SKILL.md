@@ -20,6 +20,9 @@ description: "Git 操作安全护栏：防止危险操作，推前检查，保�
 # 确认没有未追踪的敏感文件
 git status --short
 
+# 确认没有 .env / 密钥 / 凭证
+git status --short | grep -E "\.env|secret|credential|token|key\.|id_rsa|\.pem"
+
 # 确认 diff 中没有 debug 代码
 git diff HEAD | grep -n "console.log\|print(\|dbg!\|TODO\|FIXME"
 

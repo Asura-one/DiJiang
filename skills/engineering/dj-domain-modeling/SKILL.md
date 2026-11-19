@@ -17,6 +17,14 @@ description: "统一语言（Ubiquitous Language）：检查代码中的术语�
 - 对话中用户使用的词汇
 - `CONTEXT.md` 已有条目
 
+收集动作要**具体可执行**，不只"看看"：
+- 代码：`grep -rE "class |func |def |struct |type " src/` 收集类型/函数名
+- 命名变体：对同义候选 `grep -rE "Order|Purchase|订单|下单"` 统计各出现次数与位置
+- PRD/issue：读 `prd.md`、`docs/` 里的业务词汇
+- 对话：从最近对话里摘用户原话用的词
+
+每个候选术语记下**它在哪出现**（文件:行），方便后续核对。
+
 ### 2. 检查不一致
 
 标记这些模式：
