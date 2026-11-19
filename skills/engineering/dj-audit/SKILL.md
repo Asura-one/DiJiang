@@ -112,3 +112,12 @@ git grep --no-index --exclude-standard -nE '(#|//) ?(shortcut|ponytail):'
 | 把第三方依赖也扫进去 | 报告噪音太大 | 排除 vendor/node_modules |
 | 报了问题不给建议方向 | 用户不知道怎么做 | 每项发现给修复方向 |
 | 过度工程和安全一起扫 | 报告混杂，难以决策 | 分两个阶段独立扫描 |
+
+## 反例
+
+| ❌ 不要做 | ✅ 正确做法 |
+|---|---|
+| 未走完 L4 阶梯就下「没找到」结论 | 按 coverage-ledger 至少推进到 L4 才下「无问题」结论 |
+| 把「疑似」标成「确认」 | false positive 必须标「疑似」 |
+| 范围外发现混进当前 blocker | 范围外只记录为后续候选 |
+| 修改扫到的代码 | 只报告，修复走 dj-implement |
