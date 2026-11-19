@@ -18,7 +18,7 @@ disable-model-invocation: true
    - **够**（grill 完仍余量充足，能一口气做完）→ **`dj-implement`** 就地，同一上下文窗口内。
    - **不够** → **`dj-output`** 生成 PRD/spec → **`dj-split`** 拆子弹式工单（各声明**阻塞边**），blockers-first 逐个 kickoff **`dj-implement`**，之间清上下文。
 
-   无论哪种，`dj-implement` 内部驱动 **`dj-tdd`** 红绿切片，改码被 **`dj-regression-guard`** 三明治护送，完结跑 **`dj-check`**（Standards + Spec 两轴，结论走证据三态 verified / not run / inconclusive）后提交。交付后 **`dijiang-finish-work`** 收口（质量验证/提交/归档）→ **`dj-evolve`** 沉淀可复用经验进技能体系——完成闭环。
+   无论哪种，实现切片的红绿纪律按 **`dj-implement`** / **`dj-tdd`** 执行（两者为**并行入口、由主会话选择**；实现内联遵守 Code Task TDD Contract，不在 implement 内再派发 tdd skill），改码被 **`dj-regression-guard`** 三明治护送，完结跑 **`dj-check`**（Standards + Spec 两轴，结论走证据三态 verified / not run / inconclusive）后提交。交付后 **`dijiang-finish-work`** 收口（质量验证/提交/归档）→ **`dj-evolve`** 沉淀可复用经验进技能体系——完成闭环。
 
 步骤 1–3 的上下文窗口与阶段边界纪律 → `references/skill-catalog.md`
 

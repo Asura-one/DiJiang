@@ -31,7 +31,7 @@ description: "系统化排查 bug：先定位根因，再修复。尤其擅长�
 1. **先复现，再分析** — 不稳定复现的优先找复现条件，不猜原因
 2. **先定位，再修复** — 找到根因（特定函数/变量/逻辑行）再修，不"顺便修周边"
 3. **一次改一个变量** — 不绿就回退换方向，不堆叠补丁
-4. **修复后跑 regression** — 护送走 `dj-regression-guard` 三明治协议；本 skill 定位根因+写专项，基线与回归由它承接
+4. **修复后跑 regression** — 护送按 `dj-regression-guard` 协议文本内联执行（协议引用，非派发）；本 skill 定位根因+写专项，基线与回归由协议承接
 5. **验证「无缺陷」走失败升级阶梯** — 未到 L4 只写「未充分排查」（`skills/engineering/dj-audit/references/coverage-ledger.md`）
 
 ## 工作流

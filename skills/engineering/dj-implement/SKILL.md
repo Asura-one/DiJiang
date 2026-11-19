@@ -35,6 +35,7 @@ description: "按计划实现特性代码，遵守 git 安全工作流。 触发
 - 遵守 **Code Task TDD Contract**（`references/code-task-contract.md`）：非平凡改动先声明 scope；确认测试环境可用或记录原因。
 - **上下文护栏**：任务产物设字节预算（单文件 32KB / 总 128KB）；超预算先读索引段，超限降级为索引行并说明，不硬截断。
 - 任务仍 `planning` 时用原始请求重新走 dj-ask，不绕过 worktree check（见 dj-git-guardrails）。
+- **🔴 拷问门禁**：实现前读 `{task_dir}/task.json` 的 `meta.grilling`——缺失或 `confirmedAt`/`confirmation` 未填 → 停止回 `dj-grill` 补对齐；仅非琐碎任务强制。
 
 ### 1.5 决策阶梯门禁
 
@@ -46,7 +47,7 @@ description: "按计划实现特性代码，遵守 git 安全工作流。 触发
 
 **只改必要的代码**，每行可追溯到用户请求、PRD 或验证失败。顺序：读现有代码找已有模式 → 最小失败证据 → 最小可通过代码变绿 → regression scope → 清理死 import/临时输出 → 重读改过区域。
 
-**改前/改后回归护送**：S0-S1（快速层+基线）确认后开始，S2-S3（专项+回归）由 `dj-regression-guard` 承接；本 skill 写专项（红测转绿），不重复实现基线与回归。
+**改前/改后回归护送**：S0-S1（快速层+基线）确认后开始，S2-S3（专项+回归）按 **`dj-regression-guard` 协议内联执行**（非派发；全量档由主会话转交 `dj-fullstack-testing`）。本 skill 写专项（红测转绿）。
 
 **配置值改动先查 git 状态**（`git check-ignore`）；example 模板项目的两层落地与两层冒烟 → `references/git-workflow.md`。
 
@@ -74,3 +75,4 @@ typecheck → RED → GREEN → 相关 → 全量，有新失败修好再交接�
 6. 验证没跑不写"通过"——`not run` + 原因
 7. 连续编辑同一文件每条前重新 read；报 modified since last read → Python 补丁脚本（`references/edit-conflicts.md`）；文件被截断先 `git checkout --` 恢复
 8. worktree 缺运行依赖 → 依赖借用主工作区（见 git-workflow.md）
+9. 非琐碎任务实现前先过 `meta.grilling` 门禁——缺证据不实现，回 dj-grill

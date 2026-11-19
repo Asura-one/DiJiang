@@ -1,5 +1,17 @@
 # 变更日志
 
+## [2.6.1] — 2026-11-20
+
+工作流一致性修复批（技能体系评估产出，6 项 + 红线体检）：dj-ask 主流程与各 SKILL.md 递归守卫/衔接语义的对账修复。
+
+- **B1** `dj-ask` 主流程 tdd 措辞 → 「dj-implement/dj-tdd 并行入口、主会话选择」，消除与 dj-implement Recursion Guard「不得派发 dj-tdd」的自相矛盾（三处证据 vs 一处异类）
+- **B2** `dj-check` Outcome Output 拼写修正 `dijjiang`→`dijiang-finish-work`
+- **B3** `dj-output` 双编号序列去重：主流程统一 1-5（核对代码一致性升为步骤 4），删重复「对抗式审查/保存」段，「设计文档模板」升二级节
+- **B4** `dj-ask/references/routing-table.md` 补 8 个 skill 触发词行（dj-read/dj-absorb/dj-gov/dj-memory/dj-channel/dj-wizard/dj-wait-what/dj-questionnaire），兑现「完整关键词表」声明
+- **B5** 拷问门禁校验落地：`dijiang-continue`（in_progress→实现类推荐前读 `meta.grilling`）+ `dj-implement`（准备段 🔴 门禁条 + Hard Rule 9），补上「grill 写入证据但无人读」的 enforcement 缺口
+- **B6** 回归护送语义统一：dj-implement/dj-hunt 统一为「协议内联执行、非派发；全量档由主会话转交 dj-fullstack-testing」
+- 附带：dj-implement 瘦身至 2958 字符（3000 红线合规）
+
 ## [2.6.0] — 2026-11-18
 
 参考项目融合批（A/B/C 三批 + 遗留瘦身批）：输入 referens/ 六项目更新、校样台对比报告（26 阶段 × Addy/Matt/Pstack）与琅嬛 11-09 后增量；经 5 只读子代理并行拆解 + 回源码四态重验，只收机制级可迁移点。全档案见 `docs/references/fusion-scan-archive-2026-11-18.md`（速览 `docs/guide/fusion-scan-2026-11-18.md`）。

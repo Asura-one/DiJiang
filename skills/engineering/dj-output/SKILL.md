@@ -49,10 +49,21 @@ disable-model-invocation: true
 - Acceptance Criteria 是否有人能实际执行验收？
 - 读者能理解我为什么做了这个决策吗？
 
-### 4. 保存
+### 4. 核对代码一致性（文档类必做）
+
+文档涉及现有代码时，逐项**核对符号与引用是否存在**，不以"看起来对"或"模块里有相近函数"为准：
+
+- 对代码里每个 `import X` / `X.y` / `from A import B`，在模块文件里**确认 `X`/`B` 这个符号真的存在**（用 grep 或读文件核对名字，而非只读说明）
+- 例：`from modules import notify` 要求 `modules` 里有 `notify` 符号；若 `modules` 只有 `send` 而 `notify.send` 仍被调用 → **命名不一致**，如实记录，不声称"与代码一致"
+- 例：`def run(): return notify.send("hello")` 而模块里没有 `notify` → 该调用是悬空引用，文档必须标注
+
+发现不一致时：写进文档"已知不一致"段 + 给对齐方案，不擅自改代码。
+
+### 5. 保存
 
 - PRD 存 `{task_dir}/prd.md`
 - 设计文档存 `{task_dir}/design.md`
+- 执行计划存 `{task_dir}/implement.md`
 - 建议下一步：PRD 加载 `dj-split` 拆分
 
 ## PRD 模板
@@ -84,7 +95,7 @@ disable-model-invocation: true
 <补充信息、已知风险、待确认项>
 ```
 
-### 2. 设计文档模板
+## 设计文档模板
 
 ```markdown
 ## 背景
@@ -97,28 +108,12 @@ disable-model-invocation: true
 <影响的模块/接口/数据模型>
 ```
 
-### 3. 对抗式审查
+## 对抗式审查
 
 写完文档后，自己提问：
 - 我有没有隐瞒任何不确定的地方？
 - 读者能理解我为什么做了这个决策吗？
 - 遗漏了什么边界场景吗？
-
-### 4. 核对代码一致性（文档类必做）
-
-文档涉及现有代码时，逐项**核对符号与引用是否存在**，不以"看起来对"或"模块里有相近函数"为准：
-
-- 对代码里每个 `import X` / `X.y` / `from A import B`，在模块文件里**确认 `X`/`B` 这个符号真的存在**（用 grep 或读文件核对名字，而非只读说明）
-- 例：`from modules import notify` 要求 `modules` 里有 `notify` 符号；若 `modules` 只有 `send` 而 `notify.send` 仍被调用 → **命名不一致**，如实记录，不声称"与代码一致"
-- 例：`def run(): return notify.send("hello")` 而模块里没有 `notify` → 该调用是悬空引用，文档必须标注
-
-发现不一致时：写进文档"已知不一致"段 + 给对齐方案，不擅自改代码。
-
-### 5. 保存
-
-- PRD 存到 `{task_dir}/prd.md`（当前任务目录下）
-- 设计文档存到 `{task_dir}/design.md`
-- 执行计划存到 `{task_dir}/implement.md`
 
 ## 文档与代码对齐
 

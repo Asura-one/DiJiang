@@ -47,6 +47,8 @@ git status --short --branch
 | completed | `dijiang-finish-work` | verification summary and version decision |
 | paused | 恢复后进入 planning 或 in_progress | 恢复后的任务上下文 |
 
+**🔴 实现门禁（in_progress → 推荐实现类 skill 前）**：任务要进入实现（`dj-implement`/`dj-tdd`）时，先读 `{task_dir}/task.json` 的 `meta.grilling` 门禁证据。若 `meta.grilling` 缺失、或 `confirmedAt`/`confirmation` 未填 → **拷问门禁未过，推荐 `dj-grill` 补逐轮对齐，不得直接推实现**。有 `planning` 转 `in_progress` 的中间产物但缺门禁证据，标「门禁缺失」而非 `in_progress`。
+
 阶段不明确时，输出 `follow-up: dj-grill` 进行对齐。
 
 ## 失败模式
@@ -55,6 +57,7 @@ git status --short --branch
 |---|---|---|
 | 产物文件与任务状态矛盾 | 以最新产物为准 | 标矛盾，请用户裁决 |
 | 活跃任务指针指向不存在目录 | 报告，指针失效 | 问用户选哪个任务 |
+| `in_progress` 但 `meta.grilling` 门禁证据缺失 | 报告门禁缺失，回 `dj-grill` 补对齐 | 用户明确确认已对齐后放行实现 |
 
 ## 状态报告
 

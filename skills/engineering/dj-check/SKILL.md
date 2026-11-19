@@ -10,7 +10,7 @@ description: "交付质量闸门：验证 diff 质量、功能完整性、安全
 | **Outcome** | 质量门禁报告（各维度 Pass/Fail + 证据） |
 | **Done when** | diff 质量、功能完整性、安全性、回归风险全部检查完成 |
 | **Evidence** | 各维度检查日志、运行命令输出 |
-| **Output** | 结构化质量报告给 dijjiang-finish-work |
+| **Output** | 结构化质量报告给 dijiang-finish-work |
 
 # Check: 交付质量闸门
 
