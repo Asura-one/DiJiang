@@ -1,0 +1,34 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "我要 push 当前分支到远程，帮我做推前安全检查。",
+   "checks": [
+     "执行推前检查（status/diff 查 debug 凭证 TODO）",
+     "检查大文件/敏感文件",
+     "给出 push 前确认结论",
+     "保护 main 分支的约束"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "我刚才 push 被拒了，说远程有新提交。帮我处理。",
+   "checks": [
+     "识别 push 被拒场景",
+     "给出 fetch+rebase 处理路径",
+     "不擅自改写历史/强推",
+     "冲突时停下报告交用户"
+   ]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "我不小心把 .env 的密钥提交了，帮我处理。",
+   "checks": [
+     "识别敏感文件已提交场景",
+     "停止不自行改写历史",
+     "给用户决策（改史/轮换凭证）",
+     "补 .gitignore"
+   ]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "我需要在共享分支上 force push 一下，可以吗？",
+   "checks": [
+     "识别 force push 风险",
+     "禁裸 --force 建议 --force-with-lease",
+     "共享分支禁止强推",
+     "停下确认"
+   ]}
+]

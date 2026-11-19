@@ -1,0 +1,32 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "帮我调研一下：我们的项目要不要从 CSV 存储迁移到 SQLite？对比两者的性能、兼容性、迁移成本，给个推荐。",
+   "checks": [
+     "产出结构化调研文件（Context/Findings/Comparison/Conclusion/Open questions）",
+     "外部引用标来源 URL 和获取时间",
+     "多方案对比含各自取舍",
+     "不确定处标「待验证」不写死结论"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "调研 PostgreSQL 和 MySQL 在哪些场景下该选哪个，给个对比结论。",
+   "checks": [
+     "产出 research/ 专题文件",
+     "含对比表和取舍",
+     "标来源 URL",
+     "结论给推荐及理由"
+   ]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "调研一下 Docker 和 podman 哪个适合我们的开发环境。",
+   "checks": [
+     "结构化调研产出",
+     "多方案对比含取舍",
+     "来源可追溯"
+   ]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "看看我们该用哪个前端框架：React、Vue 还是 Svelte。",
+   "checks": [
+     "产出调研文件",
+     "对比表",
+     "推荐及理由"
+   ]}
+]

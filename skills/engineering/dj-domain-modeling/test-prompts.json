@@ -1,0 +1,31 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "帮我们检查代码里有没有术语不一致：比如 Order 和 Purchase 混用、工程师术语 processOrderItem 而业务说『下单』。请输出一份术语审计。",
+   "checks": [
+     "产出术语差异表（术语/代码中/业务语言/建议）",
+     "标记了至少一种不一致模式（同义异构/工程师术语/过时/模糊）",
+     "输出可用于更新 Glossary 的条目",
+     "不擅自改代码（只报告）"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "我们的领域术语表里 status 这个词太模糊了，不知道有哪些取值。帮我们澄清它。",
+   "checks": [
+     "澄清模糊术语（列出可能取值再定义）",
+     "给出术语建议更新",
+     "不擅自重命名代码"
+   ]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "检查我们项目术语一致性，重点是有没有同义异构。",
+   "checks": [
+     "产出差异报告",
+     "识别同义异构模式",
+     "给 Glossary 更新建议"
+   ]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "我们的代码里有些老命名（legacy），新项目里应该统一叫什么？",
+   "checks": [
+     "标记过时术语并给建议",
+     "产出审计表",
+     "不自动重命名"
+   ]}
+]
