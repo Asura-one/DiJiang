@@ -1,0 +1,20 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "我们不确定用 SQLite WAL 模式能不能解决高并发读的性能问题，造个原型验证一下行不行。",
+   "checks": [
+     "先定义可验证的问题与成功标准",
+     "写最小验证代码（无测试/lint/错误处理）",
+     "运行并记录结果",
+     "给结论（行/不行/有条件行）",
+     "不合并主分支"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "试一下我们能不能用 pywebview 做桌面壳替代 Electron，探个大概。",
+   "checks": ["定义问题", "最小代码", "记录输出", "明确结论"]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "这个方案不知道行不行，spike 一下。",
+   "checks": ["问题定义", "最小验证", "结论"]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "比较 A 库和 B 库哪个适合我们，做个 MVP 试试。",
+   "checks": ["两方案对比验证", "结论", "废品不合并"]}
+]

@@ -1,0 +1,19 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "帮我全仓审计一下这个项目的过度工程和安全问题。（示例项目在 /tmp/darwin-fixture）",
+   "checks": [
+     "产出结构化审计报告（每项含文件位置/类型/严重度/描述/建议）",
+     "过度工程与安全分两个阶段扫描",
+     "false positive 标「疑似」不标「确认」",
+     "只报告不修改代码"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "扫一下仓库的技术债，按严重度排序。",
+   "checks": ["识别为 debt profile", "按严重度排序", "有量化依据", "只报告"]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "代码大检查，看看有什么该拆该删的。",
+   "checks": ["覆盖过度工程信号", "出报告", "只报告"]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "安全扫描一下我们的代码。",
+   "checks": ["扫敏感信息/注入/危险导入", "分阶段", "出报告"]}
+]

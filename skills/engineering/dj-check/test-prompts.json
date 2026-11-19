@@ -1,0 +1,20 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "帮我检查一下当前分支的改动能不能交付，做个交付质量评审。（在 /tmp/darwin-fixture 里有个示例项目）",
+   "checks": [
+     "理解变更范围（git status/diff）",
+     "按功能完整性/安全性/回归风险分维度验证",
+     "证据三态标注（verified/not run/inconclusive）",
+     "发现越界改动时🔴停下请用户裁决而非自行决定",
+     "只报告不修复"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "审查这个 PR 的改动质量，看看有没有问题。",
+   "checks": ["PR 双轴（Spec 匹配+代码质量）", "证据标注", "只报告", "范围外发现记为候选不当 blocker"]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "finish-work 前帮我做一次质量检查。",
+   "checks": ["diff/功能/安全验证", "三态证据", "不改代码"]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "这批改动安全吗？有没有硬编码密钥之类的问题。",
+   "checks": ["安全性维度", "证据", "只报告"]}
+]

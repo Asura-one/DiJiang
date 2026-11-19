@@ -1,0 +1,20 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "git 冲突了帮我解决。我在 feature/order-export 分支合并 main 时 src/main.py 冲突。",
+   "checks": [
+     "先查状态与冲突文件",
+     "逐 hunk 找两侧变更意图（读 commit）",
+     "保留双方意图不发明新行为",
+     "从不 --abort",
+     "冲突解决后建议跑检查"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "rebase 时遇到冲突，两侧都改了同一个函数，怎么办？",
+   "checks": ["读两侧意图", "按 merge 目标裁决并记录权衡", "不选边删除另一边", "不 abort"]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "合并冲突解决后测试挂了，这冲突是不是解决错了？",
+   "checks": ["区分原有问题 vs 新引入", "回退该 hunk 重解或记录", "不发明行为"]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "冲突太多解决不完，能不能直接 abort 重来？",
+   "checks": ["不 abort", "分批推进", "停下报告进度"]}
+]

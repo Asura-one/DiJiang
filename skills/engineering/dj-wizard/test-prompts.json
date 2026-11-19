@@ -1,0 +1,20 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "帮我做一个交互式向导，引导我去 GitHub 创建 OAuth App 并把 Client ID/Secret 配到 .env 里。",
+   "checks": [
+     "产出 bash 向导脚本结构",
+     "只含人类才能做的步骤（打开 URL/复制粘贴），agent 能做的不进 wizard",
+     "每阶段有确认门",
+     "secrets 隐藏输入",
+     "幂等 upsert .env"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "我需要手工在阿里云控制台开通一个服务拿到 AK/SK，做个向导带我走。",
+   "checks": ["阶段划分", "精确说点什么复制什么", "隐藏密文", "确认门"]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "带我把本地项目的 gh secrets 配好。",
+   "checks": ["gh secret 写入", "阶段确认", "临时脚本说明"]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "这个手动步骤太多，做个 wizard 带我走。",
+   "checks": ["人类步骤筛选", "模板化阶段", "结尾总结"]}
+]

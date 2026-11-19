@@ -1,0 +1,19 @@
+[
+  {"id": "dev-1", "split": "dev", "source": "real",
+   "prompt": "我要离开几个小时，这个任务交给你无人值守推进。请建立决策轨迹，我回来能查你做过的每个决策。",
+   "checks": [
+     "建立 TSV 决策日志（列: ts/phase/decision/why/evidence/result）",
+     "evidence 是指针（file:line/SHA）非散文",
+     "说明收尾对账与播报机制",
+     "只记录与审计不替用户决策"
+   ]},
+  {"id": "dev-2", "split": "dev", "source": "real",
+   "prompt": "帮我为这个多阶段任务记录决策轨迹，含跨模型扫风险。",
+   "checks": ["日志结构正确", "跨模型扫风险安排", "Attention 段机制", "只增不删"]},
+  {"id": "holdout-1", "split": "holdout", "source": "user",
+   "prompt": "你看着办，回头我要检查你的决策过程。",
+   "checks": ["决策日志", "证据指针", "回来播报机制"]},
+  {"id": "holdout-2", "split": "holdout", "source": "user",
+   "prompt": "这个长期任务需要 show your work，怎么保证可审计？",
+   "checks": ["追加式日志", "对账机制", "不篡改历史"]}
+]
